@@ -1,38 +1,52 @@
-// JSgame · Persistência SQLite via sql.js (pure-JS, zero compile).
-// Decisão: better-sqlite3 exige Visual Studio Build Tools no Windows — quebra
-// no boot. sql.js é pure JS, roda em qualquer Node, e custo de I/O é trivial
-// pro escopo (até ~100 characters + campanhas).
+// JSgame · Persistência via Turso/libsql (SQLite distribuído).
 //
-// Pattern: in-memory DB, flush serializado pra arquivo num write-throttle de 2s.
-// Aprendizado Cave Run: flushDb síncrono em CADA save dobra latência.
+// Migração: era sql.js (síncrono, in-memory + flush throttle). Agora libsql
+// client (async, mas com mesmo SQL embarcado).
+//
+// LOCAL DEV: TURSO_DATABASE_URL não setado → usa `file:.run-data/jsgame.db`
+// (libsql nativamente lê/grava em SQLite local — zero config).
+//
+// PROD (Render): TURSO_DATABASE_URL=libsql://xxx.turso.io + TURSO_AUTH_TOKEN
+// → Turso edge SQLite distribuído. 9GB free / 500 dbs.
+//
+// API é toda async agora (libsql não tem sync mode no Node).
 
-import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
+import { createClient, type Client, type ResultSet } from '@libsql/client';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { CharacterSheet, CampaignState } from '../shared/types.js';
 
-// DATA_DIR pode ser override por env (útil pra deploy Render com disco persistente).
 const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
   : path.resolve(process.cwd(), '.run-data');
-const DB_FILE = path.join(DATA_DIR, 'jsgame.db');
-const FLUSH_THROTTLE_MS = 2000;
+const LOCAL_DB_FILE = path.join(DATA_DIR, 'jsgame.db');
 
-let SQL: SqlJsStatic | null = null;
-let db: Database | null = null;
-let pendingFlush = false;
-let flushTimer: NodeJS.Timeout | undefined;
+let client: Client | null = null;
 
 export async function initPersistence(): Promise<void> {
-  if (db) return;
-  await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => { /* ignore */ });
-  SQL = await initSqlJs();
-  let existing: Buffer | null = null;
-  try { existing = await fs.readFile(DB_FILE); } catch { /* primeiro boot */ }
-  db = existing ? new SQL.Database(new Uint8Array(existing)) : new SQL.Database();
+  if (client) return;
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS characters (
+  // Decide entre Turso remoto e SQLite local
+  const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
+  const tursoToken = process.env.TURSO_AUTH_TOKEN?.trim();
+
+  if (tursoUrl) {
+    console.log(`[persistence] Turso remoto: ${tursoUrl.replace(/(token=)[^&]+/, '$1***')}`);
+    client = createClient({
+      url: tursoUrl,
+      authToken: tursoToken,
+    });
+  } else {
+    // SQLite local file
+    await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => { /* ignore */ });
+    const fileUrl = `file:${LOCAL_DB_FILE.replace(/\\/g, '/')}`;
+    console.log(`[persistence] SQLite local: ${fileUrl}`);
+    client = createClient({ url: fileUrl });
+  }
+
+  // Schema — mesmo que antes (compat sqlite/libsql)
+  await client.batch([
+    `CREATE TABLE IF NOT EXISTS characters (
       id            TEXT PRIMARY KEY,
       ownerName     TEXT NOT NULL,
       characterName TEXT NOT NULL,
@@ -42,80 +56,58 @@ export async function initPersistence(): Promise<void> {
       sheet         TEXT NOT NULL,
       createdAt     INTEGER NOT NULL,
       lastPlayedAt  INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_characters_owner ON characters(ownerName, lastPlayedAt DESC);
-
-    CREATE TABLE IF NOT EXISTS campaigns (
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_characters_owner ON characters(ownerName, lastPlayedAt DESC)`,
+    `CREATE TABLE IF NOT EXISTS campaigns (
       id            TEXT PRIMARY KEY,
       name          TEXT NOT NULL,
       state         TEXT NOT NULL,
       sessionNumber INTEGER NOT NULL,
       lastPlayedAt  INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_campaigns_recent ON campaigns(lastPlayedAt DESC);
-  `);
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_campaigns_recent ON campaigns(lastPlayedAt DESC)`,
+  ], 'write');
 
-  console.log('[persistence] SQLite ready at', DB_FILE);
+  console.log('[persistence] schema ready');
 }
 
-function requireDb(): Database {
-  if (!db) throw new Error('persistence not initialized — call initPersistence() first');
-  return db;
+function requireClient(): Client {
+  if (!client) throw new Error('persistence not initialized — call initPersistence() first');
+  return client;
 }
 
-// Write-throttle: marca dirty + agenda flush. Múltiplos saves coalescem.
-function scheduleFlush(): void {
-  if (flushTimer) { pendingFlush = true; return; }
-  flushTimer = setTimeout(async () => {
-    flushTimer = undefined;
-    await flushNow();
-    if (pendingFlush) { pendingFlush = false; scheduleFlush(); }
-  }, FLUSH_THROTTLE_MS);
-}
-
-async function flushNow(): Promise<void> {
-  if (!db) return;
-  try {
-    const data = Buffer.from(db.export());
-    await fs.writeFile(DB_FILE, data);
-  } catch (err) {
-    console.warn('[persistence] flush failed:', err);
-  }
-}
-
-// Graceful shutdown — server chama no SIGTERM/SIGINT.
 export async function shutdownPersistence(): Promise<void> {
-  if (flushTimer) { clearTimeout(flushTimer); flushTimer = undefined; }
-  await flushNow();
+  client?.close();
+  client = null;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
 // Characters
 // ════════════════════════════════════════════════════════════════════════════
 
-export function saveCharacter(sheet: CharacterSheet): void {
-  const stmt = requireDb().prepare(
-    'INSERT OR REPLACE INTO characters (id, ownerName, characterName, classId, raceId, level, sheet, createdAt, lastPlayedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
-  stmt.run([
-    sheet.id, sheet.ownerName, sheet.characterName, sheet.classId, sheet.raceId,
-    sheet.level, JSON.stringify(sheet), sheet.createdAt, sheet.lastPlayedAt,
-  ]);
-  stmt.free();
-  scheduleFlush();
+export async function saveCharacter(sheet: CharacterSheet): Promise<void> {
+  await requireClient().execute({
+    sql: 'INSERT OR REPLACE INTO characters (id, ownerName, characterName, classId, raceId, level, sheet, createdAt, lastPlayedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [
+      sheet.id, sheet.ownerName, sheet.characterName, sheet.classId, sheet.raceId,
+      sheet.level, JSON.stringify(sheet), sheet.createdAt, sheet.lastPlayedAt,
+    ],
+  });
 }
 
-export function loadCharacter(id: string): CharacterSheet | null {
-  const stmt = requireDb().prepare('SELECT sheet FROM characters WHERE id = ?');
-  stmt.bind([id]);
-  let result: CharacterSheet | null = null;
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as { sheet: string };
-    try { result = JSON.parse(row.sheet) as CharacterSheet; }
-    catch (err) { console.warn('[persistence] corrupted character sheet:', id, err); }
+export async function loadCharacter(id: string): Promise<CharacterSheet | null> {
+  const r = await requireClient().execute({
+    sql: 'SELECT sheet FROM characters WHERE id = ?',
+    args: [id],
+  });
+  const row = r.rows[0];
+  if (!row) return null;
+  try {
+    return JSON.parse(row.sheet as string) as CharacterSheet;
+  } catch (err) {
+    console.warn('[persistence] corrupted character sheet:', id, err);
+    return null;
   }
-  stmt.free();
-  return result;
 }
 
 export interface CharacterSummary {
@@ -127,61 +119,60 @@ export interface CharacterSummary {
   lastPlayedAt: number;
 }
 
-export function listCharactersByOwner(ownerName: string): CharacterSummary[] {
-  const stmt = requireDb().prepare(
-    'SELECT id, characterName, classId, raceId, level, lastPlayedAt FROM characters WHERE ownerName = ? ORDER BY lastPlayedAt DESC'
-  );
-  stmt.bind([ownerName]);
-  const out: CharacterSummary[] = [];
-  while (stmt.step()) {
-    out.push(stmt.getAsObject() as unknown as CharacterSummary);
-  }
-  stmt.free();
-  return out;
+export async function listCharactersByOwner(ownerName: string): Promise<CharacterSummary[]> {
+  const r = await requireClient().execute({
+    sql: 'SELECT id, characterName, classId, raceId, level, lastPlayedAt FROM characters WHERE ownerName = ? ORDER BY lastPlayedAt DESC',
+    args: [ownerName],
+  });
+  return r.rows.map(row => ({
+    id: row.id as string,
+    characterName: row.characterName as string,
+    classId: row.classId as string,
+    raceId: row.raceId as string,
+    level: Number(row.level),
+    lastPlayedAt: Number(row.lastPlayedAt),
+  }));
 }
 
-export function deleteCharacter(id: string): void {
-  const stmt = requireDb().prepare('DELETE FROM characters WHERE id = ?');
-  stmt.run([id]);
-  stmt.free();
-  scheduleFlush();
+export async function deleteCharacter(id: string): Promise<void> {
+  await requireClient().execute({ sql: 'DELETE FROM characters WHERE id = ?', args: [id] });
 }
 
 // ════════════════════════════════════════════════════════════════════════════
 // Campaigns
 // ════════════════════════════════════════════════════════════════════════════
 
-export function saveCampaign(state: CampaignState): void {
-  const stmt = requireDb().prepare(
-    'INSERT OR REPLACE INTO campaigns (id, name, state, sessionNumber, lastPlayedAt) VALUES (?, ?, ?, ?, ?)'
-  );
-  stmt.run([state.id, state.name, JSON.stringify(state), state.sessionNumber, state.lastPlayedAt]);
-  stmt.free();
-  scheduleFlush();
+export async function saveCampaign(state: CampaignState): Promise<void> {
+  await requireClient().execute({
+    sql: 'INSERT OR REPLACE INTO campaigns (id, name, state, sessionNumber, lastPlayedAt) VALUES (?, ?, ?, ?, ?)',
+    args: [state.id, state.name, JSON.stringify(state), state.sessionNumber, state.lastPlayedAt],
+  });
 }
 
-export function loadCampaign(id: string): CampaignState | null {
-  const stmt = requireDb().prepare('SELECT state FROM campaigns WHERE id = ?');
-  stmt.bind([id]);
-  let result: CampaignState | null = null;
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as { state: string };
-    try { result = JSON.parse(row.state) as CampaignState; }
-    catch (err) { console.warn('[persistence] corrupted campaign state:', id, err); }
+export async function loadCampaign(id: string): Promise<CampaignState | null> {
+  const r = await requireClient().execute({
+    sql: 'SELECT state FROM campaigns WHERE id = ?',
+    args: [id],
+  });
+  const row = r.rows[0];
+  if (!row) return null;
+  try {
+    return JSON.parse(row.state as string) as CampaignState;
+  } catch (err) {
+    console.warn('[persistence] corrupted campaign state:', id, err);
+    return null;
   }
-  stmt.free();
-  return result;
 }
 
-export function listRecentCampaigns(limit = 20): Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }> {
-  const stmt = requireDb().prepare(
-    'SELECT id, name, sessionNumber, lastPlayedAt FROM campaigns ORDER BY lastPlayedAt DESC LIMIT ?'
-  );
-  stmt.bind([limit]);
-  const out: Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }> = [];
-  while (stmt.step()) {
-    out.push(stmt.getAsObject() as unknown as { id: string; name: string; sessionNumber: number; lastPlayedAt: number });
-  }
-  stmt.free();
-  return out;
+export async function listRecentCampaigns(limit = 20): Promise<Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }>> {
+  const r = await requireClient().execute({
+    sql: 'SELECT id, name, sessionNumber, lastPlayedAt FROM campaigns ORDER BY lastPlayedAt DESC LIMIT ?',
+    args: [limit],
+  });
+  return r.rows.map(row => ({
+    id: row.id as string,
+    name: row.name as string,
+    sessionNumber: Number(row.sessionNumber),
+    lastPlayedAt: Number(row.lastPlayedAt),
+  }));
 }

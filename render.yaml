@@ -1,14 +1,19 @@
 # JSgame · Render deploy config.
 # 1 web service (Node) que serve dist/client estático + APIs + Socket.io.
 #
-# NOTA SOBRE FREE TIER: o plano free do Render NÃO suporta disco persistente.
-# Resultado: o .run-data/ (SQLite com characters + campaigns) zera a cada deploy
-# ou cold start (~15min idle). Pra dados persistirem, upgrade pra Starter ($7/mês)
-# e descomentar a seção `disk` abaixo + adicionar DATA_DIR=/var/data nas envVars.
+# PERSISTÊNCIA: usa Turso (SQLite distribuído, free 9GB / 500 dbs).
+# Setup Turso (1x):
+#   1. Cria conta grátis em https://turso.tech
+#   2. CLI: `turso db create jsgame` → pega URL
+#   3. CLI: `turso db tokens create jsgame` → pega token
+#   4. No painel Render, set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN (encrypted)
+#
+# Sem Turso env vars setadas, server usa SQLite local (file:.run-data/jsgame.db).
+# Dados zeram em redeploy nesse caso. Com Turso, persistência real.
 #
 # Setup no painel Render (após criar a partir desse YAML):
-# 1. Defina GROQ_API_KEY (encrypted) — eles guardam fora do repo.
-# 2. Build vai rodar `npm install && npm run build`.
+# 1. Defina GROQ_API_KEY, TURSO_DATABASE_URL, TURSO_AUTH_TOKEN (encrypted).
+# 2. Build vai rodar `npm ci --include=dev && npm run build`.
 # 3. Start: `npm start` (tsx em prod — sem build TS separado).
 
 services:
@@ -35,9 +40,7 @@ services:
         sync: false   # define manualmente no painel — fica encrypted
       - key: DM_PROVIDER
         value: groq
-    # Plano Starter ou superior pra disco persistente — descomente quando subir o plano:
-    # disk:
-    #   name: jsgame-data
-    #   mountPath: /var/data
-    #   sizeGB: 1
-    # E adicione: { key: DATA_DIR, value: /var/data } nas envVars acima.
+      - key: TURSO_DATABASE_URL
+        sync: false   # libsql://xxx.turso.io — pega na CLI Turso
+      - key: TURSO_AUTH_TOKEN
+        sync: false   # JWT do turso db tokens create — encrypted

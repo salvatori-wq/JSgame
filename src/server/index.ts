@@ -46,7 +46,7 @@ const campaigns = new Map<string, Campaign>();
 async function getOrCreateCampaign(id: string | undefined, name: string | undefined, dm: DMInterface): Promise<Campaign> {
   if (id && campaigns.has(id)) return campaigns.get(id)!;
   if (id) {
-    const persisted = loadCampaign(id);
+    const persisted = await loadCampaign(id);
     if (persisted) {
       const camp = new Campaign(dm, { id: persisted.id, name: persisted.name });
       camp.state = persisted;
@@ -102,39 +102,69 @@ async function main(): Promise<void> {
   app.get('/api/dnd/backgrounds', (_req, res) => { res.json({ backgrounds: ALL_BACKGROUNDS }); });
 
   // === Characters CRUD
-  app.get('/api/characters', (req, res) => {
+  app.get('/api/characters', async (req, res) => {
     const owner = String(req.query.owner ?? '').trim();
     if (!owner) { res.status(400).json({ error: 'owner required' }); return; }
-    res.json({ characters: listCharactersByOwner(owner) });
+    try {
+      res.json({ characters: await listCharactersByOwner(owner) });
+    } catch (err) {
+      console.error('[api] listCharacters:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
-  app.get('/api/characters/:id', (req, res) => {
-    const sheet = loadCharacter(req.params.id);
-    if (!sheet) { res.status(404).json({ error: 'not found' }); return; }
-    res.json({ character: sheet });
+  app.get('/api/characters/:id', async (req, res) => {
+    try {
+      const sheet = await loadCharacter(req.params.id);
+      if (!sheet) { res.status(404).json({ error: 'not found' }); return; }
+      res.json({ character: sheet });
+    } catch (err) {
+      console.error('[api] loadCharacter:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
-  app.post('/api/characters', (req, res) => {
+  app.post('/api/characters', async (req, res) => {
     const sheet = req.body as CharacterSheet;
     if (!sheet?.id || !sheet?.ownerName || !sheet?.characterName || !sheet?.classId || !sheet?.raceId) {
       res.status(400).json({ error: 'invalid sheet' });
       return;
     }
     sheet.lastPlayedAt = Date.now();
-    saveCharacter(sheet);
-    res.json({ ok: true, id: sheet.id });
+    try {
+      await saveCharacter(sheet);
+      res.json({ ok: true, id: sheet.id });
+    } catch (err) {
+      console.error('[api] saveCharacter:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
-  app.delete('/api/characters/:id', (req, res) => {
-    deleteCharacter(req.params.id);
-    res.json({ ok: true });
+  app.delete('/api/characters/:id', async (req, res) => {
+    try {
+      await deleteCharacter(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] deleteCharacter:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // === Campaigns
-  app.get('/api/campaigns', (_req, res) => {
-    res.json({ campaigns: listRecentCampaigns(20) });
+  app.get('/api/campaigns', async (_req, res) => {
+    try {
+      res.json({ campaigns: await listRecentCampaigns(20) });
+    } catch (err) {
+      console.error('[api] listCampaigns:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
-  app.get('/api/campaigns/:id', (req, res) => {
-    const c = loadCampaign(req.params.id);
-    if (!c) { res.status(404).json({ error: 'not found' }); return; }
-    res.json({ campaign: c });
+  app.get('/api/campaigns/:id', async (req, res) => {
+    try {
+      const c = await loadCampaign(req.params.id);
+      if (!c) { res.status(404).json({ error: 'not found' }); return; }
+      res.json({ campaign: c });
+    } catch (err) {
+      console.error('[api] loadCampaign:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // === Static (produção) — serve dist/client buildado pelo Vite
@@ -190,7 +220,7 @@ async function main(): Promise<void> {
     socket.on('joinCampaign', async ({ campaignId, ownerName, characterId }) => {
       try {
         if (!characterId) { socket.emit('error', 'characterId required'); return; }
-        const character = loadCharacter(characterId);
+        const character = await loadCharacter(characterId);
         if (!character) { socket.emit('error', 'character not found'); return; }
 
         const camp = await getOrCreateCampaign(campaignId, `Crônica de ${ownerName}`, dm);
@@ -225,7 +255,7 @@ async function main(): Promise<void> {
             socket.emit('dmNarration', { text: rest.join(': '), speaker: speaker ?? 'Mestre', mood: 'neutral' });
           }
         }
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] joinCampaign error:', err);
         socket.emit('error', `joinCampaign falhou: ${String(err)}`);
@@ -247,7 +277,7 @@ async function main(): Promise<void> {
             mood: 'neutral',
           });
           broadcastState(camp);
-          saveCampaign(camp.state);
+          await saveCampaign(camp.state);
 
           // Se DM iniciou combate E enemy ganhou initiative, kickoff enemy turn
           if (camp.state.combat && camp.state.combat.active) {
@@ -258,7 +288,7 @@ async function main(): Promise<void> {
                 io.to(camp.state.id).emit('combatEvent', ev);
               }
               broadcastState(camp);
-              saveCampaign(camp.state);
+              await saveCampaign(camp.state);
             }
           }
         });
@@ -297,7 +327,7 @@ async function main(): Promise<void> {
             mood: result.nat20 ? 'trickster' : result.nat1 ? 'sombrio' : 'neutral',
           });
           broadcastState(camp);
-          saveCampaign(camp.state);
+          await saveCampaign(camp.state);
         });
       } catch (err) {
         console.error('[socket] requestSkillCheck error:', err);
@@ -330,7 +360,7 @@ async function main(): Promise<void> {
           });
           broadcastState(camp);
         }
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] combatAction error:', err);
         socket.emit('error', `combatAction falhou: ${String(err)}`);
@@ -364,7 +394,7 @@ async function main(): Promise<void> {
         if (result.outcome) {
           // Combate acabou após magia — endCombatNarrate já narrou.
         }
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] castSpell error:', err);
         socket.emit('error', `castSpell falhou: ${String(err)}`);
@@ -382,7 +412,7 @@ async function main(): Promise<void> {
         if (!result?.ok) return;
         for (const ev of result.events) io.to(camp.state.id).emit('combatEvent', ev);
         broadcastState(camp);
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] endTurn error:', err);
       }
@@ -403,7 +433,7 @@ async function main(): Promise<void> {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', camp.state);
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] shortRest error:', err);
         socket.emit('error', `shortRest falhou: ${String(err)}`);
@@ -425,7 +455,7 @@ async function main(): Promise<void> {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', camp.state);
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] longRest error:', err);
         socket.emit('error', `longRest falhou: ${String(err)}`);
@@ -455,7 +485,7 @@ async function main(): Promise<void> {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', camp.state);
-        saveCampaign(camp.state);
+        await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] rollDeathSave error:', err);
         socket.emit('error', `rollDeathSave falhou: ${String(err)}`);
