@@ -64,3 +64,25 @@ export function getOwnerName(): string {
 export function setOwnerName(name: string): void {
   try { localStorage.setItem(OWNER_KEY, name.trim()); } catch { /* ignore */ }
 }
+
+// Sessão ativa (pra auto-rejoin no reload).
+const LAST_SESSION_KEY = 'jsgame:lastSession';
+export interface LastSession {
+  characterId: string;
+  campaignId: string;
+}
+export function getLastSession(): LastSession | null {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LastSession>;
+    if (!parsed.characterId || !parsed.campaignId) return null;
+    return { characterId: parsed.characterId, campaignId: parsed.campaignId };
+  } catch { return null; }
+}
+export function setLastSession(s: LastSession): void {
+  try { localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+export function clearLastSession(): void {
+  try { localStorage.removeItem(LAST_SESSION_KEY); } catch { /* ignore */ }
+}

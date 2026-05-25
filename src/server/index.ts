@@ -324,6 +324,40 @@ async function main(): Promise<void> {
       }
     });
 
+    // ── castSpell: player lança magia (exploration OU combat)
+    socket.on('castSpell', async ({ spellId, targetIds, slotLevel }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+
+        const result = await camp.playerCastSpell(activePlayerId, spellId as never, targetIds ?? [], slotLevel);
+        if (!result.ok) {
+          socket.emit('error', result.reason ?? 'cast spell falhou');
+          return;
+        }
+
+        // Narração curta — não vai pro LLM, é o engine narrando
+        io.to(camp.state.id).emit('dmNarration', {
+          text: result.narration,
+          speaker: '✨ Magia',
+          mood: 'trickster',
+        });
+        for (const ev of result.events) {
+          io.to(camp.state.id).emit('combatEvent', ev);
+        }
+        broadcastState(camp);
+
+        if (result.outcome) {
+          // Combate acabou após magia — endCombatNarrate já narrou.
+        }
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] castSpell error:', err);
+        socket.emit('error', `castSpell falhou: ${String(err)}`);
+      }
+    });
+
     // ── endTurn: player passa o turno explicitamente (sem ação)
     socket.on('endTurn', async () => {
       try {

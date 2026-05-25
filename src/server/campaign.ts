@@ -22,6 +22,8 @@ import {
   resolvePlayerAttack, resolveEnemyTurn, resolvePlayerDodge, resolvePlayerDash,
   applyConditionTo,
 } from './combat.js';
+import { resolvePlayerCastSpell, type CastSpellResult } from './spells-engine.js';
+import type { SpellId } from '../dnd/spells.js';
 import { uuid } from './util.js';
 
 const MAX_RECENT_EVENTS = 30;
@@ -341,6 +343,68 @@ export class Campaign {
 
   getCombatState() {
     return this.state.combat;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Cast spell — funciona em exploration OU combat.
+  // Em combat só se for vez do caster.
+  // ════════════════════════════════════════════════════════════════════════
+
+  async playerCastSpell(
+    casterId: string,
+    spellId: SpellId,
+    targetIds: string[],
+    slotLevel: 0 | 1 | 2 | 3 | 4 | 5,
+  ): Promise<CastSpellResult & { outcome?: 'victory' | 'defeat' }> {
+    return this.enqueue(async () => {
+      const caster = this.party.find((p) => p.id === casterId);
+      if (!caster) {
+        return { ok: false, reason: 'caster não está na party', events: [], narration: '', spellName: '' };
+      }
+
+      // Em combate, só na vez do caster
+      if (this.state.combat?.active) {
+        const cur = currentParticipant(this.state.combat);
+        if (!cur || cur.kind !== 'player' || cur.id !== casterId) {
+          return { ok: false, reason: 'não é seu turno', events: [], narration: '', spellName: '' };
+        }
+      }
+
+      const result = resolvePlayerCastSpell({
+        caster,
+        spellId,
+        targetIds,
+        slotLevel,
+        party: this.party,
+        combat: this.state.combat,
+      });
+
+      if (!result.ok) return result;
+
+      this.pushRecentEvent(result.narration);
+
+      // Em combate: checa fim e avança turno
+      let outcome: 'victory' | 'defeat' | undefined;
+      if (this.state.combat?.active) {
+        const oc = isCombatOver(this.state.combat, this.party);
+        if (oc.over) {
+          outcome = oc.victory ? 'victory' : 'defeat';
+          await this.endCombatNarrate(outcome);
+        } else {
+          // Avança turn e roda enemies
+          const enemyEvents = await this.runEnemyTurnsUntilPlayer();
+          result.events.push(...enemyEvents);
+
+          const oc2 = isCombatOver(this.state.combat, this.party);
+          if (oc2.over) {
+            outcome = oc2.victory ? 'victory' : 'defeat';
+            await this.endCombatNarrate(outcome);
+          }
+        }
+      }
+
+      return { ...result, outcome };
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════

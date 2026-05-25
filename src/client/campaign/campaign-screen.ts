@@ -12,10 +12,11 @@ import type {
 } from '@shared/types';
 import { SKILLS } from '@dnd/skills';
 import { abilityModifier, proficiencyBonus } from '@dnd/attributes';
-import { el, escapeHtml } from '../util';
+import { el, escapeHtml, setLastSession, clearLastSession } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
+import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -70,6 +71,7 @@ export class CampaignScreen {
     for (const off of this.socketCleanups) off();
     this.socketCleanups = [];
     closeSkillCheck();
+    closeCastSpellModal();
   }
 
   private bindSocket(): void {
@@ -87,6 +89,8 @@ export class CampaignScreen {
 
     const onState = (state: CampaignState): void => {
       this.currentState = state;
+      // Persiste sessão ativa pra auto-rejoin no reload
+      setLastSession({ characterId: this.opts.characterId, campaignId: state.id });
       // Se pendingCheck mudou e eu sou owner, abre overlay
       this.maybeShowPendingCheck();
       this.render();
@@ -240,7 +244,21 @@ export class CampaignScreen {
   private renderHeader(): HTMLElement {
     const campId = this.currentState?.id;
     return el('header', { class: 'camp-header' }, [
-      el('button', { class: 'wiz-back-btn', text: '← Sair', on: { click: () => this.opts.onExit() } }),
+      el('button', {
+        class: 'wiz-back-btn',
+        text: '← Sair',
+        on: {
+          click: () => {
+            const inCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
+            if (inCombat) {
+              const ok = confirm('Sair em combate? Teu PJ vira NPC vulnerável e o party continua sem você.');
+              if (!ok) return;
+            }
+            clearLastSession();
+            this.opts.onExit();
+          },
+        },
+      }),
       el('div', { class: 'camp-title' }, [
         el('h2', { text: this.currentState?.name ?? 'Carregando…' }),
         el('div', { class: 'camp-loc', text: this.currentState?.currentLocation ?? '...' }),
@@ -321,6 +339,17 @@ export class CampaignScreen {
         el('span', { class: 'caa-label', text: a.label }),
       ]));
     }
+    // Botão Lançar Magia — só pra casters
+    if (shouldShowCastButton(this.character)) {
+      grid.appendChild(el('button', {
+        class: 'camp-action-btn is-spell',
+        attrs: { type: 'button', disabled },
+        on: { click: () => this.openSpellModal() },
+      }, [
+        el('span', { class: 'caa-icon', text: '🔮' }),
+        el('span', { class: 'caa-label', text: 'Lançar Magia' }),
+      ]));
+    }
     actionsEl.appendChild(grid);
 
     const customInput = el('input', {
@@ -350,6 +379,17 @@ export class CampaignScreen {
 
   private takeAction(action: ExplorationAction, details?: string): void {
     this.opts.socket.emit('takeAction', { action, details });
+  }
+
+  private openSpellModal(): void {
+    if (!this.character) return;
+    openCastSpellModal({
+      caster: this.character,
+      party: this.party,
+      combat: this.currentState?.combat ?? null,
+      socket: this.opts.socket,
+      onClose: () => { /* re-render acontece via campaignState event */ },
+    });
   }
 
   private flashToast(text: string): void {

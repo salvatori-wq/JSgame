@@ -2321,6 +2321,258 @@ body.is-portrait-narrow .sc-die {
 .atk-verdict-miss   { color: var(--ink-mute); }
 .atk-verdict-fumble { color: #ff8070; font-size: 14px; }
 
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* CAST SPELL MODAL */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+.cs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 14, 30, 0.85);
+  backdrop-filter: blur(3px);
+}
+.cs-modal {
+  position: relative;
+  width: min(90vw, 720px);
+  max-height: 85vh;
+  background: linear-gradient(180deg, rgba(40, 25, 50, 0.97), rgba(20, 10, 30, 0.97));
+  border: 2px solid #7050a0;
+  border-radius: 8px;
+  box-shadow: 0 0 50px rgba(120, 80, 180, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cs-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(60, 40, 90, 0.6);
+  border-bottom: 1px solid rgba(160, 120, 220, 0.3);
+}
+.cs-modal-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: #c8a8ff;
+  margin: 0;
+}
+.cs-modal-close {
+  background: transparent;
+  border: 1px solid rgba(200, 160, 255, 0.3);
+  color: #c8a8ff;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.cs-modal-close:hover { background: rgba(160, 120, 220, 0.2); }
+
+.cs-modal-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(40, 25, 60, 0.5);
+  border-bottom: 1px solid rgba(160, 120, 220, 0.15);
+  font-size: 12px;
+}
+.cs-modal-slots-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-mute);
+}
+.cs-modal-slot {
+  padding: 4px 10px;
+  background: rgba(80, 50, 130, 0.5);
+  border: 1px solid rgba(160, 120, 220, 0.4);
+  border-radius: 3px;
+  font-family: monospace;
+  color: #d0b8ff;
+}
+.cs-modal-slot.is-empty {
+  opacity: 0.4;
+  background: rgba(30, 20, 40, 0.5);
+}
+
+.cs-modal-list {
+  padding: 14px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+.cs-modal-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.cs-modal-level-title {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #c8a8ff;
+  margin: 12px 0 6px;
+  border-bottom: 1px solid rgba(160, 120, 220, 0.2);
+  padding-bottom: 4px;
+}
+.cs-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.cs-spell-card {
+  padding: 10px;
+  background: rgba(40, 25, 60, 0.6);
+  border: 1px solid rgba(160, 120, 220, 0.25);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.cs-spell-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(160, 120, 220, 0.4);
+}
+.cs-spell-card.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.csc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.csc-name {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: #d8b8ff;
+}
+.csc-meta {
+  font-size: 10px;
+  color: var(--ink-mute);
+}
+.csc-desc {
+  font-size: 11px;
+  color: var(--ink-warm);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.csc-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.csc-tag {
+  padding: 2px 6px;
+  background: rgba(80, 50, 130, 0.5);
+  border-radius: 2px;
+  font-size: 10px;
+  color: #b0a0c8;
+}
+.csc-tag.is-conc { background: rgba(180, 100, 40, 0.4); color: #ffc890; }
+.csc-tag.is-ritual { background: rgba(80, 130, 60, 0.4); color: #b0d090; }
+
+/* Target picker */
+.cs-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  background: rgba(20, 14, 30, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-picker {
+  width: min(85vw, 400px);
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(30, 20, 50, 0.97), rgba(15, 8, 25, 0.97));
+  border: 2px solid #c8a8ff;
+  border-radius: 6px;
+}
+.cs-picker-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #c8a8ff;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.cs-picker-hint {
+  font-size: 11px;
+  color: var(--ink-mute);
+  text-align: center;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+.cs-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.cs-picker-btn {
+  padding: 10px 14px;
+  background: rgba(60, 40, 90, 0.5);
+  border: 1px solid rgba(160, 120, 220, 0.3);
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.cs-picker-btn:hover { background: rgba(100, 70, 150, 0.5); }
+.cs-picker-btn.is-selected {
+  background: rgba(140, 100, 200, 0.6);
+  border-color: #d8b8ff;
+}
+.cs-picker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.cs-picker-confirm,
+.cs-picker-cancel {
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cs-picker-confirm {
+  background: linear-gradient(180deg, #6840a0, #4030c0);
+  border: 1px solid #c8a8ff;
+  color: var(--ink-warm);
+}
+.cs-picker-cancel {
+  background: rgba(40, 30, 50, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.2);
+  color: var(--ink-mute);
+}
+
+.camp-action-btn.is-spell,
+.cb-action-btn.is-spell {
+  border-color: rgba(160, 120, 220, 0.5);
+  background: linear-gradient(180deg, rgba(50, 30, 80, 0.7), rgba(30, 18, 50, 0.7));
+}
+.camp-action-btn.is-spell:hover,
+.cb-action-btn.is-spell:hover {
+  box-shadow: 0 0 12px rgba(160, 120, 220, 0.5);
+}
+
 /* Mobile combat tweaks */
 body.is-portrait-narrow .cb-enemies {
   grid-template-columns: 1fr 1fr;

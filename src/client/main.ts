@@ -5,7 +5,7 @@ import './styles.css';
 import { io, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '@shared/types';
 import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, type CampaignSummary } from './api';
-import { el, getOwnerName, setOwnerName } from './util';
+import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
 import { getRace } from '@dnd/races';
@@ -371,5 +371,18 @@ async function renderCampaign(characterId: string, campaignId?: string): Promise
   });
   await currentCampaign.start();
 }
+
+// Auto-rejoin: se havia sessão ativa no localStorage, volta direto pra ela.
+// Server valida — se PJ/campanha não existe, joinCampaign emit error e usuário cai pro Home via clearLastSession.
+const last = getLastSession();
+if (last) {
+  currentView = { kind: 'campaign', characterId: last.characterId, campaignId: last.campaignId };
+}
+
+// Debug helper exposto no console.
+(window as unknown as { jsgameClearSession?: () => void }).jsgameClearSession = () => {
+  clearLastSession();
+  navigate({ kind: 'home' });
+};
 
 void render();

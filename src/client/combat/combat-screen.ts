@@ -8,6 +8,7 @@ import type {
   CombatState, EnemySnapshot, CharacterSheet, CombatActionKind, CombatEvent,
 } from '@shared/types';
 import { el, escapeHtml } from '../util';
+import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -90,6 +91,27 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       }, [
         el('span', { class: 'cba-icon', text: a.icon }),
         el('span', { class: 'cba-label', text: a.label }),
+      ]));
+    }
+    // Botão Lançar Magia (caster only)
+    if (shouldShowCastButton(myChar)) {
+      grid.appendChild(el('button', {
+        class: 'cb-action-btn is-spell',
+        attrs: { type: 'button', title: 'Abrir grimório e lançar magia' },
+        on: {
+          click: () => {
+            openCastSpellModal({
+              caster: myChar,
+              party,
+              combat,
+              socket,
+              onClose: () => { /* re-render via state event */ },
+            });
+          },
+        },
+      }, [
+        el('span', { class: 'cba-icon', text: '🔮' }),
+        el('span', { class: 'cba-label', text: 'Magia' }),
       ]));
     }
     bar.appendChild(grid);

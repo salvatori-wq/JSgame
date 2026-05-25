@@ -167,6 +167,9 @@ export interface ClientToServerEvents {
   combatAction: (payload: { action: CombatActionKind; targetId?: string; details?: Record<string, unknown> }) => void;
   endTurn: () => void;
 
+  // Cast spell — exploration OU combat
+  castSpell: (payload: { spellId: string; targetIds: string[]; slotLevel: 0 | 1 | 2 | 3 | 4 | 5 }) => void;
+
   // Social
   speakToNpc: (payload: { npcId: string; message: string; skill?: SkillId }) => void;
 

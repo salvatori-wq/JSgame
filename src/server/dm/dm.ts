@@ -12,6 +12,8 @@ export interface DMResponse {
   raw: string;
 }
 
+const LLM_TIMEOUT_MS = 15_000;
+
 export class DungeonMaster {
   constructor(private provider: DMProvider) {}
 
@@ -20,25 +22,38 @@ export class DungeonMaster {
 
     let response;
     try {
-      response = await this.provider.generate({
-        systemPrompt: SYSTEM_PROMPT,
-        userPrompt,
-        tools: DM_TOOLS,
-        maxTokens: 1024,
-      });
+      response = await withTimeout(
+        this.provider.generate({
+          systemPrompt: SYSTEM_PROMPT,
+          userPrompt,
+          tools: DM_TOOLS,
+          maxTokens: 1024,
+        }),
+        LLM_TIMEOUT_MS,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Aprendizado Cave Run: Llama 4 Scout dá 400 em ~26% dos calls com tools.
       // Retry sem tools — perde tool_calls mas mantém narração.
       if (/400|failed to call a function|tool/i.test(msg)) {
         console.warn('[dm] retry sem tools após erro:', msg.slice(0, 120));
-        response = await this.provider.generate({
-          systemPrompt: SYSTEM_PROMPT,
-          userPrompt,
-          maxTokens: 1024,
-        });
+        try {
+          response = await withTimeout(
+            this.provider.generate({
+              systemPrompt: SYSTEM_PROMPT,
+              userPrompt,
+              maxTokens: 1024,
+            }),
+            LLM_TIMEOUT_MS,
+          );
+        } catch (err2) {
+          console.warn('[dm] retry sem tools também falhou:', err2);
+          return makeGracefulFallback(err2);
+        }
       } else {
-        throw err;
+        // Timeout ou erro fatal — devolve fallback sem quebrar o queue
+        console.warn('[dm] LLM falhou/expirou:', msg.slice(0, 120));
+        return makeGracefulFallback(err);
       }
     }
 
@@ -50,6 +65,31 @@ export class DungeonMaster {
       raw: response.text,
     };
   }
+}
+
+// Promise.race com timeout — rejeita após N ms.
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`LLM timeout após ${ms}ms`)), ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+// DMResponse fallback que mantém a campanha rodando se o LLM falhou de vez.
+function makeGracefulFallback(err: unknown): DMResponse {
+  const msg = err instanceof Error ? err.message : String(err);
+  const isTimeout = /timeout/i.test(msg);
+  return {
+    narration: isTimeout
+      ? 'O mundo segue, mas o Mestre tá lento — fala outra coisa, tenta de novo. Ou espera 30s.'
+      : 'O Mestre travou no meio da frase. Algo no éter. Tenta de novo — talvez mais direto.',
+    speaker: 'Mestre (degradado)',
+    toolCalls: [],
+    raw: msg,
+  };
 }
 
 // Tolerante a JSON malformado (Llama às vezes trunca). Tenta:

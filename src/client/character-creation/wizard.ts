@@ -8,6 +8,7 @@ import { getRace, RACES } from '@dnd/races';
 import { getClass } from '@dnd/classes';
 import { getBackground } from '@dnd/backgrounds';
 import { startingHitPoints } from '@dnd/classes';
+import { applySpellcasterDefaults } from '@dnd/spell-slots';
 import { el, uuid, getOwnerName } from '../util';
 import { saveCharacter } from '../api';
 import { renderRaceStep } from './step-race';
@@ -198,7 +199,7 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
   const now = Date.now();
   const ownerName = getOwnerName() || 'Anônimo';
 
-  return {
+  const sheet: CharacterSheet = {
     id: uuid(),
     ownerName,
     characterName: state.characterName.trim() || 'Sem Nome',
@@ -242,6 +243,11 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
     deathCount: 0,
     campaignsPlayed: [],
   };
+
+  // Preenche slots/cantrips/spells iniciais se for caster
+  applySpellcasterDefaults(sheet);
+
+  return sheet;
 }
 
 // Re-export pra debug
