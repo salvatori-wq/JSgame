@@ -72,6 +72,7 @@ function makeChar(id: string, name: string): CharacterSheet {
     campaignsPlayed: [],
     deathSaveSuccesses: 0,
     deathSaveFailures: 0,
+    exhaustion: 0,
   };
 }
 

@@ -400,6 +400,8 @@ export class Campaign {
       player.conditions = player.conditions.filter((c) => c !== 'inconsciente' && c !== 'envenenado' && c !== 'amedrontado');
       player.deathSaveSuccesses = 0;
       player.deathSaveFailures = 0;
+      // Long rest reduz exaustão em 1
+      player.exhaustion = Math.max(0, player.exhaustion - 1);
 
       this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
       return { ok: true, healed: player.currentHp - oldHp };
@@ -478,6 +480,117 @@ export class Campaign {
         successes: player.deathSaveSuccesses,
         failures: player.deathSaveFailures,
       };
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Inventory — use/equip/unequip items
+  // ════════════════════════════════════════════════════════════════════════
+
+  async useItem(playerId: string, itemId: string): Promise<{ ok: boolean; message: string; effectApplied?: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, message: 'jogador não encontrado' };
+      const idx = player.inventory.findIndex((i) => i.id === itemId);
+      if (idx < 0) return { ok: false, message: 'item não está no inventário' };
+      const item = player.inventory[idx]!;
+
+      // Apenas consumíveis usam diretamente
+      if (item.type !== 'consumivel') {
+        return { ok: false, message: `${item.name} não é consumível` };
+      }
+
+      // Heuristicas pra poções comuns
+      const name = item.name.toLowerCase();
+      let effectApplied = '';
+      if (/cura|poção.*cura|healing/.test(name)) {
+        // Roll 2d4+2 (poção comum) — usa rollDice
+        const roll = rollDice(2, 4, 2);
+        const oldHp = player.currentHp;
+        player.currentHp = Math.min(player.maxHp, player.currentHp + roll.total);
+        const healed = player.currentHp - oldHp;
+        if (healed > 0 && player.conditions.includes('inconsciente')) {
+          player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
+        }
+        effectApplied = `Curou ${healed} HP`;
+      } else if (/antídoto|veneno.*cura|poison.*cure/.test(name)) {
+        player.conditions = player.conditions.filter((c) => c !== 'envenenado');
+        effectApplied = 'Removeu condição envenenado';
+      } else {
+        effectApplied = `Usou ${item.name} (efeito narrado pelo Mestre)`;
+      }
+
+      // Consome quantity
+      item.quantity -= 1;
+      if (item.quantity <= 0) {
+        player.inventory.splice(idx, 1);
+      }
+      this.pushRecentEvent(`${player.characterName} usou ${item.name}: ${effectApplied}`);
+      return { ok: true, message: `${player.characterName} usou ${item.name}`, effectApplied };
+    });
+  }
+
+  async equipItem(playerId: string, itemId: string, slot: 'weapon' | 'armor' | 'shield'): Promise<{ ok: boolean; message: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, message: 'jogador não encontrado' };
+      const item = player.inventory.find((i) => i.id === itemId);
+      if (!item) return { ok: false, message: 'item não está no inventário' };
+
+      // Valida tipo conforme slot
+      if (slot === 'weapon' && item.type !== 'arma') return { ok: false, message: `${item.name} não é arma` };
+      if (slot === 'armor' && item.type !== 'armadura') return { ok: false, message: `${item.name} não é armadura` };
+      if (slot === 'shield' && item.type !== 'escudo') return { ok: false, message: `${item.name} não é escudo` };
+
+      if (slot === 'weapon') {
+        if (!player.equippedWeapons.includes(itemId)) {
+          // Até 2 armas
+          if (player.equippedWeapons.length >= 2) player.equippedWeapons.shift();
+          player.equippedWeapons.push(itemId);
+        }
+      } else if (slot === 'armor') {
+        player.equippedArmor = itemId;
+        // Re-calcula AC: armadura média = 14 + DEX(max 2); leve = 11 + DEX; pesada = base fixo
+        // Pra MVP, usa nome do item:
+        const conMod = Math.floor((player.abilityScores.des - 10) / 2);
+        const armorName = item.name.toLowerCase();
+        if (/couro/.test(armorName)) player.armorClass = 11 + conMod;
+        else if (/cota.*malha|chain/.test(armorName)) player.armorClass = 13 + Math.min(2, conMod);
+        else if (/cota.*placas|plate/.test(armorName)) player.armorClass = 18;
+        else player.armorClass = 12 + conMod;
+      } else if (slot === 'shield') {
+        player.equippedShield = itemId;
+        player.armorClass += 2;
+      }
+      this.pushRecentEvent(`${player.characterName} equipou ${item.name}`);
+      return { ok: true, message: `${player.characterName} equipou ${item.name}` };
+    });
+  }
+
+  async unequipItem(playerId: string, slot: 'weapon' | 'armor' | 'shield', itemId?: string): Promise<{ ok: boolean; message: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, message: 'jogador não encontrado' };
+
+      if (slot === 'weapon') {
+        if (itemId) {
+          player.equippedWeapons = player.equippedWeapons.filter((w) => w !== itemId);
+        } else {
+          player.equippedWeapons = [];
+        }
+      } else if (slot === 'armor') {
+        player.equippedArmor = undefined;
+        const conMod = Math.floor((player.abilityScores.des - 10) / 2);
+        player.armorClass = 10 + conMod;
+        if (player.equippedShield) player.armorClass += 2;
+      } else if (slot === 'shield') {
+        if (player.equippedShield) {
+          player.equippedShield = undefined;
+          player.armorClass -= 2;
+        }
+      }
+      this.pushRecentEvent(`${player.characterName} desequipou ${slot}`);
+      return { ok: true, message: `${player.characterName} desequipou ${slot}` };
     });
   }
 
@@ -633,6 +746,22 @@ export class Campaign {
           this.state.mode = 'exploration';
           this.pushRecentEvent(`Combate encerrado: ${tool.outcome}`);
           this.state.combat = null;
+        }
+        break;
+      }
+
+      case 'apply_exhaustion': {
+        const p = this.party.find((x) => x.id === tool.targetId);
+        if (p) {
+          p.exhaustion = Math.max(0, Math.min(6, p.exhaustion + tool.levels));
+          if (p.exhaustion >= 6) {
+            // Exaustão 6 = morte
+            p.currentHp = 0;
+            p.deathCount += 1;
+            this.pushRecentEvent(`${p.characterName} morreu de exaustão (nv 6)`);
+          } else {
+            this.pushRecentEvent(`${p.characterName} exaustão agora ${p.exhaustion}/6${tool.reason ? ` — ${tool.reason}` : ''}`);
+          }
         }
         break;
       }

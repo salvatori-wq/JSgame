@@ -147,3 +147,23 @@ export function getCondition(id: ConditionId): ConditionDef {
 }
 
 export const ALL_CONDITIONS: ConditionDef[] = Object.values(CONDITIONS);
+
+// ════════════════════════════════════════════════════════════════════════════
+// Exaustão — 6 níveis cumulativos (PHB pág 291). NÃO é condição padrão.
+// ════════════════════════════════════════════════════════════════════════════
+
+export const EXHAUSTION_LEVELS = [
+  { level: 1, label: 'Cansado', effect: 'Desvantagem em testes de habilidade' },
+  { level: 2, label: 'Esgotado', effect: 'Velocidade reduzida pela metade' },
+  { level: 3, label: 'Debilitado', effect: 'Desvantagem em ataques e saves' },
+  { level: 4, label: 'Quebrado', effect: 'HP máximo pela metade' },
+  { level: 5, label: 'Moribundo', effect: 'Velocidade reduzida a 0' },
+  { level: 6, label: 'Morto', effect: 'Morte por exaustão' },
+] as const;
+
+export function exhaustionDescription(level: number): string {
+  if (level < 1) return '';
+  const cap = Math.min(6, Math.floor(level));
+  const acc = EXHAUSTION_LEVELS.slice(0, cap).map((l) => `Nv${l.level}: ${l.effect}`).join(' · ');
+  return `Exaustão ${cap}/6 — ${acc}`;
+}

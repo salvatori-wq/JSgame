@@ -17,6 +17,7 @@ import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
+import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -71,6 +72,7 @@ export class CampaignScreen {
     this.socketCleanups = [];
     closeSkillCheck();
     closeCastSpellModal();
+    closeInventoryModal();
   }
 
   private bindSocket(): void {
@@ -323,6 +325,9 @@ export class CampaignScreen {
         p.conditions.length > 0
           ? el('div', { class: 'cp-pj-cond', text: p.conditions.join(' · ') })
           : null,
+        p.exhaustion > 0
+          ? el('div', { class: 'cp-pj-exhaustion', text: `💀 Exaustão ${p.exhaustion}/6` })
+          : null,
       ].filter(Boolean) as HTMLElement[]));
     }
     panel.appendChild(list);
@@ -390,6 +395,17 @@ export class CampaignScreen {
         el('span', { class: 'caa-label', text: 'Magia' }),
       ]));
     }
+    // Botão Inventário (sempre disponível)
+    if (this.character) {
+      grid.appendChild(el('button', {
+        class: 'camp-action-btn is-inv',
+        attrs: { type: 'button', disabled, title: 'Inventário, equipamentos, usar itens' },
+        on: { click: () => this.openInventory() },
+      }, [
+        el('span', { class: 'caa-icon', text: '🎒' }),
+        el('span', { class: 'caa-label', text: 'Inventário' }),
+      ]));
+    }
     // Rest buttons (só fora de combate)
     const canRest = this.currentState?.mode !== 'combat';
     if (canRest && this.character) {
@@ -449,6 +465,15 @@ export class CampaignScreen {
       combat: this.currentState?.combat ?? null,
       socket: this.opts.socket,
       onClose: () => { /* re-render acontece via campaignState event */ },
+    });
+  }
+
+  private openInventory(): void {
+    if (!this.character) return;
+    openInventoryModal({
+      character: this.character,
+      socket: this.opts.socket,
+      onClose: () => { /* re-render via partyUpdate */ },
     });
   }
 

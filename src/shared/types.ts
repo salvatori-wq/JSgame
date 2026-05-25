@@ -95,6 +95,15 @@ export interface CharacterSheet {
   // Resetam ao ganhar HP > 0 ou estabilizar.
   deathSaveSuccesses: number;
   deathSaveFailures: number;
+
+  // Exaustão (PHB pág 291) — 6 níveis cumulativos. Long rest -1 nível.
+  // 1: desvantagem em testes de habilidade
+  // 2: velocidade /2
+  // 3: desvantagem em ataques + saves
+  // 4: HP máx /2
+  // 5: velocidade 0
+  // 6: morte
+  exhaustion: number;
 }
 
 export interface InventoryItem {
@@ -175,6 +184,11 @@ export interface ClientToServerEvents {
 
   // Cast spell — exploration OU combat
   castSpell: (payload: { spellId: string; targetIds: string[]; slotLevel: 0 | 1 | 2 | 3 | 4 | 5 }) => void;
+
+  // Inventory
+  useItem: (payload: { itemId: string }) => void;
+  equipItem: (payload: { itemId: string; slot: 'weapon' | 'armor' | 'shield' }) => void;
+  unequipItem: (payload: { slot: 'weapon' | 'armor' | 'shield'; itemId?: string }) => void;
 
   // Social
   speakToNpc: (payload: { npcId: string; message: string; skill?: SkillId }) => void;

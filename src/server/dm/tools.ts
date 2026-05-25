@@ -6,6 +6,7 @@ import type { SkillId } from '../../dnd/skills.js';
 import type { ConditionId } from '../../dnd/conditions.js';
 import { SKILLS } from '../../dnd/skills.js';
 import { CONDITIONS } from '../../dnd/conditions.js';
+import { getMonster } from '../../dnd/monsters.js';
 
 export type ValidatedTool =
   | { kind: 'request_skill_check'; skill: SkillId; dc: number; reason: string; playerId: string }
@@ -13,6 +14,7 @@ export type ValidatedTool =
   | { kind: 'apply_damage'; playerId: string; damage: number; type: string; reason: string }
   | { kind: 'apply_condition'; targetId: string; condition: ConditionId; reason: string }
   | { kind: 'end_combat_with_outcome'; outcome: 'victory' | 'defeat' | 'fled'; reason: string }
+  | { kind: 'apply_exhaustion'; targetId: string; levels: number; reason: string }
   | { kind: 'npc_speaks'; name: string; archetype: string; attitude: 'amigavel' | 'neutro' | 'hostil' | 'misterioso' }
   | { kind: 'give_item'; playerId: string; itemName: string; type: 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc'; quantity: number; description: string }
   | { kind: 'advance_time'; amount: string; reason: string }
@@ -43,6 +45,21 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
       const enemies = input.enemies
         .filter((e: unknown): e is Record<string, unknown> => typeof e === 'object' && e !== null)
         .map((e) => {
+          // Se DM passou monsterId, expande do bestiary
+          const monsterId = e.monsterId ? String(e.monsterId).toLowerCase() : null;
+          const fromBestiary = monsterId ? getMonster(monsterId) : null;
+          if (fromBestiary) {
+            return {
+              name: fromBestiary.name,
+              hp: fromBestiary.hp,
+              ac: fromBestiary.ac,
+              attackBonus: fromBestiary.attackBonus,
+              damageDice: fromBestiary.damageDice,
+              damageBonus: fromBestiary.damageBonus,
+              description: fromBestiary.description,
+            };
+          }
+          // Caso contrário, free-form (DM declara stats custom)
           const rawDice = String(e.damageDice ?? '1d6').replace(/\s+/g, '');
           const damageDice = DICE_NOTATION_RE.test(rawDice) ? rawDice : '1d6';
           return {
@@ -55,7 +72,7 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
             description: e.description ? String(e.description).slice(0, 200) : undefined,
           };
         })
-        .slice(0, 12); // cap em 12 inimigos
+        .slice(0, 12);
       if (enemies.length === 0) return null;
       return { kind: 'start_combat', enemies, surprise: !!input.surprise };
     }
@@ -82,6 +99,14 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
       if (!VALID_OUTCOMES.has(outcome)) return null;
       const reason = String(input.reason ?? '').slice(0, 200);
       return { kind: 'end_combat_with_outcome', outcome: outcome as 'victory' | 'defeat' | 'fled', reason };
+    }
+
+    case 'apply_exhaustion': {
+      const targetId = String(input.targetId ?? '');
+      if (!targetId) return null;
+      const levels = clamp(Number(input.levels) || 1, -6, 6);
+      const reason = String(input.reason ?? '').slice(0, 200);
+      return { kind: 'apply_exhaustion', targetId, levels, reason };
     }
 
     case 'npc_speaks': {

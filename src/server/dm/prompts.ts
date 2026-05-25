@@ -121,7 +121,7 @@ export const DM_TOOLS: DMToolDef[] = [
   },
   {
     name: 'start_combat',
-    description: 'Inicia combate. Server rola initiative de todos, abre combat overlay. Declare attackBonus + damageDice — defaults se omitidos.',
+    description: 'Inicia combate. Server rola initiative de todos, abre combat overlay. PREFIRA monsterId (bestiary pré-cadastrado, balanceado). Caso contrário declare stats.',
     schema: {
       type: 'object',
       properties: {
@@ -130,15 +130,18 @@ export const DM_TOOLS: DMToolDef[] = [
           items: {
             type: 'object',
             properties: {
-              name: { type: 'string', description: 'Nome do inimigo (ex: "Goblin Sarnento")' },
-              hp: { type: 'number', description: 'HP atual = max. Goblin=7, Esqueleto=13, Lobo=11, Hobgoblin=11, Orc=15, Ogro=59, Troll=84' },
-              ac: { type: 'number', description: 'Classe de Armadura. Goblin=15, Esqueleto=13, Lobo=13, Orc=13, Ogro=11' },
-              attackBonus: { type: 'number', description: 'd20+X dos ataques dele. Goblin=+4, Orc=+5, Ogro=+6, Troll=+7. Default +3.' },
-              damageDice: { type: 'string', description: 'Notação dano: "1d6" (goblin), "1d12" (orc), "2d8" (ogro). Default "1d6".' },
-              damageBonus: { type: 'number', description: 'Soma fixa ao damage. Goblin=+2, Orc=+3, Ogro=+4. Default 0.' },
+              monsterId: {
+                type: 'string',
+                description: 'ID do bestiary (preferido). IDs disponíveis: rato, cobra-venenosa, bandido, esqueleto, goblin, kobold, lobo, zumbi, cultista, hobgoblin, orc, bugbear, aranha-gigante, lobo-atroz, ogro, cavaleiro-esqueleto, mago-cinza, gargula, gnoll, ettin, banshee, troll, gigante-da-colina, mago, mind-flayer, gigante-de-pedra, gigante-de-fogo, aboleth, dragão-jovem-vermelho, archmage, vampiro, dragão-adulto-vermelho, lich, pit-fiend. Se passar isto, ignora outros campos.',
+              },
+              name: { type: 'string', description: 'Nome custom (se não usar monsterId)' },
+              hp: { type: 'number', description: 'HP custom (se não usar monsterId)' },
+              ac: { type: 'number', description: 'CA custom (se não usar monsterId)' },
+              attackBonus: { type: 'number', description: 'd20+X dos ataques. Default +3.' },
+              damageDice: { type: 'string', description: 'Notação dano "1d6"/"2d8". Default "1d6".' },
+              damageBonus: { type: 'number', description: 'Soma fixa ao damage. Default 0.' },
               description: { type: 'string', description: 'Descrição visual breve' },
             },
-            required: ['name', 'hp', 'ac'],
           },
         },
         surprise: { type: 'boolean', description: 'Party surpresa? (sem ação 1º turno se true)' },
@@ -172,6 +175,19 @@ export const DM_TOOLS: DMToolDef[] = [
         reason: { type: 'string', description: 'Como acabou (1 frase)' },
       },
       required: ['outcome'],
+    },
+  },
+  {
+    name: 'apply_exhaustion',
+    description: 'Aplica/remove níveis de exaustão (PHB pág 291, 6 níveis cumulativos). 1=desvantagem testes, 2=mov/2, 3=desvant ataques+saves, 4=HP/2, 5=mov 0, 6=morte. Long rest -1 nível.',
+    schema: {
+      type: 'object',
+      properties: {
+        targetId: { type: 'string', description: 'ID do PJ alvo' },
+        levels: { type: 'number', description: 'Quantos níveis aplicar (+) ou remover (-). Ex: +1, -2.' },
+        reason: { type: 'string', description: 'Causa narrativa (jornada exaustiva, falta de sono, magia, etc)' },
+      },
+      required: ['targetId', 'levels'],
     },
   },
   {

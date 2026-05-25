@@ -29,6 +29,7 @@ function makeChar(id: string, name: string, opts: Partial<CharacterSheet> = {}):
     personalityTraits: [], ideals: [], bonds: [], flaws: [], backstory: '',
     createdAt: 0, lastPlayedAt: 0, deathCount: 0, campaignsPlayed: [],
     deathSaveSuccesses: 0, deathSaveFailures: 0,
+    exhaustion: 0,
     ...opts,
   };
 }

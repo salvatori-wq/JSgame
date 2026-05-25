@@ -418,6 +418,55 @@ async function main(): Promise<void> {
       }
     });
 
+    // ── useItem: consumível
+    socket.on('useItem', async ({ itemId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.useItem(activePlayerId, itemId);
+        if (!r.ok) { socket.emit('error', r.message); return; }
+        io.to(camp.state.id).emit('dmNarration', { text: r.message + (r.effectApplied ? ` — ${r.effectApplied}` : ''), speaker: 'Sistema', mood: 'neutral' });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] useItem error:', err);
+        socket.emit('error', `useItem falhou: ${String(err)}`);
+      }
+    });
+
+    // ── equipItem
+    socket.on('equipItem', async ({ itemId, slot }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.equipItem(activePlayerId, itemId, slot);
+        if (!r.ok) { socket.emit('error', r.message); return; }
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] equipItem error:', err);
+        socket.emit('error', `equipItem falhou: ${String(err)}`);
+      }
+    });
+
+    // ── unequipItem
+    socket.on('unequipItem', async ({ slot, itemId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.unequipItem(activePlayerId, slot, itemId);
+        if (!r.ok) { socket.emit('error', r.message); return; }
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] unequipItem error:', err);
+        socket.emit('error', `unequipItem falhou: ${String(err)}`);
+      }
+    });
+
     // ── shortRest: gasta hit dice, cura
     socket.on('shortRest', async ({ hitDiceToSpend }) => {
       try {

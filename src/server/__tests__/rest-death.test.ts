@@ -32,7 +32,7 @@ function makeChar(opts: { classId?: 'guerreiro' | 'mago' | 'clerigo'; currentHp?
     spellSlots: { 1:{max:0,used:0},2:{max:0,used:0},3:{max:0,used:0},4:{max:0,used:0},5:{max:0,used:0},6:{max:0,used:0},7:{max:0,used:0},8:{max:0,used:0},9:{max:0,used:0} },
     personalityTraits: [], ideals: [], bonds: [], flaws: [], backstory: '',
     createdAt: 0, lastPlayedAt: 0, deathCount: 0, campaignsPlayed: [],
-    deathSaveSuccesses: 0, deathSaveFailures: 0,
+    deathSaveSuccesses: 0, deathSaveFailures: 0, exhaustion: 0,
   };
   if (opts.classId === 'mago' || opts.classId === 'clerigo') applySpellcasterDefaults(sheet);
   return sheet;
