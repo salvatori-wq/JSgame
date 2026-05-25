@@ -8,6 +8,7 @@ import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns
 import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
+import { LobbyScreen } from './lobby/lobby-screen';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
 
@@ -44,13 +45,15 @@ socket.on('disconnect', (reason) => console.log('[client] socket disconnected:',
 // === Router state ===
 type View =
   | { kind: 'home' }
-  | { kind: 'wizard' }
+  | { kind: 'wizard'; fromLobby?: boolean }
   | { kind: 'sheet'; id: string }
-  | { kind: 'campaign'; characterId: string; campaignId?: string };
+  | { kind: 'campaign'; characterId: string; campaignId?: string }
+  | { kind: 'lobby'; lobbyId?: string };
 
 let currentView: View = { kind: 'home' };
 let currentWizard: CharacterWizard | null = null;
 let currentCampaign: CampaignScreen | null = null;
+let currentLobby: LobbyScreen | null = null;
 
 async function render(): Promise<void> {
   if (currentView.kind !== 'wizard' && currentWizard) {
@@ -61,6 +64,10 @@ async function render(): Promise<void> {
     currentCampaign.destroy();
     currentCampaign = null;
   }
+  if (currentView.kind !== 'lobby' && currentLobby) {
+    currentLobby.destroy();
+    currentLobby = null;
+  }
 
   app!.innerHTML = '';
 
@@ -69,13 +76,16 @@ async function render(): Promise<void> {
       await renderHome();
       break;
     case 'wizard':
-      renderWizard();
+      renderWizard(currentView.fromLobby ?? false);
       break;
     case 'sheet':
       await renderSheet(currentView.id);
       break;
     case 'campaign':
       await renderCampaign(currentView.characterId, currentView.campaignId);
+      break;
+    case 'lobby':
+      await renderLobby(currentView.lobbyId);
       break;
   }
 }
@@ -233,10 +243,49 @@ async function renderHome(): Promise<void> {
   };
   await refreshCharsList();
 
-  // === Coop section: campanhas em andamento + joinar por código ===
+  // === Coop section: lobby + campanhas em andamento + joinar por código ===
   const coopSection = el('section', { class: 'home-coop' });
   coopSection.appendChild(el('h3', { class: 'cs-h3', text: '🤝 Jogar em Coop' }));
-  coopSection.appendChild(el('p', { class: 'home-coop-hint', text: 'Joinar uma crônica existente com o personagem selecionado acima.' }));
+
+  // ── Lobby pré-jogo (criar PJs juntos)
+  const lobbySubsection = el('div', { class: 'home-lobby-subsection' });
+  lobbySubsection.appendChild(el('p', { class: 'home-coop-hint', text: '🏛 Lobby pré-jogo — crie/escolha PJs juntos antes de começar.' }));
+  const lobbyJoinInput = el('input', {
+    class: 'home-join-input',
+    attrs: { type: 'text', placeholder: 'Código do lobby (6 chars)', maxlength: '8' },
+  }) as HTMLInputElement;
+  const lobbyJoinBtn = el('button', {
+    class: 'home-join-btn',
+    text: '🔗 Joinar Lobby',
+    on: {
+      click: () => {
+        if (!getOwnerName().trim()) { alert('Digite seu nome de jogador antes.'); return; }
+        const id = lobbyJoinInput.value.trim();
+        if (!id) { lobbyJoinInput.focus(); return; }
+        navigate({ kind: 'lobby', lobbyId: id });
+      },
+    },
+  });
+  const lobbyCreateBtn = el('button', {
+    class: 'home-join-btn home-create-lobby-btn',
+    text: '🏛 Criar Lobby',
+    on: {
+      click: () => {
+        if (!getOwnerName().trim()) { alert('Digite seu nome de jogador antes.'); return; }
+        navigate({ kind: 'lobby' });
+      },
+    },
+  });
+  lobbySubsection.appendChild(el('div', { class: 'home-lobby-actions' }, [
+    lobbyCreateBtn,
+    el('div', { class: 'home-join-row' }, [lobbyJoinInput, lobbyJoinBtn]),
+  ]));
+  coopSection.appendChild(lobbySubsection);
+
+  // Divisor
+  coopSection.appendChild(el('div', { class: 'home-coop-divider', text: '— OU —' }));
+
+  coopSection.appendChild(el('p', { class: 'home-coop-hint', text: '↓ Joinar crônica já em andamento (precisa do código da crônica).' }));
 
   // Lista campanhas recentes
   const campsList = el('div', { class: 'home-camps' });
@@ -313,15 +362,52 @@ function renderCampaignCard(
   ]);
 }
 
-function renderWizard(): void {
+function renderWizard(fromLobby: boolean): void {
   const container = el('div', { class: 'wizard-container' });
   app!.appendChild(container);
   currentWizard = new CharacterWizard(
     container,
-    (_sheet: CharacterSheet) => navigate({ kind: 'home' }),
-    () => navigate({ kind: 'home' }),
+    (sheet: CharacterSheet) => {
+      if (fromLobby) {
+        // Quando wizard termina e veio do lobby, marca como ready com o PJ recém-criado
+        socket.emit('lobbyUpdateStatus', { status: 'ready', characterId: sheet.id });
+        navigate({ kind: 'lobby' });
+      } else {
+        navigate({ kind: 'home' });
+      }
+    },
+    () => {
+      if (fromLobby) navigate({ kind: 'lobby' });
+      else navigate({ kind: 'home' });
+    },
+    fromLobby ? (step: string) => {
+      socket.emit('lobbyUpdateStatus', { status: 'wizard', wizardStep: step });
+    } : undefined,
   );
   currentWizard.start();
+}
+
+async function renderLobby(lobbyId?: string): Promise<void> {
+  const container = el('div', { class: 'lobby-container' });
+  app!.appendChild(container);
+  currentLobby = new LobbyScreen(container, {
+    socket,
+    ownerName: getOwnerName(),
+    onCampaignStart: (campaignId, characterId) => {
+      navigate({ kind: 'campaign', characterId, campaignId });
+    },
+    onCreateCharacter: () => {
+      navigate({ kind: 'wizard', fromLobby: true });
+    },
+    onExit: () => navigate({ kind: 'home' }),
+  });
+  await currentLobby.start();
+  // Se veio com lobbyId, joina; senão, cria lobby
+  if (lobbyId) {
+    socket.emit('joinLobby', { lobbyId, ownerName: getOwnerName() });
+  } else {
+    socket.emit('createLobby', { ownerName: getOwnerName() });
+  }
 }
 
 async function renderSheet(id: string): Promise<void> {

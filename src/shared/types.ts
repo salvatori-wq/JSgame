@@ -190,6 +190,13 @@ export interface ClientToServerEvents {
   equipItem: (payload: { itemId: string; slot: 'weapon' | 'armor' | 'shield' }) => void;
   unequipItem: (payload: { slot: 'weapon' | 'armor' | 'shield'; itemId?: string }) => void;
 
+  // Lobby pre-game (jogadores se reúnem antes de criar campanha)
+  createLobby: (payload: { ownerName: string }) => void;
+  joinLobby: (payload: { lobbyId: string; ownerName: string }) => void;
+  leaveLobby: () => void;
+  lobbyUpdateStatus: (payload: { status: LobbyPlayerStatus; characterId?: string; wizardStep?: string }) => void;
+  lobbyStartCampaign: () => void;
+
   // Social
   speakToNpc: (payload: { npcId: string; message: string; skill?: SkillId }) => void;
 
@@ -202,8 +209,42 @@ export interface ClientToServerEvents {
   chat: (payload: { text: string }) => void;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Lobby — pre-game room. Jogadores se reúnem antes de criar campanha.
+// Cada player tem status (joined/selecting/wizard/ready). Quando todos ready,
+// host clica "Começar Crônica" → cria Campaign + redirect.
+// ════════════════════════════════════════════════════════════════════════════
+
+export type LobbyPlayerStatus =
+  | 'joined'           // só entrou, ainda não escolheu PJ
+  | 'selecting'        // escolhendo PJ existente
+  | 'wizard'           // criando PJ novo (com wizardStep)
+  | 'ready';           // PJ selecionado/criado e travado
+
+export interface LobbyPlayer {
+  socketId: string;
+  ownerName: string;
+  status: LobbyPlayerStatus;
+  characterId?: string;     // quando ready, qual PJ vai usar
+  characterName?: string;   // display
+  wizardStep?: string;      // se em wizard: 'race' / 'class' / 'abilities' / etc
+  isHost: boolean;
+  joinedAt: number;
+}
+
+export interface LobbyState {
+  id: string;               // 6 chars alfanuméricos pra digitar fácil
+  hostSocketId: string;
+  players: LobbyPlayer[];
+  createdAt: number;
+  campaignId?: string;      // quando host inicia, vira o ID da campaign
+}
+
 export interface ServerToClientEvents {
   campaignState: (state: CampaignState) => void;
+  // Lobby
+  lobbyState: (state: LobbyState | null) => void;
+  lobbyRedirect: (payload: { campaignId: string }) => void;
   partyUpdate: (characters: CharacterSheet[]) => void;
   combatState: (state: CombatState | null) => void;
   dmNarration: (payload: { text: string; speaker?: string; mood?: 'sombrio' | 'sarcastico' | 'trickster' | 'neutral' }) => void;

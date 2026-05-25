@@ -37,15 +37,18 @@ export class CharacterWizard {
   private container: HTMLElement;
   private onComplete: (sheet: CharacterSheet) => void;
   private onCancel: () => void;
+  private onStepChange?: (step: string) => void;
 
   constructor(
     container: HTMLElement,
     onComplete: (sheet: CharacterSheet) => void,
     onCancel: () => void,
+    onStepChange?: (step: string) => void,
   ) {
     this.container = container;
     this.onComplete = onComplete;
     this.onCancel = onCancel;
+    this.onStepChange = onStepChange;
     this.state = {
       step: 'race',
       raceId: null,
@@ -60,6 +63,7 @@ export class CharacterWizard {
 
   start(): void {
     document.addEventListener('wiz:rerender', this.handleRerender);
+    this.onStepChange?.(this.state.step);
     this.render();
   }
 
@@ -151,6 +155,7 @@ export class CharacterWizard {
     const idx = STEP_ORDER.indexOf(this.state.step);
     if (idx < STEP_ORDER.length - 1) {
       this.state.step = STEP_ORDER[idx + 1]!;
+      this.onStepChange?.(this.state.step);
       this.render();
     }
   }
@@ -159,6 +164,7 @@ export class CharacterWizard {
     const idx = STEP_ORDER.indexOf(this.state.step);
     if (idx > 0) {
       this.state.step = STEP_ORDER[idx - 1]!;
+      this.onStepChange?.(this.state.step);
       this.render();
     }
   }

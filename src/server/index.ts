@@ -19,6 +19,8 @@ import { ALL_CONDITIONS } from '../dnd/conditions.js';
 import { ALL_BACKGROUNDS } from '../dnd/backgrounds.js';
 import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaign.js';
 import { buildProviderFromEnv } from './dm/providers/factory.js';
+import { LobbyManager } from './lobby.js';
+import { uuid } from './util.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -42,6 +44,7 @@ function buildDM(): DMInterface {
 // ════════════════════════════════════════════════════════════════════════════
 
 const campaigns = new Map<string, Campaign>();
+const lobbyManager = new LobbyManager();
 
 async function getOrCreateCampaign(id: string | undefined, name: string | undefined, dm: DMInterface): Promise<Campaign> {
   if (id && campaigns.has(id)) return campaigns.get(id)!;
@@ -191,6 +194,11 @@ async function main(): Promise<void> {
 
     socket.on('disconnect', (reason) => {
       console.log('[socket] disconnected', socket.id, reason);
+      // Sai do lobby se estava em um
+      const lobby = lobbyManager.leaveLobby(socket.id);
+      if (lobby) {
+        io.to(`lobby-${lobby.id}`).emit('lobbyState', lobby);
+      }
     });
 
     // Helper: broadcast estado completo pra room
@@ -538,6 +546,94 @@ async function main(): Promise<void> {
       } catch (err) {
         console.error('[socket] rollDeathSave error:', err);
         socket.emit('error', `rollDeathSave falhou: ${String(err)}`);
+      }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Lobby — pre-game room
+    // ════════════════════════════════════════════════════════════════════════
+
+    socket.on('createLobby', ({ ownerName }) => {
+      try {
+        const lobby = lobbyManager.createLobby(socket.id, ownerName);
+        socket.join(`lobby-${lobby.id}`);
+        socket.emit('lobbyState', lobby);
+        console.log(`[lobby] criado ${lobby.id} por ${ownerName}`);
+      } catch (err) {
+        console.error('[socket] createLobby error:', err);
+        socket.emit('error', `createLobby falhou: ${String(err)}`);
+      }
+    });
+
+    socket.on('joinLobby', ({ lobbyId, ownerName }) => {
+      try {
+        const result = lobbyManager.joinLobby(socket.id, lobbyId, ownerName);
+        if (!result.ok || !result.lobby) {
+          socket.emit('error', result.reason ?? 'erro ao joinar lobby');
+          return;
+        }
+        socket.join(`lobby-${result.lobby.id}`);
+        io.to(`lobby-${result.lobby.id}`).emit('lobbyState', result.lobby);
+        console.log(`[lobby] ${ownerName} joinou ${result.lobby.id}`);
+      } catch (err) {
+        console.error('[socket] joinLobby error:', err);
+        socket.emit('error', `joinLobby falhou: ${String(err)}`);
+      }
+    });
+
+    socket.on('leaveLobby', () => {
+      try {
+        const lobby = lobbyManager.leaveLobby(socket.id);
+        socket.emit('lobbyState', null);
+        if (lobby) {
+          io.to(`lobby-${lobby.id}`).emit('lobbyState', lobby);
+        }
+      } catch (err) {
+        console.error('[socket] leaveLobby error:', err);
+      }
+    });
+
+    socket.on('lobbyUpdateStatus', async ({ status, characterId, wizardStep }) => {
+      try {
+        // Se passou characterId, busca nome do PJ pra display
+        let characterName: string | undefined;
+        if (characterId) {
+          const c = await loadCharacter(characterId);
+          characterName = c?.characterName;
+        }
+        const lobby = lobbyManager.updateStatus(socket.id, status, characterId, characterName, wizardStep);
+        if (lobby) {
+          io.to(`lobby-${lobby.id}`).emit('lobbyState', lobby);
+        }
+      } catch (err) {
+        console.error('[socket] lobbyUpdateStatus error:', err);
+      }
+    });
+
+    socket.on('lobbyStartCampaign', async () => {
+      try {
+        const newCampaignId = uuid();
+        const result = lobbyManager.startCampaign(socket.id, newCampaignId);
+        if (!result.ok || !result.lobby) {
+          socket.emit('error', result.reason ?? 'erro ao iniciar campanha');
+          return;
+        }
+        // Cria a Campaign e adiciona TODOS os PJs dos players ready
+        const camp = await getOrCreateCampaign(newCampaignId, `Crônica de ${result.lobby.players[0]?.ownerName ?? 'aventureiros'}`, dm);
+        for (const p of result.lobby.players) {
+          if (p.characterId) {
+            const character = await loadCharacter(p.characterId);
+            if (character) camp.addCharacter(character);
+          }
+        }
+        await saveCampaign(camp.state);
+
+        // Emite redirect pra todos no lobby
+        io.to(`lobby-${result.lobby.id}`).emit('lobbyRedirect', { campaignId: newCampaignId });
+        console.log(`[lobby] ${result.lobby.id} → campaign ${newCampaignId} com ${camp.party.length} PJs`);
+      } catch (err) {
+        console.error('[socket] lobbyStartCampaign error:', err);
+        socket.emit('error', `lobbyStartCampaign falhou: ${String(err)}`);
       }
     });
 
