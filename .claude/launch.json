@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jsgame-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/tsx/dist/cli.mjs", "watch", "src/server/index.ts"],
+      "port": 3001,
+      "env": { "SERVER_PORT": "3001" }
+    },
+    {
+      "name": "jsgame-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--host", "0.0.0.0"],
+      "port": 5173,
+      "env": { "VITE_PORT": "5173", "BACKEND_PORT": "3001" }
+    }
+  ]
+}

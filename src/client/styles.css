@@ -1,0 +1,289 @@
+/* JSgame · Tema gótico base.
+   Mobile-first. Fontes serif do sistema (sem dep externa). Paleta dourado/sombra.
+   Vars CSS pra ajuste rápido. */
+
+:root {
+  /* Paleta */
+  --bg-deep: #0a0608;
+  --bg-stone: #14100c;
+  --bg-card: rgba(28, 18, 10, 0.92);
+  --ink-gold: #f4d07f;
+  --ink-warm: #e4c896;
+  --ink-mute: #8c7c66;
+  --ink-faint: #5a4e3e;
+  --accent-rune: #d4a857;
+  --accent-blood: #c84032;
+  --accent-life: #8cd070;
+
+  /* Tipografia */
+  --font-heading: 'Cinzel', 'Trajan Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Mobile-safe */
+  --m-vh: 100dvh;
+  --m-safe-top: env(safe-area-inset-top, 0px);
+  --m-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --m-safe-left: env(safe-area-inset-left, 0px);
+  --m-safe-right: env(safe-area-inset-right, 0px);
+
+  /* Spacing */
+  --gap-tight: 4px;
+  --gap-base: 8px;
+  --gap-loose: 16px;
+  --gap-section: 32px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--bg-deep);
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
+  min-height: var(--m-vh);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  padding-top: var(--m-safe-top);
+  padding-bottom: var(--m-safe-bottom);
+  padding-left: var(--m-safe-left);
+  padding-right: var(--m-safe-right);
+}
+
+#app {
+  min-height: var(--m-vh);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Boot splash + screen
+   ════════════════════════════════════════════════════════════════════════ */
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-loose);
+  background: radial-gradient(circle at 50% 40%, rgba(40, 24, 12, 0.8), var(--bg-deep));
+  z-index: 100;
+}
+
+.boot-splash h1 {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  letter-spacing: 0.20em;
+  color: var(--ink-gold);
+  text-shadow: 0 0 24px rgba(244, 208, 127, 0.4);
+  animation: boot-pulse 2.4s ease-in-out infinite;
+}
+
+.boot-tagline {
+  font-family: var(--font-body);
+  font-style: italic;
+  color: var(--ink-mute);
+}
+
+@keyframes boot-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+.boot-screen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--gap-section) var(--gap-loose);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-section);
+}
+
+.boot-header {
+  text-align: center;
+}
+
+.boot-title {
+  font-family: var(--font-heading);
+  font-size: clamp(36px, 8vw, 56px);
+  letter-spacing: 0.18em;
+  color: var(--ink-gold);
+  text-shadow: 0 0 18px rgba(244, 208, 127, 0.35), 0 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.boot-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-base);
+  margin: var(--gap-base) 0;
+  color: var(--accent-rune);
+}
+
+.bd-line {
+  display: block;
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-rune), transparent);
+}
+
+.bd-glyph {
+  font-size: 14px;
+}
+
+.boot-tagline {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink-mute);
+  letter-spacing: 0.03em;
+}
+
+/* Status panel */
+.boot-status {
+  background: var(--bg-card);
+  border: 1px solid rgba(160, 120, 60, 0.35);
+  border-radius: 8px;
+  padding: var(--gap-loose);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-base);
+}
+
+.bs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(20, 12, 6, 0.6);
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.bs-row.is-ok   .bs-val { color: var(--accent-life); }
+.bs-row.is-fail .bs-val { color: var(--accent-blood); }
+.bs-row.is-warn .bs-val { color: var(--accent-rune); }
+
+.bs-key {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.bs-val {
+  font-weight: 600;
+  font-family: var(--font-ui);
+}
+
+/* Roadmap */
+.boot-next {
+  background: var(--bg-card);
+  border: 1px solid rgba(160, 120, 60, 0.25);
+  border-radius: 8px;
+  padding: var(--gap-loose);
+}
+
+.boot-next h2 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-gold);
+  margin-bottom: var(--gap-loose);
+}
+
+.boot-roadmap {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-base);
+}
+
+.boot-roadmap li {
+  padding: 8px 12px;
+  background: rgba(20, 12, 6, 0.5);
+  border-left: 3px solid var(--accent-life);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink-warm);
+}
+
+.boot-roadmap li.todo {
+  border-left-color: var(--ink-faint);
+  color: var(--ink-mute);
+  opacity: 0.75;
+}
+
+.boot-roadmap li b {
+  color: var(--ink-gold);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.boot-roadmap li.todo b {
+  color: var(--ink-mute);
+}
+
+/* Footer */
+.boot-foot {
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* Boot error */
+.boot-error {
+  margin: var(--gap-section);
+  padding: var(--gap-loose);
+  background: rgba(80, 20, 20, 0.6);
+  border: 1px solid var(--accent-blood);
+  color: var(--accent-blood);
+  border-radius: 6px;
+  font-family: var(--font-ui);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Mobile portrait-narrow tweaks
+   ════════════════════════════════════════════════════════════════════════ */
+
+body.is-portrait-narrow .boot-screen {
+  padding: var(--gap-loose) var(--gap-base);
+  gap: var(--gap-loose);
+}
+
+body.is-portrait-narrow .boot-title {
+  font-size: 36px;
+  letter-spacing: 0.12em;
+}
+
+body.is-portrait-narrow .boot-tagline {
+  font-size: 14px;
+}
+
+body.is-portrait-narrow .boot-roadmap li {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash h1 { animation: none; }
+}

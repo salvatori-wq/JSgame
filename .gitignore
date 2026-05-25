@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Persistence (SQLite files + JSON backups)
+.run-data/
+*.db
+*.db-journal
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude harness
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# TypeScript
+*.tsbuildinfo
