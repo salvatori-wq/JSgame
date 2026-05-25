@@ -17,6 +17,7 @@
     "verbatimModuleSyntax": false,
     "allowSyntheticDefaultImports": true,
     "useDefineForClassFields": true,
+    "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
       "@client/*": ["src/client/*"],
