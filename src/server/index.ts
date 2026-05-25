@@ -3,6 +3,7 @@
 
 import 'dotenv/config';
 import express from 'express';
+import path from 'node:path';
 import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import {
@@ -19,7 +20,8 @@ import { ALL_BACKGROUNDS } from '../dnd/backgrounds.js';
 import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaign.js';
 import { buildProviderFromEnv } from './dm/providers/factory.js';
 
-const PORT = parseInt(process.env.SERVER_PORT ?? '3001', 10);
+// Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
+const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
 
 // ════════════════════════════════════════════════════════════════════════════
 // DM provider init (1x no boot)
@@ -134,6 +136,17 @@ async function main(): Promise<void> {
     if (!c) { res.status(404).json({ error: 'not found' }); return; }
     res.json({ campaign: c });
   });
+
+  // === Static (produção) — serve dist/client buildado pelo Vite
+  if (process.env.NODE_ENV === 'production') {
+    const staticDir = path.resolve(process.cwd(), 'dist/client');
+    console.log(`[jsgame] servindo estático de ${staticDir}`);
+    app.use(express.static(staticDir, { maxAge: '1h', etag: true }));
+    // SPA fallback — qualquer rota não-API vai pro index.html
+    app.get(/^(?!\/api|\/socket\.io).*/, (_req, res) => {
+      res.sendFile(path.join(staticDir, 'index.html'));
+    });
+  }
 
   // === HTTP + Socket.io
   const httpServer = createServer(app);
@@ -372,6 +385,80 @@ async function main(): Promise<void> {
         saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] endTurn error:', err);
+      }
+    });
+
+    // ── shortRest: gasta hit dice, cura
+    socket.on('shortRest', async ({ hitDiceToSpend }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.shortRest(activePlayerId, hitDiceToSpend ?? 1);
+        if (!r.ok) { socket.emit('error', r.reason ?? 'short rest falhou'); return; }
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `${camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Você'} descansou curto: +${r.healed} HP (${r.diceSpent} hit dice).`,
+          speaker: 'Sistema',
+          mood: 'neutral',
+        });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        io.to(camp.state.id).emit('campaignState', camp.state);
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] shortRest error:', err);
+        socket.emit('error', `shortRest falhou: ${String(err)}`);
+      }
+    });
+
+    // ── longRest: full restore
+    socket.on('longRest', async () => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.longRest(activePlayerId);
+        if (!r.ok) { socket.emit('error', r.reason ?? 'long rest falhou'); return; }
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `${camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Você'} descansou longo: HP cheio, slots resetados.`,
+          speaker: 'Sistema',
+          mood: 'neutral',
+        });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        io.to(camp.state.id).emit('campaignState', camp.state);
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] longRest error:', err);
+        socket.emit('error', `longRest falhou: ${String(err)}`);
+      }
+    });
+
+    // ── rollDeathSave: d20 vs 10
+    socket.on('rollDeathSave', async () => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const r = await camp.rollDeathSave(activePlayerId);
+        if (!r.ok) { socket.emit('error', r.reason ?? 'death save falhou'); return; }
+        const playerName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Alguém';
+        const msg = r.nat20
+          ? `${playerName} rolou NAT 20 — recupera 1 HP!`
+          : r.died
+            ? `${playerName} MORREU (3 falhas no death save).`
+            : r.stabilized
+              ? `${playerName} ESTABILIZOU (3 sucessos).`
+              : `${playerName} death save: ${r.rollTotal} → ${r.success ? '✓' : '✗'} (${r.successes}/3 ✓ · ${r.failures}/3 ✗)`;
+        io.to(camp.state.id).emit('dmNarration', {
+          text: msg,
+          speaker: 'Death Save',
+          mood: r.died ? 'sombrio' : r.nat20 ? 'trickster' : 'neutral',
+        });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        io.to(camp.state.id).emit('campaignState', camp.state);
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] rollDeathSave error:', err);
+        socket.emit('error', `rollDeathSave falhou: ${String(err)}`);
       }
     });
 

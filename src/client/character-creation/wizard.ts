@@ -242,6 +242,8 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
     lastPlayedAt: now,
     deathCount: 0,
     campaignsPlayed: [],
+    deathSaveSuccesses: 0,
+    deathSaveFailures: 0,
   };
 
   // Preenche slots/cantrips/spells iniciais se for caster

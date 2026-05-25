@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1008"/>
+      <stop offset="1" stop-color="#0a0608"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- Safe zone center 80% — keeps content within maskable area -->
+  <polygon points="256,128 384,200 384,328 256,400 128,328 128,200" fill="none" stroke="#f4d07f" stroke-width="10"/>
+  <text x="256" y="298" text-anchor="middle" font-family="Georgia, serif" font-weight="bold" font-size="110" fill="#f4d07f">JS</text>
+</svg>

@@ -24,6 +24,15 @@ if (!app) throw new Error('#app não existe no DOM');
   document.body.classList.add('vertical-layout');
 })();
 
+// === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('[sw] register failed:', err);
+    });
+  });
+}
+
 // === Socket connect ===
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
   autoConnect: true,

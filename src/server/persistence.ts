@@ -11,7 +11,10 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { CharacterSheet, CampaignState } from '../shared/types.js';
 
-const DATA_DIR = path.resolve(process.cwd(), '.run-data');
+// DATA_DIR pode ser override por env (útil pra deploy Render com disco persistente).
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.resolve(process.cwd(), '.run-data');
 const DB_FILE = path.join(DATA_DIR, 'jsgame.db');
 const FLUSH_THROTTLE_MS = 2000;
 

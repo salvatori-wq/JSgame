@@ -24,6 +24,9 @@ import {
 } from './combat.js';
 import { resolvePlayerCastSpell, type CastSpellResult } from './spells-engine.js';
 import type { SpellId } from '../dnd/spells.js';
+import { getClass } from '../dnd/classes.js';
+import { restoreAllSlots } from '../dnd/spell-slots.js';
+import { rollDice } from '../dnd/dice.js';
 import { uuid } from './util.js';
 
 const MAX_RECENT_EVENTS = 30;
@@ -343,6 +346,139 @@ export class Campaign {
 
   getCombatState() {
     return this.state.combat;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Rest — short (gasta hit dice, cura) + long (full restore)
+  // ════════════════════════════════════════════════════════════════════════
+
+  async shortRest(playerId: string, hitDiceToSpend: number): Promise<{ ok: boolean; healed: number; diceSpent: number; reason?: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, healed: 0, diceSpent: 0, reason: 'jogador não encontrado' };
+      if (this.state.combat?.active) return { ok: false, healed: 0, diceSpent: 0, reason: 'sem descanso durante combate' };
+
+      const spend = Math.max(0, Math.min(hitDiceToSpend, player.hitDiceRemaining));
+      if (spend === 0) return { ok: false, healed: 0, diceSpent: 0, reason: 'sem hit dice disponíveis' };
+
+      const klass = getClass(player.classId);
+      const conMod = Math.floor((player.abilityScores.con - 10) / 2);
+      const roll = rollDice(spend, klass.hitDie, conMod * spend);
+      const healed = Math.max(spend, roll.total); // pelo menos N pontos (1 por die)
+      const oldHp = player.currentHp;
+      player.currentHp = Math.min(player.maxHp, player.currentHp + healed);
+      const actual = player.currentHp - oldHp;
+      player.hitDiceRemaining = Math.max(0, player.hitDiceRemaining - spend);
+
+      // Cura traz de volta da inconsciência
+      if (actual > 0 && player.conditions.includes('inconsciente')) {
+        player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
+        player.deathSaveSuccesses = 0;
+        player.deathSaveFailures = 0;
+      }
+
+      this.pushRecentEvent(`${player.characterName} descansou curto: gastou ${spend} hit dice, curou ${actual} HP`);
+      return { ok: true, healed: actual, diceSpent: spend };
+    });
+  }
+
+  async longRest(playerId: string): Promise<{ ok: boolean; healed: number; reason?: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, healed: 0, reason: 'jogador não encontrado' };
+      if (this.state.combat?.active) return { ok: false, healed: 0, reason: 'sem descanso durante combate' };
+
+      const oldHp = player.currentHp;
+      player.currentHp = player.maxHp;
+      // Hit dice: recupera metade do total max (min 1)
+      const totalDice = player.level; // max hit dice = level
+      const recovered = Math.max(1, Math.floor(totalDice / 2));
+      player.hitDiceRemaining = Math.min(totalDice, player.hitDiceRemaining + recovered);
+      // Spell slots full restore
+      restoreAllSlots(player);
+      // Cura conditions de batalha
+      player.conditions = player.conditions.filter((c) => c !== 'inconsciente' && c !== 'envenenado' && c !== 'amedrontado');
+      player.deathSaveSuccesses = 0;
+      player.deathSaveFailures = 0;
+
+      this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
+      return { ok: true, healed: player.currentHp - oldHp };
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Death saves — quando HP=0 em combate, no turn do PJ rola d20.
+  // ≥10=sucesso; <10=falha. Nat20=recupera 1HP. Nat1=2 falhas.
+  // 3 sucessos = estabiliza. 3 falhas = morre (deathCount++).
+  // ════════════════════════════════════════════════════════════════════════
+
+  async rollDeathSave(playerId: string): Promise<{
+    ok: boolean;
+    rollTotal?: number;
+    success?: boolean;
+    nat20?: boolean;
+    nat1?: boolean;
+    stabilized?: boolean;
+    died?: boolean;
+    successes?: number;
+    failures?: number;
+    reason?: string;
+  }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, reason: 'jogador não encontrado' };
+      if (player.currentHp > 0) return { ok: false, reason: 'só precisa de death save em HP=0' };
+      if (player.deathSaveSuccesses >= 3) return { ok: false, reason: 'já estabilizou' };
+      if (player.deathSaveFailures >= 3) return { ok: false, reason: 'já morreu' };
+
+      const roll = rollD20();
+      const total = roll.total;
+      let stabilized = false;
+      let died = false;
+
+      if (roll.nat20) {
+        // Recupera 1 HP
+        player.currentHp = 1;
+        player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
+        player.deathSaveSuccesses = 0;
+        player.deathSaveFailures = 0;
+        this.pushRecentEvent(`${player.characterName} rolou NAT 20 no death save — recupera 1 HP`);
+      } else if (roll.nat1) {
+        player.deathSaveFailures = Math.min(3, player.deathSaveFailures + 2);
+        this.pushRecentEvent(`${player.characterName} rolou NAT 1 — duas falhas (${player.deathSaveFailures}/3)`);
+      } else if (total >= 10) {
+        player.deathSaveSuccesses += 1;
+        if (player.deathSaveSuccesses >= 3) {
+          stabilized = true;
+          player.deathSaveSuccesses = 0;
+          player.deathSaveFailures = 0;
+          this.pushRecentEvent(`${player.characterName} estabilizou (3 sucessos)`);
+        } else {
+          this.pushRecentEvent(`${player.characterName} death save sucesso (${player.deathSaveSuccesses}/3)`);
+        }
+      } else {
+        player.deathSaveFailures += 1;
+        if (player.deathSaveFailures >= 3) {
+          died = true;
+          player.deathCount += 1;
+          this.pushRecentEvent(`${player.characterName} morreu (3 falhas)`);
+        } else {
+          this.pushRecentEvent(`${player.characterName} death save falha (${player.deathSaveFailures}/3)`);
+        }
+      }
+
+      return {
+        ok: true,
+        rollTotal: total,
+        success: total >= 10 || !!roll.nat20,
+        nat20: !!roll.nat20,
+        nat1: !!roll.nat1,
+        stabilized,
+        died,
+        successes: player.deathSaveSuccesses,
+        failures: player.deathSaveFailures,
+      };
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════

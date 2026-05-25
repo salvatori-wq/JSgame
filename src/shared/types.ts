@@ -89,6 +89,12 @@ export interface CharacterSheet {
   lastPlayedAt: number;
   deathCount: number;
   campaignsPlayed: string[];          // ids de campanhas em que esteve
+
+  // Death saves (PHB pág 197) — só relevante quando currentHp=0 em combate.
+  // 3 sucessos = estabiliza (inconsciente mas estável). 3 falhas = morte.
+  // Resetam ao ganhar HP > 0 ou estabilizar.
+  deathSaveSuccesses: number;
+  deathSaveFailures: number;
 }
 
 export interface InventoryItem {
@@ -174,8 +180,9 @@ export interface ClientToServerEvents {
   speakToNpc: (payload: { npcId: string; message: string; skill?: SkillId }) => void;
 
   // Rest
-  shortRest: () => void;
+  shortRest: (payload: { hitDiceToSpend: number }) => void;
   longRest: () => void;
+  rollDeathSave: () => void;
 
   // Meta
   chat: (payload: { text: string }) => void;

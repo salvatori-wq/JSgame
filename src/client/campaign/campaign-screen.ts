@@ -34,7 +34,6 @@ const ACTIONS: Array<{ id: ExplorationAction; label: string; icon: string }> = [
   { id: 'talk',          label: 'Falar',            icon: '🗣' },
   { id: 'sneak',         label: 'Furtar-se',        icon: '🥷' },
   { id: 'attack',        label: 'Atacar',           icon: '⚔' },
-  { id: 'rest-short',    label: 'Descanso Curto',   icon: '🛌' },
 ];
 
 export class CampaignScreen {
@@ -204,6 +203,10 @@ export class CampaignScreen {
       root.appendChild(this.renderPartyPanel());
     }
 
+    // ── Death save banner (se meu PJ caiu)
+    const deathBanner = this.renderDeathSaveBanner();
+    if (deathBanner) root.appendChild(deathBanner);
+
     // ── Narração log
     root.appendChild(this.renderNarrationLog());
 
@@ -289,9 +292,15 @@ export class CampaignScreen {
       const isMe = p.id === this.opts.characterId;
       const isDown = p.currentHp <= 0;
       const hpPct = p.maxHp > 0 ? Math.round((p.currentHp / p.maxHp) * 100) : 0;
+      // Slots resumidos
+      const slotsInfo: string[] = [];
+      for (let lvl = 1; lvl <= 5; lvl++) {
+        const s = p.spellSlots[lvl as 1 | 2 | 3 | 4 | 5];
+        if (s && s.max > 0) slotsInfo.push(`L${lvl}: ${s.max - s.used}/${s.max}`);
+      }
       list.appendChild(el('div', { class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}` }, [
         el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
-        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass}` }),
+        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass} · HD ${p.hitDiceRemaining}/${p.level}` }),
         el('div', { class: 'cp-pj-hp-bar' }, [
           el('div', {
             class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,
@@ -299,6 +308,18 @@ export class CampaignScreen {
           }),
         ]),
         el('div', { class: 'cp-pj-hp-txt', text: `HP ${p.currentHp}/${p.maxHp}` }),
+        slotsInfo.length > 0
+          ? el('div', { class: 'cp-pj-slots', text: `🔮 ${slotsInfo.join(' · ')}` })
+          : null,
+        isDown
+          ? el('div', { class: 'cp-pj-death' }, [
+              el('span', { class: 'cp-pj-death-label', text: '💀 Death saves' }),
+              el('span', { class: 'cp-pj-death-marks' }, [
+                el('span', { class: 'cp-pj-death-s', text: `✓${p.deathSaveSuccesses}/3` }),
+                el('span', { class: 'cp-pj-death-f', text: `✗${p.deathSaveFailures}/3` }),
+              ]),
+            ])
+          : null,
         p.conditions.length > 0
           ? el('div', { class: 'cp-pj-cond', text: p.conditions.join(' · ') })
           : null,
@@ -306,6 +327,25 @@ export class CampaignScreen {
     }
     panel.appendChild(list);
     return panel;
+  }
+
+  private renderDeathSaveBanner(): HTMLElement | null {
+    if (!this.character) return null;
+    if (this.character.currentHp > 0) return null;
+    if (this.character.deathSaveSuccesses >= 3 || this.character.deathSaveFailures >= 3) return null;
+    return el('div', { class: 'camp-death-banner' }, [
+      el('div', { class: 'cdb-title', text: '💀 Você está caído. Sua vida pende.' }),
+      el('div', { class: 'cdb-marks' }, [
+        el('span', { class: 'cdb-mark cdb-s', text: `Sucessos: ${this.character.deathSaveSuccesses}/3` }),
+        el('span', { class: 'cdb-mark cdb-f', text: `Falhas: ${this.character.deathSaveFailures}/3` }),
+      ]),
+      el('button', {
+        class: 'cdb-roll-btn',
+        text: '🎲 Rolar Death Save',
+        attrs: { type: 'button' },
+        on: { click: () => this.opts.socket.emit('rollDeathSave') },
+      }),
+    ]);
   }
 
   private renderNarrationLog(): HTMLElement {
@@ -347,7 +387,27 @@ export class CampaignScreen {
         on: { click: () => this.openSpellModal() },
       }, [
         el('span', { class: 'caa-icon', text: '🔮' }),
-        el('span', { class: 'caa-label', text: 'Lançar Magia' }),
+        el('span', { class: 'caa-label', text: 'Magia' }),
+      ]));
+    }
+    // Rest buttons (só fora de combate)
+    const canRest = this.currentState?.mode !== 'combat';
+    if (canRest && this.character) {
+      grid.appendChild(el('button', {
+        class: 'camp-action-btn is-rest',
+        attrs: { type: 'button', disabled, title: 'Descanso Curto — gasta 1+ hit dice pra curar HP' },
+        on: { click: () => this.openShortRestModal() },
+      }, [
+        el('span', { class: 'caa-icon', text: '🛌' }),
+        el('span', { class: 'caa-label', text: 'Curto' }),
+      ]));
+      grid.appendChild(el('button', {
+        class: 'camp-action-btn is-rest',
+        attrs: { type: 'button', disabled, title: 'Descanso Longo — HP cheio, slots resetam' },
+        on: { click: () => this.confirmLongRest() },
+      }, [
+        el('span', { class: 'caa-icon', text: '🏕' }),
+        el('span', { class: 'caa-label', text: 'Longo' }),
       ]));
     }
     actionsEl.appendChild(grid);
@@ -390,6 +450,26 @@ export class CampaignScreen {
       socket: this.opts.socket,
       onClose: () => { /* re-render acontece via campaignState event */ },
     });
+  }
+
+  private openShortRestModal(): void {
+    if (!this.character) return;
+    const maxDice = this.character.hitDiceRemaining;
+    if (maxDice === 0) {
+      this.flashToast('Sem hit dice. Precisa de descanso longo.');
+      return;
+    }
+    const input = prompt(`Quantos hit dice gastar? (1-${maxDice})`, '1');
+    if (input === null) return;
+    const n = parseInt(input, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    this.opts.socket.emit('shortRest', { hitDiceToSpend: Math.min(n, maxDice) });
+  }
+
+  private confirmLongRest(): void {
+    if (confirm('Descanso longo (8h): HP cheio + spell slots resetam. Avança o tempo. Confirmar?')) {
+      this.opts.socket.emit('longRest');
+    }
   }
 
   private flashToast(text: string): void {

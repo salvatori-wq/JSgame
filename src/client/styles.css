@@ -2006,6 +2006,75 @@ body.is-portrait-narrow .sc-die {
   margin-top: 3px;
   font-style: italic;
 }
+.cp-pj-slots {
+  font-family: monospace;
+  font-size: 10px;
+  color: #c8a8ff;
+  margin-top: 3px;
+}
+.cp-pj-death {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: rgba(120, 30, 30, 0.4);
+  border: 1px solid rgba(220, 60, 50, 0.5);
+  border-radius: 3px;
+  font-size: 10px;
+}
+.cp-pj-death-label { color: #ffa080; }
+.cp-pj-death-marks { display: flex; gap: 8px; }
+.cp-pj-death-s { color: #6ac050; }
+.cp-pj-death-f { color: #ff7060; }
+
+/* Death save banner (overlay-ish) */
+.camp-death-banner {
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(80, 20, 20, 0.7), rgba(40, 8, 8, 0.7));
+  border: 2px solid #c04040;
+  border-radius: 6px;
+  margin: 10px 0;
+  text-align: center;
+}
+.cdb-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #ff9070;
+  margin-bottom: 8px;
+}
+.cdb-marks {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 10px;
+  font-family: monospace;
+  font-size: 12px;
+}
+.cdb-s { color: #6ac050; }
+.cdb-f { color: #ff7060; }
+.cdb-roll-btn {
+  padding: 10px 22px;
+  background: linear-gradient(180deg, #c04040, #802020);
+  border: 1px solid #e06060;
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.cdb-roll-btn:hover { box-shadow: 0 0 14px rgba(220, 80, 60, 0.5); }
+
+.camp-action-btn.is-rest {
+  border-color: rgba(120, 180, 80, 0.4);
+  background: linear-gradient(180deg, rgba(30, 50, 20, 0.7), rgba(15, 25, 10, 0.7));
+}
+.camp-action-btn.is-rest:hover {
+  box-shadow: 0 0 12px rgba(120, 180, 80, 0.4);
+}
 
 .camp-check-banner.is-spectating {
   background: rgba(255, 220, 140, 0.06);
