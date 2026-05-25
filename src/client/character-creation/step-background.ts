@@ -15,35 +15,49 @@ export function renderBackgroundStep(
   container.appendChild(el('h2', { class: 'wiz-h2', text: 'Escolha seu Antecedente' }));
   container.appendChild(el('p', { class: 'wiz-intro', text: 'O antecedente revela quem você foi antes da aventura. Dá perícias garantidas + característica especial.' }));
 
-  // Render container que se re-popula
+  // Render container que se re-popula (INCLUI o footer pra reagir a mudanças de estado)
   const dynamic = el('div', { class: 'bg-dynamic' });
   const renderAll = (): void => {
     dynamic.innerHTML = '';
     dynamic.appendChild(renderBackgroundsList(state, callbacks, renderAll));
     if (state.backgroundId && state.classId) {
-      dynamic.appendChild(renderClassSkillsPicker(state, callbacks, renderAll));
+      const picker = renderClassSkillsPicker(state, callbacks, renderAll);
+      dynamic.appendChild(picker);
+      // UX: scroll suave pro picker quando antecedente acabou de ser escolhido
+      requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
+    dynamic.appendChild(renderFooter(state, callbacks));
   };
   renderAll();
   container.appendChild(dynamic);
 
+  return container;
+}
+
+function renderFooter(
+  state: WizardState,
+  callbacks: { next: () => void; back: () => void },
+): HTMLElement {
   const klass = state.classId ? getClass(state.classId) : null;
   const skillsNeeded = klass?.skillChoices.count ?? 0;
   const skillsChosen = state.chosenSkills.length;
   const canContinue = !!state.backgroundId && skillsChosen === skillsNeeded;
+  const hint = !state.backgroundId
+    ? 'Escolha um antecedente acima'
+    : skillsChosen < skillsNeeded
+      ? `Escolha mais ${skillsNeeded - skillsChosen} perícia(s) da classe`
+      : null;
 
-  const footer = el('footer', { class: 'wiz-footer' }, [
+  return el('footer', { class: 'wiz-footer' }, [
     el('button', { class: 'wiz-back', text: '← Voltar', on: { click: () => callbacks.back() } }),
+    hint ? el('div', { class: 'wiz-hint', text: hint }) : null,
     el('button', {
       class: 'wiz-cta',
       text: 'Continuar →',
       attrs: { type: 'button', disabled: !canContinue },
-      on: { click: () => callbacks.next() },
+      on: { click: () => { if (canContinue) callbacks.next(); } },
     }),
-  ]);
-  container.appendChild(footer);
-
-  return container;
+  ].filter(Boolean) as HTMLElement[]);
 }
 
 function renderBackgroundsList(

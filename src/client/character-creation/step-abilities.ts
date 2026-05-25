@@ -51,34 +51,42 @@ export function renderAbilitiesStep(
     return wrapper;
   };
 
-  // closure pra re-render só o miolo
-  const scoresContainer = el('div', { class: 'ab-scores-container' });
+  // closure pra re-render tudo (scores + footer) — footer precisa reagir a mudanças
+  const dynamic = el('div', { class: 'ab-dynamic' });
   const renderAll = (): void => {
-    scoresContainer.innerHTML = '';
-    scoresContainer.appendChild(renderScores());
+    dynamic.innerHTML = '';
+    dynamic.appendChild(renderScores());
+    dynamic.appendChild(renderFooter(state, callbacks));
   };
   renderAll();
-  container.appendChild(scoresContainer);
+  container.appendChild(dynamic);
 
-  // Footer com botões
-  const isValid = (totalPointBuyCost(state.abilityScoresBase) ?? 99) <= POINT_BUY_BUDGET;
-  const footer = el('footer', { class: 'wiz-footer' }, [
+  return container;
+}
+
+function renderFooter(
+  state: WizardState,
+  callbacks: { next: () => void; back: () => void },
+): HTMLElement {
+  const cost = totalPointBuyCost(state.abilityScoresBase) ?? 99;
+  const remaining = POINT_BUY_BUDGET - cost;
+  const isValid = cost <= POINT_BUY_BUDGET;
+  const hint = !isValid
+    ? `Excedeu ${cost - POINT_BUY_BUDGET} pts — reduza algum atributo`
+    : remaining > 0
+      ? `Sobram ${remaining} pts (pode gastar tudo ou seguir assim)`
+      : null;
+
+  return el('footer', { class: 'wiz-footer' }, [
     el('button', { class: 'wiz-back', text: '← Voltar', on: { click: () => callbacks.back() } }),
+    hint ? el('div', { class: 'wiz-hint', text: hint }) : null,
     el('button', {
       class: 'wiz-cta',
       text: 'Continuar →',
       attrs: { type: 'button', disabled: !isValid },
-      on: {
-        click: () => {
-          const recheck = (totalPointBuyCost(state.abilityScoresBase) ?? 99) <= POINT_BUY_BUDGET;
-          if (recheck) callbacks.next();
-        },
-      },
+      on: { click: () => { if (isValid) callbacks.next(); } },
     }),
-  ]);
-  container.appendChild(footer);
-
-  return container;
+  ].filter(Boolean) as HTMLElement[]);
 }
 
 function renderAbilityRow(

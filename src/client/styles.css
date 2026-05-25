@@ -649,6 +649,16 @@ body.is-portrait-narrow .boot-roadmap li {
   gap: var(--gap-base);
 }
 
+.wiz-hint {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--accent-rune);
+  padding: 0 var(--gap-base);
+}
+
 .wiz-back, .wiz-cta {
   padding: 10px 24px;
   border-radius: 4px;
