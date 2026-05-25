@@ -119,15 +119,20 @@ export interface CampaignState {
   sessionNumber: number;              // 1-5 dentro da campanha
   startedAt: number;
   lastPlayedAt: number;
+  // Skill check pendente — quem deve rolar, qual perícia, DC. null se nenhum.
+  pendingCheck: { skill: SkillId; dc: number; reason: string; playerId: string } | null;
+  // Combate ativo (ou null em exploration)
+  combat: CombatState | null;
 }
 
 // Combate
 export interface CombatState {
   active: boolean;
   round: number;
-  initiativeOrder: Array<{ id: string; kind: 'player' | 'enemy' | 'npc'; initiative: number; name: string }>;
-  currentTurnIndex: number;
+  initiativeOrder: Array<{ id: string; kind: 'player' | 'enemy'; initiative: number; name: string }>;
+  currentTurnIndex: number;            // index em initiativeOrder
   enemies: EnemySnapshot[];
+  log: string[];                       // últimas ações narradas curtas
 }
 
 export interface EnemySnapshot {
@@ -136,6 +141,10 @@ export interface EnemySnapshot {
   maxHp: number;
   currentHp: number;
   armorClass: number;
+  attackBonus: number;                 // d20 + X em ataques (default +3)
+  damageDice: string;                  // "1d6" / "2d4" — server parseia
+  damageBonus: number;                 // soma fixa ao dmg roll (default 0)
+  initiative: number;                  // populado ao roleiInitiative
   conditions: ConditionId[];
   description: string;
   isBoss: boolean;
@@ -177,6 +186,8 @@ export interface ServerToClientEvents {
   diceRollResult: (payload: { source: string; roll: DiceRoll; purpose: string }) => void;
   characterUpdate: (character: CharacterSheet) => void;
   combatEvent: (event: CombatEvent) => void;
+  dmThinking: (payload: { playerId: string; playerName: string; action: string }) => void;
+  dmDone: () => void;
   error: (msg: string) => void;
 }
 

@@ -38,12 +38,22 @@ export function showPendingSkillCheck(
     <div class="sc-verdict sc-verdict-idle">Clique pra rolar o d20</div>
   `;
 
+  let rolled = false;
   const rollBtn = el('button', {
     class: 'sc-roll-btn',
     text: '🎲 Rolar d20',
     attrs: { type: 'button' },
-    on: { click: () => onRoll() },
-  });
+    on: {
+      click: () => {
+        if (rolled) return;
+        rolled = true;
+        rollBtn.setAttribute('disabled', '');
+        rollBtn.textContent = 'Rolando…';
+        rollBtn.classList.add('is-rolling');
+        onRoll();
+      },
+    },
+  }) as HTMLButtonElement;
   stage.appendChild(rollBtn);
 
   overlay.appendChild(stage);

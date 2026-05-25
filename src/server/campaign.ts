@@ -1,12 +1,27 @@
 // JSgame · Campaign engine. Coordena estado de uma sessão de D&D.
 // Estado in-memory + persistido via persistence.saveCampaign() em wave-end style.
+//
+// Coop-safe:
+// - mutex (actionQueue): serializa takeAction/resolveSkillCheck/combat action — evita
+//   2 chamadas LLM paralelas + state corrompido quando 2 players agem juntos.
+// - startSession one-shot: flag isStarted impede dupla narração de abertura.
+// - pendingCheck no state.pendingCheck (público) com playerId owner — broadcast.
+//   resolveSkillCheck rejeita se playerId !== pendingCheck.playerId.
 
-import type { CharacterSheet, CampaignState, GameMode, EnemySnapshot, ExplorationAction } from '../shared/types.js';
+import type {
+  CharacterSheet, CampaignState, GameMode, ExplorationAction,
+  CombatActionKind, CombatEvent,
+} from '../shared/types.js';
 import { DungeonMaster, FallbackDM, type DMInterface, type DMResponse } from './dm/dm.js';
 import { validateToolCall, type ValidatedTool } from './dm/tools.js';
 import { rollD20, type DiceRoll } from '../dnd/dice.js';
 import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
 import { getSkill, type SkillId } from '../dnd/skills.js';
+import {
+  startCombat, currentParticipant, advanceTurn, isCombatOver,
+  resolvePlayerAttack, resolveEnemyTurn, resolvePlayerDodge, resolvePlayerDash,
+  applyConditionTo,
+} from './combat.js';
 import { uuid } from './util.js';
 
 const MAX_RECENT_EVENTS = 30;
@@ -15,10 +30,13 @@ const MAX_RECENT_NARRATIONS = 10;
 export class Campaign {
   state: CampaignState;
   party: CharacterSheet[] = [];
-  combat: { active: boolean; enemies: EnemySnapshot[]; round: number } = { active: false, enemies: [], round: 0 };
   private narrationLog: string[] = [];
-  private pendingSkillCheck: { skill: SkillId; dc: number; reason: string; playerId: string } | null = null;
   private dm: DMInterface;
+
+  // Coop guards
+  private isStarted = false;
+  private isStarting = false;
+  private actionQueue: Promise<unknown> = Promise.resolve();
 
   constructor(dm: DMInterface, opts?: { id?: string; name?: string }) {
     this.dm = dm;
@@ -36,7 +54,17 @@ export class Campaign {
       sessionNumber: 1,
       startedAt: now,
       lastPlayedAt: now,
+      pendingCheck: null,
+      combat: null,
     };
+  }
+
+  // Quando carregamos campanha persistida, restaura isStarted (se já tem narração)
+  // pra evitar disparar startSession outra vez no rejoin.
+  markStartedIfHasHistory(): void {
+    if (this.narrationLog.length > 0 || this.state.recentEvents.length > 0) {
+      this.isStarted = true;
+    }
   }
 
   addCharacter(c: CharacterSheet): void {
@@ -52,79 +80,267 @@ export class Campaign {
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  // Mutex: enfileira async ops. Próxima só roda quando a anterior termina.
+  // Erros não quebram o queue.
+  // ════════════════════════════════════════════════════════════════════════
+
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.actionQueue.then(fn, fn);
+    // Suprime warning de unhandled rejection na queue (caller já lida)
+    this.actionQueue = next.catch(() => undefined);
+    return next;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   // Action loop — player toma ação, DM narra, tools aplicam
   // ════════════════════════════════════════════════════════════════════════
 
-  async startSession(): Promise<DMResponse> {
-    const response = await this.dm.narrate({
-      campaign: this.state,
-      party: this.party,
-      recentNarrations: this.narrationLog,
+  async startSession(): Promise<DMResponse | null> {
+    return this.enqueue(async () => {
+      if (this.isStarted || this.isStarting) return null;
+      this.isStarting = true;
+      try {
+        const response = await this.dm.narrate({
+          campaign: this.state,
+          party: this.party,
+          recentNarrations: this.narrationLog,
+        });
+        this.applyDMResponse(response);
+        this.isStarted = true;
+        return response;
+      } finally {
+        this.isStarting = false;
+      }
     });
-    this.applyDMResponse(response);
-    return response;
   }
 
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
-    const response = await this.dm.narrate({
-      campaign: this.state,
-      party: this.party,
-      playerAction: { playerId, action: String(action), details },
-      recentNarrations: this.narrationLog,
+    return this.enqueue(async () => {
+      const response = await this.dm.narrate({
+        campaign: this.state,
+        party: this.party,
+        playerAction: { playerId, action: String(action), details },
+        recentNarrations: this.narrationLog,
+      });
+      this.applyDMResponse(response);
+      this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
+      return response;
     });
-    this.applyDMResponse(response);
-    this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
-    return response;
   }
 
-  // Resolve um skill check pendente (server rola, depois pede narração da consequência ao DM)
+  // Resolve skill check pendente. Verifica owner: só playerId === pendingCheck.playerId.
   async resolveSkillCheck(playerId: string): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; dmResponse: DMResponse } | null> {
-    if (!this.pendingSkillCheck) return null;
-    const player = this.party.find((p) => p.id === playerId);
-    if (!player) return null;
+    return this.enqueue(async () => {
+      const check = this.state.pendingCheck;
+      if (!check) return null;
+      if (check.playerId !== playerId) return null;
 
-    const check = this.pendingSkillCheck;
-    this.pendingSkillCheck = null;
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return null;
 
-    const skill = getSkill(check.skill);
-    const abilityScore = player.abilityScores[skill.ability];
-    const modifier = abilityModifier(abilityScore);
-    const proficient = player.proficientSkills.includes(check.skill);
-    const pb = proficiencyBonus(player.level);
-    const totalMod = modifier + (proficient ? pb : 0);
+      // Limpa antes de rolar (1 tentativa só)
+      this.state.pendingCheck = null;
 
-    const roll = rollD20({ modifier: totalMod });
-    const success = roll.total >= check.dc;
+      const skill = getSkill(check.skill);
+      const abilityScore = player.abilityScores[skill.ability];
+      const modifier = abilityModifier(abilityScore);
+      const proficient = player.proficientSkills.includes(check.skill);
+      const pb = proficiencyBonus(player.level);
+      const totalMod = modifier + (proficient ? pb : 0);
 
-    // Pede ao DM pra narrar a consequência
-    const dmResponse = await this.dm.narrate({
-      campaign: this.state,
-      party: this.party,
-      recentNarrations: this.narrationLog,
-      skillCheckResolution: {
-        playerName: player.characterName,
-        skill: skill.name,
-        roll: roll.rolls[0] ?? 0,
-        modifier: totalMod,
-        total: roll.total,
-        dc: check.dc,
-        success,
-        nat20: !!roll.nat20,
-        nat1: !!roll.nat1,
-      },
+      const roll = rollD20({ modifier: totalMod });
+      const success = roll.total >= check.dc;
+
+      const dmResponse = await this.dm.narrate({
+        campaign: this.state,
+        party: this.party,
+        recentNarrations: this.narrationLog,
+        skillCheckResolution: {
+          playerName: player.characterName,
+          skill: skill.name,
+          roll: roll.rolls[0] ?? 0,
+          modifier: totalMod,
+          total: roll.total,
+          dc: check.dc,
+          success,
+          nat20: !!roll.nat20,
+          nat1: !!roll.nat1,
+        },
+      });
+      this.applyDMResponse(dmResponse);
+      this.pushRecentEvent(`${player.characterName} rolou ${skill.name} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${check.dc}): ${success ? 'sucesso' : 'falhou'}`);
+
+      return { roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1, dmResponse };
     });
-    this.applyDMResponse(dmResponse);
-    this.pushRecentEvent(`${player.characterName} rolou ${skill.name} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${check.dc}): ${success ? 'sucesso' : 'falhou'}`);
-
-    return { roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1, dmResponse };
   }
 
   hasPendingSkillCheck(): boolean {
-    return this.pendingSkillCheck !== null;
+    return this.state.pendingCheck !== null;
   }
 
-  getPendingSkillCheck(): { skill: SkillId; dc: number; reason: string; playerId: string } | null {
-    return this.pendingSkillCheck;
+  getPendingSkillCheck(): CampaignState['pendingCheck'] {
+    return this.state.pendingCheck;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Combat — ações de player + enemy turns automáticos.
+  // ════════════════════════════════════════════════════════════════════════
+
+  async playerCombatAction(
+    playerId: string,
+    action: CombatActionKind,
+    targetId?: string,
+  ): Promise<{
+    ok: boolean;
+    events: CombatEvent[];
+    log: string;
+    outcome?: 'victory' | 'defeat';
+    dmFinalNarration?: DMResponse;
+  } | null> {
+    return this.enqueue(async () => {
+      const combat = this.state.combat;
+      if (!combat || !combat.active) return null;
+      const current = currentParticipant(combat);
+      if (!current || current.kind !== 'player' || current.id !== playerId) {
+        return { ok: false, events: [], log: 'não é seu turno' };
+      }
+
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return null;
+
+      const events: CombatEvent[] = [];
+      let log = '';
+
+      switch (action) {
+        case 'attack': {
+          if (!targetId) return { ok: false, events: [], log: 'precisa de alvo' };
+          const result = resolvePlayerAttack(player, targetId, combat);
+          if (!result) return { ok: false, events: [], log: 'alvo inválido' };
+          events.push(...result.events);
+          log = result.log;
+          break;
+        }
+        case 'dodge': {
+          const r = resolvePlayerDodge(player, combat);
+          log = r.log;
+          break;
+        }
+        case 'dash': {
+          const r = resolvePlayerDash(player, combat);
+          log = r.log;
+          break;
+        }
+        default: {
+          log = `${player.characterName} usa ${action}.`;
+          combat.log.push(log);
+          break;
+        }
+      }
+
+      // Checa fim do combate antes de avançar turno
+      const overCheck = isCombatOver(combat, this.party);
+      if (overCheck.over) {
+        const outcome = overCheck.victory ? 'victory' : 'defeat';
+        const dmFinal = await this.endCombatNarrate(outcome);
+        return { ok: true, events, log, outcome, dmFinalNarration: dmFinal };
+      }
+
+      // Avança turno e executa enemies até cair em player vivo
+      const enemyTurnEvents = await this.runEnemyTurnsUntilPlayer();
+      events.push(...enemyTurnEvents);
+
+      // Checa novamente após enemy turns
+      const overCheck2 = isCombatOver(combat, this.party);
+      if (overCheck2.over) {
+        const outcome = overCheck2.victory ? 'victory' : 'defeat';
+        const dmFinal = await this.endCombatNarrate(outcome);
+        return { ok: true, events, log, outcome, dmFinalNarration: dmFinal };
+      }
+
+      return { ok: true, events, log };
+    });
+  }
+
+  // Avança turn e roda enemies sequencialmente até a vez voltar pra um player vivo
+  // (ou combate acabar). Retorna events acumulados.
+  private async runEnemyTurnsUntilPlayer(): Promise<CombatEvent[]> {
+    const combat = this.state.combat;
+    if (!combat) return [];
+    const events: CombatEvent[] = [];
+
+    // Max iterações = nº participantes × 2 pra evitar loop infinito
+    const max = combat.initiativeOrder.length * 2;
+    for (let i = 0; i < max; i++) {
+      const adv = advanceTurn(combat, this.party);
+      if (adv.combatOver) break;
+      if (!adv.participant) break;
+      if (adv.participant.kind === 'player') break;
+
+      // Enemy turn
+      const result = resolveEnemyTurn(adv.participant.id, this.party, combat);
+      if (result) events.push(...result.events);
+
+      // Checa fim depois de cada enemy
+      const oc = isCombatOver(combat, this.party);
+      if (oc.over) break;
+    }
+
+    return events;
+  }
+
+  private async endCombatNarrate(outcome: 'victory' | 'defeat'): Promise<DMResponse | undefined> {
+    const combat = this.state.combat;
+    if (!combat) return undefined;
+
+    combat.active = false;
+    this.state.mode = 'exploration';
+    this.pushRecentEvent(outcome === 'victory' ? 'Combate vencido' : 'Party caiu em combate');
+
+    try {
+      const response = await this.dm.narrate({
+        campaign: this.state,
+        party: this.party,
+        recentNarrations: this.narrationLog,
+        playerAction: {
+          playerId: this.party[0]?.id ?? 'system',
+          action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido',
+          details: outcome === 'victory'
+            ? 'Inimigos derrotados. Narre desfecho curto.'
+            : 'Party caiu (HP 0). Narre desfecho sombrio — não morte definitiva ainda, só inconsciência.',
+        },
+      });
+      this.applyDMResponse(response);
+      return response;
+    } catch (err) {
+      console.warn('[campaign] DM final combat narration failed:', err);
+      return undefined;
+    } finally {
+      // Limpa combat após narração
+      this.state.combat = null;
+    }
+  }
+
+  // Chamado quando current turn é enemy E ninguém tomou action ainda (depois start_combat).
+  // Útil pra primeiro turno se enemy ganhou initiative.
+  async kickoffCombatIfEnemyFirst(): Promise<CombatEvent[]> {
+    return this.enqueue(async () => {
+      const combat = this.state.combat;
+      if (!combat || !combat.active) return [];
+      const current = currentParticipant(combat);
+      if (!current || current.kind === 'player') return [];
+
+      const events: CombatEvent[] = [];
+      // Resolve este enemy + roda até player
+      const result = resolveEnemyTurn(current.id, this.party, combat);
+      if (result) events.push(...result.events);
+      const more = await this.runEnemyTurnsUntilPlayer();
+      events.push(...more);
+      return events;
+    });
+  }
+
+  getCombatState() {
+    return this.state.combat;
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -132,7 +348,6 @@ export class Campaign {
   // ════════════════════════════════════════════════════════════════════════
 
   private applyDMResponse(response: DMResponse): void {
-    // Log da narração
     const speaker = response.speaker ?? 'Mestre';
     const entry = `${speaker}: ${response.narration}`;
     this.narrationLog.push(entry);
@@ -140,7 +355,6 @@ export class Campaign {
       this.narrationLog = this.narrationLog.slice(-MAX_RECENT_NARRATIONS);
     }
 
-    // Tools validadas server-side
     for (const tc of response.toolCalls) {
       const valid = validateToolCall(tc);
       if (!valid) {
@@ -157,31 +371,23 @@ export class Campaign {
     switch (tool.kind) {
       case 'request_skill_check': {
         const resolvedPlayerId = tool.playerId === 'active' && this.party[0] ? this.party[0].id : tool.playerId;
-        this.pendingSkillCheck = {
+        // Se playerId não está na party, faz fallback pro primeiro
+        const owner = this.party.find((p) => p.id === resolvedPlayerId)?.id ?? this.party[0]?.id ?? resolvedPlayerId;
+        this.state.pendingCheck = {
           skill: tool.skill,
           dc: tool.dc,
           reason: tool.reason,
-          playerId: resolvedPlayerId,
+          playerId: owner,
         };
         break;
       }
 
       case 'start_combat': {
         this.state.mode = 'combat';
-        this.combat = {
-          active: true,
-          round: 1,
-          enemies: tool.enemies.map((e, idx) => ({
-            id: `enemy-${idx}-${Date.now()}`,
-            name: e.name,
-            maxHp: e.hp,
-            currentHp: e.hp,
-            armorClass: e.ac,
-            conditions: [],
-            description: e.description ?? '',
-            isBoss: false,
-          })),
-        };
+        this.state.combat = startCombat({
+          party: this.party,
+          enemies: tool.enemies,
+        });
         this.pushRecentEvent(`Combate iniciado: ${tool.enemies.map((e) => e.name).join(', ')}`);
         break;
       }
@@ -190,12 +396,44 @@ export class Campaign {
         if (tool.playerId === 'all') {
           for (const p of this.party) {
             p.currentHp = Math.max(0, p.currentHp - tool.damage);
+            if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
+              p.conditions.push('inconsciente');
+            }
           }
         } else {
           const p = this.party.find((x) => x.id === tool.playerId);
-          if (p) p.currentHp = Math.max(0, p.currentHp - tool.damage);
+          if (p) {
+            p.currentHp = Math.max(0, p.currentHp - tool.damage);
+            if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
+              p.conditions.push('inconsciente');
+            }
+          }
         }
         this.pushRecentEvent(`Dano (${tool.type}): ${tool.damage} — ${tool.reason}`);
+        break;
+      }
+
+      case 'apply_condition': {
+        if (this.state.combat) {
+          const r = applyConditionTo(this.state.combat, this.party, tool.targetId, tool.condition);
+          if (r.applied) this.pushRecentEvent(`${r.targetName} ficou ${tool.condition}`);
+        } else {
+          const p = this.party.find((x) => x.id === tool.targetId);
+          if (p && !p.conditions.includes(tool.condition)) {
+            p.conditions.push(tool.condition);
+            this.pushRecentEvent(`${p.characterName} ficou ${tool.condition}`);
+          }
+        }
+        break;
+      }
+
+      case 'end_combat_with_outcome': {
+        if (this.state.combat) {
+          this.state.combat.active = false;
+          this.state.mode = 'exploration';
+          this.pushRecentEvent(`Combate encerrado: ${tool.outcome}`);
+          this.state.combat = null;
+        }
         break;
       }
 

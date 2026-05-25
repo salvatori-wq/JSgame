@@ -48,6 +48,8 @@ async function getOrCreateCampaign(id: string | undefined, name: string | undefi
     if (persisted) {
       const camp = new Campaign(dm, { id: persisted.id, name: persisted.name });
       camp.state = persisted;
+      // Hidrata flags pra evitar disparar startSession outra vez no rejoin
+      camp.markStartedIfHasHistory();
       campaigns.set(camp.state.id, camp);
       return camp;
     }
@@ -148,6 +150,29 @@ async function main(): Promise<void> {
       console.log('[socket] disconnected', socket.id, reason);
     });
 
+    // Helper: broadcast estado completo pra room
+    const broadcastState = (camp: Campaign): void => {
+      io.to(camp.state.id).emit('campaignState', camp.state);
+      io.to(camp.state.id).emit('partyUpdate', camp.party);
+      io.to(camp.state.id).emit('combatState', camp.state.combat);
+    };
+
+    // Helper: broadcast thinking → ação → done
+    const withThinkingBroadcast = async <T>(
+      camp: Campaign,
+      playerId: string,
+      actionLabel: string,
+      fn: () => Promise<T>,
+    ): Promise<T> => {
+      const playerName = camp.party.find((p) => p.id === playerId)?.characterName ?? 'Alguém';
+      io.to(camp.state.id).emit('dmThinking', { playerId, playerName, action: actionLabel });
+      try {
+        return await fn();
+      } finally {
+        io.to(camp.state.id).emit('dmDone');
+      }
+    };
+
     // ── joinCampaign: cria/carrega campanha + adiciona character ──
     socket.on('joinCampaign', async ({ campaignId, ownerName, characterId }) => {
       try {
@@ -161,20 +186,27 @@ async function main(): Promise<void> {
         activePlayerId = character.id;
         socket.join(camp.state.id);
 
+        // Sempre envia estado inicial pro joiner
         socket.emit('campaignState', camp.state);
+        socket.emit('combatState', camp.state.combat);
         io.to(camp.state.id).emit('partyUpdate', camp.party);
 
-        // Se campanha nova (sem narração ainda), inicia
-        if (camp.getNarrationLog().length === 0) {
-          const response = await camp.startSession();
-          io.to(camp.state.id).emit('dmNarration', {
-            text: response.narration,
-            speaker: response.speaker ?? 'Mestre',
-            mood: 'neutral',
+        // Se campanha nova (sem início ainda), inicia. startSession é coop-safe
+        // (mutex + isStarted guard), múltiplas chamadas concorrentes resultam em 1 narração.
+        if (camp.getNarrationLog().length === 0 && camp.state.recentEvents.length === 0) {
+          await withThinkingBroadcast(camp, character.id, 'abrir cena', async () => {
+            const response = await camp.startSession();
+            if (response) {
+              io.to(camp.state.id).emit('dmNarration', {
+                text: response.narration,
+                speaker: response.speaker ?? 'Mestre',
+                mood: 'neutral',
+              });
+              broadcastState(camp);
+            }
           });
-          io.to(camp.state.id).emit('campaignState', camp.state);
         } else {
-          // Recap das últimas narrações pro novo joiner
+          // Recap das últimas narrações pro novo joiner (só pra ele)
           for (const entry of camp.getNarrationLog().slice(-3)) {
             const [speaker, ...rest] = entry.split(': ');
             socket.emit('dmNarration', { text: rest.join(': '), speaker: speaker ?? 'Mestre', mood: 'neutral' });
@@ -194,50 +226,118 @@ async function main(): Promise<void> {
         const camp = campaigns.get(activeCampaignId);
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
 
-        const response = await camp.takeAction(activePlayerId, action, details);
-        io.to(camp.state.id).emit('dmNarration', {
-          text: response.narration,
-          speaker: response.speaker ?? 'Mestre',
-          mood: 'neutral',
+        await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
+          const response = await camp.takeAction(activePlayerId!, action, details);
+          io.to(camp.state.id).emit('dmNarration', {
+            text: response.narration,
+            speaker: response.speaker ?? 'Mestre',
+            mood: 'neutral',
+          });
+          broadcastState(camp);
+          saveCampaign(camp.state);
+
+          // Se DM iniciou combate E enemy ganhou initiative, kickoff enemy turn
+          if (camp.state.combat && camp.state.combat.active) {
+            const cur = camp.state.combat.initiativeOrder[camp.state.combat.currentTurnIndex];
+            if (cur && cur.kind === 'enemy') {
+              const events = await camp.kickoffCombatIfEnemyFirst();
+              for (const ev of events) {
+                io.to(camp.state.id).emit('combatEvent', ev);
+              }
+              broadcastState(camp);
+              saveCampaign(camp.state);
+            }
+          }
         });
-        io.to(camp.state.id).emit('campaignState', camp.state);
-        io.to(camp.state.id).emit('partyUpdate', camp.party);
-        saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] takeAction error:', err);
         socket.emit('error', `takeAction falhou: ${String(err)}`);
       }
     });
 
-    // ── requestSkillCheck: player rola o d20 (server roleia, DM narra) ──
+    // ── requestSkillCheck: player rola d20 (server roleia, DM narra) ──
     socket.on('requestSkillCheck', async (_payload) => {
       try {
         if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
         const camp = campaigns.get(activeCampaignId);
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
-        if (!camp.hasPendingSkillCheck()) {
-          socket.emit('error', 'no pending skill check');
+        const pending = camp.getPendingSkillCheck();
+        // Sem pending = clique duplo ou check já resolvido. Silent ignore — não polui o log do player.
+        if (!pending) { return; }
+        if (pending.playerId !== activePlayerId) {
+          socket.emit('error', 'esse check é de outro player');
           return;
         }
-        const result = await camp.resolveSkillCheck(activePlayerId);
-        if (!result) return;
 
-        io.to(camp.state.id).emit('diceRollResult', {
-          source: activePlayerId,
-          roll: result.roll,
-          purpose: 'skill-check',
+        await withThinkingBroadcast(camp, activePlayerId, `rolar ${pending.skill}`, async () => {
+          const result = await camp.resolveSkillCheck(activePlayerId!);
+          if (!result) return;
+
+          io.to(camp.state.id).emit('diceRollResult', {
+            source: activePlayerId!,
+            roll: result.roll,
+            purpose: 'skill-check',
+          });
+          io.to(camp.state.id).emit('dmNarration', {
+            text: result.dmResponse.narration,
+            speaker: result.dmResponse.speaker ?? 'Mestre',
+            mood: result.nat20 ? 'trickster' : result.nat1 ? 'sombrio' : 'neutral',
+          });
+          broadcastState(camp);
+          saveCampaign(camp.state);
         });
-        io.to(camp.state.id).emit('dmNarration', {
-          text: result.dmResponse.narration,
-          speaker: result.dmResponse.speaker ?? 'Mestre',
-          mood: result.nat20 ? 'trickster' : result.nat1 ? 'sombrio' : 'neutral',
-        });
-        io.to(camp.state.id).emit('campaignState', camp.state);
-        io.to(camp.state.id).emit('partyUpdate', camp.party);
-        saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] requestSkillCheck error:', err);
         socket.emit('error', `skill check falhou: ${String(err)}`);
+      }
+    });
+
+    // ── combatAction: ataque/esquiva/disparada/etc ──
+    socket.on('combatAction', async ({ action, targetId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        if (!camp.state.combat?.active) { socket.emit('error', 'sem combate ativo'); return; }
+
+        const result = await camp.playerCombatAction(activePlayerId, action, targetId);
+        if (!result) { socket.emit('error', 'ação de combate inválida'); return; }
+        if (!result.ok) { socket.emit('error', result.log || 'ação rejeitada'); return; }
+
+        for (const ev of result.events) {
+          io.to(camp.state.id).emit('combatEvent', ev);
+        }
+        broadcastState(camp);
+
+        if (result.outcome && result.dmFinalNarration) {
+          io.to(camp.state.id).emit('dmNarration', {
+            text: result.dmFinalNarration.narration,
+            speaker: result.dmFinalNarration.speaker ?? 'Mestre',
+            mood: result.outcome === 'victory' ? 'trickster' : 'sombrio',
+          });
+          broadcastState(camp);
+        }
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] combatAction error:', err);
+        socket.emit('error', `combatAction falhou: ${String(err)}`);
+      }
+    });
+
+    // ── endTurn: player passa o turno explicitamente (sem ação)
+    socket.on('endTurn', async () => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        // playerCombatAction com 'dodge' default — simplificação MVP
+        const result = await camp.playerCombatAction(activePlayerId, 'dodge');
+        if (!result?.ok) return;
+        for (const ev of result.events) io.to(camp.state.id).emit('combatEvent', ev);
+        broadcastState(camp);
+        saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] endTurn error:', err);
       }
     });
 

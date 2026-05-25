@@ -52,3 +52,15 @@ export async function deleteCharacter(id: string): Promise<void> {
     method: 'DELETE',
   });
 }
+
+export interface CampaignSummary {
+  id: string;
+  name: string;
+  sessionNumber: number;
+  lastPlayedAt: number;
+}
+
+export async function listCampaigns(): Promise<CampaignSummary[]> {
+  const data = await fetchJson<{ campaigns: CampaignSummary[] }>('/api/campaigns');
+  return data.campaigns;
+}

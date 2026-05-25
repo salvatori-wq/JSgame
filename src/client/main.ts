@@ -4,7 +4,7 @@
 import './styles.css';
 import { io, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '@shared/types';
-import { listCharacters, getCharacter, deleteCharacter, getHealth } from './api';
+import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, type CampaignSummary } from './api';
 import { el, getOwnerName, setOwnerName } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
@@ -140,6 +140,9 @@ async function renderHome(): Promise<void> {
   charsContainer.appendChild(charsList);
   root.appendChild(charsContainer);
 
+  // Estado: PJ "selecionado" pra joinar campanhas existentes (default = 1º)
+  let selectedCharId: string | null = null;
+
   const refreshCharsList = async (): Promise<void> => {
     const o = getOwnerName().trim();
     charsList.innerHTML = '';
@@ -151,15 +154,25 @@ async function renderHome(): Promise<void> {
       const chars = await listCharacters(o);
       if (chars.length === 0) {
         charsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhum personagem ainda. Crie o primeiro!' }));
+        selectedCharId = null;
         return;
+      }
+      if (!selectedCharId || !chars.find((c) => c.id === selectedCharId)) {
+        selectedCharId = chars[0]?.id ?? null;
       }
       for (const c of chars) {
         const race = getRace(c.raceId as Parameters<typeof getRace>[0]);
         const klass = getClass(c.classId as Parameters<typeof getClass>[0]);
-        const card = el('div', { class: 'home-char-card' }, [
+        const isSelected = c.id === selectedCharId;
+        const card = el('div', { class: `home-char-card${isSelected ? ' is-selected' : ''}` }, [
           el('div', {
             class: 'hcc-body',
-            on: { click: () => navigate({ kind: 'sheet', id: c.id }) },
+            on: {
+              click: () => {
+                selectedCharId = c.id;
+                void refreshCharsList();
+              },
+            },
           }, [
             el('div', { class: 'hcc-name', text: c.characterName }),
             el('div', { class: 'hcc-meta', text: `${race?.name ?? c.raceId} · ${klass?.name ?? c.classId} · Nv ${c.level}` }),
@@ -167,12 +180,23 @@ async function renderHome(): Promise<void> {
           el('div', { class: 'hcc-actions' }, [
             el('button', {
               class: 'hcc-play-btn',
-              text: '▶ Jogar',
-              attrs: { title: 'Começar / continuar sessão' },
+              text: '▶ Nova Crônica',
+              attrs: { title: 'Começar sessão nova com este PJ' },
               on: {
                 click: (e) => {
                   e.stopPropagation();
                   navigate({ kind: 'campaign', characterId: c.id });
+                },
+              },
+            }),
+            el('button', {
+              class: 'hcc-sheet-btn',
+              text: 'Ficha',
+              attrs: { title: 'Ver ficha completa' },
+              on: {
+                click: (e) => {
+                  e.stopPropagation();
+                  navigate({ kind: 'sheet', id: c.id });
                 },
               },
             }),
@@ -200,7 +224,84 @@ async function renderHome(): Promise<void> {
   };
   await refreshCharsList();
 
+  // === Coop section: campanhas em andamento + joinar por código ===
+  const coopSection = el('section', { class: 'home-coop' });
+  coopSection.appendChild(el('h3', { class: 'cs-h3', text: '🤝 Jogar em Coop' }));
+  coopSection.appendChild(el('p', { class: 'home-coop-hint', text: 'Joinar uma crônica existente com o personagem selecionado acima.' }));
+
+  // Lista campanhas recentes
+  const campsList = el('div', { class: 'home-camps' });
+  coopSection.appendChild(campsList);
+
+  const refreshCamps = async (): Promise<void> => {
+    campsList.innerHTML = '';
+    try {
+      const camps = await listCampaigns();
+      if (camps.length === 0) {
+        campsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhuma crônica em andamento ainda.' }));
+        return;
+      }
+      for (const c of camps.slice(0, 8)) {
+        campsList.appendChild(renderCampaignCard(c, () => selectedCharId, navigate));
+      }
+    } catch (err) {
+      campsList.appendChild(el('div', { class: 'home-empty', text: `Erro listando crônicas: ${String(err)}` }));
+    }
+  };
+
+  // Input livre pra colar código
+  const joinInput = el('input', {
+    class: 'home-join-input',
+    attrs: { type: 'text', placeholder: 'Cole o código da crônica (ID)', maxlength: '64' },
+  }) as HTMLInputElement;
+  const joinBtn = el('button', {
+    class: 'home-join-btn',
+    text: '🔗 Joinar',
+    on: {
+      click: () => {
+        const id = joinInput.value.trim();
+        if (!id) { joinInput.focus(); return; }
+        if (!selectedCharId) {
+          alert('Selecione um personagem primeiro (clique no card).');
+          return;
+        }
+        navigate({ kind: 'campaign', characterId: selectedCharId, campaignId: id });
+      },
+    },
+  });
+  coopSection.appendChild(el('div', { class: 'home-join-row' }, [joinInput, joinBtn]));
+
+  root.appendChild(coopSection);
+  await refreshCamps();
+
   app!.appendChild(root);
+}
+
+function renderCampaignCard(
+  c: CampaignSummary,
+  getSelectedChar: () => string | null,
+  navigate: (v: { kind: 'campaign'; characterId: string; campaignId?: string }) => void,
+): HTMLElement {
+  const when = new Date(c.lastPlayedAt);
+  const whenStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return el('div', { class: 'home-camp-card' }, [
+    el('div', { class: 'hcamp-body' }, [
+      el('div', { class: 'hcamp-name', text: c.name }),
+      el('div', { class: 'hcamp-meta', text: `Sessão ${c.sessionNumber} · ${whenStr}` }),
+      el('div', { class: 'hcamp-id', text: `ID: ${c.id}` }),
+    ]),
+    el('button', {
+      class: 'hcamp-join-btn',
+      text: '🤝 Joinar',
+      on: {
+        click: () => {
+          const charId = getSelectedChar();
+          if (!charId) { alert('Selecione um personagem primeiro.'); return; }
+          navigate({ kind: 'campaign', characterId: charId, campaignId: c.id });
+        },
+      },
+    }),
+  ]);
 }
 
 function renderWizard(): void {

@@ -1,17 +1,21 @@
-// JSgame · Tela de campanha (exploration mode).
-// Caixa de narração + log + botões de ação + integração com socket.
-// Gerencia também o skill-check overlay quando server pede.
+// JSgame · Tela de campanha. Renderiza exploration OU combat baseado em state.mode.
+// Coop-aware:
+// - Party panel (todos PJs HP/CA/conditions)
+// - Skill-check banner SÓ pro player do pendingCheck.playerId
+// - "X está pensando…" sincronizado via dmThinking/dmDone
+// - Campaign ID no header pra share
 
 import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents, ServerToClientEvents,
-  CampaignState, CharacterSheet, DiceRoll, SkillId, ExplorationAction,
+  CampaignState, CharacterSheet, DiceRoll, ExplorationAction, CombatEvent,
 } from '@shared/types';
 import { SKILLS } from '@dnd/skills';
 import { abilityModifier, proficiencyBonus } from '@dnd/attributes';
 import { el, escapeHtml } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
+import { renderCombatScreen } from '../combat/combat-screen';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -37,9 +41,11 @@ export class CampaignScreen {
   private opts: CampaignScreenOpts;
   private narrations: Array<{ speaker: string; text: string }> = [];
   private character: CharacterSheet | null = null;
+  private party: CharacterSheet[] = [];
   private currentState: CampaignState | null = null;
-  private pendingCheck: PendingCheck | null = null;
-  private isWaitingDM = false;
+  private skillCheckOverlay: PendingCheck | null = null;
+  private dmThinkingBy: { playerName: string; action: string } | null = null;
+  private combatLog: string[] = [];
   private socketBound = false;
   private socketCleanups: Array<() => void> = [];
 
@@ -50,9 +56,9 @@ export class CampaignScreen {
 
   async start(): Promise<void> {
     this.character = await getCharacter(this.opts.characterId);
+    this.party = [this.character];
     this.render();
     this.bindSocket();
-    // Inicia/retoma campanha
     this.opts.socket.emit('joinCampaign', {
       ownerName: this.opts.ownerName,
       characterId: this.opts.characterId,
@@ -73,7 +79,7 @@ export class CampaignScreen {
 
     const onNarration = (payload: { text: string; speaker?: string; mood?: string }): void => {
       this.narrations.push({ speaker: payload.speaker ?? 'Mestre', text: payload.text });
-      this.isWaitingDM = false;
+      if (this.narrations.length > 50) this.narrations = this.narrations.slice(-50);
       this.render();
     };
     s.on('dmNarration', onNarration);
@@ -81,12 +87,15 @@ export class CampaignScreen {
 
     const onState = (state: CampaignState): void => {
       this.currentState = state;
+      // Se pendingCheck mudou e eu sou owner, abre overlay
+      this.maybeShowPendingCheck();
       this.render();
     };
     s.on('campaignState', onState);
     this.socketCleanups.push(() => s.off('campaignState', onState));
 
     const onParty = (party: CharacterSheet[]): void => {
+      this.party = party;
       const me = party.find((p) => p.id === this.opts.characterId);
       if (me) this.character = me;
       this.render();
@@ -94,10 +103,27 @@ export class CampaignScreen {
     s.on('partyUpdate', onParty);
     this.socketCleanups.push(() => s.off('partyUpdate', onParty));
 
+    const onCombat = (_combat: unknown): void => {
+      // combat embarcado em currentState.combat — só re-renderiza
+      this.render();
+    };
+    s.on('combatState', onCombat);
+    this.socketCleanups.push(() => s.off('combatState', onCombat));
+
+    const onCombatEvent = (ev: CombatEvent): void => {
+      if (ev.text) {
+        this.combatLog.push(ev.text);
+        if (this.combatLog.length > 20) this.combatLog = this.combatLog.slice(-20);
+      }
+      this.render();
+    };
+    s.on('combatEvent', onCombatEvent);
+    this.socketCleanups.push(() => s.off('combatEvent', onCombatEvent));
+
     const onDice = (payload: { source: string; roll: DiceRoll; purpose: string }): void => {
-      if (payload.purpose === 'skill-check' && this.pendingCheck) {
-        showSkillCheckResult(payload.roll, this.pendingCheck, () => {
-          this.pendingCheck = null;
+      if (payload.purpose === 'skill-check' && this.skillCheckOverlay) {
+        showSkillCheckResult(payload.roll, this.skillCheckOverlay, () => {
+          this.skillCheckOverlay = null;
           this.render();
         });
       }
@@ -105,44 +131,168 @@ export class CampaignScreen {
     s.on('diceRollResult', onDice);
     this.socketCleanups.push(() => s.off('diceRollResult', onDice));
 
+    const onThinking = (payload: { playerId: string; playerName: string; action: string }): void => {
+      this.dmThinkingBy = { playerName: payload.playerName, action: payload.action };
+      this.render();
+    };
+    s.on('dmThinking', onThinking);
+    this.socketCleanups.push(() => s.off('dmThinking', onThinking));
+
+    const onDone = (): void => {
+      this.dmThinkingBy = null;
+      this.render();
+    };
+    s.on('dmDone', onDone);
+    this.socketCleanups.push(() => s.off('dmDone', onDone));
+
     const onError = (msg: string): void => {
       console.warn('[campaign] server error:', msg);
       this.narrations.push({ speaker: '⚠ Erro', text: msg });
-      this.isWaitingDM = false;
+      this.dmThinkingBy = null;
       this.render();
     };
     s.on('error', onError);
     this.socketCleanups.push(() => s.off('error', onError));
   }
 
-  // ── Pre-check de skill check: server pode embarcar no campaignState futuro,
-  // por enquanto vamos pelo currentState.mode/condition. Sem campo dedicated,
-  // mostramos o botão "Rolar d20" no header da scene quando o backend confirmar.
-  // Simplificação: usaremos um botão "✨ Resolver perícia" quando narração mencionar.
-  // Pra MVP, o DM call dispara requestSkillCheck quando há pending. Vamos manter
-  // simples: o cliente sempre tem botão "Rolar d20 (se houver pendente)" visível.
+  private maybeShowPendingCheck(): void {
+    const pending = this.currentState?.pendingCheck;
+    if (!pending || !this.character) {
+      // Não há check ativo OU já passou — fecha overlay se aberto
+      if (!pending && this.skillCheckOverlay) {
+        closeSkillCheck();
+        this.skillCheckOverlay = null;
+      }
+      return;
+    }
+    if (pending.playerId !== this.opts.characterId) return; // não é meu check
+    if (this.skillCheckOverlay) return; // já mostrando
+
+    const skill = SKILLS[pending.skill];
+    if (!skill) return;
+    const abilityScore = this.character.abilityScores[skill.ability];
+    const mod = abilityModifier(abilityScore);
+    const pb = proficiencyBonus(this.character.level);
+    const proficient = this.character.proficientSkills.includes(pending.skill);
+    const bonus = mod + (proficient ? pb : 0);
+    this.skillCheckOverlay = {
+      skill: pending.skill,
+      dc: pending.dc,
+      reason: pending.reason,
+      bonus,
+    };
+    showPendingSkillCheck(this.skillCheckOverlay, () => {
+      this.opts.socket.emit('requestSkillCheck', { skill: pending.skill });
+    });
+  }
 
   private render(): void {
     this.container.innerHTML = '';
+    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
 
     const root = el('main', { class: 'camp-screen' });
 
-    // Header com volta e info
-    root.appendChild(el('header', { class: 'camp-header' }, [
+    // ── Header
+    root.appendChild(this.renderHeader());
+
+    // ── Party panel (todos PJs)
+    if (this.party.length > 0) {
+      root.appendChild(this.renderPartyPanel());
+    }
+
+    // ── Narração log
+    root.appendChild(this.renderNarrationLog());
+
+    // ── Pending check banner — só pra OUTROS players (o owner vê overlay)
+    const pending = this.currentState?.pendingCheck;
+    if (pending && pending.playerId !== this.opts.characterId) {
+      const ownerName = this.party.find((p) => p.id === pending.playerId)?.characterName ?? 'Aliado';
+      const sk = SKILLS[pending.skill];
+      root.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
+        el('span', { text: `🎲 ${ownerName} está rolando ${sk?.name ?? pending.skill} (DC ${pending.dc}) — ${pending.reason}` }),
+      ]));
+    }
+
+    // ── DM thinking indicator (qualquer jogador)
+    if (this.dmThinkingBy) {
+      root.appendChild(el('div', { class: 'camp-thinking' }, [
+        el('span', { class: 'ct-spinner', text: '💭' }),
+        el('span', { class: 'ct-txt', text: `${this.dmThinkingBy.playerName} → ${this.dmThinkingBy.action}…` }),
+      ]));
+    }
+
+    // ── Combat OR exploration UI
+    if (isCombat && this.currentState?.combat && this.character) {
+      renderCombatScreen(root, {
+        combat: this.currentState.combat,
+        party: this.party,
+        myCharacterId: this.opts.characterId,
+        socket: this.opts.socket,
+        combatLog: this.combatLog,
+      });
+    } else {
+      root.appendChild(this.renderActionsBar());
+    }
+
+    this.container.appendChild(root);
+  }
+
+  private renderHeader(): HTMLElement {
+    const campId = this.currentState?.id;
+    return el('header', { class: 'camp-header' }, [
       el('button', { class: 'wiz-back-btn', text: '← Sair', on: { click: () => this.opts.onExit() } }),
       el('div', { class: 'camp-title' }, [
         el('h2', { text: this.currentState?.name ?? 'Carregando…' }),
         el('div', { class: 'camp-loc', text: this.currentState?.currentLocation ?? '...' }),
       ]),
-      this.character ? el('div', { class: 'camp-hp' }, [
-        el('span', { class: 'chp-name', text: this.character.characterName }),
-        el('span', { class: 'chp-stats', text: `HP ${this.character.currentHp}/${this.character.maxHp} · CA ${this.character.armorClass}` }),
-      ]) : null,
-    ].filter(Boolean) as HTMLElement[]));
+      campId ? el('button', {
+        class: 'camp-share-btn',
+        text: '🔗 Compartilhar',
+        attrs: { title: 'Copiar ID da crônica pra share com aliado' },
+        on: {
+          click: async () => {
+            try {
+              await navigator.clipboard.writeText(campId);
+              this.flashToast('ID copiado! Cole no Home → Joinar.');
+            } catch {
+              prompt('Copie o ID:', campId);
+            }
+          },
+        },
+      }) : null,
+    ].filter(Boolean) as HTMLElement[]);
+  }
 
-    // Narração log
+  private renderPartyPanel(): HTMLElement {
+    const panel = el('section', { class: 'camp-party' });
+    panel.appendChild(el('div', { class: 'cp-title', text: '🛡 Party' }));
+    const list = el('div', { class: 'cp-list' });
+    for (const p of this.party) {
+      const isMe = p.id === this.opts.characterId;
+      const isDown = p.currentHp <= 0;
+      const hpPct = p.maxHp > 0 ? Math.round((p.currentHp / p.maxHp) * 100) : 0;
+      list.appendChild(el('div', { class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}` }, [
+        el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
+        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass}` }),
+        el('div', { class: 'cp-pj-hp-bar' }, [
+          el('div', {
+            class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,
+            style: { width: `${hpPct}%` },
+          }),
+        ]),
+        el('div', { class: 'cp-pj-hp-txt', text: `HP ${p.currentHp}/${p.maxHp}` }),
+        p.conditions.length > 0
+          ? el('div', { class: 'cp-pj-cond', text: p.conditions.join(' · ') })
+          : null,
+      ].filter(Boolean) as HTMLElement[]));
+    }
+    panel.appendChild(list);
+    return panel;
+  }
+
+  private renderNarrationLog(): HTMLElement {
     const narrEl = el('section', { class: 'camp-narration' });
-    if (this.narrations.length === 0 && !this.isWaitingDM) {
+    if (this.narrations.length === 0 && !this.dmThinkingBy) {
       narrEl.appendChild(el('div', { class: 'camp-narr-empty', text: 'Aguardando o Mestre acordar…' }));
     }
     for (const n of this.narrations.slice(-10)) {
@@ -153,36 +303,18 @@ export class CampaignScreen {
       `;
       narrEl.appendChild(entry);
     }
-    if (this.isWaitingDM) {
-      narrEl.appendChild(el('div', { class: 'camp-narr-thinking', text: '💭 O Mestre pensa…' }));
-    }
-    root.appendChild(narrEl);
+    return narrEl;
+  }
 
-    // Pending skill check banner — server signaliza via state futuro; por agora
-    // detectamos pelo último narration ter um pattern. Versão simples: botão
-    // sempre disponível "Rolar perícia (se pendente)" — server rejeita se não houver.
-    // Pra UX cleaner: detector básico pelas últimas narrations.
-    if (this.shouldOfferSkillCheck()) {
-      const banner = el('div', { class: 'camp-check-banner' }, [
-        el('span', { text: '🎲 O Mestre pediu um teste de perícia' }),
-        el('button', {
-          class: 'wiz-cta',
-          text: 'Rolar d20',
-          attrs: { type: 'button' },
-          on: { click: () => this.rollSkillCheck() },
-        }),
-      ]);
-      root.appendChild(banner);
-    }
-
-    // Ações (botões)
+  private renderActionsBar(): HTMLElement {
     const actionsEl = el('section', { class: 'camp-actions' });
     actionsEl.appendChild(el('h3', { class: 'camp-h3', text: 'O que você faz?' }));
+    const disabled = !!this.dmThinkingBy;
     const grid = el('div', { class: 'camp-actions-grid' });
     for (const a of ACTIONS) {
       grid.appendChild(el('button', {
         class: 'camp-action-btn',
-        attrs: { type: 'button', disabled: this.isWaitingDM },
+        attrs: { type: 'button', disabled },
         on: { click: () => this.takeAction(a.id) },
       }, [
         el('span', { class: 'caa-icon', text: a.icon }),
@@ -191,74 +323,38 @@ export class CampaignScreen {
     }
     actionsEl.appendChild(grid);
 
-    // Input livre
     const customInput = el('input', {
       class: 'camp-custom-input',
-      attrs: {
-        type: 'text',
-        placeholder: 'Ou digite uma ação livre (ex: "abro o baú devagar")',
-        maxlength: '200',
-      },
+      attrs: { type: 'text', placeholder: 'Ou digite uma ação livre (ex: "abro o baú devagar")', maxlength: '200' },
     }) as HTMLInputElement;
     const customBtn = el('button', {
       class: 'wiz-cta',
       text: 'Enviar →',
-      attrs: { type: 'button', disabled: this.isWaitingDM },
+      attrs: { type: 'button', disabled },
       on: {
         click: () => {
           const v = customInput.value.trim();
-          if (v) {
-            this.takeAction('explore', v);
-            customInput.value = '';
-          }
+          if (v) { this.takeAction('explore', v); customInput.value = ''; }
         },
       },
     });
     customInput.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
         const v = customInput.value.trim();
-        if (v) {
-          this.takeAction('explore', v);
-          customInput.value = '';
-        }
+        if (v) { this.takeAction('explore', v); customInput.value = ''; }
       }
     });
     actionsEl.appendChild(el('div', { class: 'camp-custom-row' }, [customInput, customBtn]));
-
-    root.appendChild(actionsEl);
-
-    this.container.appendChild(root);
-  }
-
-  private shouldOfferSkillCheck(): boolean {
-    // Heurística simples: última narração menciona "rola", "teste de", "d20", "perícia"
-    const last = this.narrations[this.narrations.length - 1]?.text.toLowerCase() ?? '';
-    return /rola|teste de|d20|per[íi]cia|tenta/.test(last);
-  }
-
-  private async rollSkillCheck(): Promise<void> {
-    // Server tem pending — pede pra rolar
-    // Pre-calcula bonus pra mostrar no overlay (cliente assume Percepção SAB +prof default;
-    // server vai rolar com bonus real. UI é só visual.)
-    if (!this.character) return;
-    // Fallback bonus: usa Percepção/Sabedoria (proxy comum)
-    const sab = abilityModifier(this.character.abilityScores.sab);
-    const pb = proficiencyBonus(this.character.level);
-    const guessBonus = sab + (this.character.proficientSkills.includes('percepcao') ? pb : 0);
-    this.pendingCheck = {
-      skill: 'percepcao' as SkillId,
-      dc: 15,
-      reason: 'Teste pedido pelo Mestre',
-      bonus: guessBonus,
-    };
-    showPendingSkillCheck(this.pendingCheck, () => {
-      this.opts.socket.emit('requestSkillCheck', { skill: 'percepcao' as SkillId });
-    });
+    return actionsEl;
   }
 
   private takeAction(action: ExplorationAction, details?: string): void {
-    this.isWaitingDM = true;
-    this.render();
     this.opts.socket.emit('takeAction', { action, details });
+  }
+
+  private flashToast(text: string): void {
+    const t = el('div', { class: 'camp-toast', text });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
   }
 }

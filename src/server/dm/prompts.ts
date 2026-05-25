@@ -121,7 +121,7 @@ export const DM_TOOLS: DMToolDef[] = [
   },
   {
     name: 'start_combat',
-    description: 'Inicia combate. Server rola initiative de todos, abre combat overlay.',
+    description: 'Inicia combate. Server rola initiative de todos, abre combat overlay. Declare attackBonus + damageDice — defaults se omitidos.',
     schema: {
       type: 'object',
       properties: {
@@ -131,8 +131,11 @@ export const DM_TOOLS: DMToolDef[] = [
             type: 'object',
             properties: {
               name: { type: 'string', description: 'Nome do inimigo (ex: "Goblin Sarnento")' },
-              hp: { type: 'number', description: 'HP atual = max (1-200)' },
-              ac: { type: 'number', description: 'Classe de Armadura (10-25)' },
+              hp: { type: 'number', description: 'HP atual = max. Goblin=7, Esqueleto=13, Lobo=11, Hobgoblin=11, Orc=15, Ogro=59, Troll=84' },
+              ac: { type: 'number', description: 'Classe de Armadura. Goblin=15, Esqueleto=13, Lobo=13, Orc=13, Ogro=11' },
+              attackBonus: { type: 'number', description: 'd20+X dos ataques dele. Goblin=+4, Orc=+5, Ogro=+6, Troll=+7. Default +3.' },
+              damageDice: { type: 'string', description: 'Notação dano: "1d6" (goblin), "1d12" (orc), "2d8" (ogro). Default "1d6".' },
+              damageBonus: { type: 'number', description: 'Soma fixa ao damage. Goblin=+2, Orc=+3, Ogro=+4. Default 0.' },
               description: { type: 'string', description: 'Descrição visual breve' },
             },
             required: ['name', 'hp', 'ac'],
@@ -141,6 +144,34 @@ export const DM_TOOLS: DMToolDef[] = [
         surprise: { type: 'boolean', description: 'Party surpresa? (sem ação 1º turno se true)' },
       },
       required: ['enemies'],
+    },
+  },
+  {
+    name: 'apply_condition',
+    description: 'Aplica uma condição D&D 5e a um alvo (player ou enemy). Use em combate ou após efeito narrativo.',
+    schema: {
+      type: 'object',
+      properties: {
+        targetId: { type: 'string', description: 'ID do PJ ou enemy alvo' },
+        condition: {
+          type: 'string',
+          description: 'Condição: agarrado, amedrontado, atordoado, caido, cego, enfeiticado, envenenado, incapacitado, inconsciente, invisivel, paralisado, petrificado, restrito, surdo',
+        },
+        reason: { type: 'string', description: 'Por que (1 frase narrativa)' },
+      },
+      required: ['targetId', 'condition'],
+    },
+  },
+  {
+    name: 'end_combat_with_outcome',
+    description: 'Encerra combate explicitamente (vitória, derrota narrativa, fuga). Server normalmente detecta por HP=0; use isto quando combate termina por outra razão (rendição, fuga, intervenção).',
+    schema: {
+      type: 'object',
+      properties: {
+        outcome: { type: 'string', enum: ['victory', 'defeat', 'fled'], description: 'Resultado do combate' },
+        reason: { type: 'string', description: 'Como acabou (1 frase)' },
+      },
+      required: ['outcome'],
     },
   },
   {
