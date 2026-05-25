@@ -1,4 +1,7 @@
 // JSgame · Step 4: escolha de antecedente + perícias de classe.
+// UX: antes de escolher antecedente, mostra GRID. Depois, esconde a grid e
+// mostra big card do antecedente escolhido + picker de perícias destacado.
+// Footer sticky no bottom com hint contextual.
 
 import { ALL_BACKGROUNDS, getBackground } from '@dnd/backgrounds';
 import { getClass } from '@dnd/classes';
@@ -13,18 +16,20 @@ export function renderBackgroundStep(
 ): HTMLElement {
   const container = el('div', { class: 'wiz-step wiz-step-background' });
   container.appendChild(el('h2', { class: 'wiz-h2', text: 'Escolha seu Antecedente' }));
-  container.appendChild(el('p', { class: 'wiz-intro', text: 'O antecedente revela quem você foi antes da aventura. Dá perícias garantidas + característica especial.' }));
+  container.appendChild(el('p', { class: 'wiz-intro', text: 'Quem você foi antes da aventura. Dá perícias garantidas + característica especial. Depois escolha perícias da sua classe.' }));
 
-  // Render container que se re-popula (INCLUI o footer pra reagir a mudanças de estado)
   const dynamic = el('div', { class: 'bg-dynamic' });
   const renderAll = (): void => {
     dynamic.innerHTML = '';
-    dynamic.appendChild(renderBackgroundsList(state, callbacks, renderAll));
-    if (state.backgroundId && state.classId) {
-      const picker = renderClassSkillsPicker(state, callbacks, renderAll);
-      dynamic.appendChild(picker);
-      // UX: scroll suave pro picker quando antecedente acabou de ser escolhido
-      requestAnimationFrame(() => picker.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    if (!state.backgroundId) {
+      // Estado 1: ainda não escolheu antecedente → grid completa
+      dynamic.appendChild(renderBackgroundsList(state, callbacks, renderAll));
+    } else {
+      // Estado 2: antecedente escolhido → card grande do escolhido + picker prominente
+      dynamic.appendChild(renderSelectedBackgroundCard(state, callbacks, renderAll));
+      if (state.classId) {
+        dynamic.appendChild(renderClassSkillsPicker(state, callbacks, renderAll));
+      }
     }
     dynamic.appendChild(renderFooter(state, callbacks));
   };
@@ -43,21 +48,21 @@ function renderFooter(
   const skillsChosen = state.chosenSkills.length;
   const canContinue = !!state.backgroundId && skillsChosen === skillsNeeded;
   const hint = !state.backgroundId
-    ? 'Escolha um antecedente acima'
+    ? 'Escolha um antecedente acima ↑'
     : skillsChosen < skillsNeeded
-      ? `Escolha mais ${skillsNeeded - skillsChosen} perícia(s) da classe`
-      : null;
+      ? `Falta escolher ${skillsNeeded - skillsChosen} perícia${skillsNeeded - skillsChosen === 1 ? '' : 's'} da classe ↑`
+      : '✓ Pronto pra continuar';
 
-  return el('footer', { class: 'wiz-footer' }, [
+  return el('footer', { class: 'wiz-footer wiz-footer-sticky' }, [
     el('button', { class: 'wiz-back', text: '← Voltar', on: { click: () => callbacks.back() } }),
-    hint ? el('div', { class: 'wiz-hint', text: hint }) : null,
+    el('div', { class: `wiz-hint ${canContinue ? 'is-ready' : ''}`, text: hint }),
     el('button', {
       class: 'wiz-cta',
       text: 'Continuar →',
       attrs: { type: 'button', disabled: !canContinue },
       on: { click: () => { if (canContinue) callbacks.next(); } },
     }),
-  ].filter(Boolean) as HTMLElement[]);
+  ]);
 }
 
 function renderBackgroundsList(
@@ -67,9 +72,8 @@ function renderBackgroundsList(
 ): HTMLElement {
   const grid = el('div', { class: 'wiz-grid wiz-grid-bg' });
   for (const bg of ALL_BACKGROUNDS) {
-    const isSelected = state.backgroundId === bg.id;
     const card = el('article', {
-      class: `wiz-card wiz-card-bg ${isSelected ? 'is-selected' : ''}`,
+      class: 'wiz-card wiz-card-bg',
       attrs: { role: 'button', tabindex: 0 },
       on: {
         click: () => {
@@ -96,6 +100,46 @@ function renderBackgroundsList(
   return grid;
 }
 
+function renderSelectedBackgroundCard(
+  state: WizardState,
+  callbacks: { update: (patch: Partial<WizardState>) => void },
+  rerender: () => void,
+): HTMLElement {
+  const bg = getBackground(state.backgroundId!);
+  const skillNames = bg.skillProficiencies.map((s) => getSkill(s).name).join(', ');
+
+  const wrapper = el('div', { class: 'bg-selected' });
+  wrapper.innerHTML = `
+    <div class="bg-selected-head">
+      <span class="bg-selected-tag">ANTECEDENTE ESCOLHIDO</span>
+    </div>
+    <div class="bg-selected-body">
+      <div class="bg-selected-name">${escapeHtml(bg.name)}</div>
+      <div class="bg-selected-desc">${escapeHtml(bg.description)}</div>
+      <div class="bg-selected-perks">
+        <div><b>Perícias garantidas:</b> ${escapeHtml(skillNames)}</div>
+        <div><b>${escapeHtml(bg.feature.name)}:</b> ${escapeHtml(bg.feature.description)}</div>
+      </div>
+    </div>
+  `;
+
+  // Botão "Trocar"
+  const changeBtn = el('button', {
+    class: 'bg-change-btn',
+    text: '✎ Trocar antecedente',
+    attrs: { type: 'button' },
+    on: {
+      click: () => {
+        callbacks.update({ backgroundId: null });
+        rerender();
+      },
+    },
+  });
+  wrapper.appendChild(changeBtn);
+
+  return wrapper;
+}
+
 function renderClassSkillsPicker(
   state: WizardState,
   callbacks: { update: (patch: Partial<WizardState>) => void },
@@ -105,9 +149,9 @@ function renderClassSkillsPicker(
   const bg = getBackground(state.backgroundId!);
   const bgSkills = new Set(bg.skillProficiencies);
 
-  const section = el('div', { class: 'bg-skill-picker' });
-  section.appendChild(el('h3', { class: 'wiz-h3', text: `Escolha ${klass.skillChoices.count} perícias da classe ${klass.name}` }));
-  section.appendChild(el('p', { class: 'bg-skill-hint', text: `Já garantidas pelo antecedente ${bg.name}: ${bg.skillProficiencies.map((s) => getSkill(s).name).join(', ')}` }));
+  const section = el('div', { class: 'bg-skill-picker bg-skill-picker-prominent' });
+  section.appendChild(el('h3', { class: 'wiz-h3 bg-skill-h3', text: `↓ Escolha ${klass.skillChoices.count} perícias da classe ${klass.name}` }));
+  section.appendChild(el('p', { class: 'bg-skill-hint', text: `Cada classe deixa você escolher algumas perícias específicas. ${bg.name} já te deu: ${bg.skillProficiencies.map((s) => getSkill(s).name).join(', ')}.` }));
 
   const grid = el('div', { class: 'bg-skill-grid' });
   for (const skillId of klass.skillChoices.from) {
