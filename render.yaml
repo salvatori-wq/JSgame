@@ -18,10 +18,11 @@ services:
     plan: free
     region: oregon
     branch: main
+    # npm ci respeita package-lock.json exatamente (reproducible).
     # --include=dev força instalar devDependencies mesmo com NODE_ENV=production
     # (vite, typescript e vitest só são usados no build, não em runtime).
     # tsx ficou em dependencies pra startCommand funcionar.
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
