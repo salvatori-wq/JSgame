@@ -1,6 +1,10 @@
 # JSgame · Render deploy config.
 # 1 web service (Node) que serve dist/client estático + APIs + Socket.io.
-# Disco persistente em /var/data pra SQLite.
+#
+# NOTA SOBRE FREE TIER: o plano free do Render NÃO suporta disco persistente.
+# Resultado: o .run-data/ (SQLite com characters + campaigns) zera a cada deploy
+# ou cold start (~15min idle). Pra dados persistirem, upgrade pra Starter ($7/mês)
+# e descomentar a seção `disk` abaixo + adicionar DATA_DIR=/var/data nas envVars.
 #
 # Setup no painel Render (após criar a partir desse YAML):
 # 1. Defina GROQ_API_KEY (encrypted) — eles guardam fora do repo.
@@ -23,13 +27,13 @@ services:
         value: production
       - key: SERVER_PORT
         value: 10000
-      - key: DATA_DIR
-        value: /var/data
       - key: GROQ_API_KEY
         sync: false   # define manualmente no painel — fica encrypted
       - key: DM_PROVIDER
         value: groq
-    disk:
-      name: jsgame-data
-      mountPath: /var/data
-      sizeGB: 1
+    # Plano Starter ou superior pra disco persistente — descomente quando subir o plano:
+    # disk:
+    #   name: jsgame-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # E adicione: { key: DATA_DIR, value: /var/data } nas envVars acima.
