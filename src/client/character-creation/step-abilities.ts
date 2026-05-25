@@ -5,11 +5,11 @@ import {
   POINT_BUY_BUDGET, POINT_BUY_MIN, POINT_BUY_MAX,
   pointBuyCost, totalPointBuyCost, abilityModifier, formatModifier,
   applyRacialBonuses,
-} from '@dnd/attributes';
-import { getRace } from '@dnd/races';
+} from '../../dnd/attributes';
+import { getRace } from '../../dnd/races';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
-import type { AbilityKey } from '@shared/types';
+import type { AbilityKey } from '../../shared/types';
 
 export function renderAbilitiesStep(
   state: WizardState,

@@ -9,9 +9,9 @@ import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents, ServerToClientEvents,
   CampaignState, CharacterSheet, DiceRoll, ExplorationAction, CombatEvent,
-} from '@shared/types';
-import { SKILLS } from '@dnd/skills';
-import { abilityModifier, proficiencyBonus } from '@dnd/attributes';
+} from '../../shared/types';
+import { SKILLS } from '../../dnd/skills';
+import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
 import { el, escapeHtml, setLastSession, clearLastSession } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';

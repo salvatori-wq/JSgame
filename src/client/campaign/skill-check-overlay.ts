@@ -2,9 +2,9 @@
 // Acionado quando server emite pendingSkillCheck via campaignState.
 // Player clica "Rolar d20" → emit requestSkillCheck → aguarda diceRollResult.
 
-import type { DiceRoll, SkillId } from '@shared/types';
-import { SKILLS } from '@dnd/skills';
-import { ABILITY_SHORT } from '@dnd/attributes';
+import type { DiceRoll, SkillId } from '../../shared/types';
+import { SKILLS } from '../../dnd/skills';
+import { ABILITY_SHORT } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 
 export interface PendingCheck {

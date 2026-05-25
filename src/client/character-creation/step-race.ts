@@ -1,7 +1,7 @@
 // JSgame · Step 1: escolha de raça (13 cards).
 
-import { ALL_RACES } from '@dnd/races';
-import { ABILITY_SHORT, abilityModifier, formatModifier } from '@dnd/attributes';
+import { ALL_RACES } from '../../dnd/races';
+import { ABILITY_SHORT, abilityModifier, formatModifier } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
 

@@ -17,14 +17,7 @@
     "verbatimModuleSyntax": false,
     "allowSyntheticDefaultImports": true,
     "useDefineForClassFields": true,
-    "ignoreDeprecations": "5.0",
-    "baseUrl": ".",
-    "paths": {
-      "@client/*": ["src/client/*"],
-      "@server/*": ["src/server/*"],
-      "@shared/*": ["src/shared/*"],
-      "@dnd/*": ["src/dnd/*"]
-    }
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", ".run-data"]

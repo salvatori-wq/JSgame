@@ -3,12 +3,12 @@
 // mostra big card do antecedente escolhido + picker de perícias destacado.
 // Footer sticky no bottom com hint contextual.
 
-import { ALL_BACKGROUNDS, getBackground } from '@dnd/backgrounds';
-import { getClass } from '@dnd/classes';
-import { getSkill } from '@dnd/skills';
+import { ALL_BACKGROUNDS, getBackground } from '../../dnd/backgrounds';
+import { getClass } from '../../dnd/classes';
+import { getSkill } from '../../dnd/skills';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
-import type { SkillId } from '@shared/types';
+import type { SkillId } from '../../shared/types';
 
 export function renderBackgroundStep(
   state: WizardState,

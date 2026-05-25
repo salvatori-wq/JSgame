@@ -1,7 +1,7 @@
 // JSgame · Attack overlay — d20 animado pra resolução de ataque em combate.
 // Estética alinhada ao skill-check-overlay: spin 1s → resultado hit/miss → dmg.
 
-import type { CombatEvent } from '@shared/types';
+import type { CombatEvent } from '../../shared/types';
 import { el } from '../util';
 
 let currentEl: HTMLDivElement | null = null;

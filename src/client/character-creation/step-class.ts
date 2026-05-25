@@ -1,7 +1,7 @@
 // JSgame · Step 2: escolha de classe (12 cards).
 
-import { ALL_CLASSES } from '@dnd/classes';
-import { ABILITY_LABELS, ABILITY_SHORT } from '@dnd/attributes';
+import { ALL_CLASSES } from '../../dnd/classes';
+import { ABILITY_LABELS, ABILITY_SHORT } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
 

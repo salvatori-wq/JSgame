@@ -1,19 +1,19 @@
 // JSgame · Types compartilhados entre cliente e servidor.
 // Re-exporta D&D core + adiciona schemas de game state e socket events.
 
-import type { AbilityScores } from '@dnd/attributes';
-import type { ClassId } from '@dnd/classes';
-import type { RaceId } from '@dnd/races';
-import type { SkillId } from '@dnd/skills';
-import type { ConditionId } from '@dnd/conditions';
-import type { DiceRoll } from '@dnd/dice';
+import type { AbilityScores } from '../dnd/attributes';
+import type { ClassId } from '../dnd/classes';
+import type { RaceId } from '../dnd/races';
+import type { SkillId } from '../dnd/skills';
+import type { ConditionId } from '../dnd/conditions';
+import type { DiceRoll } from '../dnd/dice';
 
-export type { AbilityScores, AbilityKey } from '@dnd/attributes';
-export type { ClassId, HitDie } from '@dnd/classes';
-export type { RaceId } from '@dnd/races';
-export type { SkillId } from '@dnd/skills';
-export type { ConditionId } from '@dnd/conditions';
-export type { DiceRoll, DieKind } from '@dnd/dice';
+export type { AbilityScores, AbilityKey } from '../dnd/attributes';
+export type { ClassId, HitDie } from '../dnd/classes';
+export type { RaceId } from '../dnd/races';
+export type { SkillId } from '../dnd/skills';
+export type { ConditionId } from '../dnd/conditions';
+export type { DiceRoll, DieKind } from '../dnd/dice';
 
 // ════════════════════════════════════════════════════════════════════════════
 // CharacterSheet — ficha de personagem completa D&D 5e.
@@ -56,7 +56,7 @@ export interface CharacterSheet {
 
   // Proficiências
   proficientSkills: SkillId[];
-  proficientSavingThrows: import('@dnd/attributes').AbilityKey[];
+  proficientSavingThrows: import('../dnd/attributes').AbilityKey[];
   languages: string[];
   toolProficiencies: string[];
   armorProficiencies: string[];

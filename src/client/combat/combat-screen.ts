@@ -6,7 +6,7 @@ import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents, ServerToClientEvents,
   CombatState, EnemySnapshot, CharacterSheet, CombatActionKind, CombatEvent,
-} from '@shared/types';
+} from '../../shared/types';
 import { el, escapeHtml } from '../util';
 import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 

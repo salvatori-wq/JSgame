@@ -6,9 +6,9 @@ import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents, ServerToClientEvents,
   CharacterSheet, CombatState, EnemySnapshot,
-} from '@shared/types';
-import { SPELLS, type SpellId } from '@dnd/spells';
-import { isSpellcaster } from '@dnd/spell-slots';
+} from '../../shared/types';
+import { SPELLS, type SpellId } from '../../dnd/spells';
+import { isSpellcaster } from '../../dnd/spell-slots';
 import { el, escapeHtml } from '../util';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;

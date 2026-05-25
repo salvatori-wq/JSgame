@@ -1,13 +1,13 @@
 // JSgame · Step 5: review + nome + alinhamento + salvar.
 
-import { getRace } from '@dnd/races';
-import { getClass, startingHitPoints } from '@dnd/classes';
-import { getBackground } from '@dnd/backgrounds';
-import { getSkill } from '@dnd/skills';
-import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT, abilityModifier, formatModifier, applyRacialBonuses, proficiencyBonus } from '@dnd/attributes';
+import { getRace } from '../../dnd/races';
+import { getClass, startingHitPoints } from '../../dnd/classes';
+import { getBackground } from '../../dnd/backgrounds';
+import { getSkill } from '../../dnd/skills';
+import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT, abilityModifier, formatModifier, applyRacialBonuses, proficiencyBonus } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
-import type { Alignment } from '@shared/types';
+import type { Alignment } from '../../shared/types';
 
 const ALIGNMENT_LABELS: Record<Alignment, string> = {
   lb: 'Leal e Bom',     nb: 'Neutro e Bom',     cb: 'Caótico e Bom',

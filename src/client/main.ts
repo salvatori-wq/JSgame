@@ -3,13 +3,13 @@
 
 import './styles.css';
 import { io, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '@shared/types';
+import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '../shared/types';
 import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, type CampaignSummary } from './api';
 import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
-import { getRace } from '@dnd/races';
-import { getClass } from '@dnd/classes';
+import { getRace } from '../dnd/races';
+import { getClass } from '../dnd/classes';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');

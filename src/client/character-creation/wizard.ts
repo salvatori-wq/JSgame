@@ -1,14 +1,14 @@
 // JSgame · Character creation wizard. State machine simples — 5 steps.
 // Cada step é um módulo que renderiza no container e chama next(state).
 
-import type { CharacterSheet, AbilityScores, RaceId, ClassId, SkillId, AbilityKey } from '@shared/types';
-import type { BackgroundId } from '@dnd/backgrounds';
-import { defaultPointBuyScores, applyRacialBonuses, abilityModifier } from '@dnd/attributes';
-import { getRace, RACES } from '@dnd/races';
-import { getClass } from '@dnd/classes';
-import { getBackground } from '@dnd/backgrounds';
-import { startingHitPoints } from '@dnd/classes';
-import { applySpellcasterDefaults } from '@dnd/spell-slots';
+import type { CharacterSheet, AbilityScores, RaceId, ClassId, SkillId, AbilityKey } from '../../shared/types';
+import type { BackgroundId } from '../../dnd/backgrounds';
+import { defaultPointBuyScores, applyRacialBonuses, abilityModifier } from '../../dnd/attributes';
+import { getRace, RACES } from '../../dnd/races';
+import { getClass } from '../../dnd/classes';
+import { getBackground } from '../../dnd/backgrounds';
+import { startingHitPoints } from '../../dnd/classes';
+import { applySpellcasterDefaults } from '../../dnd/spell-slots';
 import { el, uuid, getOwnerName } from '../util';
 import { saveCharacter } from '../api';
 import { renderRaceStep } from './step-race';
@@ -27,7 +27,7 @@ export interface WizardState {
   backgroundId: BackgroundId | null;
   chosenSkills: SkillId[];                // perícias escolhidas da classe (background dá próprias)
   characterName: string;
-  alignment: import('@shared/types').Alignment;
+  alignment: import('../../shared/types').Alignment;
 }
 
 const STEP_ORDER: WizardStep[] = ['race', 'class', 'abilities', 'background', 'review'];

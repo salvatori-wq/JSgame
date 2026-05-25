@@ -1,6 +1,6 @@
 // JSgame · Client API helpers. Fetch tipado pros endpoints REST.
 
-import type { CharacterSheet } from '@shared/types';
+import type { CharacterSheet } from '../shared/types';
 import type { CharacterSummary } from '../server/persistence';
 
 export interface ApiHealth {
