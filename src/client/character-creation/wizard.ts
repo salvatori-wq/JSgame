@@ -119,8 +119,13 @@ export class CharacterWizard {
   private renderStepContent(): HTMLElement {
     const next = () => this.goNext();
     const back = () => this.goBack();
+    // BUG FIX: muta in-place pra preservar referência. Os steps recebem `state`
+    // como parâmetro e fazem rerender local; se trocássemos o objeto, a referência
+    // dentro do step continuaria apontando pro state antigo (sem o último update),
+    // e o renderAll local re-renderizaria com dado obsoleto. Object.assign mantém
+    // a mesma referência entre wizard.state e state-do-step.
     const update = (patch: Partial<WizardState>) => {
-      this.state = { ...this.state, ...patch };
+      Object.assign(this.state, patch);
     };
 
     switch (this.state.step) {
