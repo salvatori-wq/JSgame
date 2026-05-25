@@ -2,58 +2,85 @@
 
 > D&D 5e online coop com Mestre IA. Mobile + desktop. DOM puro. Sessões de 30 min.
 
+**Status**: F3 entregue (Mestre IA + Modo Exploração funcionando). F4 (combate) é a próxima fase.
+Veja [`HANDOFF_2026-05-25_F3-done-F4-next.md`](./HANDOFF_2026-05-25_F3-done-F4-next.md) pra retomar.
+
 ## O que é
 
 Um jogo de RPG D&D 5e simplificado, jogado online com até 3 amigos + Mestre IA. Cria um personagem real (raça + classe + atributos + antecedente), o Mestre narra um mundo aberto, vocês exploram → interagem → lutam → descansam. **Sem waves. Sem deck-builder. Sem energia.** Dados de verdade, ficha de verdade, Mestre de verdade.
 
+## Fases entregues
+
+- ✅ **F1** — Foundation (Vite + TS + Socket.io + SQLite + D&D core: dice, attributes, 13 raças, 12 classes, 18 perícias, 14 condições, 13 antecedentes)
+- ✅ **F2** — Wizard de criação de personagem (5 steps: raça → classe → atributos point buy 27 → antecedente → revisão)
+- ✅ **F3** — Mestre IA Groq Llama 3.3 70B + Modo Exploração (cena narrada + 6 botões de ação + input livre + skill check d20 animado)
+- ⏳ **F4** — Combate D&D real (initiative, ataques, save throws, 14 condições, AI inimigos)
+- ⏳ **F5** — Polish + Coop multi-player + Magias + Rest mechanics + PWA
+
 ## Pilares de design
 
-1. **D&D 5e como espinha dorsal** — regras do Livro do Jogador embarcadas (atributos, perícias, ações, magias, condições)
-2. **Mestre IA dita o mundo** — narra cenas, controla NPCs, aplica regras, lembra da campanha
-3. **3 pilares do jogo**: Exploração / Interação Social / Combate
+1. **D&D 5e como espinha dorsal** — regras do Livro do Jogador embarcadas
+2. **Mestre IA dita o mundo** — Sombrio + Sarcástico + Trickster (BR coloquial)
+3. **3 pilares**: Exploração / Interação Social / Combate
 4. **Mobile-first** — UI portrait-narrow desde o boot, touch-friendly
 5. **Online coop** — Socket.io, até 3 players, persistência cross-session
-6. **Sessão curta** — 30-60 min por sessão, campanha cabe em 3-5 sessões
+6. **Sessão curta** — 30-60 min por sessão
 
 ## Stack
 
 - **Frontend**: Vite + TypeScript + DOM puro (sem Phaser, sem React)
 - **Backend**: Node + Express + Socket.io
-- **Persistência**: SQLite (better-sqlite3, síncrono, zero traps)
-- **DM IA**: Groq Llama 3.3 70B (free tier) ou Anthropic Claude (pago)
-- **Audio**: Web Audio API procedural (zero assets)
+- **Persistência**: sql.js (pure-JS, sem build native)
+- **DM IA**: Groq Llama 3.3 70B (free) ou Anthropic Claude (pago)
 
 ## Estrutura
 
 ```
 src/
 ├── client/    — DOM, UI, socket-client
+│   ├── character-creation/   — wizard 5 steps
+│   └── campaign/             — exploration screen + skill check overlay
 ├── server/    — Express, Socket.io, persistence
+│   └── dm/                   — providers (Groq/Anthropic) + prompts + tools + DungeonMaster
 ├── shared/    — Types compartilhados
-└── dnd/       — Regras D&D 5e (dice, attributes, races, classes, conditions, skills, spells, items)
+└── dnd/       — Regras D&D 5e (PHB embarcado)
 ```
 
 ## Como rodar (dev)
 
 ```bash
 npm install
-npm run dev        # sobe backend (3001) + frontend (5173) em paralelo
+npm run dev        # backend (3001) + frontend (5173) em paralelo
 ```
 
-Abre http://localhost:5173.
+Abre **http://localhost:5173** (desktop) ou **http://192.168.15.3:5173** (celular na mesma WiFi).
 
-Pra ter o DM IA real, copia `.env.example` pra `.env` e bota uma `GROQ_API_KEY` (free em https://console.groq.com).
+Pra Mestre IA real, edita `.env` e bota uma `GROQ_API_KEY` (free em https://console.groq.com).
+Sem key, o FallbackDM offline responde com mensagens placeholder.
+
+## Comandos úteis
+
+```bash
+npm run dev          # backend + frontend em paralelo
+npm run dev:server   # só backend (tsx watch)
+npm run dev:client   # só vite
+npm run typecheck    # tsc --noEmit
+npm test             # vitest (58 tests passando)
+```
 
 ## Aprendizados aplicados (do Cave Run)
 
-- Path Windows sem `&` → npm/git funcionam direto, sem PowerShell workarounds
-- `better-sqlite3` em vez de `sql.js` → zero Vite optimizeDeps trap
-- DOM puro em vez de Phaser → mais simples, mais rápido, mais mobile-friendly
-- Mestre IA persona Sombrio + Sarcástico + Trickster preservada (mas agora aplica regras D&D reais via tools)
-- Mobile portrait-narrow framework desde o dia 1 (vars `--m-vh`, `--m-safe-*`)
+- Path Windows sem `&` → npm/git funcionam direto
+- `sql.js` em vez de `better-sqlite3` → zero compile native
+- DOM puro em vez de Phaser → mais simples, mais mobile-friendly
+- DM persona Sombrio + Sarcástico + Trickster preservada
+- Mobile portrait-narrow framework desde o dia 1
 - Vitest desde o boot — testes core nascem junto com a feature
-- Feature flags em `src/shared/` pra rollback granular sem rebuild
+- Validação server-side TODA tool call do LLM (clamp + sanitize)
+- Footer dentro do dynamic re-render (state stale é o inimigo)
+- `Object.assign` em vez de spread quando há múltiplas referências
 
-## Status
+## Repo
 
-🚧 **Foundation (F1)** em construção. Veja `git log` pra histórico.
+Local em `C:\Users\JOÃO\JSgame\`. Não tem GitHub remote ainda.
+Cave Run continua em `C:\Users\JOÃO\D&D online\` — deploy Render ativo na URL legada, intocado.
