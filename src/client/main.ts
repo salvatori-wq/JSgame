@@ -1,9 +1,5 @@
 // JSgame · Client entry point. Router DOM puro.
-// Routes:
-//   /          → Home (lista characters + Novo)
-//   wizard     → CharacterWizard
-//   sheet/:id  → Ficha de personagem (read-only)
-// Sem hash routing real — usa state interno + history.pushState futuro.
+// Views: home → wizard (criação) → sheet (preview) → campaign (jogo real).
 
 import './styles.css';
 import { io, type Socket } from 'socket.io-client';
@@ -11,6 +7,7 @@ import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from 
 import { listCharacters, getCharacter, deleteCharacter, getHealth } from './api';
 import { el, getOwnerName, setOwnerName } from './util';
 import { CharacterWizard } from './character-creation/wizard';
+import { CampaignScreen } from './campaign/campaign-screen';
 import { getRace } from '@dnd/races';
 import { getClass } from '@dnd/classes';
 
@@ -27,7 +24,7 @@ if (!app) throw new Error('#app não existe no DOM');
   document.body.classList.add('vertical-layout');
 })();
 
-// === Socket connect (passivo até F3) ===
+// === Socket connect ===
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
   autoConnect: true,
   reconnection: true,
@@ -36,15 +33,24 @@ socket.on('connect', () => console.log('[client] socket connected', socket.id));
 socket.on('disconnect', (reason) => console.log('[client] socket disconnected:', reason));
 
 // === Router state ===
-type View = { kind: 'home' } | { kind: 'wizard' } | { kind: 'sheet'; id: string };
+type View =
+  | { kind: 'home' }
+  | { kind: 'wizard' }
+  | { kind: 'sheet'; id: string }
+  | { kind: 'campaign'; characterId: string; campaignId?: string };
+
 let currentView: View = { kind: 'home' };
 let currentWizard: CharacterWizard | null = null;
+let currentCampaign: CampaignScreen | null = null;
 
 async function render(): Promise<void> {
-  // Cleanup wizard se sair dele
   if (currentView.kind !== 'wizard' && currentWizard) {
     currentWizard.destroy();
     currentWizard = null;
+  }
+  if (currentView.kind !== 'campaign' && currentCampaign) {
+    currentCampaign.destroy();
+    currentCampaign = null;
   }
 
   app!.innerHTML = '';
@@ -58,6 +64,9 @@ async function render(): Promise<void> {
       break;
     case 'sheet':
       await renderSheet(currentView.id);
+      break;
+    case 'campaign':
+      await renderCampaign(currentView.characterId, currentView.campaignId);
       break;
   }
 }
@@ -74,7 +83,6 @@ async function renderHome(): Promise<void> {
   const health = await getHealth().catch(() => ({ ok: false } as Awaited<ReturnType<typeof getHealth>>));
 
   const root = el('main', { class: 'home-screen' });
-
   root.appendChild(el('header', { class: 'boot-header' }, [
     el('h1', { class: 'boot-title', text: 'JSGAME' }),
     el('div', { class: 'boot-divider' }, [
@@ -85,7 +93,6 @@ async function renderHome(): Promise<void> {
     el('p', { class: 'boot-tagline', text: 'D&D 5e Online · Mestre IA · Coop até 3' }),
   ]));
 
-  // Status compacto
   root.appendChild(el('div', { class: 'boot-status' }, [
     el('div', { class: `bs-row ${health.ok ? 'is-ok' : 'is-fail'}` }, [
       el('span', { class: 'bs-key', text: 'Servidor' }),
@@ -97,19 +104,12 @@ async function renderHome(): Promise<void> {
     ]),
   ]));
 
-  // Owner name input
   const ownerInput = el('input', {
     class: 'home-owner-input',
-    attrs: {
-      type: 'text',
-      placeholder: 'Seu nome de jogador',
-      maxlength: '32',
-      value: owner,
-    },
+    attrs: { type: 'text', placeholder: 'Seu nome de jogador', maxlength: '32', value: owner },
     on: {
       input: async (e) => {
-        const v = (e.target as HTMLInputElement).value;
-        setOwnerName(v);
+        setOwnerName((e.target as HTMLInputElement).value);
         await refreshCharsList();
       },
     },
@@ -119,7 +119,6 @@ async function renderHome(): Promise<void> {
     ownerInput,
   ]));
 
-  // Action buttons
   root.appendChild(el('div', { class: 'home-actions' }, [
     el('button', {
       class: 'home-btn',
@@ -135,7 +134,6 @@ async function renderHome(): Promise<void> {
     }),
   ]));
 
-  // Characters list
   const charsContainer = el('section', { class: 'home-chars-container' });
   charsContainer.appendChild(el('h3', { class: 'cs-h3', text: 'Seus Personagens' }));
   const charsList = el('div', { class: 'home-characters' });
@@ -158,28 +156,41 @@ async function renderHome(): Promise<void> {
       for (const c of chars) {
         const race = getRace(c.raceId as Parameters<typeof getRace>[0]);
         const klass = getClass(c.classId as Parameters<typeof getClass>[0]);
-        const card = el('div', {
-          class: 'home-char-card',
-          on: { click: () => navigate({ kind: 'sheet', id: c.id }) },
-        }, [
-          el('div', {}, [
+        const card = el('div', { class: 'home-char-card' }, [
+          el('div', {
+            class: 'hcc-body',
+            on: { click: () => navigate({ kind: 'sheet', id: c.id }) },
+          }, [
             el('div', { class: 'hcc-name', text: c.characterName }),
             el('div', { class: 'hcc-meta', text: `${race?.name ?? c.raceId} · ${klass?.name ?? c.classId} · Nv ${c.level}` }),
           ]),
-          el('button', {
-            class: 'wiz-back',
-            text: '🗑',
-            attrs: { title: 'Apagar' },
-            on: {
-              click: async (e) => {
-                e.stopPropagation();
-                if (confirm(`Apagar ${c.characterName} permanentemente?`)) {
-                  await deleteCharacter(c.id);
-                  await refreshCharsList();
-                }
+          el('div', { class: 'hcc-actions' }, [
+            el('button', {
+              class: 'hcc-play-btn',
+              text: '▶ Jogar',
+              attrs: { title: 'Começar / continuar sessão' },
+              on: {
+                click: (e) => {
+                  e.stopPropagation();
+                  navigate({ kind: 'campaign', characterId: c.id });
+                },
               },
-            },
-          }),
+            }),
+            el('button', {
+              class: 'hcc-del-btn',
+              text: '🗑',
+              attrs: { title: 'Apagar' },
+              on: {
+                click: async (e) => {
+                  e.stopPropagation();
+                  if (confirm(`Apagar ${c.characterName} permanentemente?`)) {
+                    await deleteCharacter(c.id);
+                    await refreshCharsList();
+                  }
+                },
+              },
+            }),
+          ]),
         ]);
         charsList.appendChild(card);
       }
@@ -197,12 +208,8 @@ function renderWizard(): void {
   app!.appendChild(container);
   currentWizard = new CharacterWizard(
     container,
-    (_sheet: CharacterSheet) => {
-      navigate({ kind: 'home' });
-    },
-    () => {
-      navigate({ kind: 'home' });
-    },
+    (_sheet: CharacterSheet) => navigate({ kind: 'home' }),
+    () => navigate({ kind: 'home' }),
   );
   currentWizard.start();
 }
@@ -210,20 +217,58 @@ function renderWizard(): void {
 async function renderSheet(id: string): Promise<void> {
   try {
     const sheet = await getCharacter(id);
+    const race = getRace(sheet.raceId);
+    const klass = getClass(sheet.classId);
+
     const root = el('main', { class: 'home-screen' });
     root.appendChild(el('button', {
-      class: 'wiz-back',
+      class: 'wiz-back-btn',
       text: '← Voltar',
       on: { click: () => navigate({ kind: 'home' }) },
     }));
     root.appendChild(el('h2', { class: 'wiz-h2', text: sheet.characterName }));
-    root.appendChild(el('p', { class: 'boot-tagline', text: `${sheet.raceId} · ${sheet.classId} · ${sheet.backgroundId} · Nv ${sheet.level}` }));
-    root.appendChild(el('div', { class: 'home-empty', text: 'Ficha completa virá em F3. Por ora: HP ' + sheet.currentHp + '/' + sheet.maxHp + ' · CA ' + sheet.armorClass }));
+    root.appendChild(el('p', { class: 'boot-tagline', text: `${race.name} · ${klass.name} · Nível ${sheet.level}` }));
+
+    root.appendChild(el('div', { class: 'boot-status' }, [
+      el('div', { class: 'bs-row is-ok' }, [
+        el('span', { class: 'bs-key', text: 'HP' }),
+        el('span', { class: 'bs-val', text: `${sheet.currentHp}/${sheet.maxHp}` }),
+      ]),
+      el('div', { class: 'bs-row is-ok' }, [
+        el('span', { class: 'bs-key', text: 'CA' }),
+        el('span', { class: 'bs-val', text: String(sheet.armorClass) }),
+      ]),
+      el('div', { class: 'bs-row is-ok' }, [
+        el('span', { class: 'bs-key', text: 'XP' }),
+        el('span', { class: 'bs-val', text: String(sheet.xp) }),
+      ]),
+    ]));
+
+    root.appendChild(el('div', { class: 'home-actions' }, [
+      el('button', {
+        class: 'home-btn',
+        text: '▶ Começar Sessão',
+        on: { click: () => navigate({ kind: 'campaign', characterId: id }) },
+      }),
+    ]));
+
     app!.appendChild(root);
   } catch (err) {
     app!.innerHTML = `<div class="boot-error">Erro carregando ficha: ${String(err)}</div>`;
   }
 }
 
-// Boot
+async function renderCampaign(characterId: string, campaignId?: string): Promise<void> {
+  const container = el('div', { class: 'campaign-container' });
+  app!.appendChild(container);
+  currentCampaign = new CampaignScreen(container, {
+    characterId,
+    campaignId,
+    socket,
+    ownerName: getOwnerName(),
+    onExit: () => navigate({ kind: 'home' }),
+  });
+  await currentCampaign.start();
+}
+
 void render();

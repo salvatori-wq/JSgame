@@ -114,7 +114,7 @@ export interface CampaignState {
   currentLocation: string;
   currentSceneDescription: string;    // última narração do Mestre
   worldFlags: Record<string, string | number | boolean>;
-  npcsMet: Array<{ name: string; archetype: string; attitude: 'amigavel' | 'neutro' | 'hostil'; lastSeen: string }>;
+  npcsMet: Array<{ name: string; archetype: string; attitude: 'amigavel' | 'neutro' | 'hostil' | 'misterioso'; lastSeen: string }>;
   recentEvents: string[];             // últimos N pra DM context
   sessionNumber: number;              // 1-5 dentro da campanha
   startedAt: number;
