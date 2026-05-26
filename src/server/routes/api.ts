@@ -11,7 +11,7 @@ import { ALL_CONDITIONS } from '../../dnd/conditions.js';
 import { ALL_BACKGROUNDS } from '../../dnd/backgrounds.js';
 import {
   saveCharacter, loadCharacter, listCharactersByOwner, listCharactersByUserId, deleteCharacter,
-  loadCampaign, listRecentCampaigns,
+  loadCampaign, listRecentCampaigns, deleteCampaign,
 } from '../persistence.js';
 import {
   findOrCreateUser, createMagicLink, consumeMagicLink, createSession,
@@ -224,6 +224,19 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json({ campaign: c });
     } catch (err) {
       console.error('[api] loadCampaign:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.delete('/api/campaigns/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+      // Evict do Map em memória pra evitar que próximo broadcastState re-save o registro.
+      ctx.campaigns.delete(id);
+      await deleteCampaign(id);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] deleteCampaign:', err);
       res.status(500).json({ error: String(err) });
     }
   });

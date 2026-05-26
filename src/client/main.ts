@@ -4,7 +4,7 @@
 import './styles.css';
 import { io, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '../shared/types';
-import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, type CampaignSummary } from './api';
+import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, deleteCampaign as deleteCampaignApi, type CampaignSummary } from './api';
 import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
@@ -436,7 +436,7 @@ async function renderHome(): Promise<void> {
         return;
       }
       for (const c of camps.slice(0, 8)) {
-        campsList.appendChild(renderCampaignCard(c, () => selectedCharId, navigate));
+        campsList.appendChild(renderCampaignCard(c, () => selectedCharId, navigate, refreshCamps));
       }
     } catch (err) {
       campsList.appendChild(el('div', { class: 'home-empty', text: `Erro listando crônicas: ${String(err)}` }));
@@ -521,6 +521,7 @@ function renderCampaignCard(
   c: CampaignSummary,
   getSelectedChar: () => string | null,
   navigate: (v: { kind: 'campaign'; characterId: string; campaignId?: string }) => void,
+  onDeleted: () => void | Promise<void>,
 ): HTMLElement {
   const when = new Date(c.lastPlayedAt);
   const whenStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -538,6 +539,22 @@ function renderCampaignCard(
           const charId = getSelectedChar();
           if (!charId) { toastWarn('Selecione um personagem primeiro.'); return; }
           navigate({ kind: 'campaign', characterId: charId, campaignId: c.id });
+        },
+      },
+    }),
+    el('button', {
+      class: 'hcamp-del-btn',
+      text: '🗑',
+      attrs: { title: 'Excluir crônica (irreversível)', type: 'button', 'aria-label': 'Excluir crônica' },
+      on: {
+        click: async () => {
+          if (!confirm(`Excluir "${c.name}" (sessão ${c.sessionNumber})? Memória do Mestre e highlights serão perdidos. Não tem volta.`)) return;
+          try {
+            await deleteCampaignApi(c.id);
+            await onDeleted();
+          } catch (err) {
+            toastWarn(`Falha ao excluir: ${String(err)}`);
+          }
         },
       },
     }),

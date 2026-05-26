@@ -20,9 +20,9 @@
 }
 .home-camp-card {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 10px 12px;
   background: rgba(40, 30, 20, 0.45);
   border: 1px solid rgba(255, 230, 180, 0.12);
@@ -58,6 +58,21 @@
   cursor: pointer;
 }
 .hcamp-join-btn:hover { box-shadow: 0 0 10px rgba(120, 180, 80, 0.4); }
+.hcamp-del-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid rgba(200, 100, 100, 0.3);
+  border-radius: 4px;
+  color: rgba(220, 140, 140, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+.hcamp-del-btn:hover {
+  background: rgba(150, 50, 50, 0.2);
+  border-color: rgba(220, 100, 100, 0.6);
+  color: #f5b0b0;
+}
 
 .home-join-row {
   display: flex;

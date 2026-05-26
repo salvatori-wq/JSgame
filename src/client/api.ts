@@ -107,6 +107,10 @@ export async function listCampaigns(): Promise<CampaignSummary[]> {
   return data.campaigns;
 }
 
+export async function deleteCampaign(id: string): Promise<void> {
+  await fetchJson(`/api/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 // F20 — Daily streak
 export interface StreakDTO {
   currentStreak: number;

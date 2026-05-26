@@ -357,3 +357,13 @@ export async function listRecentCampaigns(limit = 20): Promise<Array<{ id: strin
     lastPlayedAt: Number(row.lastPlayedAt),
   }));
 }
+
+// Remove crônica + dados ligados (RAG memory + highlights).
+// Tombstones e metrics_events ficam — são history do user, não da crônica em si.
+export async function deleteCampaign(id: string): Promise<void> {
+  const client = requireClient();
+  await client.execute({ sql: 'DELETE FROM memory_facts_fts WHERE campaign_id = ?', args: [id] });
+  await client.execute({ sql: 'DELETE FROM memory_facts WHERE campaign_id = ?', args: [id] });
+  await client.execute({ sql: 'DELETE FROM highlights WHERE campaign_id = ?', args: [id] });
+  await client.execute({ sql: 'DELETE FROM campaigns WHERE id = ?', args: [id] });
+}
