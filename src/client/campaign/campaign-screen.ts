@@ -27,6 +27,7 @@ import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveli
 import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
+import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -99,6 +100,11 @@ export class CampaignScreen {
       const speaker = payload.speaker ?? 'Mestre';
       if (speaker !== 'Mestre' && !speaker.startsWith('Mestre ') && speaker !== 'Sistema') {
         playNpcSpeaks();
+      }
+      // C3 — Voice TTS: só lê narrações do Mestre (não chat do player nem echo de ação)
+      const isMaster = speaker === 'Mestre' || speaker.startsWith('Mestre ');
+      if (isMaster && isVoiceTtsEnabled()) {
+        ttsSpeak(payload.text, { rate: 1.05 });
       }
       // Push notif se aba sem foco
       notify({
@@ -503,6 +509,20 @@ export class CampaignScreen {
             const next = !isNotifsEnabled();
             const ok = await setNotifsEnabled(next);
             btn.textContent = ok ? '🔔' : '🔕';
+          },
+        },
+      }) : null,
+      // C3 — Voice TTS toggle (só aparece se browser suporta)
+      isVoiceTtsSupported() ? el('button', {
+        class: 'camp-sfx-btn',
+        text: isVoiceTtsEnabled() ? '🗣' : '🤐',
+        attrs: { title: 'Liga/desliga voz lendo narrações do Mestre' },
+        on: {
+          click: (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            const next = !isVoiceTtsEnabled();
+            setVoiceTtsEnabled(next);
+            btn.textContent = next ? '🗣' : '🤐';
           },
         },
       }) : null,
