@@ -46,6 +46,9 @@ export interface CharacterSheet {
   raceId: RaceId;
   classId: ClassId;
   subclassId?: SubclassId | null;   // escolhido no wizard; features aplicam quando PJ atinge nv do PHB (3 padrão)
+  // Multi-classe PHB cap 6 — classe primária é classId+level. Adicional aqui.
+  // `level` do sheet representa a primary; total efetivo é level + sum(additionalClasses.level).
+  additionalClasses?: Array<{ classId: ClassId; subclassId?: SubclassId | null; level: number }>;
   backgroundId: BackgroundId;
   alignment: Alignment;
 

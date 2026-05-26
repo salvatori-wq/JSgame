@@ -2,6 +2,7 @@
 // Cada step é um módulo que renderiza no container e chama next(state).
 
 import type { CharacterSheet, AbilityScores, RaceId, ClassId, SubclassId, SkillId, AbilityKey, PlannedLevel4Choice } from '../../shared/types';
+import type { MulticlassEntry } from '../../dnd/multiclass';
 import type { BackgroundId } from '../../dnd/backgrounds';
 import { defaultPointBuyScores, applyRacialBonuses, abilityModifier } from '../../dnd/attributes';
 import { getRace, RACES } from '../../dnd/races';
@@ -30,6 +31,7 @@ export interface WizardState {
   backgroundId: BackgroundId | null;
   chosenSkills: SkillId[];                // perícias escolhidas da classe (background dá próprias)
   plannedLevel4Choice: PlannedLevel4Choice | null;  // opcional — pré-seleção pra nv 4
+  additionalClasses: MulticlassEntry[]; // multi-classe (PHB cap 6) — opcional
   characterName: string;
   alignment: import('../../shared/types').Alignment;
 }
@@ -62,6 +64,7 @@ export class CharacterWizard {
       backgroundId: null,
       chosenSkills: [],
       plannedLevel4Choice: null,
+      additionalClasses: [],
       characterName: '',
       alignment: 'nn',
     };
@@ -224,6 +227,7 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
     raceId: state.raceId,
     classId: state.classId,
     subclassId: state.subclassId,
+    additionalClasses: state.additionalClasses.length > 0 ? state.additionalClasses : undefined,
     backgroundId: state.backgroundId,
     alignment: state.alignment,
     plannedLevel4Choice: state.plannedLevel4Choice,

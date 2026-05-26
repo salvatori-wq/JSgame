@@ -1,15 +1,17 @@
 // JSgame · Step 5: review + nome + alinhamento + salvar.
 
 import { getRace } from '../../dnd/races';
-import { getClass, startingHitPoints } from '../../dnd/classes';
+import { getClass, startingHitPoints, CLASSES } from '../../dnd/classes';
 import { getBackground } from '../../dnd/backgrounds';
 import { getSkill } from '../../dnd/skills';
 import { getSubclass } from '../../dnd/subclasses';
 import { getFeat } from '../../dnd/feats';
 import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT, abilityModifier, formatModifier, applyRacialBonuses, proficiencyBonus } from '../../dnd/attributes';
+import { effectiveLevel } from '../../dnd/multiclass';
+import { openMulticlassModal } from './multiclass-modal';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
-import type { Alignment } from '../../shared/types';
+import type { Alignment, ClassId } from '../../shared/types';
 
 const ALIGNMENT_LABELS: Record<Alignment, string> = {
   lb: 'Leal e Bom',     nb: 'Neutro e Bom',     cb: 'Caótico e Bom',
@@ -79,15 +81,22 @@ export function renderReviewStep(
   sheet.appendChild(nameWrap);
 
   // Race/Class/Background headline
+  const totalLevel = 1 + effectiveLevel(state.additionalClasses);
   const headlineChildren = [
     el('span', { class: 'cs-race', text: race.name }),
-    el('span', { class: 'cs-class', text: klass.name }),
+    el('span', { class: 'cs-class', text: klass.name + ' 1' }),
   ];
   if (subclass) {
     headlineChildren.push(el('span', { class: 'cs-subclass', text: subclass.name }));
   }
+  for (const mc of state.additionalClasses) {
+    const mcClass = CLASSES[mc.classId];
+    if (mcClass) {
+      headlineChildren.push(el('span', { class: 'cs-class', text: `${mcClass.name} ${mc.level}` }));
+    }
+  }
   headlineChildren.push(el('span', { class: 'cs-bg', text: background.name }));
-  headlineChildren.push(el('span', { class: 'cs-level', text: 'Nível 1' }));
+  headlineChildren.push(el('span', { class: 'cs-level', text: `Nível ${totalLevel}` }));
   sheet.appendChild(el('div', { class: 'cs-headline' }, headlineChildren));
 
   // Stats grid: HP, AC, PB, Speed
@@ -151,6 +160,62 @@ export function renderReviewStep(
       el('li', { class: 'cs-equip-gold', text: `${background.startingGold} po (peças de ouro)` }),
     ]),
   ]));
+
+  // Multi-classe (opcional) — botão pra adicionar + lista das adicionadas
+  const mcSection = el('section', { class: 'cs-section cs-multiclass-section' });
+  mcSection.appendChild(el('h3', { class: 'cs-h3', text: 'Multi-classe (opcional)' }));
+
+  const finalScoresForMc = finalScores;
+  if (state.additionalClasses.length === 0) {
+    mcSection.appendChild(el('p', { class: 'cs-feature-desc', text: 'Adicione uma classe extra se quiser começar como multi-classe (PHB cap 6). Pré-req de atributos vale.' }));
+  } else {
+    const list = el('ul', { class: 'cs-mc-list' });
+    state.additionalClasses.forEach((mc, idx) => {
+      const klass = CLASSES[mc.classId];
+      if (!klass) return;
+      list.appendChild(el('li', { class: 'cs-mc-item' }, [
+        el('span', { class: 'cs-mc-name', text: `${klass.name} nv ${mc.level}` }),
+        el('button', {
+          class: 'cs-mc-remove',
+          text: '✕',
+          attrs: { type: 'button', title: 'Remover' },
+          on: {
+            click: () => {
+              callbacks.update({
+                additionalClasses: state.additionalClasses.filter((_, i) => i !== idx),
+              });
+              document.dispatchEvent(new CustomEvent('wiz:rerender'));
+            },
+          },
+        }),
+      ]));
+    });
+    mcSection.appendChild(list);
+  }
+
+  mcSection.appendChild(el('button', {
+    class: 'cs-mc-add-btn',
+    text: '+ Adicionar classe',
+    attrs: { type: 'button' },
+    on: {
+      click: () => {
+        if (!state.classId) return;
+        openMulticlassModal({
+          currentClassId: state.classId,
+          abilityScores: finalScoresForMc,
+          alreadyAdded: state.additionalClasses.map((m) => m.classId),
+          onPick: (classId: ClassId) => {
+            callbacks.update({
+              additionalClasses: [...state.additionalClasses, { classId, subclassId: null, level: 1 }],
+            });
+            document.dispatchEvent(new CustomEvent('wiz:rerender'));
+          },
+          onClose: () => { /* no-op */ },
+        });
+      },
+    },
+  }));
+  sheet.appendChild(mcSection);
 
   // Subclass features (latente — só ativa quando nv certo)
   if (subclass) {
