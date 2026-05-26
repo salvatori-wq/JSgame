@@ -187,6 +187,28 @@ export class Campaign {
       if (this.isStarted || this.isStarting) return null;
       this.isStarting = true;
       try {
+        // A3 — Auto-recap pra sessão N > 1: busca top facts da memória e gera "Anteriormente...".
+        // Coloca o recap NA FRENTE da narração principal como parte do narration.
+        let recapPrefix = '';
+        if (this.state.sessionNumber > 1 && this.memory) {
+          try {
+            const topFacts = await this.memory.topImportant(this.state.id, {
+              limit: 6,
+              kinds: ['npc', 'location', 'event', 'promise'],
+              minImportance: 1.3,
+            });
+            if (topFacts.length > 0) {
+              const recap = await this.dm.generateRecap(topFacts, this.state.dmPersonality);
+              if (recap) {
+                recapPrefix = recap + '\n\n';
+                this.pushRecentEvent(`Sessão ${this.state.sessionNumber} aberta com recap de ${topFacts.length} fatos.`);
+              }
+            }
+          } catch (err) {
+            console.warn('[campaign] auto-recap falhou:', err);
+          }
+        }
+
         const focus = this.buildMemoryFocus({});
         const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
         const response = await this.dm.narrate({
@@ -195,6 +217,10 @@ export class Campaign {
           recentNarrations: this.narrationLog,
           memoryFacts,
         });
+        // Prepend recap antes da narração de abertura
+        if (recapPrefix) {
+          response.narration = recapPrefix + response.narration;
+        }
         this.applyDMResponse(response);
         this.isStarted = true;
         return response;

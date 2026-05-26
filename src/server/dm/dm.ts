@@ -42,6 +42,30 @@ export class DungeonMaster {
     }
   }
 
+  /**
+   * A3 — Gera "Previously on..." recap das sessões anteriores baseado em top facts.
+   * Chamado em startSession quando sessionNumber > 1. Curto: 2-3 frases tom narrativo.
+   */
+  async generateRecap(facts: import('../../shared/types.js').MemoryFact[], personality?: import('../../dnd/dm-personality.js').DmPersonality): Promise<string | null> {
+    if (facts.length === 0) return null;
+    const personalityName = personality ?? 'sombrio';
+    const factsList = facts.map((f) => `- [${f.kind}] ${f.text}`).join('\n');
+    try {
+      const response = await withTimeout(
+        this.provider.generate({
+          systemPrompt: `Você é o Mestre de D&D no estilo ${personalityName}. Gere um RECAP curto (2-3 frases) que retoma a sessão anterior. Comece com "Anteriormente..." ou similar. Mencione 2-3 fatos chave da lista abaixo. Tom narrativo, PT-BR coloquial, sem repetir literalmente os fatos.`,
+          userPrompt: `Fatos relevantes da campanha:\n${factsList}\n\nGere o recap em 2-3 frases:`,
+          maxTokens: 200,
+        }),
+        LLM_TIMEOUT_MS,
+      );
+      return response.text.trim() || null;
+    } catch (err) {
+      console.warn('[dm] generateRecap falhou:', err);
+      return null;
+    }
+  }
+
   async narrate(context: NarrationContext): Promise<DMResponse> {
     const userPrompt = buildNarrationPrompt(context);
     // 1C — System prompt dinâmico baseado em CampaignState.dmPersonality (default sombrio).
@@ -175,6 +199,13 @@ export class FallbackDM {
   // FallbackDM não chama LLM nenhum — summarize sempre null. Campaign ignora.
   async summarize(_text: string): Promise<string | null> {
     return null;
+  }
+
+  // A3 — Fallback: monta recap simples a partir dos facts diretos (sem LLM).
+  async generateRecap(facts: import('../../shared/types.js').MemoryFact[]): Promise<string | null> {
+    if (facts.length === 0) return null;
+    const top = facts.slice(0, 3).map((f) => f.text);
+    return `Anteriormente: ${top.join('. ')}.`;
   }
 
   // ESLint warning OK: classe segue interface implícita do DungeonMaster

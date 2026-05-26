@@ -170,6 +170,34 @@ export class MemoryStore {
   }
 
   /**
+   * A3 — Top facts por importance pra auto-recap entre sessões.
+   * Retorna facts ordenados por importance DESC (mais importantes primeiro).
+   * Filtra por kinds relevantes pra recap (npc/location/event/promise — exclui chatter).
+   */
+  async topImportant(
+    campaignId: string,
+    opts: { limit?: number; kinds?: MemoryFactKind[]; minImportance?: number } = {},
+  ): Promise<MemoryFact[]> {
+    const limit = opts.limit ?? 6;
+    const minImportance = opts.minImportance ?? 1.3;  // só fatos relevantes
+    const kindFilter = opts.kinds && opts.kinds.length > 0
+      ? `AND kind IN (${opts.kinds.map(() => '?').join(',')})`
+      : '';
+    const args: (string | number)[] = [campaignId, minImportance];
+    if (opts.kinds && opts.kinds.length > 0) args.push(...opts.kinds);
+    args.push(limit);
+    const r = await this.client.execute({
+      sql: `SELECT id, campaign_id, kind, text, tags, importance, session_n, created_at
+            FROM memory_facts
+            WHERE campaign_id = ? AND importance >= ? ${kindFilter}
+            ORDER BY importance DESC, created_at DESC
+            LIMIT ?`,
+      args,
+    });
+    return r.rows.map(rowToFact);
+  }
+
+  /**
    * Conta facts da campanha (debug + UI futura "memória do Mestre").
    */
   async count(campaignId: string): Promise<number> {
