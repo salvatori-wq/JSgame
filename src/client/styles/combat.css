@@ -415,6 +415,64 @@
   100% { transform: translate(-50%, -200%) scale(0.9); opacity: 0; }
 }
 
+/* F23 — Class features bar (Big 7) */
+.cb-features-bar {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(60, 30, 80, 0.5), rgba(30, 15, 50, 0.6));
+  border: 1px solid rgba(160, 100, 200, 0.4);
+  border-radius: var(--r-md);
+  box-shadow: 0 2px 8px rgba(80, 40, 120, 0.25);
+}
+.cb-features-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #c890ff;
+  margin-bottom: 8px;
+}
+.cb-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.cb-feature-btn {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(80, 50, 110, 0.55), rgba(50, 30, 80, 0.7));
+  border: 1px solid rgba(180, 120, 220, 0.4);
+  color: var(--ink-warm);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.cb-feature-btn:hover:not([disabled]) {
+  background: linear-gradient(180deg, rgba(120, 80, 160, 0.7), rgba(70, 40, 100, 0.8));
+  border-color: #c890ff;
+  box-shadow: 0 0 12px rgba(200, 144, 255, 0.4);
+}
+.cb-feature-btn.is-exhausted {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: saturate(0.4);
+}
+.cbf-icon { font-size: 18px; }
+.cbf-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cbf-uses {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--ink-gold);
+  background: rgba(0,0,0,0.4);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
 /* HP bar flash quando recebe dano */
 .cb-enemy-hp-bar,
 .cp-pj-hp-bar { position: relative; }

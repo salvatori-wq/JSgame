@@ -8,6 +8,9 @@ import type {
 import { rollD20, rollDice, parseDiceNotation, type DiceRoll } from '../dnd/dice.js';
 import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
 import { uuid } from './util.js';
+import {
+  getRageDamageBonus, hasRageResistance, maybeSneakAttack, clearTurnFlags,
+} from './class-features-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -102,6 +105,9 @@ export function advanceTurn(combat: CombatState, party: CharacterSheet[]): { par
     combat.active = false;
     return { participant: null, combatOver: true };
   }
+  // F23 — limpa flags de turn (sneak-attack-used, action-surge) do participante saindo
+  const exiting = combat.initiativeOrder[combat.currentTurnIndex];
+  if (exiting) clearTurnFlags(combat, exiting.id);
 
   // Tenta até N voltas — se TODOS pulam, encerra.
   const max = combat.initiativeOrder.length * 2;
@@ -213,17 +219,32 @@ export function resolvePlayerAttack(
     const diceStr = opts.damageDice ?? '1d8';
     const parsed = parseDiceNotation(diceStr) ?? { count: 1, kind: 8 as const, modifier: 0 };
     const totalDice = crit ? parsed.count * 2 : parsed.count;
-    damageRoll = rollDice(totalDice, parsed.kind, useMod + parsed.modifier);
-    target.currentHp = Math.max(0, target.currentHp - damageRoll.total);
+    // F23 — Rage damage bonus (melee only)
+    const rageBonus = getRageDamageBonus(attacker, combat, !!opts.isRanged);
+    damageRoll = rollDice(totalDice, parsed.kind, useMod + parsed.modifier + rageBonus);
+    // F23 — Sneak Attack (passive, +1d6 cada 2 lvl quando aplicável)
+    const sneak = maybeSneakAttack(
+      attacker,
+      combat,
+      target.conditions,
+      // party desconhecido aqui — passa array vazio (heurística cobre via condition)
+      [],
+      crit,
+    );
+    let totalDamage = damageRoll.total;
+    if (sneak.applied && sneak.damageRoll) {
+      totalDamage += sneak.damageRoll.total;
+    }
+    target.currentHp = Math.max(0, target.currentHp - totalDamage);
     enemyKilled = target.currentHp === 0;
 
     events.push({
       type: 'damage',
       sourceId: attacker.id,
       targetId: target.id,
-      value: damageRoll.total,
+      value: totalDamage,
       crit,
-      text: `${attacker.characterName} ${crit ? 'CRITA' : 'acerta'} ${target.name}: ${damageRoll.total} de dano`,
+      text: `${attacker.characterName} ${crit ? 'CRITA' : 'acerta'} ${target.name}: ${totalDamage} de dano${sneak.applied ? ` (sneak +${sneak.damageRoll!.total})` : ''}${rageBonus ? ` (+${rageBonus} fúria)` : ''}`,
     });
     if (enemyKilled) {
       events.push({
@@ -232,7 +253,7 @@ export function resolvePlayerAttack(
         text: `${target.name} cai.`,
       });
     }
-    log = `${attacker.characterName} → ${target.name}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${damageRoll.total} dmg${enemyKilled ? ' · MORTO' : ''}`;
+    log = `${attacker.characterName} → ${target.name}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${totalDamage} dmg${enemyKilled ? ' · MORTO' : ''}`;
   } else {
     events.push({
       type: 'attack-miss',
@@ -307,7 +328,11 @@ export function resolveEnemyTurn(
     const parsed = parseDiceNotation(enemy.damageDice) ?? { count: 1, kind: 6 as const, modifier: 0 };
     const totalDice = crit ? parsed.count * 2 : parsed.count;
     damageRoll = rollDice(totalDice, parsed.kind, enemy.damageBonus + parsed.modifier);
-    target.currentHp = Math.max(0, target.currentHp - damageRoll.total);
+    // F23 — Rage resistance halves bludgeoning/piercing/slashing (assume todo dmg físico)
+    const finalDmg = hasRageResistance(target, combat)
+      ? Math.floor(damageRoll.total / 2)
+      : damageRoll.total;
+    target.currentHp = Math.max(0, target.currentHp - finalDmg);
     playerDowned = target.currentHp === 0;
 
     if (playerDowned && !target.conditions.includes('inconsciente')) {
@@ -318,9 +343,9 @@ export function resolveEnemyTurn(
       type: 'damage',
       sourceId: enemy.id,
       targetId: target.id,
-      value: damageRoll.total,
+      value: finalDmg,
       crit,
-      text: `${enemy.name} ${crit ? 'CRITA' : 'acerta'} ${target.characterName}: ${damageRoll.total} de dano`,
+      text: `${enemy.name} ${crit ? 'CRITA' : 'acerta'} ${target.characterName}: ${finalDmg} de dano${finalDmg !== damageRoll.total ? ' (½ fúria)' : ''}`,
     });
     if (playerDowned) {
       events.push({
@@ -330,7 +355,7 @@ export function resolveEnemyTurn(
         text: `${target.characterName} caiu inconsciente.`,
       });
     }
-    log = `${enemy.name} → ${target.characterName}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${damageRoll.total} dmg${playerDowned ? ' · INCONSCIENTE' : ''}`;
+    log = `${enemy.name} → ${target.characterName}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${finalDmg} dmg${playerDowned ? ' · INCONSCIENTE' : ''}`;
   } else {
     events.push({
       type: 'attack-miss',

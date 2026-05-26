@@ -23,6 +23,10 @@ import {
   applyConditionTo,
 } from './combat.js';
 import { resolvePlayerCastSpell, type CastSpellResult } from './spells-engine.js';
+import {
+  useFeature, restoreOnShortRest, restoreOnLongRest, ensureFeatureUses,
+} from './class-features-engine.js';
+import type { FeatureKey } from '../dnd/class-features.js';
 import type { SpellId } from '../dnd/spells.js';
 import { getClass } from '../dnd/classes.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
@@ -96,6 +100,8 @@ export class Campaign {
 
   addCharacter(c: CharacterSheet): void {
     if (!this.party.find((p) => p.id === c.id)) {
+      // F23 — Garante estrutura classFeatureUses inicializada (PJs antigos não têm)
+      ensureFeatureUses(c);
       this.party.push(c);
       this.state.partyCharacterIds = this.party.map((p) => p.id);
     }
@@ -552,6 +558,9 @@ export class Campaign {
         player.deathSaveFailures = 0;
       }
 
+      // F23 — restaura features short-rest (action-surge, second-wind, channel-divinity, ki, wild-shape)
+      restoreOnShortRest(player);
+
       this.pushRecentEvent(`${player.characterName} descansou curto: gastou ${spend} hit dice, curou ${actual} HP`);
       return { ok: true, healed: actual, diceSpent: spend };
     });
@@ -577,11 +586,28 @@ export class Campaign {
       player.deathSaveFailures = 0;
       // Long rest reduz exaustão em 1
       player.exhaustion = Math.max(0, player.exhaustion - 1);
+      // F23 — restaura todas as features (long-rest reseta tudo)
+      restoreOnLongRest(player);
 
       this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
       // F17: credita long_rest event
       this.pushAchievementEvent(player.id, { kind: 'long_rest' });
       return { ok: true, healed: player.currentHp - oldHp };
+    });
+  }
+
+  // F23 — Class feature: aplica efeito (rage, surge, second-wind, etc).
+  async useClassFeature(playerId: string, featureKey: FeatureKey, opts: { targetId?: string } = {}): Promise<{ ok: boolean; reason?: string; events: CombatEvent[]; log: string }> {
+    return this.enqueue(async () => {
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return { ok: false, reason: 'jogador não encontrado', events: [], log: '' };
+      // Garante estrutura inicializada (PJ pode ter sido criado antes do F23)
+      ensureFeatureUses(player);
+      const result = useFeature(player, featureKey, this.state.combat, this.party, opts);
+      if (result.ok) {
+        this.pushRecentEvent(result.log);
+      }
+      return result;
     });
   }
 

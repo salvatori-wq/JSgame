@@ -10,6 +10,7 @@ import type {
 import { el, escapeHtml } from '../util';
 import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { portraitFor } from '../../dnd/portrait';
+import { renderClassFeaturesBar } from './class-features-bar';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -132,6 +133,10 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     }
     bar.appendChild(grid);
     root.appendChild(bar);
+
+    // F23 — Class Features Big 7 bar (rage/surge/etc) — só se classe tem
+    const featuresBar = renderClassFeaturesBar(myChar, socket, party);
+    if (featuresBar) root.appendChild(featuresBar);
   } else {
     const waiting = el('div', { class: 'cb-waiting' });
     waiting.appendChild(el('div', { class: 'cb-waiting-txt', text: current ? `⏳ Aguardando ${current.name}…` : '⏳ Aguardando próximo turno' }));

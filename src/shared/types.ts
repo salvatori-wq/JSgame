@@ -121,6 +121,11 @@ export interface CharacterSheet {
   // 5: velocidade 0
   // 6: morte
   exhaustion: number;
+
+  // F23 — Class Features Big 7 uses (rage, action-surge, second-wind, channel-divinity,
+  // ki, bardic-inspiration, wild-shape). Sneak Attack é passive (sem use). Restauram em
+  // short/long rest conforme regra de cada feature. Server calcula max via getMaxFeatureUses.
+  classFeatureUses?: Record<string, { used: number; max: number }>;
 }
 
 export interface InventoryItem {
@@ -250,6 +255,10 @@ export interface ClientToServerEvents {
   rollInitiative: () => void;
   combatAction: (payload: { action: CombatActionKind; targetId?: string; details?: Record<string, unknown> }) => void;
   endTurn: () => void;
+
+  // F23 — Class features Big 7 (rage, action-surge, second-wind, channel-divinity,
+  // ki, bardic-inspiration, wild-shape). Server valida uses + state, aplica efeito.
+  useClassFeature: (payload: { feature: string; targetId?: string; details?: Record<string, unknown> }) => void;
 
   // Cast spell — exploration OU combat
   castSpell: (payload: { spellId: string; targetIds: string[]; slotLevel: 0 | 1 | 2 | 3 | 4 | 5 }) => void;

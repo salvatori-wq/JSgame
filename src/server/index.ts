@@ -890,6 +890,30 @@ async function main(): Promise<void> {
       }
     });
 
+    // ── F23 — useClassFeature: rage/surge/second-wind/channel/ki/bardic/wild-shape
+    socket.on('useClassFeature', async ({ feature, targetId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const result = await camp.useClassFeature(activePlayerId, feature as never, { targetId });
+        if (!result.ok) { socket.emit('error', result.reason ?? 'class feature rejeitada'); return; }
+        for (const ev of result.events) io.to(camp.state.id).emit('combatEvent', ev);
+        if (result.log) {
+          io.to(camp.state.id).emit('dmNarration', {
+            text: result.log,
+            speaker: '⚔ Habilidade',
+            mood: 'trickster',
+          });
+        }
+        broadcastState(camp);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] useClassFeature error:', err);
+        socket.emit('error', `useClassFeature falhou: ${String(err)}`);
+      }
+    });
+
     // ── useItem: consumível
     socket.on('useItem', async ({ itemId }) => {
       try {
