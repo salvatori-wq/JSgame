@@ -10,6 +10,7 @@ import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
 import { uuid } from './util.js';
 import {
   getRageDamageBonus, hasRageResistance, maybeSneakAttack, clearTurnFlags,
+  hasCombatFlag, clearCombatFlag,
 } from './class-features-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
@@ -204,7 +205,12 @@ export function resolvePlayerAttack(
     attacker.conditions.includes('cego') ||
     attacker.conditions.includes('envenenado') ||
     attacker.conditions.includes('restrito');
-  const advantage = !opts.isRanged && target.conditions.includes('caido');
+  // F24 — Help flag: aliado deu Help no PJ pra esse próximo ataque
+  const wasHelped = hasCombatFlag(combat, attacker.id, 'helped-next-attack');
+  if (wasHelped) clearCombatFlag(combat, attacker.id, 'helped-next-attack');
+  const advantage =
+    wasHelped ||
+    (!opts.isRanged && (target.conditions.includes('caido') || target.conditions.includes('restrito')));
 
   const attackRoll = rollD20({ modifier: attackBonus, advantage, disadvantage });
   const crit = !!attackRoll.nat20;
@@ -398,6 +404,120 @@ export function resolvePlayerDash(attacker: CharacterSheet, combat: CombatState)
   const log = `${attacker.characterName} usa Disparada — movimento dobrado nesse turno.`;
   combat.log.push(log);
   return { log };
+}
+
+// F24 — Disengage real: marca flag pra prevenir opportunity attacks neste turno
+export function resolvePlayerDisengage(attacker: CharacterSheet, combat: CombatState): { log: string } {
+  const log = `${attacker.characterName} usa Desengajar — pode se mover sem provocar ataques de oportunidade.`;
+  combat.log.push(log);
+  return { log };
+}
+
+// F24 — Grapple: STR(Athletics) atacante vs STR(Athletics) ou DEX(Acrobatics) alvo.
+// Sucesso aplica condition 'restrito' no alvo.
+export function resolveGrapple(
+  attacker: CharacterSheet,
+  targetEnemyId: string,
+  combat: CombatState,
+): { ok: boolean; success: boolean; log: string; events: CombatEvent[] } {
+  const target = combat.enemies.find((e) => e.id === targetEnemyId);
+  if (!target || target.currentHp <= 0) {
+    return { ok: false, success: false, log: 'alvo inválido', events: [] };
+  }
+  const strMod = abilityModifier(attacker.abilityScores.for);
+  const pb = proficiencyBonus(attacker.level);
+  const attackerBonus = strMod + (attacker.proficientSkills.includes('atletismo') ? pb : 0);
+  // Alvo: usa attackBonus simplificado como surrogate pra resistência
+  const targetBonus = Math.floor(target.attackBonus / 1.5);
+  const atkRoll = rollD20({ modifier: attackerBonus });
+  const tgtRoll = rollD20({ modifier: targetBonus });
+  const success = atkRoll.total >= tgtRoll.total;
+  if (success && !target.conditions.includes('restrito')) {
+    target.conditions.push('restrito');
+  }
+  const log = success
+    ? `${attacker.characterName} agarra ${target.name} (Atletismo ${atkRoll.total} vs ${tgtRoll.total}) — RESTRITO`
+    : `${attacker.characterName} tenta agarrar ${target.name} (${atkRoll.total} vs ${tgtRoll.total}) — falhou`;
+  combat.log.push(log);
+  return {
+    ok: true,
+    success,
+    log,
+    events: [{
+      type: success ? 'condition-applied' : 'attack-miss',
+      sourceId: attacker.id,
+      targetId: target.id,
+      text: log,
+      conditionId: success ? 'restrito' : undefined,
+    }],
+  };
+}
+
+// F24 — Shove: STR(Athletics) vs STR(Athletics)/DEX(Acrobatics). Sucesso = caido OU empurra 5ft.
+// Default: derruba (caido).
+export function resolveShove(
+  attacker: CharacterSheet,
+  targetEnemyId: string,
+  combat: CombatState,
+  mode: 'knock-down' | 'push' = 'knock-down',
+): { ok: boolean; success: boolean; log: string; events: CombatEvent[] } {
+  const target = combat.enemies.find((e) => e.id === targetEnemyId);
+  if (!target || target.currentHp <= 0) {
+    return { ok: false, success: false, log: 'alvo inválido', events: [] };
+  }
+  const strMod = abilityModifier(attacker.abilityScores.for);
+  const pb = proficiencyBonus(attacker.level);
+  const attackerBonus = strMod + (attacker.proficientSkills.includes('atletismo') ? pb : 0);
+  const targetBonus = Math.floor(target.attackBonus / 1.5);
+  const atkRoll = rollD20({ modifier: attackerBonus });
+  const tgtRoll = rollD20({ modifier: targetBonus });
+  const success = atkRoll.total >= tgtRoll.total;
+  if (success && mode === 'knock-down' && !target.conditions.includes('caido')) {
+    target.conditions.push('caido');
+  }
+  const verb = mode === 'knock-down' ? 'derruba' : 'empurra';
+  const cond = mode === 'knock-down' ? 'CAÍDO' : 'EMPURRADO 5ft';
+  const log = success
+    ? `${attacker.characterName} ${verb} ${target.name} (Atletismo ${atkRoll.total} vs ${tgtRoll.total}) — ${cond}`
+    : `${attacker.characterName} tenta ${verb} ${target.name} (${atkRoll.total} vs ${tgtRoll.total}) — falhou`;
+  combat.log.push(log);
+  return {
+    ok: true,
+    success,
+    log,
+    events: [{
+      type: success ? 'condition-applied' : 'attack-miss',
+      sourceId: attacker.id,
+      targetId: target.id,
+      text: log,
+      conditionId: success && mode === 'knock-down' ? 'caido' : undefined,
+    }],
+  };
+}
+
+// F24 — Help: marca aliado pra ganhar vantagem no próximo ataque.
+// Sem opt target, é genérico (vantagem em test/save próximo). Com target ally id, vantagem ataque.
+export function resolveHelp(
+  helper: CharacterSheet,
+  party: CharacterSheet[],
+  allyId: string | undefined,
+  combat: CombatState,
+): { ok: boolean; log: string; events: CombatEvent[] } {
+  const ally = allyId ? party.find((p) => p.id === allyId) : null;
+  const log = ally
+    ? `${helper.characterName} ajuda ${ally.characterName} — próximo ataque tem VANTAGEM.`
+    : `${helper.characterName} ajuda ${combat.enemies[0]?.name ?? 'aliado'} — vantagem em próximo teste.`;
+  combat.log.push(log);
+  return {
+    ok: true,
+    log,
+    events: [{
+      type: 'condition-applied',
+      sourceId: helper.id,
+      targetId: ally?.id,
+      text: log,
+    }],
+  };
 }
 
 export function applyConditionTo(

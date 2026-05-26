@@ -20,8 +20,12 @@ import { getSkill, type SkillId } from '../dnd/skills.js';
 import {
   startCombat, currentParticipant, advanceTurn, isCombatOver,
   resolvePlayerAttack, resolveEnemyTurn, resolvePlayerDodge, resolvePlayerDash,
+  resolvePlayerDisengage, resolveGrapple, resolveShove, resolveHelp,
   applyConditionTo,
 } from './combat.js';
+import {
+  hasCombatFlag, setCombatFlag, clearCombatFlag,
+} from './class-features-engine.js';
 import { resolvePlayerCastSpell, type CastSpellResult } from './spells-engine.js';
 import {
   useFeature, restoreOnShortRest, restoreOnLongRest, ensureFeatureUses,
@@ -336,6 +340,48 @@ export class Campaign {
         case 'dash': {
           const r = resolvePlayerDash(player, combat);
           log = r.log;
+          break;
+        }
+        case 'disengage': {
+          const r = resolvePlayerDisengage(player, combat);
+          setCombatFlag(combat, player.id, 'disengaged-this-turn');
+          log = r.log;
+          break;
+        }
+        case 'grapple': {
+          if (!targetId) return { ok: false, events: [], log: 'precisa de alvo' };
+          const r = resolveGrapple(player, targetId, combat);
+          if (!r.ok) return { ok: false, events: [], log: r.log };
+          events.push(...r.events);
+          log = r.log;
+          break;
+        }
+        case 'shove': {
+          if (!targetId) return { ok: false, events: [], log: 'precisa de alvo' };
+          const r = resolveShove(player, targetId, combat, 'knock-down');
+          if (!r.ok) return { ok: false, events: [], log: r.log };
+          events.push(...r.events);
+          log = r.log;
+          break;
+        }
+        case 'help': {
+          const r = resolveHelp(player, this.party, targetId, combat);
+          events.push(...r.events);
+          log = r.log;
+          if (targetId) setCombatFlag(combat, targetId, 'helped-next-attack');
+          break;
+        }
+        case 'two-weapon': {
+          // F24 — bonus action: 2º ataque com weapon off-hand. Sem mod no dmg.
+          if (!targetId) return { ok: false, events: [], log: 'precisa de alvo' };
+          if (hasCombatFlag(combat, player.id, 'bonus-action-used')) {
+            return { ok: false, events: [], log: 'bonus action já gasto neste turno' };
+          }
+          setCombatFlag(combat, player.id, 'bonus-action-used');
+          const result = resolvePlayerAttack(player, targetId, combat, { damageDice: '1d6' });
+          if (!result) return { ok: false, events: [], log: 'alvo inválido' };
+          events.push(...result.events);
+          log = `(off-hand) ${result.log}`;
           break;
         }
         default: {

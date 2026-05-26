@@ -70,10 +70,14 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     const enemiesGrid = el('div', { class: 'cb-enemies' });
     for (const en of combat.enemies) {
       enemiesGrid.appendChild(renderEnemyCard(en, () => {
-        // Se for meu turno e o enemy estiver vivo, ataca
+        // Se for meu turno e o enemy estiver vivo, ataca (ou pending action)
         if (!isMyTurn(combat, myCharacterId)) return;
         if (en.currentHp <= 0) return;
-        socket.emit('combatAction', { action: 'attack', targetId: en.id });
+        const w = window as unknown as { __pendingCombatAction?: CombatActionKind };
+        const pending = w.__pendingCombatAction;
+        const action: CombatActionKind = pending ?? 'attack';
+        delete w.__pendingCombatAction;
+        socket.emit('combatAction', { action, targetId: en.id });
       }, isMyTurn(combat, myCharacterId)));
     }
     root.appendChild(enemiesGrid);
@@ -85,9 +89,13 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       { id: 'attack', label: 'Atacar', icon: '⚔', hint: 'Clique num inimigo acima' },
       { id: 'dodge', label: 'Esquivar', icon: '🛡', hint: 'Ataques contra você têm desvantagem' },
       { id: 'dash', label: 'Disparada', icon: '💨', hint: 'Movimento dobrado' },
-      { id: 'disengage', label: 'Desengajar', icon: '↩', hint: 'Sai sem ataque de oportunidade' },
+      { id: 'disengage', label: 'Desengajar', icon: '↩', hint: 'Sai sem provocar ataque de oportunidade' },
       { id: 'hide', label: 'Esconder', icon: '🥷', hint: 'Tenta ficar invisível' },
-      { id: 'help', label: 'Ajudar', icon: '🤝', hint: 'Aliado ganha vantagem' },
+      { id: 'help', label: 'Ajudar', icon: '🤝', hint: 'Aliado ganha vantagem no próximo ataque' },
+      // F24
+      { id: 'grapple', label: 'Agarrar', icon: '🤼', hint: 'Atletismo contestado — alvo restrito' },
+      { id: 'shove', label: 'Empurrar', icon: '👐', hint: 'Atletismo contestado — alvo derrubado (caído)' },
+      { id: 'two-weapon', label: '2ª Arma', icon: '🗡', hint: 'Ataque bônus com weapon off-hand (1 por turno)' },
     ];
     const bar = el('div', { class: 'cb-actions' });
     bar.appendChild(el('div', { class: 'cb-actions-title', text: `🎯 Seu turno, ${escapeHtml(myChar.characterName)}` }));
@@ -98,8 +106,20 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
         attrs: { type: 'button', title: a.hint },
         on: {
           click: () => {
-            if (a.id === 'attack') {
-              alert('Clique no inimigo que você quer atacar (cards acima).');
+            if (a.id === 'attack' || a.id === 'grapple' || a.id === 'shove' || a.id === 'two-weapon') {
+              alert(`Clique no inimigo alvo (cards acima). Ação: ${a.label}.`);
+              // Marca ação pendente
+              (window as unknown as { __pendingCombatAction?: CombatActionKind }).__pendingCombatAction = a.id;
+              return;
+            }
+            if (a.id === 'help') {
+              const allies = party.filter((p) => p.id !== myCharacterId && p.currentHp > 0);
+              if (allies.length === 0) { alert('Nenhum aliado vivo pra ajudar.'); return; }
+              const choice = prompt(`Ajudar quem? Digite o nome:\n${allies.map((al) => `- ${al.characterName}`).join('\n')}`);
+              if (!choice) return;
+              const target = allies.find((al) => al.characterName.toLowerCase() === choice.toLowerCase());
+              if (!target) { alert(`Aliado "${choice}" não encontrado.`); return; }
+              socket.emit('combatAction', { action: 'help', targetId: target.id });
               return;
             }
             socket.emit('combatAction', { action: a.id });

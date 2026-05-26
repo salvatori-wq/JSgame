@@ -360,7 +360,7 @@ export type ExplorationAction =
 export type CombatActionKind =
   | 'attack' | 'cast-spell' | 'dodge' | 'dash' | 'disengage'
   | 'help' | 'hide' | 'ready' | 'search' | 'use-object'
-  | 'use-item' | 'shove' | 'grapple';
+  | 'use-item' | 'shove' | 'grapple' | 'two-weapon';
 
 export interface CombatEvent {
   type: 'damage' | 'heal' | 'condition-applied' | 'condition-removed' | 'spell-cast' | 'death' | 'attack-miss';

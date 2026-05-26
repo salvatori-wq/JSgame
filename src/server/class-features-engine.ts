@@ -276,7 +276,10 @@ export function maybeSneakAttack(
 }
 
 // Clear flags one-shot (called at end of turn pra resetar sneak-attack-used).
+// F24 — também reseta bonus-action-used e disengaged-this-turn.
 export function clearTurnFlags(combat: CombatState, characterId: string): void {
   clearCombatFlag(combat, characterId, 'sneak-attack-used-this-round');
   clearCombatFlag(combat, characterId, 'action-surge');
+  clearCombatFlag(combat, characterId, 'bonus-action-used');
+  clearCombatFlag(combat, characterId, 'disengaged-this-turn');
 }
