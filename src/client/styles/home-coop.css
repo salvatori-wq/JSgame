@@ -1,0 +1,103 @@
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* HOME — Coop section (joinar campanha + lista) */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+.home-coop {
+  margin-top: 24px;
+  padding: 16px;
+  border-top: 1px solid var(--ink-mute-faint, rgba(255, 230, 180, 0.15));
+}
+.home-coop-hint {
+  color: var(--ink-mute);
+  font-size: 12px;
+  margin: 4px 0 12px;
+}
+.home-camps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.home-camp-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(40, 30, 20, 0.45);
+  border: 1px solid rgba(255, 230, 180, 0.12);
+  border-radius: 6px;
+}
+.hcamp-name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--ink-warm);
+}
+.hcamp-meta {
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+.hcamp-id {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+  user-select: all;
+}
+.hcamp-join-btn {
+  padding: 8px 14px;
+  background: linear-gradient(180deg, #4a6a3a, #2a4a2a);
+  border: 1px solid #6a8a4a;
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.hcamp-join-btn:hover { box-shadow: 0 0 10px rgba(120, 180, 80, 0.4); }
+
+.home-join-row {
+  display: flex;
+  gap: 8px;
+}
+.home-join-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(20, 14, 8, 0.7);
+  border: 1px solid rgba(255, 230, 180, 0.2);
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-family: monospace;
+  font-size: 12px;
+}
+.home-join-btn {
+  padding: 8px 16px;
+  background: linear-gradient(180deg, var(--accent-rune), #a07840);
+  border: 1px solid var(--ink-gold);
+  border-radius: 4px;
+  color: var(--bg-deep);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.home-char-card.is-selected {
+  outline: 2px solid var(--ink-gold);
+  outline-offset: -2px;
+}
+.hcc-sheet-btn {
+  padding: 6px 10px;
+  background: rgba(40, 30, 20, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.2);
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */

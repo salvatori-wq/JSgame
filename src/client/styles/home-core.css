@@ -1,0 +1,99 @@
+
+/* ════════════════════════════════════════════════════════════════════════
+   Home (lista de characters + novo)
+   ════════════════════════════════════════════════════════════════════════ */
+
+.home-screen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--gap-section) var(--gap-loose);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-loose);
+}
+
+.home-owner-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  font-size: 16px;
+}
+
+.home-owner-input:focus {
+  outline: none;
+  border-color: var(--accent-rune);
+}
+
+.home-actions {
+  display: flex;
+  gap: var(--gap-base);
+  flex-wrap: wrap;
+}
+
+.home-btn {
+  flex: 1 1 200px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, rgba(60, 40, 22, 0.9), rgba(28, 18, 10, 0.95));
+  border: 1px solid var(--accent-rune);
+  border-radius: 6px;
+  color: var(--ink-gold);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.home-btn:hover { background: linear-gradient(180deg, rgba(80, 56, 28, 0.95), rgba(40, 26, 14, 1)); transform: translateY(-1px); }
+.home-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.home-characters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-base);
+}
+
+.home-char-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid rgba(160, 120, 60, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.home-char-card:hover {
+  border-color: var(--accent-rune);
+  transform: translateX(2px);
+}
+
+.hcc-name {
+  font-family: var(--font-heading);
+  color: var(--ink-gold);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+}
+
+.hcc-meta {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.home-empty {
+  text-align: center;
+  padding: var(--gap-section);
+  color: var(--ink-mute);
+  font-style: italic;
+}
+

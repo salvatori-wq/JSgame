@@ -1,0 +1,104 @@
+/* JSgame · Tema gótico base.
+   Mobile-first. Fontes serif do sistema (sem dep externa). Paleta dourado/sombra.
+   Vars CSS pra ajuste rápido. */
+
+:root {
+  /* Paleta */
+  --bg-deep: #0a0608;
+  --bg-stone: #14100c;
+  --bg-card: rgba(28, 18, 10, 0.92);
+  --ink-gold: #f4d07f;
+  --ink-warm: #e4c896;
+  --ink-mute: #8c7c66;
+  --ink-faint: #5a4e3e;
+  --accent-rune: #d4a857;
+  --accent-blood: #c84032;
+  --accent-life: #8cd070;
+
+  /* Tipografia */
+  --font-heading: 'Cinzel', 'Trajan Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Mobile-safe */
+  --m-vh: 100dvh;
+  --m-safe-top: env(safe-area-inset-top, 0px);
+  --m-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --m-safe-left: env(safe-area-inset-left, 0px);
+  --m-safe-right: env(safe-area-inset-right, 0px);
+
+  /* Spacing */
+  --gap-tight: 4px;
+  --gap-base: 8px;
+  --gap-loose: 16px;
+  --gap-section: 32px;
+
+  /* F29 — Design tokens centralizados (pré-req F30 layout responsivo).
+   * Breakpoints — referência (em @media usar valores diretos, vars não funcionam em @media):
+   *   mobile <600 · tablet 600-1023 · desktop 1024-1439 · wide ≥1440
+   */
+
+  /* Type scale */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 36px;
+
+  /* Z-index scale */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 500;
+  --z-modal: 9000;
+  --z-toast: 9500;
+  --z-overlay: 9800;
+  --z-tour: 10000;
+
+  /* Radius scale */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 8px;
+  --r-full: 9999px;
+
+  /* Shadow scale */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow-gold: 0 0 12px rgba(240, 192, 80, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--bg-deep);
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
+  min-height: var(--m-vh);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  padding-top: var(--m-safe-top);
+  padding-bottom: var(--m-safe-bottom);
+  padding-left: var(--m-safe-left);
+  padding-right: var(--m-safe-right);
+}
+
+#app {
+  min-height: var(--m-vh);
+  display: flex;
+  flex-direction: column;
+}
+
