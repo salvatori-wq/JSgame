@@ -12,10 +12,10 @@ export interface DMResponse {
   raw: string;
 }
 
-// Timeout 35s — cobre cascade interno (Gemini falha rápido com 429 + Groq 70b
-// com prompt longo + 7 tools pode levar 20-30s sem cache). Antes era 25s e
-// alguns chamados Groq lentos disparavam timeout antes da resposta chegar.
-const LLM_TIMEOUT_MS = 35_000;
+// Timeout 55s — cobre cascade COMPLETO: Cerebras (~3s rápido), Gemini (~5s rápido),
+// Groq (~5-15s), Cloudflare Llama 3.3 70B (~20-45s pro prompt completo D&D).
+// 2026-05-26: era 35s e Cloudflare timeoutava abortando antes do Llama responder.
+const LLM_TIMEOUT_MS = 55_000;
 // Summarize/recap são chamadas leves (prompt curto, sem tools) — timeout 12s.
 const LLM_TIMEOUT_SHORT_MS = 12_000;
 

@@ -17,6 +17,8 @@ describe('categorizeError', () => {
   it('timeout → timeout', () => {
     expect(categorizeError('LLM timeout após 35000ms')).toBe('timeout');
     expect(categorizeError('Request timed out')).toBe('timeout');
+    expect(categorizeError('This operation was aborted')).toBe('timeout');
+    expect(categorizeError('AbortError: signal is aborted')).toBe('timeout');
   });
 
   it('JSON parse fail', () => {

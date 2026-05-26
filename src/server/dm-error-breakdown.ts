@@ -34,8 +34,8 @@ export function categorizeError(msg: string): ErrorCategory {
   if (/empty narration|narração vazia|narration.+(vazi|empty)/.test(m)) return 'empty_response';
   if (/429|rate.?limit/.test(m)) return 'rate_limit';
   if (/quota|usage limit|daily limit|too many requests/.test(m)) return 'quota_exceeded';
-  // Timeout — tanto "timeout" quanto "timed out"
-  if (/tim(e|ed).?out/.test(m)) return 'timeout';
+  // Timeout — tanto "timeout", "timed out" quanto "operation was aborted" (AbortController)
+  if (/tim(e|ed).?out|operation was aborted|aborterror/.test(m)) return 'timeout';
   if (/safety|filtered|blocked|recitation/.test(m)) return 'safety_block';
   if (/401|403|unauthorized|forbidden|invalid.?api.?key/.test(m)) return 'auth_fail';
   if (/5\d\d|503|502|504|overload|unavailable|internal server/.test(m)) return 'upstream_5xx';

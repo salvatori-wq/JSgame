@@ -42,7 +42,9 @@ export class CloudflareProvider implements DMProvider {
     this.apiToken = opts.apiToken;
     this.model = opts.model;
     this.baseUrl = opts.baseUrl ?? 'https://api.cloudflare.com/client/v4';
-    this.timeoutMs = opts.timeoutMs ?? 25_000;
+    // 2026-05-26: Llama 3.3 70B no CF leva 20-40s pra prompts D&D completos
+    // (system 2-3K tokens + 7 tools + memory). 25s estava dando timeout demais.
+    this.timeoutMs = opts.timeoutMs ?? 45_000;
   }
 
   async generate(opts: {
