@@ -41,7 +41,8 @@ export type Alignment =
 export interface CharacterSheet {
   // Identidade
   id: string;
-  ownerName: string;       // nome do player real (login/identity)
+  ownerName: string;       // nome do player real (login/identity) — legacy, mantido pra backwards-compat
+  userId?: string | null;  // user.id quando PJ foi criado por user autenticado (F15+). null/undefined = anônimo legado.
   characterName: string;   // nome do PJ (Borin, Lyra, …)
   raceId: RaceId;
   classId: ClassId;

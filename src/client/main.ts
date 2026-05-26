@@ -9,6 +9,8 @@ import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
 import { LobbyScreen } from './lobby/lobby-screen';
+import { LoginScreen } from './auth/login-screen';
+import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
 import { setupAudioGesture } from './audio';
@@ -49,6 +51,7 @@ socket.on('disconnect', (reason) => console.log('[client] socket disconnected:',
 // === Router state ===
 type View =
   | { kind: 'home' }
+  | { kind: 'login' }
   | { kind: 'wizard'; fromLobby?: boolean }
   | { kind: 'sheet'; id: string }
   | { kind: 'campaign'; characterId: string; campaignId?: string }
@@ -58,6 +61,7 @@ let currentView: View = { kind: 'home' };
 let currentWizard: CharacterWizard | null = null;
 let currentCampaign: CampaignScreen | null = null;
 let currentLobby: LobbyScreen | null = null;
+let currentUser: AuthUser | null = null;
 
 async function render(): Promise<void> {
   if (currentView.kind !== 'wizard' && currentWizard) {
@@ -79,6 +83,9 @@ async function render(): Promise<void> {
     case 'home':
       await renderHome();
       break;
+    case 'login':
+      renderLogin();
+      break;
     case 'wizard':
       renderWizard(currentView.fromLobby ?? false);
       break;
@@ -92,6 +99,21 @@ async function render(): Promise<void> {
       await renderLobby(currentView.lobbyId);
       break;
   }
+}
+
+function renderLogin(): void {
+  const screen = new LoginScreen({
+    container: app!,
+    onAuthenticated: (user) => {
+      currentUser = user;
+      navigate({ kind: 'home' });
+    },
+    onContinueAnonymous: () => {
+      currentUser = null;
+      navigate({ kind: 'home' });
+    },
+  });
+  screen.start();
 }
 
 function navigate(view: View): void {
@@ -126,6 +148,37 @@ async function renderHome(): Promise<void> {
       el('span', { class: 'bs-val', text: health.hasGroq ? `✓ ${health.dmProvider}` : '⚠ sem GROQ key' }),
     ]),
   ]));
+
+  // User badge — mostra email logado ou botão "Entrar"
+  if (currentUser) {
+    root.appendChild(el('div', { class: 'user-badge' }, [
+      el('span', { text: '👤' }),
+      el('span', { class: 'user-badge-email', text: currentUser.email }),
+      el('button', {
+        class: 'user-badge-logout',
+        text: 'Sair',
+        attrs: { type: 'button' },
+        on: {
+          click: async () => {
+            await logout().catch(() => { /* ignore */ });
+            currentUser = null;
+            void render();
+          },
+        },
+      }),
+    ]));
+  } else {
+    root.appendChild(el('div', { class: 'user-badge' }, [
+      el('span', { text: '👤' }),
+      el('span', { class: 'user-badge-email', text: 'anônimo' }),
+      el('button', {
+        class: 'user-badge-logout',
+        text: 'Entrar',
+        attrs: { type: 'button' },
+        on: { click: () => navigate({ kind: 'login' }) },
+      }),
+    ]));
+  }
 
   const ownerInput = el('input', {
     class: 'home-owner-input',
@@ -478,10 +531,25 @@ if (last) {
   currentView = { kind: 'campaign', characterId: last.characterId, campaignId: last.campaignId };
 }
 
+// Detecta erro de auth no querystring (vindo de redirect /verify) → vai pra login
+{
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('auth_error') || params.has('auth')) {
+    currentView = { kind: 'login' };
+  }
+}
+
 // Debug helper exposto no console.
 (window as unknown as { jsgameClearSession?: () => void }).jsgameClearSession = () => {
   clearLastSession();
   navigate({ kind: 'home' });
 };
 
-void render();
+// Bootstrap: tenta hidratar sessão atual antes do primeiro render.
+// Se sessão válida, popula currentUser; senão segue anônimo.
+(async (): Promise<void> => {
+  try {
+    currentUser = await getMe();
+  } catch { /* offline ou erro — segue anônimo */ }
+  void render();
+})();

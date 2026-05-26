@@ -3071,6 +3071,183 @@ body.is-portrait-narrow .atk-stage {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Login Screen — F15 magic link auth
+   ═══════════════════════════════════════════════════════════════════════ */
+.login-screen {
+  min-height: 100vh;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, #1a120a 0%, #0d0805 100%);
+}
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.login-title {
+  font-family: var(--font-heading);
+  color: var(--ink-gold);
+  font-size: 38px;
+  letter-spacing: 0.15em;
+  margin: 0;
+}
+.login-diamond {
+  color: var(--ink-gold);
+  font-size: 16px;
+  display: block;
+  margin: 4px 0;
+}
+.login-tagline {
+  color: var(--ink-mute);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.login-card {
+  width: min(92vw, 420px);
+  background: linear-gradient(180deg, rgba(40, 25, 14, 0.97), rgba(20, 12, 6, 0.97));
+  border: 2px solid var(--ink-gold);
+  border-radius: 8px;
+  box-shadow: 0 0 40px rgba(244, 208, 127, 0.25);
+  padding: 28px 24px;
+}
+.login-h2 {
+  font-family: var(--font-heading);
+  color: var(--ink-gold);
+  font-size: 18px;
+  margin: 0 0 12px;
+  letter-spacing: 0.05em;
+}
+.login-intro {
+  color: var(--ink-warm);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 20px;
+}
+.login-error {
+  background: rgba(180, 60, 60, 0.18);
+  border: 1px solid rgba(220, 100, 100, 0.5);
+  color: #f0b0b0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.login-email-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(15, 8, 4, 0.55);
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  border-radius: 5px;
+  color: var(--ink-warm);
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 14px;
+  box-sizing: border-box;
+}
+.login-email-input:focus {
+  outline: 1px solid var(--ink-gold);
+  border-color: var(--ink-gold);
+}
+.login-submit-btn {
+  width: 100%;
+  background: var(--ink-gold);
+  color: #1a120a;
+  border: none;
+  padding: 12px;
+  border-radius: 4px;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: bold;
+  cursor: pointer;
+}
+.login-submit-btn:hover { background: #ffdb95; }
+.login-sep {
+  text-align: center;
+  color: var(--ink-mute);
+  font-family: monospace;
+  font-size: 11px;
+  margin: 18px 0;
+}
+.login-anon-btn {
+  width: 100%;
+  background: rgba(20, 12, 6, 0.55);
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  color: var(--ink-warm);
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.login-anon-btn:hover { border-color: var(--ink-gold); background: rgba(180, 120, 40, 0.2); }
+.login-back-btn {
+  margin-top: 18px;
+  background: transparent;
+  border: 1px solid rgba(255, 230, 180, 0.2);
+  color: var(--ink-warm);
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.login-back-btn:hover { background: rgba(180, 120, 40, 0.2); }
+.login-dev-warn {
+  background: rgba(80, 60, 20, 0.5);
+  border: 1px dashed var(--ink-gold);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+.login-dev-warn .ld-title {
+  font-family: var(--font-heading);
+  color: var(--ink-gold);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.login-dev-warn p {
+  color: var(--ink-warm);
+  font-size: 12px;
+  margin: 6px 0;
+}
+.login-dev-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--ink-gold);
+  text-decoration: underline;
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Header logado — botão de usuário na home */
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(40, 25, 14, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--ink-warm);
+}
+.user-badge-email { color: var(--ink-gold); font-family: monospace; }
+.user-badge-logout {
+  background: transparent;
+  border: 1px solid rgba(255, 230, 180, 0.2);
+  color: var(--ink-mute);
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.user-badge-logout:hover { color: var(--ink-warm); border-color: var(--ink-gold); }
+
+/* ═══════════════════════════════════════════════════════════════════════
    Memory Modal (RAG do Mestre) — F12
    ═══════════════════════════════════════════════════════════════════════ */
 .mem-modal-overlay {

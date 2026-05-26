@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import {
   initPersistence, getDbClient,
-  saveCharacter, loadCharacter, listCharactersByOwner, deleteCharacter,
+  saveCharacter, loadCharacter, listCharactersByOwner, listCharactersByUserId, deleteCharacter,
   saveCampaign, loadCampaign, listRecentCampaigns,
 } from './persistence.js';
 import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '../shared/types.js';
@@ -21,10 +21,68 @@ import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaig
 import { buildProviderFromEnv } from './dm/providers/factory.js';
 import { LobbyManager } from './lobby.js';
 import { MemoryStore } from './memory.js';
+import {
+  findOrCreateUser, createMagicLink, consumeMagicLink, createSession, validateSession,
+  revokeSession, updateUserDisplayName, cleanupExpiredTokens,
+  MAGIC_LINK_TTL_MS, SESSION_TTL_MS, type User,
+} from './auth.js';
+import { sendEmail, buildMagicLinkEmail } from './email.js';
 import { uuid } from './util.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
+
+// ════════════════════════════════════════════════════════════════════════════
+// Auth — cookie helpers e tipos (sem cookie-parser dep)
+// ════════════════════════════════════════════════════════════════════════════
+
+const SESSION_COOKIE = 'jsg_session';
+
+interface ExpressReqWithUser extends express.Request {
+  user?: User;
+}
+
+function parseSessionCookie(cookieHeader: string | undefined): string | null {
+  if (!cookieHeader) return null;
+  const pairs = cookieHeader.split(';');
+  for (const pair of pairs) {
+    const eq = pair.indexOf('=');
+    if (eq < 0) continue;
+    const k = pair.slice(0, eq).trim();
+    if (k === SESSION_COOKIE) {
+      const v = pair.slice(eq + 1).trim();
+      return decodeURIComponent(v);
+    }
+  }
+  return null;
+}
+
+function buildSessionCookie(token: string, expiresAt: number): string {
+  const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  const inProd = process.env.NODE_ENV === 'production';
+  const parts = [
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    `Max-Age=${maxAge}`,
+    'SameSite=Lax',
+  ];
+  if (inProd) parts.push('Secure');
+  return parts.join('; ');
+}
+
+function buildLogoutCookie(): string {
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax`;
+}
+
+function getVerifyBaseUrl(req: express.Request): string {
+  // Em prod, usa o host da request (Render). Em dev, frontend rodando em :5173 valida via API.
+  // PUBLIC_URL pode sobrescrever (útil pra deploy com domínio próprio).
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
+  const proto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0] || req.protocol;
+  const host = req.headers.host;
+  return `${proto}://${host}`;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // DM provider init (1x no boot)
@@ -79,14 +137,45 @@ async function main(): Promise<void> {
   const app = express();
   app.use(express.json({ limit: '256kb' }));
 
-  // CORS dev
+  // CORS — reflete origin (necessário pra cookies httpOnly + credentials).
+  // Em dev, frontend (5173) e backend (3001) são origins diferentes;
+  // em prod, mesmo host (Express serve static). Wildcard '*' NÃO pode coexistir
+  // com credentials=true, então refletimos o Origin da request.
   app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
     next();
   });
+
+  // Auth middleware — popula req.user quando cookie de sessão é válido.
+  // Não bloqueia request: rotas anônimas continuam funcionando (compat com
+  // ownerName legado). Rotas autenticadas checam req.user explicitamente.
+  app.use(async (req, _res, next) => {
+    const token = parseSessionCookie(req.headers.cookie);
+    if (token) {
+      try {
+        const user = await validateSession(token);
+        if (user) (req as ExpressReqWithUser).user = user;
+      } catch (err) {
+        console.warn('[auth] validateSession falhou:', err);
+      }
+    }
+    next();
+  });
+
+  // Cleanup periódico (1x na hora) — tira tokens/sessions expiradas do DB
+  setInterval(() => {
+    cleanupExpiredTokens().catch((err) => console.warn('[auth] cleanup falhou:', err));
+  }, 60 * 60 * 1000);
 
   // === Health
   app.get('/api/health', (_req, res) => {
@@ -97,8 +186,107 @@ async function main(): Promise<void> {
       dmProvider: process.env.DM_PROVIDER ?? 'auto',
       hasGroq: !!process.env.GROQ_API_KEY,
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+      hasEmail: !!process.env.BREVO_API_KEY,
       activeCampaigns: campaigns.size,
     });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Auth endpoints — magic link passwordless
+  // ════════════════════════════════════════════════════════════════════════
+
+  // POST /api/auth/request-link { email }
+  // Cria/encontra user, gera token 15min, manda email com link.
+  // Resposta NÃO confirma se email existe ou não (anti-enumeration).
+  app.post('/api/auth/request-link', async (req, res) => {
+    const email = String(req.body?.email ?? '').trim();
+    if (!email) {
+      res.status(400).json({ ok: false, error: 'email obrigatório' });
+      return;
+    }
+
+    try {
+      const user = await findOrCreateUser(email);
+      const { token, expiresAt } = await createMagicLink(user.id);
+      const verifyUrl = `${getVerifyBaseUrl(req)}/api/auth/verify?token=${encodeURIComponent(token)}`;
+
+      const sent = await sendEmail(
+        buildMagicLinkEmail({ email: user.email, verifyUrl, expiresMin: Math.round(MAGIC_LINK_TTL_MS / 60000) }),
+      );
+
+      // Resposta uniforme — sempre "ok" pra não vazar se email existe
+      res.json({
+        ok: true,
+        mode: sent.mode,
+        expiresAt,
+        // Em dev (sem BREVO_API_KEY), retorna o link no response pra facilitar testar
+        ...(sent.mode === 'dev-log' ? { devLink: verifyUrl } : {}),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('inválido')) {
+        res.status(400).json({ ok: false, error: 'email inválido' });
+        return;
+      }
+      console.error('[auth] request-link:', err);
+      res.status(500).json({ ok: false, error: 'erro interno' });
+    }
+  });
+
+  // GET /api/auth/verify?token=X
+  // Consome token, cria sessão, set cookie, redirect pra home.
+  // Se token inválido, redirect pra /?auth_error=<reason>
+  app.get('/api/auth/verify', async (req, res) => {
+    const token = String(req.query.token ?? '').trim();
+    if (!token) {
+      res.redirect('/?auth_error=missing_token');
+      return;
+    }
+
+    try {
+      const result = await consumeMagicLink(token);
+      if (!result.ok) {
+        res.redirect(`/?auth_error=${encodeURIComponent(result.reason)}`);
+        return;
+      }
+      const session = await createSession(result.user.id);
+      res.setHeader('Set-Cookie', buildSessionCookie(session.token, session.expiresAt));
+      res.redirect('/?auth=success');
+    } catch (err) {
+      console.error('[auth] verify:', err);
+      res.redirect('/?auth_error=server_error');
+    }
+  });
+
+  // POST /api/auth/logout — revoga sessão atual + limpa cookie
+  app.post('/api/auth/logout', async (req, res) => {
+    const token = parseSessionCookie(req.headers.cookie);
+    if (token) {
+      try { await revokeSession(token); }
+      catch (err) { console.warn('[auth] revokeSession:', err); }
+    }
+    res.setHeader('Set-Cookie', buildLogoutCookie());
+    res.json({ ok: true });
+  });
+
+  // GET /api/auth/me — retorna user da sessão atual (null se anon)
+  app.get('/api/auth/me', (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    res.json({ user: user ?? null });
+  });
+
+  // PATCH /api/auth/me { displayName } — atualiza display name
+  app.patch('/api/auth/me', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ ok: false, error: 'não autenticado' }); return; }
+    const name = String(req.body?.displayName ?? '').trim();
+    try {
+      await updateUserDisplayName(user.id, name);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[auth] updateName:', err);
+      res.status(500).json({ ok: false, error: 'erro interno' });
+    }
   });
 
   // === D&D reference data
@@ -110,9 +298,15 @@ async function main(): Promise<void> {
 
   // === Characters CRUD
   app.get('/api/characters', async (req, res) => {
-    const owner = String(req.query.owner ?? '').trim();
-    if (!owner) { res.status(400).json({ error: 'owner required' }); return; }
+    const user = (req as ExpressReqWithUser).user;
     try {
+      // Se logado, lista por userId (cross-device). Senão, fallback pra ownerName legado.
+      if (user) {
+        res.json({ characters: await listCharactersByUserId(user.id) });
+        return;
+      }
+      const owner = String(req.query.owner ?? '').trim();
+      if (!owner) { res.status(400).json({ error: 'owner required' }); return; }
       res.json({ characters: await listCharactersByOwner(owner) });
     } catch (err) {
       console.error('[api] listCharacters:', err);
@@ -134,6 +328,13 @@ async function main(): Promise<void> {
     if (!sheet?.id || !sheet?.ownerName || !sheet?.characterName || !sheet?.classId || !sheet?.raceId) {
       res.status(400).json({ error: 'invalid sheet' });
       return;
+    }
+    const reqUser = (req as ExpressReqWithUser).user;
+    // Se logado, vincula PJ ao userId (sobrescreve qualquer userId enviado pelo cliente).
+    // Cliente não controla isto — server confia só na sessão validada.
+    if (reqUser) {
+      sheet.userId = reqUser.id;
+      if (!sheet.ownerName.trim()) sheet.ownerName = reqUser.displayName || reqUser.email.split('@')[0]!;
     }
     sheet.lastPlayedAt = Date.now();
     try {
@@ -208,11 +409,27 @@ async function main(): Promise<void> {
   // === HTTP + Socket.io
   const httpServer = createServer(app);
   const io = new SocketIoServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-    cors: { origin: '*' },
+    cors: { origin: true, credentials: true }, // reflete origin, permite cookies
+  });
+
+  // Socket auth middleware — valida cookie de sessão no handshake e popula socket.data.user.
+  // Anônimos passam sem user (compat — features legado funcionam via ownerName).
+  io.use(async (socket, next) => {
+    const token = parseSessionCookie(socket.handshake.headers.cookie);
+    if (token) {
+      try {
+        const user = await validateSession(token);
+        if (user) (socket.data as { user?: User }).user = user;
+      } catch (err) {
+        console.warn('[socket] validateSession falhou:', err);
+      }
+    }
+    next();
   });
 
   io.on('connection', (socket) => {
-    console.log('[socket] connected', socket.id);
+    const sUser = (socket.data as { user?: User }).user;
+    console.log(`[socket] connected ${socket.id}${sUser ? ` (user=${sUser.email})` : ' (anon)'}`);
     let activeCampaignId: string | null = null;
     let activePlayerId: string | null = null;
 

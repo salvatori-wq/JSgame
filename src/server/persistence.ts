@@ -90,7 +90,48 @@ export async function initPersistence(): Promise<void> {
       tags,
       tokenize='unicode61 remove_diacritics 2'
     )`,
+    // Auth — F15. Magic link passwordless. Opaque tokens via crypto.randomBytes,
+    // sem JWT (permite revogar facilmente, sem secret env var).
+    `CREATE TABLE IF NOT EXISTS users (
+      id              TEXT PRIMARY KEY,
+      email           TEXT UNIQUE NOT NULL COLLATE NOCASE,
+      display_name    TEXT,
+      email_verified  INTEGER NOT NULL DEFAULT 0,
+      created_at      INTEGER NOT NULL,
+      last_login_at   INTEGER
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+    `CREATE TABLE IF NOT EXISTS email_tokens (
+      token        TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL,
+      kind         TEXT NOT NULL,
+      expires_at   INTEGER NOT NULL,
+      consumed_at  INTEGER,
+      created_at   INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id)`,
+    `CREATE TABLE IF NOT EXISTS sessions (
+      token       TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL,
+      expires_at  INTEGER NOT NULL,
+      created_at  INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
   ], 'write');
+
+  // Migration leve: adiciona user_id na tabela characters se não existe.
+  // ALTER TABLE ADD COLUMN é idempotente via try/catch (SQLite não tem IF NOT EXISTS pra ADD COLUMN).
+  try {
+    await client.execute('ALTER TABLE characters ADD COLUMN user_id TEXT');
+    await client.execute('CREATE INDEX IF NOT EXISTS idx_characters_user ON characters(user_id, lastPlayedAt DESC)');
+    console.log('[persistence] migration: added characters.user_id');
+  } catch (err) {
+    // Já existe (erro "duplicate column"), ignora silenciosamente
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/duplicate column|already exists/i.test(msg)) {
+      console.warn('[persistence] ALTER characters falhou:', msg);
+    }
+  }
 
   console.log('[persistence] schema ready');
 }
@@ -116,9 +157,9 @@ export async function shutdownPersistence(): Promise<void> {
 
 export async function saveCharacter(sheet: CharacterSheet): Promise<void> {
   await requireClient().execute({
-    sql: 'INSERT OR REPLACE INTO characters (id, ownerName, characterName, classId, raceId, level, sheet, createdAt, lastPlayedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    sql: 'INSERT OR REPLACE INTO characters (id, ownerName, user_id, characterName, classId, raceId, level, sheet, createdAt, lastPlayedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     args: [
-      sheet.id, sheet.ownerName, sheet.characterName, sheet.classId, sheet.raceId,
+      sheet.id, sheet.ownerName, sheet.userId ?? null, sheet.characterName, sheet.classId, sheet.raceId,
       sheet.level, JSON.stringify(sheet), sheet.createdAt, sheet.lastPlayedAt,
     ],
   });
@@ -152,6 +193,25 @@ export async function listCharactersByOwner(ownerName: string): Promise<Characte
   const r = await requireClient().execute({
     sql: 'SELECT id, characterName, classId, raceId, level, lastPlayedAt FROM characters WHERE ownerName = ? ORDER BY lastPlayedAt DESC',
     args: [ownerName],
+  });
+  return r.rows.map(row => ({
+    id: row.id as string,
+    characterName: row.characterName as string,
+    classId: row.classId as string,
+    raceId: row.raceId as string,
+    level: Number(row.level),
+    lastPlayedAt: Number(row.lastPlayedAt),
+  }));
+}
+
+/**
+ * Lista PJs do user autenticado (F15+). Usado quando user logou via magic link.
+ * PJs anônimos legados continuam acessíveis via listCharactersByOwner.
+ */
+export async function listCharactersByUserId(userId: string): Promise<CharacterSummary[]> {
+  const r = await requireClient().execute({
+    sql: 'SELECT id, characterName, classId, raceId, level, lastPlayedAt FROM characters WHERE user_id = ? ORDER BY lastPlayedAt DESC',
+    args: [userId],
   });
   return r.rows.map(row => ({
     id: row.id as string,

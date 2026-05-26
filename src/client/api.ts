@@ -10,10 +10,50 @@ export interface ApiHealth {
   dmProvider?: string;
   hasGroq?: boolean;
   hasAnthropic?: boolean;
+  hasEmail?: boolean;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Auth (F15) — magic link passwordless
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  emailVerified: boolean;
+  createdAt: number;
+  lastLoginAt: number | null;
+}
+
+export async function getMe(): Promise<AuthUser | null> {
+  const data = await fetchJson<{ user: AuthUser | null }>('/api/auth/me', { credentials: 'include' });
+  return data.user;
+}
+
+export async function requestMagicLink(email: string): Promise<{ ok: boolean; mode?: string; devLink?: string; expiresAt?: number; error?: string }> {
+  return fetchJson<{ ok: boolean; mode?: string; devLink?: string; expiresAt?: number; error?: string }>('/api/auth/request-link', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    credentials: 'include',
+  });
+}
+
+export async function logout(): Promise<void> {
+  await fetchJson<{ ok: boolean }>('/api/auth/logout', { method: 'POST', credentials: 'include' });
+}
+
+export async function updateDisplayName(displayName: string): Promise<void> {
+  await fetchJson<{ ok: boolean }>('/api/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ displayName }),
+    credentials: 'include',
+  });
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
+    credentials: 'include',  // cookie de sessão sempre enviado
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
