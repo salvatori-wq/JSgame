@@ -28,6 +28,7 @@ import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
+import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -129,6 +130,14 @@ export class CampaignScreen {
           body: `Combate em ${state.currentLocation} — joga teu turno.`,
           tag: 'turn',
         });
+      }
+      // B2 — Tutorial first-combat: dispara só uma vez por user (localStorage flag)
+      // ao detectar transição exploration → combat ativo
+      const wasCombat = !!this.currentState?.combat?.active;
+      const isCombat = !!state.combat?.active;
+      if (!wasCombat && isCombat && shouldShowCombatTutorial()) {
+        // Delay pequeno pra UI montar antes do overlay
+        setTimeout(() => openCombatTutorial(), 500);
       }
       this.currentState = state;
       // Persiste sessão ativa pra auto-rejoin no reload
