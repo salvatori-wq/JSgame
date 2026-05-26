@@ -14,6 +14,7 @@ import {
 } from './class-features-engine.js';
 import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
+import { consumeBuffs, readAcBonus } from './buff-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -219,11 +220,14 @@ export function resolvePlayerAttack(
   // F24 — Help flag: aliado deu Help no PJ pra esse próximo ataque
   const wasHelped = hasCombatFlag(combat, attacker.id, 'helped-next-attack');
   if (wasHelped) clearCombatFlag(combat, attacker.id, 'helped-next-attack');
+  // A2 — Buff engine: consome attack buffs (Bardic Insp 1d6, Bless 1d4, Faerie Fire advantage)
+  const buffs = consumeBuffs(attacker, 'attack');
   const advantage =
-    wasHelped ||
+    wasHelped || buffs.advantage ||
     (!opts.isRanged && (target.conditions.includes('caido') || target.conditions.includes('restrito')));
 
-  const attackRoll = rollD20({ modifier: attackBonus, advantage, disadvantage });
+  // A2 — soma buff bonuses ao attack roll
+  const attackRoll = rollD20({ modifier: attackBonus + buffs.flatBonus + buffs.diceBonus, advantage, disadvantage: disadvantage || buffs.disadvantage });
   const crit = !!attackRoll.nat20;
   const hit = crit || (!attackRoll.nat1 && attackRoll.total >= target.armorClass);
 
@@ -336,15 +340,39 @@ export function resolveEnemyTurn(
   const aliveTargets = party.filter((p) => p.currentHp > 0);
   if (aliveTargets.length === 0) return null;
 
-  // AI simples: target random vivo
-  const target = aliveTargets[Math.floor(Math.random() * aliveTargets.length)]!;
+  // B1 — Smart AI: boss/elite prioriza low-HP, casters concentrando-em-spell,
+  // ou alvo com Bardic Inspiration (threat). Outros (skirmishers): closest = random.
+  let target: CharacterSheet;
+  if (enemy.isBoss) {
+    const scored = aliveTargets.map((p) => {
+      let score = 0;
+      // Low HP relativo = mais alvo (finisher)
+      score += (1 - p.currentHp / p.maxHp) * 50;
+      // Concentrando em spell = high-value disruption target
+      if (p.concentratingOn) score += 30;
+      // Player com active buffs (Bardic etc) é threat
+      if (p.activeBuffs && p.activeBuffs.length > 0) score += 15;
+      // Caster preparado tem int/sab/car alto
+      const isCaster = p.spellSlots[1] && p.spellSlots[1].max > 0;
+      if (isCaster) score += 20;
+      return { p, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    target = scored[0]!.p;
+  } else {
+    // Skirmisher random — comportamento legado
+    target = aliveTargets[Math.floor(Math.random() * aliveTargets.length)]!;
+  }
 
   const advantage = target.conditions.includes('caido') || target.conditions.includes('cego');
   const disadvantage = enemy.conditions.includes('cego') || enemy.conditions.includes('envenenado');
 
   const attackRoll = rollD20({ modifier: enemy.attackBonus, advantage, disadvantage });
+  // A2 — Buff engine: lê AC bonus passivo do PJ (Shield +5, magic armor, etc)
+  const acBuff = readAcBonus(target);
+  const effectiveAc = target.armorClass + acBuff.flatBonus;
   const crit = !!attackRoll.nat20;
-  const hit = crit || (!attackRoll.nat1 && attackRoll.total >= target.armorClass);
+  const hit = crit || (!attackRoll.nat1 && attackRoll.total >= effectiveAc);
 
   const events: CombatEvent[] = [];
   let damageRoll: DiceRoll | null = null;

@@ -137,7 +137,28 @@ export interface CharacterSheet {
   resistances?: import('../dnd/damage-types').DamageType[];
   immunities?: import('../dnd/damage-types').DamageType[];
   vulnerabilities?: import('../dnd/damage-types').DamageType[];
+
+  // A2 — Buff engine: lista de buffs ativos (Bardic Inspiration d6, Bless d4, Guidance,
+  // Shield +5 AC, etc). Decremento por turno (turnsLeft) ou por uso (charges).
+  activeBuffs?: ActiveBuff[];
 }
+
+// A2 — Buff engine
+export interface ActiveBuff {
+  id: string;                            // uuid pra identificar
+  source: string;                        // nome amigável: "Bardic Inspiration (Lyra)" / "Bless"
+  appliesTo: 'attack' | 'save' | 'skill-check' | 'ac' | 'damage-roll';
+  effect: BuffEffect;
+  // Duração: charges (consome ao usar) OU turnsLeft (decrementa fim turno) OU permanente.
+  charges?: number;                      // ex: Bardic Insp = 1 use
+  turnsLeft?: number;                    // ex: Bless = 10 turnos (1 min)
+}
+
+export type BuffEffect =
+  | { kind: 'dice-bonus'; dice: string }                 // ex: '1d6' (Bardic), '1d4' (Bless)
+  | { kind: 'flat-bonus'; value: number }                // ex: +5 AC (Shield)
+  | { kind: 'advantage' }                                // Faerie Fire dá vantagem
+  | { kind: 'disadvantage' };                            // raro mas pra simetria
 
 export interface InventoryItem {
   id: string;       // weapon/armor/item id

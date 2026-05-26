@@ -209,10 +209,19 @@ function applyBardicInspiration(caster: CharacterSheet, slot: { used: number; ma
   if (!target) return { ok: false, reason: 'Inspiração precisa de alvo aliado', events: [], log: '' };
   if (target.id === caster.id) return { ok: false, reason: 'Não pode inspirar a si mesmo', events: [], log: '' };
   slot.used++;
-  // Stored como worldFlag-like no target conditions? Mais simples: persistir como tag no conditions array.
-  // Vamos usar campo extra do sheet — bardicInspirationDie. Simplificamos: aplica condição visual.
-  // (Engine de buff completa virá em F25/F27.)
-  const log = `${caster.characterName} inspira ${target.characterName} — próximo teste/ataque ganha +1d6 (Inspiração de Bardo).`;
+  // A2 — Buff engine: aplica +1d6 real no próximo attack do aliado (consume on use).
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // Import dinâmico evitando ciclo (class-features-engine ↔ buff-engine)
+  // Mais fácil: caller já tem acesso via campaign.ts. Aqui só anexamos via target.activeBuffs.
+  if (!target.activeBuffs) target.activeBuffs = [];
+  target.activeBuffs.push({
+    id: `bardic-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    source: `Bardic Inspiration (${caster.characterName})`,
+    appliesTo: 'attack',
+    effect: { kind: 'dice-bonus', dice: '1d6' },
+    charges: 1,
+  });
+  const log = `${caster.characterName} inspira ${target.characterName} — próximo ataque ganha +1d6 (Inspiração de Bardo).`;
   return { ok: true, log, events: [{ type: 'condition-applied', sourceId: caster.id, targetId: target.id, text: log }] };
 }
 

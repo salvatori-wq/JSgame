@@ -32,6 +32,7 @@ import {
 } from './class-features-engine.js';
 import type { FeatureKey } from '../dnd/class-features.js';
 import { applyValidatedToolToCampaign } from './dm-tool-applier.js';
+import { consumeBuffs, clearAllBuffs, tickBuffsEndOfTurn } from './buff-engine.js';
 import type { SpellId } from '../dnd/spells.js';
 import { getClass } from '../dnd/classes.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
@@ -239,7 +240,9 @@ export class Campaign {
       const pb = proficiencyBonus(player.level);
       const totalMod = modifier + (proficient ? pb : 0);
 
-      const roll = rollD20({ modifier: totalMod });
+      // A2 — Buff engine: Guidance dá +1d4 em skill check (consumido após uso)
+      const buffs = consumeBuffs(player, 'skill-check');
+      const roll = rollD20({ modifier: totalMod + buffs.flatBonus + buffs.diceBonus, advantage: buffs.advantage, disadvantage: buffs.disadvantage });
       const success = roll.total >= check.dc;
       // F17: credita skill_check event
       this.pushAchievementEvent(player.id, {
@@ -305,7 +308,9 @@ export class Campaign {
       const pb = proficiencyBonus(player.level);
       const totalMod = modifier + (proficient ? pb : 0);
 
-      const roll = rollD20({ modifier: totalMod });
+      // A2 — Buff engine: Bless aplica +1d4 em saves
+      const buffs = consumeBuffs(player, 'save');
+      const roll = rollD20({ modifier: totalMod + buffs.flatBonus + buffs.diceBonus, advantage: buffs.advantage, disadvantage: buffs.disadvantage });
       const success = roll.total >= save.dc;
       // F17: credita event genérico de skill_check (saves contam pra mesma metric)
       this.pushAchievementEvent(player.id, {
@@ -683,6 +688,8 @@ export class Campaign {
       restoreOnLongRest(player);
       // F25 — sai de concentration
       player.concentratingOn = null;
+      // A2 — long rest limpa buffs ativos
+      clearAllBuffs(player);
 
       this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
       // F17: credita long_rest event
