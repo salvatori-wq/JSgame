@@ -4,7 +4,7 @@
 
 import type { CharacterSheet, CombatState, CombatEvent, ActiveBuff } from '../shared/types.js';
 import { rollD20 } from '../dnd/dice.js';
-import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
+import { abilityModifier } from '../dnd/attributes.js';
 import { getCastingAbilityMod } from '../dnd/spell-slots.js';
 import { hasCombatFlag, setCombatFlag, clearCombatFlag } from './class-features-engine.js';
 
@@ -83,12 +83,11 @@ export function resolveCounterspell(input: CounterspellInput): CounterspellResul
     return { ok: true, cancelled: true, log, events };
   }
 
-  // Slot < spell — check de conjuração vs DC 10 + spell.level
-  // d20 + ability mod (INT pra mago, CAR pra feiticeiro/bruxo) + proficiency bonus
+  // Slot < spell — ability check vs DC 10 + spell.level (PHB pág 228).
+  // RAW: ability check = d20 + casting ability mod (sem PB).
   const castingMod = getCastingAbilityMod(caster.classId, caster);
-  const pb = proficiencyBonus(caster.level);
   const dc = 10 + incomingSpellLevel;
-  const roll = rollD20({ modifier: castingMod + pb });
+  const roll = rollD20({ modifier: castingMod });
   const succeeded = roll.total >= dc;
 
   if (succeeded) {
@@ -149,7 +148,6 @@ export function resolveDispelMagic(input: DispelMagicInput): DispelMagicResult {
   // Buffs sem nível conhecido = assume nv 3 (PHB ambíguo, regra de mesa comum).
   const dispelled: ActiveBuff[] = [];
   const castingMod = getCastingAbilityMod(caster.classId, caster);
-  const pb = proficiencyBonus(caster.level);
 
   const survivors: ActiveBuff[] = [];
   for (const buff of buffs) {
@@ -158,8 +156,8 @@ export function resolveDispelMagic(input: DispelMagicInput): DispelMagicResult {
       dispelled.push(buff);
       continue;
     }
-    // Check: d20 + casting mod + PB vs DC 10 + buff.level
-    const roll = rollD20({ modifier: castingMod + pb });
+    // PHB pág 231: ability check com casting mod (sem PB) vs DC 10 + buff level.
+    const roll = rollD20({ modifier: castingMod });
     const dc = 10 + buffLevel;
     if (roll.total >= dc) {
       dispelled.push(buff);

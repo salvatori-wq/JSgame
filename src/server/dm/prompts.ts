@@ -341,6 +341,21 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'enemy_casts_spell',
+    description: 'Declara que um inimigo está conjurando uma magia. Abre janela de Counterspell pros casters do party (5s). USE ANTES de aplicar dano/efeito da magia — dá agência pros casters reagirem. Após declarar, faça o efeito normalmente via apply_damage/apply_condition.',
+    schema: {
+      type: 'object',
+      properties: {
+        sourceName: { type: 'string', description: 'Nome do inimigo conjurando (ex: "Mago Cinza", "Mind Flayer")' },
+        spellName: { type: 'string', description: 'Nome da magia sendo conjurada (ex: "Bola de Fogo", "Hold Person")' },
+        spellLevel: { type: 'number', description: 'Nível da magia (1-9). Cantrips → 0 mas não dispara reactions; só ≥1 disparam.' },
+        targetIds: { type: 'array', items: { type: 'string' }, description: 'IDs dos alvos (PJs ou enemies). Opcional pra spells AoE sem alvo único.' },
+        visible: { type: 'boolean', description: 'Magia é visível (componente verbal/somático)? Default true. Counterspell só pode reagir a spells visíveis.' },
+      },
+      required: ['sourceName', 'spellName', 'spellLevel'],
+    },
+  },
+  {
     name: 'request_saving_throw',
     description: 'Pede teste de resistência (saving throw) pra player. Use pra spells com save (Dragon Breath, Fireball), traps, hazards. Server rola d20 + ability mod + prof (se tem) vs DC.',
     schema: {

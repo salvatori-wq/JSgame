@@ -29,7 +29,9 @@ export type ValidatedTool =
   // F27 — Saving throw genérico (ability save vs DC). DM dispara quando spell/trap/hazard.
   | { kind: 'request_saving_throw'; ability: 'for' | 'des' | 'con' | 'int' | 'sab' | 'car'; dc: number; reason: string; playerId: string }
   // B3 — Encounter builder: DM passa só difficulty, server calcula balanceamento
-  | { kind: 'start_combat_balanced'; difficulty: 'easy' | 'medium' | 'hard' | 'deadly'; flavor?: string };
+  | { kind: 'start_combat_balanced'; difficulty: 'easy' | 'medium' | 'hard' | 'deadly'; flavor?: string }
+  // 2A — DM declara que inimigo conjurou magia (abre janela de Counterspell pros casters)
+  | { kind: 'enemy_casts_spell'; sourceName: string; spellName: string; spellLevel: number; targetIds?: string[]; visible: boolean };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -229,6 +231,18 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         reason,
         playerId,
       };
+    }
+
+    case 'enemy_casts_spell': {
+      const sourceName = String(input.sourceName ?? '').slice(0, 60);
+      const spellName = String(input.spellName ?? '').slice(0, 60);
+      if (!sourceName || !spellName) return null;
+      const spellLevel = clamp(Number(input.spellLevel) || 1, 1, 9);
+      const visible = input.visible === undefined ? true : !!input.visible;
+      const targetIds = Array.isArray(input.targetIds)
+        ? input.targetIds.map((t) => String(t).slice(0, 60)).filter(Boolean).slice(0, 6)
+        : undefined;
+      return { kind: 'enemy_casts_spell', sourceName, spellName, spellLevel, targetIds, visible };
     }
 
     case 'start_combat_balanced': {

@@ -296,6 +296,26 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'enemy_casts_spell': {
+      // 2A — DM declara que inimigo conjurou magia. Abre janela de Counterspell.
+      // Server seta pendingEnemySpell + emite combat event spell-incoming.
+      // Cliente exibe modal 5s pros casters reagirem. Após timeout, server limpa pending.
+      // Se algum cast counterspell antes do timeout, server resolve + marca cancelled.
+      camp.state.pendingEnemySpell = {
+        id: `pes-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sourceName: tool.sourceName,
+        spellName: tool.spellName,
+        spellLevel: tool.spellLevel,
+        targetIds: tool.targetIds ?? [],
+        visible: tool.visible,
+        cancelled: false,
+        createdAt: Date.now(),
+        windowMs: 5000,
+      };
+      camp.pushRecentEvent(`${tool.sourceName} conjura ${tool.spellName} (nv ${tool.spellLevel})${tool.visible ? '' : ' — sem componentes visíveis (Counterspell não aplica)'}`);
+      break;
+    }
+
     case 'complete_quest': {
       const quest = camp.state.quests?.find((q) => q.id === tool.questId);
       if (!quest || quest.status !== 'active') break;

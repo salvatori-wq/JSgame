@@ -29,6 +29,7 @@ import { portraitFor } from '../../dnd/portrait';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
+import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -147,6 +148,16 @@ export class CampaignScreen {
       setLastSession({ characterId: this.opts.characterId, campaignId: state.id });
       // Se pendingCheck mudou e eu sou owner, abre overlay
       this.maybeShowPendingCheck();
+      // 2A — Counterspell prompt se DM declarou enemy_casts_spell.
+      if (state.pendingEnemySpell && this.character) {
+        maybeShowCounterspellPrompt({
+          pending: state.pendingEnemySpell,
+          me: this.character,
+          socket: this.opts.socket,
+        });
+      } else {
+        closeCounterspellPrompt();
+      }
       // F21: ambient mood baseado em state.mode
       setAmbient(state.combat?.active ? 'combat' : 'exploration');
       this.render();

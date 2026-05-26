@@ -39,6 +39,7 @@ import { saveTombstone, listTombstonesForUser } from './tombstones.js';
 import { bumpStreak, getStreak } from './streaks.js';
 import { saveHighlight, listHighlightsForUser } from './highlights.js';
 import { serializeCombatFlags } from './class-features-engine.js';
+import { resolveCounterspell } from './reaction-engine.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -908,6 +909,54 @@ async function main(): Promise<void> {
       } catch (err) {
         console.error('[socket] combatAction error:', err);
         socket.emit('error', `combatAction falhou: ${String(err)}`);
+      }
+    });
+
+    // ── castReaction: player tenta Counterspell num enemy spell pendente.
+    socket.on('castReaction', ({ reactionId, spellId, slotLevel }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const pending = camp.state.pendingEnemySpell;
+        if (!pending) { socket.emit('error', 'sem spell inimiga pendente'); return; }
+        if (pending.id !== reactionId) { socket.emit('error', 'reaction id desatualizado'); return; }
+        if (pending.cancelled) { socket.emit('error', 'spell já cancelada'); return; }
+        if (!pending.visible) { socket.emit('error', 'spell sem componentes visíveis — Counterspell não aplica'); return; }
+        if (Date.now() - pending.createdAt > pending.windowMs) {
+          socket.emit('error', 'janela de reação expirou');
+          return;
+        }
+        const caster = camp.party.find((p) => p.id === activePlayerId);
+        if (!caster) { socket.emit('error', 'caster não encontrado'); return; }
+        if (spellId !== 'counterspell') { socket.emit('error', 'reação desconhecida'); return; }
+        if (!caster.spellsKnown.includes('counterspell')) { socket.emit('error', `${caster.characterName} não conhece Contramágica`); return; }
+        if (!camp.state.combat?.active) { socket.emit('error', 'reação só em combate'); return; }
+
+        const result = resolveCounterspell({
+          caster,
+          incomingSpellLevel: pending.spellLevel,
+          slotLevel,
+          combat: camp.state.combat,
+        });
+        if (!result.ok) { socket.emit('error', result.reason ?? 'contramágica falhou'); return; }
+
+        if (result.cancelled) {
+          pending.cancelled = true;
+        }
+        // Emit log + events pra room
+        io.to(camp.state.id).emit('dmNarration', {
+          text: result.log,
+          speaker: `✋ ${caster.characterName}`,
+          mood: result.cancelled ? 'trickster' : 'sombrio',
+        });
+        for (const ev of result.events) {
+          io.to(camp.state.id).emit('combatEvent', ev);
+        }
+        broadcastState(camp);
+      } catch (err) {
+        console.error('[socket] castReaction error:', err);
+        socket.emit('error', `castReaction falhou: ${String(err)}`);
       }
     });
 

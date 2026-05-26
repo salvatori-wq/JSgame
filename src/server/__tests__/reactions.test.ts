@@ -91,22 +91,22 @@ describe('2A — Counterspell', () => {
     expect(r.cancelled).toBe(true);
   });
 
-  it('slot < spell level = check de conjuração', () => {
+  it('slot < spell level = ability check (PHB pág 228)', () => {
     const pj = mkMago(5);
-    // Mago nv 5 INT 18 = +4 mod, PB nv 5 = +3 → bônus +7
-    // Slot 3 vs spell nv 5 → DC 10+5=15. Roll precisa ≥8. Em 30 tentativas, expect >20 sucessos.
+    // Mago nv 5 INT 18 = +4 mod. PHB: ability check é apenas d20 + ability mod (sem PB).
+    // Slot 3 vs spell nv 4 → DC 14. Precisa nat ≥10 = 11/20 = 55%.
+    // 60 trials, ≥20 sucessos. P(≥20|0.55,60) ≈ 0.9998 — praticamente nunca falha.
     let successes = 0;
-    for (let i = 0; i < 30; i++) {
-      // Reset slot + reação a cada iteração
+    for (let i = 0; i < 60; i++) {
       pj.spellSlots[3].used = 0;
       const c = mkCombat();
-      const r = resolveCounterspell({ caster: pj, incomingSpellLevel: 5, slotLevel: 3, combat: c });
+      const r = resolveCounterspell({ caster: pj, incomingSpellLevel: 4, slotLevel: 3, combat: c });
       expect(r.ok).toBe(true);
       if (r.cancelled) successes++;
     }
-    // P(roll ≥ 8 com +7 mod) = roll ≥ 1 com 8 = 13/20 = 65% (na verdade roll ≥ 8 vs nat: precisa nat ≥1, sempre vale)
-    // Espera ~30/30 sucessos (sempre passa) — relaxando pra ≥20
     expect(successes).toBeGreaterThanOrEqual(20);
+    // Também NÃO deve ser 100% (provando que há check, não auto-cancel)
+    expect(successes).toBeLessThanOrEqual(58);
   });
 
   it('rejeita slot < 3 (Contramágica é nv 3+)', () => {

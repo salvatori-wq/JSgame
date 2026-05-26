@@ -249,6 +249,22 @@ export interface CampaignState {
   // 1C — DM personality preset (sombrio/épico/comédia/noir/pulp). Default sombrio.
   // Escolhido no lobby antes do start, persiste em DB.
   dmPersonality?: import('../dnd/dm-personality').DmPersonality;
+  // 2A — Spell inimiga pendente. DM seta via enemy_casts_spell, abre janela
+  // de Counterspell pros casters do party. Server limpa após windowMs ou após
+  // resolução de castReaction. Não persiste — é runtime mid-turn.
+  pendingEnemySpell?: PendingEnemySpell | null;
+}
+
+export interface PendingEnemySpell {
+  id: string;                          // uuid pra dedup
+  sourceName: string;                  // nome do inimigo
+  spellName: string;
+  spellLevel: number;                  // 1-9
+  targetIds: string[];                 // ids dos alvos (PJs/enemies)
+  visible: boolean;                    // se false, Counterspell não pode reagir
+  cancelled: boolean;                  // true após counterspell sucesso
+  createdAt: number;                   // ts em ms — pra cliente medir o restante
+  windowMs: number;                    // 5000 default
 }
 
 // Combate
@@ -329,6 +345,13 @@ export interface ClientToServerEvents {
   shortRest: (payload: { hitDiceToSpend: number }) => void;
   longRest: () => void;
   rollDeathSave: () => void;
+
+  // 2A — Reactions (Counterspell). Client → server quando player decide reagir
+  // a pendingEnemySpell. Server resolve via reaction-engine. slotLevel = nível
+  // do slot que será consumido (3-5). reactionId = pendingEnemySpell.id pra dedup.
+  castReaction: (payload: { reactionId: string; spellId: 'counterspell'; slotLevel: 3 | 4 | 5 }) => void;
+  // Dispel Magic é AÇÃO normal (não reaction) — usa cast normal via combatAction.
+  // Future: socket dedicado pra dispelMagic targetId. Por ora, DM pode aplicar manual.
 
   // Meta
   chat: (payload: { text: string }) => void;
