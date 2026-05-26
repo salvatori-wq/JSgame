@@ -112,6 +112,12 @@ export class CloudflareProvider implements DMProvider {
       }
     }
 
+    // Mesma proteção do Cerebras fix (2026-05-26): se Cloudflare retornar
+    // response vazia E sem tool_calls, throw → CascadeProvider failover.
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Cloudflare empty response: model=${this.model}`);
+    }
+
     return { text, toolCalls };
   }
 }

@@ -89,4 +89,16 @@ describe('CloudflareProvider', () => {
     });
     expect((capturedBody.tools as unknown[]).length).toBe(1);
   });
+
+  it('throw em response vazia (response="" + sem tool_calls) — caso failover cascade', async () => {
+    // Bug equivalente ao Cerebras gpt-oss-120b: provider retorna 200 OK mas
+    // response.response="" sem tool_calls → cascade não failovava.
+    mockFetch(() => new Response(JSON.stringify({
+      success: true,
+      result: { response: '', tool_calls: [] },
+    }), { status: 200 }));
+    const p = new CloudflareProvider({ accountId: 'a', apiToken: 't', model: 'm' });
+    await expect(p.generate({ systemPrompt: 's', userPrompt: 'u' }))
+      .rejects.toThrow(/empty response/i);
+  });
 });
