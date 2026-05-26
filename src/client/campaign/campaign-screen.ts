@@ -79,6 +79,10 @@ export class CampaignScreen {
   private lastAction: { action: string; details?: string } | null = null;
   private lastActionAt = 0;
   private autoRetriedThisCycle = false;
+  // Quando faz retry silent OU click "Tentar de novo", o server vai emitir
+  // OUTRO echo "▶ Player: action" — supressNextPlayerEcho consome o próximo
+  // echo do player pra evitar dupla mensagem visual no log.
+  private suppressNextPlayerEcho = 0;
   // Flag pra disable das action buttons. Synced com narrationLog.setThinking().
   private isDmThinking = false;
   private combatLog: string[] = [];
@@ -132,6 +136,14 @@ export class CampaignScreen {
     const onNarration = (payload: { text: string; speaker?: string; mood?: string }): void => {
       const speaker = payload.speaker ?? 'Mestre';
 
+      // Suprime echo do player quando retry silent foi disparado:
+      // server emite echo a cada takeAction, mas se já mostramos o echo da
+      // ação original, o do retry seria duplicação visual confusa.
+      if (this.suppressNextPlayerEcho > 0 && speaker.startsWith('▶ ')) {
+        this.suppressNextPlayerEcho--;
+        return;
+      }
+
       // Chat refactor 2026-05-26: auto-retry silencioso ANTES de mostrar narração
       // degradada. Se server cedeu mas a gente sabe o que reenviar, tenta 1x.
       const isDegraded = isDegradedNarration(speaker);
@@ -145,6 +157,8 @@ export class CampaignScreen {
 
       if (canRetrySilent && lastAction) {
         this.autoRetriedThisCycle = true;
+        // Server vai emitir echo do player novamente — suprime pra não duplicar
+        this.suppressNextPlayerEcho++;
         console.warn('[campaign] degraded narration — auto-retry silent em 1.2s');
         // Pequeno delay pra não bater no rate limit do mesmo erro
         setTimeout(() => {
@@ -175,6 +189,8 @@ export class CampaignScreen {
       if (isDegraded) {
         const retryHandler = lastAction ? () => {
           this.autoRetriedThisCycle = true;
+          // Suprime echo do player que server vai re-emitir
+          this.suppressNextPlayerEcho++;
           this.opts.socket.emit('takeAction', {
             action: lastAction.action as ExplorationAction,
             details: lastAction.details,
