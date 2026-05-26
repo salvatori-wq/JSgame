@@ -11,6 +11,7 @@ import { CampaignScreen } from './campaign/campaign-screen';
 import { LobbyScreen } from './lobby/lobby-screen';
 import { LoginScreen } from './auth/login-screen';
 import { ProfileScreen } from './profile/profile-screen';
+import { SheetScreen } from './sheet/sheet-screen';
 import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
@@ -557,47 +558,14 @@ async function renderLobby(lobbyId?: string): Promise<void> {
 }
 
 async function renderSheet(id: string): Promise<void> {
-  try {
-    const sheet = await getCharacter(id);
-    const race = getRace(sheet.raceId);
-    const klass = getClass(sheet.classId);
-
-    const root = el('main', { class: 'home-screen' });
-    root.appendChild(el('button', {
-      class: 'wiz-back-btn',
-      text: '← Voltar',
-      on: { click: () => navigate({ kind: 'home' }) },
-    }));
-    root.appendChild(el('h2', { class: 'wiz-h2', text: sheet.characterName }));
-    root.appendChild(el('p', { class: 'boot-tagline', text: `${race.name} · ${klass.name} · Nível ${sheet.level}` }));
-
-    root.appendChild(el('div', { class: 'boot-status' }, [
-      el('div', { class: 'bs-row is-ok' }, [
-        el('span', { class: 'bs-key', text: 'HP' }),
-        el('span', { class: 'bs-val', text: `${sheet.currentHp}/${sheet.maxHp}` }),
-      ]),
-      el('div', { class: 'bs-row is-ok' }, [
-        el('span', { class: 'bs-key', text: 'CA' }),
-        el('span', { class: 'bs-val', text: String(sheet.armorClass) }),
-      ]),
-      el('div', { class: 'bs-row is-ok' }, [
-        el('span', { class: 'bs-key', text: 'XP' }),
-        el('span', { class: 'bs-val', text: String(sheet.xp) }),
-      ]),
-    ]));
-
-    root.appendChild(el('div', { class: 'home-actions' }, [
-      el('button', {
-        class: 'home-btn',
-        text: '▶ Começar Sessão',
-        on: { click: () => navigate({ kind: 'campaign', characterId: id }) },
-      }),
-    ]));
-
-    app!.appendChild(root);
-  } catch (err) {
-    app!.innerHTML = `<div class="boot-error">Erro carregando ficha: ${String(err)}</div>`;
-  }
+  const container = el('div', { class: 'sheet-container' });
+  app!.appendChild(container);
+  const screen = new SheetScreen({
+    container,
+    characterId: id,
+    onExit: () => navigate({ kind: 'home' }),
+  });
+  await screen.start();
 }
 
 async function renderCampaign(characterId: string, campaignId?: string): Promise<void> {
