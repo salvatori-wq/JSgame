@@ -76,7 +76,10 @@ describe('CloudflareProvider', () => {
     expect(r.toolCalls).toEqual([{ name: 'apply_damage', input: { damage: 5, type: 'fogo' } }]);
   });
 
-  it('passa tools no body quando fornecidos', async () => {
+  // 2026-05-26 fix tool-call leak: Cloudflare IGNORA tools no body.
+  // Llama 3.3 70B no CF não suporta function calling do mesmo jeito que OpenAI —
+  // quando recebia tools, retornava JSON cru no text. Agora narração-only.
+  it('IGNORA tools no body (evita JSON vazado no text)', async () => {
     let capturedBody: Record<string, unknown> = {};
     mockFetch((_, init) => {
       capturedBody = JSON.parse(init.body as string);
@@ -87,7 +90,7 @@ describe('CloudflareProvider', () => {
       systemPrompt: 's', userPrompt: 'u',
       tools: [{ name: 'roll', description: 'd', schema: { type: 'object' } }],
     });
-    expect((capturedBody.tools as unknown[]).length).toBe(1);
+    expect(capturedBody.tools).toBeUndefined();
   });
 
   it('throw em response vazia (response="" + sem tool_calls) — caso failover cascade', async () => {

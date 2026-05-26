@@ -51,6 +51,14 @@ export class CloudflareProvider implements DMProvider {
     tools?: DMToolDef[];
     maxTokens?: number;
   }): Promise<DMRawResponse> {
+    // 2026-05-26 fix: Cloudflare Workers AI rodando Llama 3.3 70B NÃO suporta
+    // function calling do mesmo jeito que OpenAI/Anthropic — quando recebe `tools`
+    // no body, o modelo retorna o tool_call como JSON dentro de result.response
+    // (texto cru), causando vazamento de "```json {type:function...} ```" no chat.
+    // Solução: nunca passar tools pro Cloudflare. Ele só faz narração pura, sem
+    // tool_calls. Fluxo D&D (skill checks, dano, etc) funciona normalmente nos
+    // outros 3 providers do cascade (Cerebras/Gemini/Groq). Cloudflare é fallback
+    // de narração-only quando os 3 estouram.
     const body: Record<string, unknown> = {
       messages: [
         { role: 'system', content: opts.systemPrompt },
@@ -59,14 +67,7 @@ export class CloudflareProvider implements DMProvider {
       max_tokens: opts.maxTokens ?? 1024,
       temperature: 0.9,
     };
-
-    if (opts.tools && opts.tools.length > 0) {
-      body.tools = opts.tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        parameters: t.schema,
-      }));
-    }
+    // NOTE: opts.tools ignorado intencionalmente — vide comentário acima.
 
     const url = `${this.baseUrl}/accounts/${this.accountId}/ai/run/${this.model}`;
     const controller = new AbortController();

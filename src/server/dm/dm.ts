@@ -249,17 +249,38 @@ function makeGracefulFallback(err: unknown): DMResponse {
   };
 }
 
+// Detecta JSON de tool_call format OpenAI-style ({"type":"function","name":...,"parameters":...}).
+// Quando providers como Llama 3.3 (Cloudflare/Groq) recebem tools mas não suportam function
+// calling do mesmo jeito, eles podem RETORNAR esse JSON literalmente no campo text — daí
+// vaza pra UI como "```json {...} ```" visível pro player. Tratamos isso descartando o
+// text — extractJson retorna {} → narration vazia → callsite força retry sem tools.
+function isLeakedToolCallJson(text: string): boolean {
+  // Pattern: ```json {...} ``` OU JSON inline com type+function
+  if (/```json\s*\{[\s\S]*?"type"\s*:\s*"function"[\s\S]*?\}/i.test(text)) return true;
+  if (/^\s*\{[\s\S]*?"type"\s*:\s*"function"[\s\S]*?"parameters"\s*:/i.test(text.trim())) return true;
+  if (/^\s*\{[\s\S]*?"name"\s*:\s*"(request_skill_check|describe_scene|apply_damage|start_combat|apply_condition|save_fact|cast_spell|end_combat|enemy_casts_spell)"/i.test(text.trim())) return true;
+  return false;
+}
+
 // Tolerante a JSON malformado (Llama às vezes trunca). Tenta:
 // 1. ```json ... ```
 // 2. { ... } primeiro objeto
 // 3. Regex narration/speaker fields como último recurso
 function extractJson(text: string): { narration?: string; speaker?: string } {
+  // 2026-05-26: descarta tool_call JSON vazado → força fluxo de retry sem tools.
+  if (isLeakedToolCallJson(text)) return {};
+
   const block = text.match(/```json\s*([\s\S]*?)```/);
   const candidate = block ? block[1]! : text;
   const braceMatch = candidate.match(/\{[\s\S]*\}/);
   if (braceMatch) {
     try {
-      return JSON.parse(braceMatch[0]);
+      const parsed = JSON.parse(braceMatch[0]);
+      // Defesa: se o JSON parseado for tool_call format (sem narration), descarta.
+      if (parsed && typeof parsed === 'object' && parsed.type === 'function' && !parsed.narration) {
+        return {};
+      }
+      return parsed;
     } catch {
       // segue pra extract tolerante
     }
