@@ -131,19 +131,61 @@
   color: var(--ink-mute);
 }
 
-/* Narration log */
+/* Narration log — chat refactor 2026-05-26.
+   Container persistente entre renders. NarrationLog mora aqui pra não perder
+   scroll/animation state. */
 .camp-narration {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--gap-base);
-  padding: var(--gap-loose);
   background: var(--bg-card);
   border: 1px solid rgba(160, 120, 60, 0.3);
   border-radius: 8px;
   min-height: 200px;
-  max-height: 50vh;
+  max-height: 55vh;
   overflow-y: auto;
+  scroll-behavior: smooth;
+  /* Better scroll feel mobile: momentum + no rubber band na borda */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cn-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-base);
+  padding: var(--gap-loose);
+}
+
+/* "↓ N novas" badge flutuante quando user rolou pra cima. */
+.cn-new-badge {
+  position: sticky;
+  bottom: 8px;
+  align-self: center;
+  margin: 0 auto 8px;
+  padding: 8px 16px;
+  background: var(--accent-rune, #c89b5f);
+  color: #1a0e04;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 2;
+  /* Float over content sem afetar layout */
+  pointer-events: auto;
+}
+.cn-new-badge:hover { transform: translateY(-2px); }
+.cn-new-badge.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
 }
 
 .camp-narr-empty {
@@ -188,6 +230,121 @@
   font-style: italic;
   padding: var(--gap-base);
   animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+
+/* Chat refactor — thinking indicator INLINE (entry temporária no log) */
+.camp-narr-entry.is-thinking {
+  padding: 10px 12px;
+  background: rgba(20, 12, 6, 0.4);
+  border-left: 3px solid rgba(200, 155, 95, 0.4);
+  border-radius: 0 4px 4px 0;
+  animation: narr-fade-in 0.3s ease-out;
+}
+.cn-thinking-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-mute);
+  font-style: italic;
+  font-size: 14px;
+}
+.cn-thinking-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.cn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-rune);
+  animation: cn-dot-pulse 1.2s ease-in-out infinite;
+}
+.cn-dot:nth-child(2) { animation-delay: 0.15s; }
+.cn-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cn-dot-pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
+}
+.cn-thinking-text { flex: 1; }
+.cn-thinking-elapsed {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  font-style: normal;
+}
+
+/* Error card — substitui narração degradada com retry actionable */
+.camp-narr-entry.is-error {
+  padding: 12px;
+  background: rgba(85, 30, 30, 0.35);
+  border-left: 3px solid rgba(200, 70, 70, 0.85);
+  border-radius: 0 4px 4px 0;
+  animation: narr-fade-in 0.4s ease-out;
+}
+.camp-narr-entry.is-error .cnn-speaker {
+  color: rgba(220, 110, 110, 1);
+}
+.camp-narr-entry.is-error .cnn-text {
+  color: var(--ink-warm);
+  opacity: 0.85;
+}
+.cn-retry-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: rgba(200, 155, 95, 0.18);
+  border: 1px solid rgba(200, 155, 95, 0.6);
+  color: var(--ink-warm);
+  border-radius: 4px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.cn-retry-btn:hover {
+  background: rgba(200, 155, 95, 0.32);
+  transform: translateY(-1px);
+}
+.camp-narr-entry.is-retrying .cn-retry-btn {
+  opacity: 0.5;
+  cursor: wait;
+  pointer-events: none;
+}
+.camp-narr-entry.is-retrying::after {
+  content: '⌛ tentando novamente…';
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-mute);
+}
+
+/* Streaming typewriter — cursor piscante no texto sendo revelado */
+.cnn-text.is-streaming::after {
+  content: '▌';
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent-rune);
+  animation: cn-cursor-blink 0.9s steps(2) infinite;
+}
+@keyframes cn-cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Restored entries (rejoin) — sem animação cintilante */
+.camp-narr-entry.is-restored {
+  animation: none;
+  opacity: 0.95;
+}
+
+/* Reduced motion: kill heavier animations */
+@media (prefers-reduced-motion: reduce) {
+  .camp-narr-entry { animation: none; }
+  .cn-dot { animation: none; opacity: 0.7; }
+  .cnn-text.is-streaming::after { animation: none; }
 }
 
 @keyframes thinking-pulse {

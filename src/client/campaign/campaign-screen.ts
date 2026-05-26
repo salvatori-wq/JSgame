@@ -12,7 +12,7 @@ import type {
 } from '../../shared/types';
 import { SKILLS } from '../../dnd/skills';
 import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
-import { el, escapeHtml, renderNarrationText, setLastSession, clearLastSession } from '../util';
+import { el, setLastSession, clearLastSession } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
@@ -27,12 +27,13 @@ import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveli
 import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
-import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
+import { isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
+import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -55,15 +56,31 @@ const ACTIONS: Array<{ id: ExplorationAction; label: string; icon: string }> = [
 export class CampaignScreen {
   private container: HTMLElement;
   private opts: CampaignScreenOpts;
-  private narrations: Array<{ speaker: string; text: string }> = [];
   private character: CharacterSheet | null = null;
   private party: CharacterSheet[] = [];
   private currentState: CampaignState | null = null;
   private skillCheckOverlay: PendingCheck | null = null;
-  private dmThinkingBy: { playerName: string; action: string } | null = null;
-  // QW-6 — Start timestamp pra mostrar elapsed counter ("5s...") no thinking indicator.
-  private dmThinkingStartedAt: number | null = null;
-  private dmThinkingTimer: ReturnType<typeof setInterval> | null = null;
+  // Chat refactor 2026-05-26: NarrationLog encapsula histórico + scroll + thinking
+  // inline + error cards. Persistente entre renders — nunca destruída.
+  private narrationLog: NarrationLog | null = null;
+  // Slots do shell — recriados em cada update* parcial. NarrationLog mora dentro
+  // do .ch-narration-host e nunca é recriado, preservando scroll/animations.
+  private shellEl: HTMLElement | null = null;
+  private slots: {
+    header: HTMLElement;
+    party: HTMLElement;
+    deathBanner: HTMLElement;
+    narrationHost: HTMLElement;
+    pendingCheck: HTMLElement;
+    mainContent: HTMLElement;
+    chatBar: HTMLElement;
+  } | null = null;
+  // Auto-retry tracking: última ação enviada + se já retrou nesse ciclo.
+  private lastAction: { action: string; details?: string } | null = null;
+  private lastActionAt = 0;
+  private autoRetriedThisCycle = false;
+  // Flag pra disable das action buttons. Synced com narrationLog.setThinking().
+  private isDmThinking = false;
   private combatLog: string[] = [];
   // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
   private combatFlags: Record<string, string[]> = {};
@@ -97,6 +114,12 @@ export class CampaignScreen {
     closeCastSpellModal();
     closeInventoryModal();
     closeQuestLog();
+    if (this.narrationLog) {
+      this.narrationLog.destroy();
+      this.narrationLog = null;
+    }
+    this.shellEl = null;
+    this.slots = null;
     // F21: para música ambiente ao sair
     setAmbient('silence');
   }
@@ -107,28 +130,67 @@ export class CampaignScreen {
     const s = this.opts.socket;
 
     const onNarration = (payload: { text: string; speaker?: string; mood?: string }): void => {
-      this.narrations.push({ speaker: payload.speaker ?? 'Mestre', text: payload.text });
-      if (this.narrations.length > 50) this.narrations = this.narrations.slice(-50);
-      // SFX: NPC falando (qualquer speaker que não seja Mestre/degradado/Sistema) → chime
       const speaker = payload.speaker ?? 'Mestre';
+
+      // Chat refactor 2026-05-26: auto-retry silencioso ANTES de mostrar narração
+      // degradada. Se server cedeu mas a gente sabe o que reenviar, tenta 1x.
+      const isDegraded = isDegradedNarration(speaker);
+      const lastAction = this.getLastActionForRetry();
+      const canRetrySilent = shouldAutoRetrySilent({
+        speaker,
+        lastAction,
+        alreadyRetried: this.autoRetriedThisCycle,
+        nowMs: Date.now(),
+      });
+
+      if (canRetrySilent && lastAction) {
+        this.autoRetriedThisCycle = true;
+        console.warn('[campaign] degraded narration — auto-retry silent em 1.2s');
+        // Pequeno delay pra não bater no rate limit do mesmo erro
+        setTimeout(() => {
+          this.opts.socket.emit('takeAction', {
+            action: lastAction.action as ExplorationAction,
+            details: lastAction.details,
+          });
+        }, 1200);
+        return; // não renderiza o erro ainda — dá a chance do retry
+      }
+
+      // SFX: NPC falando (qualquer speaker que não seja Mestre/degradado/Sistema) → chime
       if (speaker !== 'Mestre' && !speaker.startsWith('Mestre ') && speaker !== 'Sistema') {
         playNpcSpeaks();
       }
-      // C3 — Voice TTS: só lê narrações do Mestre (não chat do player nem echo de ação)
-      const isMaster = speaker === 'Mestre' || speaker.startsWith('Mestre ');
-      if (isMaster && isVoiceTtsEnabled()) {
-        ttsSpeak(payload.text, { rate: 1.05 });
-      }
+      // C3 — Voice TTS: só lê narrações do Mestre (não chat do player nem echo de ação).
+      // Pula degradadas — quebra imersão ler texto cínico de erro.
+      maybeTtsSpeak(payload.text, speaker);
       // Push notif se aba sem foco
       notify({
         title: `${speaker} — ${this.currentState?.name ?? 'Crônica'}`,
         body: payload.text.slice(0, 140),
         tag: 'narration',
       });
-      this.render();
-      // BUG-002 fix: tenta disparar tutorial AQUI (narration handler) — caso
-      // state já tenha chegado antes (cenário rejoin), o trigger no onState
-      // não disparou porque narrationsArrived ainda era false.
+
+      // Append no log persistente OU error card se degradado
+      this.ensureNarrationLog();
+      if (isDegraded) {
+        const retryHandler = lastAction ? () => {
+          this.autoRetriedThisCycle = true;
+          this.opts.socket.emit('takeAction', {
+            action: lastAction.action as ExplorationAction,
+            details: lastAction.details,
+          });
+        } : undefined;
+        this.narrationLog!.appendError({
+          message: payload.text,
+          ...(retryHandler ? { onRetry: retryHandler } : {}),
+        });
+      } else {
+        this.narrationLog!.appendNarration({ speaker, text: payload.text });
+        // Reset retry flag — narração válida chegou
+        this.autoRetriedThisCycle = false;
+      }
+
+      // BUG-002 fix: tutorial trigger.
       this.maybeFireExplorationTutorial();
     };
     s.on('dmNarration', onNarration);
@@ -269,35 +331,28 @@ export class CampaignScreen {
     this.socketCleanups.push(() => s.off('diceRollResult', onDice));
 
     const onThinking = (payload: { playerId: string; playerName: string; action: string }): void => {
-      this.dmThinkingBy = { playerName: payload.playerName, action: payload.action };
-      this.dmThinkingStartedAt = Date.now();
-      // QW-6: tick timer pra refrescar elapsed counter em tempo real
-      if (this.dmThinkingTimer) clearInterval(this.dmThinkingTimer);
-      this.dmThinkingTimer = setInterval(() => {
-        // Re-render só o thinking element pra evitar redraw pesado a cada 1s
-        const el = this.container.querySelector('.ct-elapsed');
-        if (el && this.dmThinkingStartedAt) {
-          const sec = Math.floor((Date.now() - this.dmThinkingStartedAt) / 1000);
-          el.textContent = `${sec}s`;
-        }
-      }, 1000);
-      this.render();
+      // Thinking indicator vai INLINE no narration log (entry temporária com shimmer).
+      this.isDmThinking = true;
+      this.ensureNarrationLog();
+      this.narrationLog!.setThinking({
+        playerName: payload.playerName,
+        action: payload.action,
+        startedAt: Date.now(),
+      });
+      // Atualiza só action bar pra disable visual ("ocupado")
+      this.updateMainContent();
     };
     s.on('dmThinking', onThinking);
     this.socketCleanups.push(() => s.off('dmThinking', onThinking));
 
     const clearThinking = (): void => {
-      this.dmThinkingBy = null;
-      this.dmThinkingStartedAt = null;
-      if (this.dmThinkingTimer) {
-        clearInterval(this.dmThinkingTimer);
-        this.dmThinkingTimer = null;
-      }
+      this.isDmThinking = false;
+      if (this.narrationLog) this.narrationLog.setThinking(null);
     };
 
     const onDone = (): void => {
       clearThinking();
-      this.render();
+      this.updateMainContent();
     };
     s.on('dmDone', onDone);
     this.socketCleanups.push(() => s.off('dmDone', onDone));
@@ -373,7 +428,7 @@ export class CampaignScreen {
     if (!state) return;
     const trigger = shouldTriggerExplorationTutorial({
       sessionNumber: state.sessionNumber,
-      narrationsArrived: this.narrations.length > 0,
+      narrationsArrived: (this.narrationLog?.getEntries().length ?? 0) > 0,
       alreadyFiredThisSession: this.explorationTutorialFired,
       tutorialNotDoneYet: shouldShowExplorationTutorial(),
     });
@@ -416,44 +471,97 @@ export class CampaignScreen {
     });
   }
 
+  // Chat refactor: render incremental.
+  // Primeiro chamado constrói o SHELL com slots vazios + NarrationLog persistente.
+  // Chamadas subsequentes atualizam APENAS os slots dos painéis dinâmicos —
+  // o NarrationLog mora dentro de .ch-narration-host e NUNCA é destruído.
+  // Isso preserva scroll, foco em inputs e animações em curso.
   private render(): void {
+    if (!this.shellEl || !this.slots) this.buildShell();
+    this.updateHeader();
+    this.updatePartyPanel();
+    this.updateDeathBanner();
+    this.updatePendingCheck();
+    this.updateMainContent();
+    this.updateChatBar();
+  }
+
+  // Constrói o shell estável uma única vez. Slots ficam vazios — update*() preenchem.
+  private buildShell(): void {
     this.container.innerHTML = '';
-    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
-
     const root = el('main', { class: 'camp-screen' });
+    const header = el('div', { class: 'ch-slot ch-slot-header' });
+    const party = el('div', { class: 'ch-slot ch-slot-party' });
+    const deathBanner = el('div', { class: 'ch-slot ch-slot-death-banner' });
+    const narrationHost = el('div', { class: 'ch-narration-host' });
+    const pendingCheck = el('div', { class: 'ch-slot ch-slot-pending-check' });
+    const mainContent = el('div', { class: 'ch-slot ch-slot-main-content' });
+    const chatBar = el('div', { class: 'ch-slot ch-slot-chat-bar' });
 
-    // ── Header
-    root.appendChild(this.renderHeader());
+    root.appendChild(header);
+    root.appendChild(party);
+    root.appendChild(deathBanner);
+    root.appendChild(narrationHost);
+    root.appendChild(pendingCheck);
+    root.appendChild(mainContent);
+    root.appendChild(chatBar);
 
-    // ── Party panel (todos PJs)
-    if (this.party.length > 0) {
-      root.appendChild(this.renderPartyPanel());
+    // Inicializa o NarrationLog persistente — sobrevive entre renders.
+    this.narrationLog = new NarrationLog();
+    narrationHost.appendChild(this.narrationLog.element);
+
+    this.container.appendChild(root);
+    this.shellEl = root;
+    this.slots = { header, party, deathBanner, narrationHost, pendingCheck, mainContent, chatBar };
+  }
+
+  private ensureNarrationLog(): void {
+    if (!this.narrationLog || !this.shellEl) this.render();
+  }
+
+  // Wrappers que mantêm slot estável e só trocam conteúdo.
+  private replaceSlot(slot: HTMLElement, content: HTMLElement | null): void {
+    slot.replaceChildren();
+    if (content) slot.appendChild(content);
+  }
+
+  private updateHeader(): void {
+    if (!this.slots) return;
+    this.replaceSlot(this.slots.header, this.renderHeader());
+  }
+
+  private updatePartyPanel(): void {
+    if (!this.slots) return;
+    if (this.party.length === 0) {
+      this.replaceSlot(this.slots.party, null);
+      return;
     }
+    this.replaceSlot(this.slots.party, this.renderPartyPanel());
+  }
 
-    // ── Death save banner (se meu PJ caiu)
-    const deathBanner = this.renderDeathSaveBanner();
-    if (deathBanner) root.appendChild(deathBanner);
+  private updateDeathBanner(): void {
+    if (!this.slots) return;
+    this.replaceSlot(this.slots.deathBanner, this.renderDeathSaveBanner());
+  }
 
-    // ── Narração log
-    root.appendChild(this.renderNarrationLog());
-
-    // ── Pending check banner — só pra OUTROS players (o owner vê overlay)
+  private updatePendingCheck(): void {
+    if (!this.slots) return;
     const pending = this.currentState?.pendingCheck;
+    const pendingSave = this.currentState?.pendingSave;
+    const wrap = el('div');
+
     if (pending && pending.playerId !== this.opts.characterId) {
       const ownerName = this.party.find((p) => p.id === pending.playerId)?.characterName ?? 'Aliado';
       const sk = SKILLS[pending.skill];
-      root.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
+      wrap.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
         el('span', { text: `🎲 ${ownerName} está rolando ${sk?.name ?? pending.skill} (DC ${pending.dc}) — ${pending.reason}` }),
       ]));
     }
 
-    // F27 — Pending saving throw banner (paralelo ao skill check)
-    const pendingSave = this.currentState?.pendingSave;
     if (pendingSave) {
       const isMe = pendingSave.playerId === this.opts.characterId;
       if (isMe) {
-        // Botão grande pra rolar
-        root.appendChild(el('div', { class: 'camp-check-banner' }, [
+        wrap.appendChild(el('div', { class: 'camp-check-banner' }, [
           el('span', { text: `🛡 Save ${pendingSave.ability.toUpperCase()} (DC ${pendingSave.dc}) — ${pendingSave.reason}` }),
           el('button', {
             class: 'cdb-roll-btn',
@@ -464,42 +572,47 @@ export class CampaignScreen {
         ]));
       } else {
         const ownerName = this.party.find((p) => p.id === pendingSave.playerId)?.characterName ?? 'Aliado';
-        root.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
+        wrap.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
           el('span', { text: `🛡 ${ownerName} está rolando save ${pendingSave.ability.toUpperCase()} (DC ${pendingSave.dc}) — ${pendingSave.reason}` }),
         ]));
       }
     }
 
-    // ── DM thinking indicator (qualquer jogador). QW-6: visual mais óbvio +
-    // contador de segundos pra player não achar que travou em LLM lento.
-    if (this.dmThinkingBy) {
-      const sec = this.dmThinkingStartedAt ? Math.floor((Date.now() - this.dmThinkingStartedAt) / 1000) : 0;
-      root.appendChild(el('div', { class: 'camp-thinking is-prominent' }, [
-        el('span', { class: 'ct-spinner', text: '🎲' }),
-        el('span', { class: 'ct-txt', text: `Mestre escrevendo... (${this.dmThinkingBy.playerName} → ${this.dmThinkingBy.action})` }),
-        el('span', { class: 'ct-elapsed', text: `${sec}s` }),
-      ]));
-    }
+    this.replaceSlot(this.slots.pendingCheck, wrap.children.length > 0 ? wrap : null);
+  }
 
-    // ── Combat OR exploration UI
+  // Combat OR actions bar
+  private updateMainContent(): void {
+    if (!this.slots) return;
+    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
     if (isCombat && this.currentState?.combat && this.character) {
-      renderCombatScreen(root, {
+      const combatWrap = el('div');
+      renderCombatScreen(combatWrap, {
         combat: this.currentState.combat,
         party: this.party,
         myCharacterId: this.opts.characterId,
         socket: this.opts.socket,
         combatLog: this.combatLog,
       });
+      this.replaceSlot(this.slots.mainContent, combatWrap);
     } else {
-      root.appendChild(this.renderActionsBar());
+      this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
     }
+  }
 
-    // FIX coop-3: barra de chat livre — aparece sempre que tem mais de 1 PJ na party
+  private updateChatBar(): void {
+    if (!this.slots) return;
     if (this.party.length > 1) {
-      root.appendChild(this.renderChatBar());
+      this.replaceSlot(this.slots.chatBar, this.renderChatBar());
+    } else {
+      this.replaceSlot(this.slots.chatBar, null);
     }
+  }
 
-    this.container.appendChild(root);
+  // Auto-retry helper: lastAction com timestamp pra decisão de janela 30s.
+  private getLastActionForRetry(): { action: string; details?: string; timestamp: number } | null {
+    if (!this.lastAction || this.lastActionAt === 0) return null;
+    return { ...this.lastAction, timestamp: this.lastActionAt };
   }
 
   // FIX coop-3: Chat livre player → party (broadcast pra room toda).
@@ -791,28 +904,10 @@ export class CampaignScreen {
     ]);
   }
 
-  private renderNarrationLog(): HTMLElement {
-    const narrEl = el('section', { class: 'camp-narration' });
-    if (this.narrations.length === 0 && !this.dmThinkingBy) {
-      narrEl.appendChild(el('div', { class: 'camp-narr-empty', text: 'Aguardando o Mestre acordar…' }));
-    }
-    for (const n of this.narrations.slice(-10)) {
-      const entry = el('div', { class: 'camp-narr-entry' });
-      // QW-2: renderNarrationText escapa HTML (XSS-safe) ANTES de aplicar
-      // markdown leve (**bold**, *italic*, `code`).
-      entry.innerHTML = `
-        <div class="cnn-speaker">${escapeHtml(n.speaker)}</div>
-        <div class="cnn-text">${renderNarrationText(n.text)}</div>
-      `;
-      narrEl.appendChild(entry);
-    }
-    return narrEl;
-  }
-
   private renderActionsBar(): HTMLElement {
     const actionsEl = el('section', { class: 'camp-actions' });
     actionsEl.appendChild(el('h3', { class: 'camp-h3', text: 'O que você faz?' }));
-    const disabled = !!this.dmThinkingBy;
+    const disabled = this.isDmThinking;
     const grid = el('div', { class: 'camp-actions-grid' });
     for (const a of ACTIONS) {
       grid.appendChild(el('button', {
@@ -894,6 +989,10 @@ export class CampaignScreen {
   }
 
   private takeAction(action: ExplorationAction, details?: string): void {
+    // Registra lastAction pra possível retry (auto-silent OU botão error card).
+    this.lastAction = details !== undefined ? { action, details } : { action };
+    this.lastActionAt = Date.now();
+    this.autoRetriedThisCycle = false; // novo ciclo
     this.opts.socket.emit('takeAction', { action, details });
   }
 
