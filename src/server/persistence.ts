@@ -16,6 +16,8 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { CharacterSheet, CampaignState } from '../shared/types.js';
 
+export type { Client } from '@libsql/client';
+
 const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
   : path.resolve(process.cwd(), '.run-data');
@@ -66,6 +68,28 @@ export async function initPersistence(): Promise<void> {
       lastPlayedAt  INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_campaigns_recent ON campaigns(lastPlayedAt DESC)`,
+    // RAG memory pro Mestre — fatos persistentes cross-session indexados por FTS5.
+    // Tabela "fonte" guarda metadata, FTS5 virtual indexa text+tags pra busca BM25.
+    // Tokenizer unicode61 com remove_diacritics=2 lida com acentos PT-BR.
+    `CREATE TABLE IF NOT EXISTS memory_facts (
+      id          TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL,
+      kind        TEXT NOT NULL,
+      text        TEXT NOT NULL,
+      tags        TEXT NOT NULL DEFAULT '',
+      importance  REAL NOT NULL DEFAULT 1.0,
+      session_n   INTEGER NOT NULL DEFAULT 1,
+      created_at  INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_memory_facts_campaign ON memory_facts(campaign_id, created_at DESC)`,
+    `CREATE VIRTUAL TABLE IF NOT EXISTS memory_facts_fts USING fts5(
+      fact_id UNINDEXED,
+      campaign_id UNINDEXED,
+      kind UNINDEXED,
+      text,
+      tags,
+      tokenize='unicode61 remove_diacritics 2'
+    )`,
   ], 'write');
 
   console.log('[persistence] schema ready');
@@ -74,6 +98,11 @@ export async function initPersistence(): Promise<void> {
 function requireClient(): Client {
   if (!client) throw new Error('persistence not initialized — call initPersistence() first');
   return client;
+}
+
+// Exposto pra MemoryStore (e qualquer outro módulo que precise queries diretas).
+export function getDbClient(): Client {
+  return requireClient();
 }
 
 export async function shutdownPersistence(): Promise<void> {

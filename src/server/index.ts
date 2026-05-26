@@ -7,7 +7,7 @@ import path from 'node:path';
 import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import {
-  initPersistence,
+  initPersistence, getDbClient,
   saveCharacter, loadCharacter, listCharactersByOwner, deleteCharacter,
   saveCampaign, loadCampaign, listRecentCampaigns,
 } from './persistence.js';
@@ -20,6 +20,7 @@ import { ALL_BACKGROUNDS } from '../dnd/backgrounds.js';
 import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaign.js';
 import { buildProviderFromEnv } from './dm/providers/factory.js';
 import { LobbyManager } from './lobby.js';
+import { MemoryStore } from './memory.js';
 import { uuid } from './util.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
@@ -45,13 +46,14 @@ function buildDM(): DMInterface {
 
 const campaigns = new Map<string, Campaign>();
 const lobbyManager = new LobbyManager();
+let memoryStore: MemoryStore | undefined;
 
 async function getOrCreateCampaign(id: string | undefined, name: string | undefined, dm: DMInterface): Promise<Campaign> {
   if (id && campaigns.has(id)) return campaigns.get(id)!;
   if (id) {
     const persisted = await loadCampaign(id);
     if (persisted) {
-      const camp = new Campaign(dm, { id: persisted.id, name: persisted.name });
+      const camp = new Campaign(dm, { id: persisted.id, name: persisted.name, memory: memoryStore });
       camp.state = persisted;
       // Hidrata flags pra evitar disparar startSession outra vez no rejoin
       camp.markStartedIfHasHistory();
@@ -59,7 +61,7 @@ async function getOrCreateCampaign(id: string | undefined, name: string | undefi
       return camp;
     }
   }
-  const camp = new Campaign(dm, { id, name });
+  const camp = new Campaign(dm, { id, name, memory: memoryStore });
   campaigns.set(camp.state.id, camp);
   return camp;
 }
@@ -70,6 +72,8 @@ async function getOrCreateCampaign(id: string | undefined, name: string | undefi
 
 async function main(): Promise<void> {
   await initPersistence();
+  memoryStore = new MemoryStore(getDbClient());
+  console.log('[memory] RAG store inicializado (FTS5/BM25)');
   const dm = buildDM();
 
   const app = express();

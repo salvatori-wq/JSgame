@@ -3,7 +3,7 @@
 // Sistema embarca regras D&D 5e essenciais pra DM aplicar coerentemente.
 
 import type { DMToolDef } from './providers/base.js';
-import type { CharacterSheet, CampaignState } from '../../shared/types.js';
+import type { CharacterSheet, CampaignState, MemoryFact } from '../../shared/types.js';
 import { ABILITY_LABELS, abilityModifier, formatModifier, proficiencyBonus } from '../../dnd/attributes.js';
 import { getClass } from '../../dnd/classes.js';
 import { getRace } from '../../dnd/races.js';
@@ -267,6 +267,9 @@ export interface NarrationContext {
   party: CharacterSheet[];
   playerAction?: { playerId: string; action: string; details?: string };
   recentNarrations?: string[];
+  // Facts da memória persistente (RAG via FTS5) — top-K relevantes ao contexto atual.
+  // Mestre usa pra manter consistência cross-session (NPCs, locais, promessas).
+  memoryFacts?: MemoryFact[];
   // Skill check resolvido (informar resultado ao DM pra narrar consequência)
   skillCheckResolution?: {
     playerName: string;
@@ -301,6 +304,13 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     ? `\n## NARRAÇÕES RECENTES (mais nova primeiro)\n${ctx.recentNarrations.slice(-5).reverse().map((n, i) => `${i + 1}. ${n}`).join('\n')}`
     : '';
 
+  // Memória persistente — fatos relevantes recuperados via FTS5/BM25 do banco.
+  // Mestre DEVE usar pra continuidade (não inventar NPC novo se já existe, lembrar
+  // promessas feitas, manter tom de NPCs). Limita a 6 facts pra não inflar tokens.
+  const memoryBlock = ctx.memoryFacts && ctx.memoryFacts.length > 0
+    ? `\n## MEMÓRIA DE CAMPANHA (use pra consistência — NÃO contradiga)\n${ctx.memoryFacts.slice(0, 6).map((f) => `- [${f.kind}${f.sessionN > 1 ? ` · S${f.sessionN}` : ''}] ${f.text}`).join('\n')}`
+    : '';
+
   const actionBlock = ctx.playerAction
     ? `\n## AÇÃO DO PLAYER\n${getPlayerName(ctx.party, ctx.playerAction.playerId)} quer: **${ctx.playerAction.action}**${ctx.playerAction.details ? `\nDetalhes: ${ctx.playerAction.details}` : ''}`
     : '';
@@ -325,6 +335,7 @@ ${npcsBlock}
 
 ## FLAGS DO MUNDO
 ${Object.entries(ctx.campaign.worldFlags).length === 0 ? '(nenhuma ainda)' : Object.entries(ctx.campaign.worldFlags).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
+${memoryBlock}
 ${recentBlock}
 ${actionBlock}
 ${checkBlock}

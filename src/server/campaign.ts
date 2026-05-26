@@ -10,7 +10,7 @@
 
 import type {
   CharacterSheet, CampaignState, GameMode, ExplorationAction,
-  CombatActionKind, CombatEvent,
+  CombatActionKind, CombatEvent, MemoryFact,
 } from '../shared/types.js';
 import { DungeonMaster, FallbackDM, type DMInterface, type DMResponse } from './dm/dm.js';
 import { validateToolCall, type ValidatedTool } from './dm/tools.js';
@@ -28,23 +28,28 @@ import { getClass } from '../dnd/classes.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
 import { rollDice } from '../dnd/dice.js';
 import { uuid } from './util.js';
+import type { MemoryStore } from './memory.js';
 
 const MAX_RECENT_EVENTS = 30;
 const MAX_RECENT_NARRATIONS = 10;
+// Quantos facts injetar no prompt do Mestre por narração — equilibra tokens vs recall
+const MEMORY_TOPK = 5;
 
 export class Campaign {
   state: CampaignState;
   party: CharacterSheet[] = [];
   private narrationLog: string[] = [];
   private dm: DMInterface;
+  private memory: MemoryStore | undefined;
 
   // Coop guards
   private isStarted = false;
   private isStarting = false;
   private actionQueue: Promise<unknown> = Promise.resolve();
 
-  constructor(dm: DMInterface, opts?: { id?: string; name?: string }) {
+  constructor(dm: DMInterface, opts?: { id?: string; name?: string; memory?: MemoryStore }) {
     this.dm = dm;
+    this.memory = opts?.memory;
     const now = Date.now();
     this.state = {
       id: opts?.id ?? uuid(),
@@ -97,6 +102,40 @@ export class Campaign {
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  // RAG: retrieve facts relevantes ao contexto + chama dm.narrate.
+  // Centraliza a injeção de memória pra todos os 4-5 call sites do narrate().
+  // ════════════════════════════════════════════════════════════════════════
+
+  private async retrieveMemory(focusText: string): Promise<MemoryFact[]> {
+    if (!this.memory) return [];
+    try {
+      // Concatena foco (ação/local) com últimos eventos pra ampliar keywords.
+      // Limit nas últimas 3 entradas pra não diluir foco com história antiga.
+      const lastEvents = this.state.recentEvents.slice(-3).join(' ');
+      const query = [focusText, this.state.currentLocation, lastEvents].filter(Boolean).join(' ');
+      return await this.memory.search(this.state.id, query, { limit: MEMORY_TOPK });
+    } catch (err) {
+      console.warn('[campaign] memory.search falhou:', err);
+      return [];
+    }
+  }
+
+  // Helper que extrai foco de uma chamada narrate() pra retrieval. Usa ação do
+  // player se houver; senão usa skillCheck; senão usa local atual.
+  private buildMemoryFocus(opts: {
+    playerAction?: { action: string; details?: string };
+    skillCheckResolution?: { skill: string; playerName: string };
+  }): string {
+    if (opts.playerAction) {
+      return `${opts.playerAction.action}${opts.playerAction.details ? ' ' + opts.playerAction.details : ''}`;
+    }
+    if (opts.skillCheckResolution) {
+      return `${opts.skillCheckResolution.playerName} ${opts.skillCheckResolution.skill}`;
+    }
+    return this.state.currentLocation ?? '';
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   // Action loop — player toma ação, DM narra, tools aplicam
   // ════════════════════════════════════════════════════════════════════════
 
@@ -105,10 +144,12 @@ export class Campaign {
       if (this.isStarted || this.isStarting) return null;
       this.isStarting = true;
       try {
+        const memoryFacts = await this.retrieveMemory(this.buildMemoryFocus({}));
         const response = await this.dm.narrate({
           campaign: this.state,
           party: this.party,
           recentNarrations: this.narrationLog,
+          memoryFacts,
         });
         this.applyDMResponse(response);
         this.isStarted = true;
@@ -121,11 +162,15 @@ export class Campaign {
 
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
     return this.enqueue(async () => {
+      const memoryFacts = await this.retrieveMemory(
+        this.buildMemoryFocus({ playerAction: { action: String(action), details } }),
+      );
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         playerAction: { playerId, action: String(action), details },
         recentNarrations: this.narrationLog,
+        memoryFacts,
       });
       this.applyDMResponse(response);
       this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
@@ -156,10 +201,14 @@ export class Campaign {
       const roll = rollD20({ modifier: totalMod });
       const success = roll.total >= check.dc;
 
+      const memoryFacts = await this.retrieveMemory(
+        this.buildMemoryFocus({ skillCheckResolution: { skill: skill.name, playerName: player.characterName } }),
+      );
       const dmResponse = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         recentNarrations: this.narrationLog,
+        memoryFacts,
         skillCheckResolution: {
           playerName: player.characterName,
           skill: skill.name,
@@ -302,10 +351,14 @@ export class Campaign {
     this.pushRecentEvent(outcome === 'victory' ? 'Combate vencido' : 'Party caiu em combate');
 
     try {
+      const memoryFacts = await this.retrieveMemory(
+        this.buildMemoryFocus({ playerAction: { action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido' } }),
+      );
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         recentNarrations: this.narrationLog,
+        memoryFacts,
         playerAction: {
           playerId: this.party[0]?.id ?? 'system',
           action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido',
@@ -668,6 +721,23 @@ export class Campaign {
       this.narrationLog = this.narrationLog.slice(-MAX_RECENT_NARRATIONS);
     }
 
+    // Quote literal de NPC vale ouro pra manter tom — indexa antes dos tool calls
+    // (que podem também salvar fact "npc apareceu", mas separados são complementares).
+    // Mestre, Sistema e fallbacks degradados (ex: "Mestre (degradado)") ignorados.
+    if (
+      speaker !== 'Mestre' &&
+      !speaker.startsWith('Mestre ') &&
+      speaker !== 'Sistema' &&
+      response.narration.trim().length > 0
+    ) {
+      this.indexFact({
+        kind: 'npc',
+        text: `${speaker} disse: "${response.narration.trim()}"`,
+        tags: `npc fala dialogo ${speaker.toLowerCase()}`,
+        importance: 1.5,
+      });
+    }
+
     for (const tc of response.toolCalls) {
       const valid = validateToolCall(tc);
       if (!valid) {
@@ -678,6 +748,25 @@ export class Campaign {
     }
 
     this.state.lastPlayedAt = Date.now();
+  }
+
+  // Indexer fire-and-forget — salva fact relevante a partir de tool call. Não
+  // bloqueia o caller (DB write é I/O e mutex Campaign já garante ordem das ações).
+  // Erros são logados mas nunca propagados pra não quebrar narração.
+  private indexFact(input: {
+    kind: import('../shared/types.js').MemoryFactKind;
+    text: string;
+    tags?: string;
+    importance?: number;
+  }): void {
+    if (!this.memory) return;
+    void this.memory.saveFact({
+      campaignId: this.state.id,
+      sessionN: this.state.sessionNumber,
+      ...input,
+    }).catch((err) => {
+      console.warn('[campaign] memory.saveFact falhou:', err);
+    });
   }
 
   private applyValidatedTool(tool: ValidatedTool): void {
@@ -701,7 +790,14 @@ export class Campaign {
           party: this.party,
           enemies: tool.enemies,
         });
-        this.pushRecentEvent(`Combate iniciado: ${tool.enemies.map((e) => e.name).join(', ')}`);
+        const enemyNames = tool.enemies.map((e) => e.name).join(', ');
+        this.pushRecentEvent(`Combate iniciado: ${enemyNames}`);
+        this.indexFact({
+          kind: 'event',
+          text: `Combate começou contra: ${enemyNames}. Local: ${this.state.currentLocation}.`,
+          tags: `combate inimigos ${enemyNames.toLowerCase()}`,
+          importance: 1.3,
+        });
         break;
       }
 
@@ -745,6 +841,12 @@ export class Campaign {
           this.state.combat.active = false;
           this.state.mode = 'exploration';
           this.pushRecentEvent(`Combate encerrado: ${tool.outcome}`);
+          this.indexFact({
+            kind: 'event',
+            text: `Combate encerrado: ${tool.outcome}. Local: ${this.state.currentLocation}.`,
+            tags: `combate desfecho ${tool.outcome}`,
+            importance: 1.2,
+          });
           this.state.combat = null;
         }
         break;
@@ -775,6 +877,13 @@ export class Campaign {
             attitude: tool.attitude,
             lastSeen: this.state.currentLocation,
           });
+          // Primeiro encontro com NPC — importante pro DM lembrar tom/role.
+          this.indexFact({
+            kind: 'npc',
+            text: `NPC ${tool.name} (${tool.archetype}, atitude ${tool.attitude}) apareceu em ${this.state.currentLocation}.`,
+            tags: `npc ${tool.name.toLowerCase()} ${tool.archetype.toLowerCase()}`,
+            importance: 1.4,
+          });
         } else {
           existing.attitude = tool.attitude;
           existing.lastSeen = this.state.currentLocation;
@@ -793,6 +902,13 @@ export class Campaign {
             description: tool.description,
           });
           this.pushRecentEvent(`${p.characterName} recebeu ${tool.itemName} × ${tool.quantity}`);
+          this.indexFact({
+            kind: 'inventory',
+            text: `${p.characterName} recebeu ${tool.itemName} (${tool.type}) × ${tool.quantity}${tool.description ? ` — ${tool.description}` : ''}.`,
+            tags: `inventario item ${tool.itemName.toLowerCase()} ${tool.type}`,
+            // Items mágicos/raros são âncoras de quest — boosta. Item normal pesa pouco.
+            importance: tool.type === 'tesouro' ? 1.3 : 1.0,
+          });
         }
         break;
       }
@@ -807,6 +923,12 @@ export class Campaign {
         this.state.currentLocation = tool.location;
         this.state.currentSceneDescription = tool.description;
         this.pushRecentEvent(`Mudou de local: ${tool.location}`);
+        this.indexFact({
+          kind: 'location',
+          text: `Local: ${tool.location}${tool.description ? ` — ${tool.description}` : ''}.`,
+          tags: `local lugar ${tool.location.toLowerCase()}`,
+          importance: 1.2,
+        });
         break;
       }
     }
