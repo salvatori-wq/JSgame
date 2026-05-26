@@ -97,12 +97,37 @@ export class DungeonMaster {
         return makeGracefulFallback(err);
       }
     }
-    // T1 — track narration_success
+    let parsed = extractJson(response.text);
+    // Nullish (not ||) — preserva "" literal de parsed.narration pra que o retry dispare
+    // em vez de mostrar o JSON cru ao jogador.
+    let narration = (parsed.narration ?? response.text).trim();
+
+    // BUG-001 recovery: Gemini (e às vezes Groq) com mode=auto retorna 200 OK
+    // contendo APENAS functionCalls (sem text part) → narração vazia chega ao cliente.
+    // Retry sem tools quando isso acontece — mesma idéia do retry de 400.
+    if (!narration && response.toolCalls.length > 0 && !retriedWithoutTools) {
+      console.warn('[dm] narração vazia com toolCalls — retry sem tools');
+      try {
+        response = await this.callWithBackoff(systemPrompt, userPrompt, false);
+        retriedWithoutTools = true;
+        parsed = extractJson(response.text);
+        narration = (parsed.narration ?? response.text).trim();
+      } catch (err) {
+        console.warn('[dm] retry pós-narração-vazia falhou:', err);
+      }
+    }
+
+    // Se ainda vazio após retry, degrada graceful em vez de mandar string vazia.
+    if (!narration) {
+      void this.trackError(context, 'empty narration after retry');
+      return makeGracefulFallback(new Error('LLM retornou narração vazia'));
+    }
+
+    // T1 — track narration_success (após validar que de fato veio conteúdo).
     void this.trackSuccess(context, retriedWithoutTools);
 
-    const parsed = extractJson(response.text);
     return {
-      narration: parsed.narration ?? response.text.trim(),
+      narration,
       speaker: parsed.speaker,
       toolCalls: response.toolCalls,
       raw: response.text,
