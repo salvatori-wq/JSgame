@@ -72,6 +72,9 @@ export interface SpellDef {
   ritual?: boolean;
   description: string;
   effect: SpellEffect;
+  // F25 — Upcasting: dice extras por slot level acima do base. Ex: '1d6' significa
+  // +1d6 por slot. Soma ao dice base na hora do cast.
+  upcastDice?: string;
 }
 
 export const SPELLS: Record<SpellId, SpellDef> = {
@@ -147,22 +150,25 @@ export const SPELLS: Record<SpellId, SpellDef> = {
     id: 'magic-missile', name: 'Mísseis Mágicos', level: 1, school: 'evocacao',
     classes: ['feiticeiro', 'mago'],
     castingTime: '1 ação', range: '36m', components: 'V, S', duration: 'Instantâneo',
-    description: '3 dardos brilhantes acertam alvos visíveis automaticamente. 1d4+1 força cada.',
-    effect: { kind: 'damage', dice: '3d4+3', damageType: 'força' }, // 3 dardos × (1d4+1)
+    description: '3 dardos brilhantes acertam alvos visíveis automaticamente. 1d4+1 força cada. Upcast: +1 dardo por slot.',
+    effect: { kind: 'damage', dice: '3d4+3', damageType: 'força' },
+    upcastDice: '1d4', // +1d4 por slot acima de 1 (proxy pra +1 dardo)
   },
   'cure-wounds': {
     id: 'cure-wounds', name: 'Curar Ferimentos', level: 1, school: 'evocacao',
     classes: ['bardo', 'clerigo', 'druida', 'paladino', 'patrulheiro'],
     castingTime: '1 ação', range: 'Toque', components: 'V, S', duration: 'Instantâneo',
-    description: 'Cura criatura tocada em 1d8 + modificador de conjuração HP.',
+    description: 'Cura criatura tocada em 1d8 + modificador de conjuração HP. Upcast: +1d8 por slot.',
     effect: { kind: 'heal', dice: '1d8', bonusFromCastingMod: true },
+    upcastDice: '1d8',
   },
   'healing-word': {
     id: 'healing-word', name: 'Palavra Curativa', level: 1, school: 'evocacao',
     classes: ['bardo', 'clerigo', 'druida'],
     castingTime: '1 ação bônus', range: '18m', components: 'V', duration: 'Instantâneo',
-    description: 'Cura criatura à distância: 1d4 + mod de conjuração HP. Ação bônus.',
+    description: 'Cura criatura à distância: 1d4 + mod de conjuração HP. Ação bônus. Upcast: +1d4 por slot.',
     effect: { kind: 'heal', dice: '1d4', bonusFromCastingMod: true },
+    upcastDice: '1d4',
   },
   shield: {
     id: 'shield', name: 'Escudo', level: 1, school: 'abjuracao',
@@ -175,8 +181,9 @@ export const SPELLS: Record<SpellId, SpellDef> = {
     id: 'burning-hands', name: 'Mãos Flamejantes', level: 1, school: 'evocacao',
     classes: ['feiticeiro', 'mago'],
     castingTime: '1 ação', range: '4,5m cone', components: 'V, S', duration: 'Instantâneo',
-    description: 'Cone de fogo de 4,5m. Save Des ou 3d6 fogo (metade se sucesso).',
+    description: 'Cone de fogo de 4,5m. Save Des ou 3d6 fogo (metade se sucesso). Upcast: +1d6 por slot.',
     effect: { kind: 'damage', dice: '3d6', damageType: 'fogo', save: { ability: 'des', halfOnSave: true }, aoe: true },
+    upcastDice: '1d6',
   },
   bless: {
     id: 'bless', name: 'Bênção', level: 1, school: 'encantamento',

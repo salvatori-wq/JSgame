@@ -126,6 +126,11 @@ export interface CharacterSheet {
   // ki, bardic-inspiration, wild-shape). Sneak Attack é passive (sem use). Restauram em
   // short/long rest conforme regra de cada feature. Server calcula max via getMaxFeatureUses.
   classFeatureUses?: Record<string, { used: number; max: number }>;
+
+  // F25 — Concentration: spellId da magia de concentração ativa. PHB pág 203 —
+  // só 1 por vez. Quebra ao: lançar outra de concentração, ficar inconsciente,
+  // ou falhar CON save DC max(10, dmg/2) ao receber dano.
+  concentratingOn?: string | null;
 }
 
 export interface InventoryItem {

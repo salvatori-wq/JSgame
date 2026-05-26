@@ -50,7 +50,9 @@ export function resolvePlayerCastSpell(input: CastSpellInput): CastSpellResult {
   }
 
   // 3. Slot: cantrip não gasta. Outros precisam de slot >= spell.level.
-  if (spell.level > 0) {
+  // F25 — Ritual exception: spell.ritual=true + fora de combate = sem slot.
+  const isRitualCast = !!spell.ritual && !combat?.active;
+  if (spell.level > 0 && !isRitualCast) {
     if (slotLevel < spell.level) {
       return fail(`Slot de nv ${slotLevel} insuficiente pra magia de nv ${spell.level}`);
     }
@@ -76,12 +78,29 @@ export function resolvePlayerCastSpell(input: CastSpellInput): CastSpellResult {
   let damageTotal = 0;
   let healTotal = 0;
 
+  // F25 — Concentration: drop previous se for outra de concentration.
+  if (spell.concentration) {
+    if (caster.concentratingOn && caster.concentratingOn !== spellId) {
+      const previous = caster.concentratingOn;
+      events.push({
+        type: 'condition-removed',
+        sourceId: caster.id,
+        targetId: caster.id,
+        text: `${caster.characterName} quebra concentração em ${previous} pra lançar ${spell.name}.`,
+      });
+    }
+    caster.concentratingOn = spellId;
+  }
+
+  // F25 — Upcasting: calcula dice escalada se slotLevel > spell.level e spell tem upcastDice.
+  const upcastBonus = computeUpcastBonus(spell, slotLevel);
+
   switch (spell.effect.kind) {
     case 'damage':
-      ({ narration, damageTotal } = applyDamageSpell(spell, spell.effect, caster, targetIds, party, combat, events, saveDC));
+      ({ narration, damageTotal } = applyDamageSpell(spell, spell.effect, caster, targetIds, party, combat, events, saveDC, upcastBonus));
       break;
     case 'heal':
-      ({ narration, healTotal } = applyHealSpell(spell, spell.effect, caster, castingMod, targetIds, party, events));
+      ({ narration, healTotal } = applyHealSpell(spell, spell.effect, caster, castingMod, targetIds, party, events, upcastBonus));
       break;
     case 'condition':
       narration = applyConditionSpell(spell, spell.effect, caster, targetIds, party, combat, events, saveDC);
@@ -91,7 +110,7 @@ export function resolvePlayerCastSpell(input: CastSpellInput): CastSpellResult {
       events.push({ type: 'spell-cast', sourceId: caster.id, text: narration });
       break;
     case 'utility':
-      narration = `${caster.characterName} lança ${spell.name}: ${spell.effect.description}`;
+      narration = `${caster.characterName} lança ${spell.name}${isRitualCast ? ' (ritual)' : ''}: ${spell.effect.description}`;
       events.push({ type: 'spell-cast', sourceId: caster.id, text: narration });
       break;
   }
@@ -119,6 +138,7 @@ function applyDamageSpell(
   combat: CombatState | null,
   events: CombatEvent[],
   saveDC: number,
+  upcastBonus = 0,
 ): { narration: string; damageTotal: number } {
   const parts: string[] = [];
   let damageTotal = 0;
@@ -142,7 +162,7 @@ function applyDamageSpell(
       const saveRoll = rollD20({ modifier: targetAbilityMod });
       const saved = saveRoll.total >= saveDC;
       const fullDmg = rollNotation(effect.dice);
-      const fullDmgVal = fullDmg?.total ?? 0;
+      const fullDmgVal = (fullDmg?.total ?? 0) + upcastBonus;
       if (saved) {
         dmg = effect.save.halfOnSave ? Math.floor(fullDmgVal / 2) : 0;
         outcome = effect.save.halfOnSave ? `save ${saveRoll.total}≥${saveDC} → metade ${dmg}` : `save ${saveRoll.total}≥${saveDC} → nada`;
@@ -158,7 +178,7 @@ function applyDamageSpell(
       const hit = attackRoll.nat20 || (!attackRoll.nat1 && attackRoll.total >= targetAc);
       if (hit) {
         const dmgRoll = rollNotation(effect.dice);
-        dmg = dmgRoll?.total ?? 0;
+        dmg = (dmgRoll?.total ?? 0) + upcastBonus;
         outcome = `${attackRoll.total} vs CA ${targetAc} → HIT · ${dmg}`;
       } else {
         dmg = 0;
@@ -209,6 +229,7 @@ function applyHealSpell(
   targetIds: string[],
   party: CharacterSheet[],
   events: CombatEvent[],
+  upcastBonus = 0,
 ): { narration: string; healTotal: number } {
   let healTotal = 0;
   const parts: string[] = [];
@@ -218,7 +239,7 @@ function applyHealSpell(
     if (!target) continue;
     // Revivify só funciona em PJs inconscientes; outras curas funcionam normal
     const baseRoll = rollNotation(effect.dice);
-    let heal = baseRoll?.total ?? 0;
+    let heal = (baseRoll?.total ?? 0) + upcastBonus;
     if (effect.bonusFromCastingMod) heal += castingMod;
     const oldHp = target.currentHp;
     target.currentHp = Math.min(target.maxHp, target.currentHp + heal);
@@ -306,4 +327,61 @@ function fail(reason: string): CastSpellResult {
     narration: '',
     spellName: '',
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// F25 — Upcasting helper. Rolla N extra dice por slot acima do base.
+// Ex: Magic Missile lv 1 + slot 3 → upcastDice='1d4' + delta 2 slots = +2d4.
+// ════════════════════════════════════════════════════════════════════════════
+
+export function computeUpcastBonus(spell: SpellDef, slotLevel: number): number {
+  if (!spell.upcastDice || spell.level <= 0) return 0;
+  const delta = slotLevel - spell.level;
+  if (delta <= 0) return 0;
+  // Roll N extra dice
+  const parsed = parseDice(spell.upcastDice);
+  if (!parsed) return 0;
+  const totalCount = parsed.count * delta;
+  const roll = rollNotation(`${totalCount}d${parsed.kind}`);
+  return roll?.total ?? 0;
+}
+
+function parseDice(s: string): { count: number; kind: number } | null {
+  const m = s.match(/^(\d+)d(\d+)$/i);
+  if (!m) return null;
+  return { count: parseInt(m[1]!, 10), kind: parseInt(m[2]!, 10) };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// F25 — Concentration enforce on damage.
+// PHB pág 203: ao receber dano, save CON DC max(10, dmg/2). Falha = drop.
+// Chamado por combat.ts dentro de resolveEnemyTurn ANTES de aplicar dmg.
+// ════════════════════════════════════════════════════════════════════════════
+
+export function tryBreakConcentration(
+  target: CharacterSheet,
+  damageReceived: number,
+): { broken: boolean; rollTotal: number; dc: number; spellDropped: string | null } {
+  if (!target.concentratingOn) return { broken: false, rollTotal: 0, dc: 0, spellDropped: null };
+  if (damageReceived <= 0) return { broken: false, rollTotal: 0, dc: 0, spellDropped: null };
+  const dc = Math.max(10, Math.floor(damageReceived / 2));
+  const conMod = abilityModifier(target.abilityScores.con);
+  const proficient = target.proficientSavingThrows.includes('con');
+  const pb = proficient ? proficiencyBonus(target.level) : 0;
+  const roll = rollD20({ modifier: conMod + pb });
+  if (roll.total < dc) {
+    const dropped = target.concentratingOn;
+    target.concentratingOn = null;
+    return { broken: true, rollTotal: roll.total, dc, spellDropped: dropped };
+  }
+  return { broken: false, rollTotal: roll.total, dc, spellDropped: null };
+}
+
+// Inconsciência quebra concentração (PHB pág 203).
+export function dropConcentrationIfUnconscious(target: CharacterSheet): boolean {
+  if (target.concentratingOn && target.conditions.includes('inconsciente')) {
+    target.concentratingOn = null;
+    return true;
+  }
+  return false;
 }

@@ -634,6 +634,8 @@ export class Campaign {
       player.exhaustion = Math.max(0, player.exhaustion - 1);
       // F23 — restaura todas as features (long-rest reseta tudo)
       restoreOnLongRest(player);
+      // F25 — sai de concentration
+      player.concentratingOn = null;
 
       this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
       // F17: credita long_rest event

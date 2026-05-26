@@ -12,6 +12,7 @@ import {
   getRageDamageBonus, hasRageResistance, maybeSneakAttack, clearTurnFlags,
   hasCombatFlag, clearCombatFlag,
 } from './class-features-engine.js';
+import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -340,6 +341,19 @@ export function resolveEnemyTurn(
       : damageRoll.total;
     target.currentHp = Math.max(0, target.currentHp - finalDmg);
     playerDowned = target.currentHp === 0;
+
+    // F25 — Concentration save (PHB pág 203). DC max(10, dmg/2).
+    if (finalDmg > 0 && target.concentratingOn) {
+      const r = tryBreakConcentration(target, finalDmg);
+      if (r.broken) {
+        events.push({
+          type: 'condition-removed',
+          targetId: target.id,
+          text: `${target.characterName} falha CON ${r.rollTotal}<DC${r.dc} — perde concentração em ${r.spellDropped}.`,
+        });
+      }
+    }
+    if (playerDowned) dropConcentrationIfUnconscious(target);
 
     if (playerDowned && !target.conditions.includes('inconsciente')) {
       target.conditions.push('inconsciente');
