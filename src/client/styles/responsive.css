@@ -119,6 +119,32 @@
   .wiz-grid-race  { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .wiz-grid-class { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
   .wiz-grid-bg    { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+  /* F31 — Combat dedicada em desktop: initiative top, enemies grid 2-3 col */
+  .combat-screen {
+    padding: 18px;
+    gap: 14px;
+  }
+  .cb-enemies {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .cb-init-row {
+    min-width: 88px;
+    padding: 8px 12px 6px;
+  }
+  .cb-init-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  .cb-init-name {
+    max-width: 96px;
+    font-size: var(--fs-sm);
+  }
+  .cb-actions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -153,6 +179,9 @@
     grid-column: 2;
     grid-row: 2 / 4;
   }
+
+  /* F31 — wide: combat enemies 3-col */
+  .cb-enemies { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ════════════════════════════════════════════════════════════════════════

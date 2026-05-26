@@ -9,6 +9,7 @@ import type {
 } from '../../shared/types';
 import { el, escapeHtml } from '../util';
 import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
+import { portraitFor } from '../../dnd/portrait';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -33,17 +34,32 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     el('span', { class: 'cb-turn', text: current ? `Vez de ${current.name}` : '—' }),
   ]));
 
-  // ── Initiative tracker
+  // ── Initiative tracker (F31: horizontal scroll, portrait do PJ se conhecido)
   const initTracker = el('div', { class: 'cb-initiative' });
   combat.initiativeOrder.forEach((p, idx) => {
     const isCurrent = idx === combat.currentTurnIndex;
     const isMe = p.kind === 'player' && p.id === myCharacterId;
     const downed = isDowned(p, combat, party);
     const cls = `cb-init-row ${isCurrent ? 'is-current' : ''} ${isMe ? 'is-me' : ''} ${downed ? 'is-down' : ''} cb-${p.kind}`;
+    // Portrait pra players, glyph pra inimigos
+    let avatar: HTMLElement;
+    if (p.kind === 'player') {
+      const pj = party.find((x) => x.id === p.id);
+      if (pj) {
+        const portrait = portraitFor({ raceId: pj.raceId, classId: pj.classId });
+        avatar = el('span', { class: 'cb-init-avatar', style: { background: portrait.aura } }, [
+          el('span', { class: 'cb-init-avatar-race', text: portrait.race }),
+        ]);
+      } else {
+        avatar = el('span', { class: 'cb-init-kind', text: '🧙' });
+      }
+    } else {
+      avatar = el('span', { class: 'cb-init-kind', text: '👹' });
+    }
     initTracker.appendChild(el('div', { class: cls }, [
       el('span', { class: 'cb-init-num', text: String(p.initiative) }),
+      avatar,
       el('span', { class: 'cb-init-name', text: p.name }),
-      el('span', { class: 'cb-init-kind', text: p.kind === 'player' ? '🧙' : '👹' }),
     ]));
   });
   root.appendChild(initTracker);
