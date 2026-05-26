@@ -58,6 +58,8 @@ export class CascadeProvider implements DMProvider {
   // dm.ts lê isso pra telemetria precisa — antes salvávamos "cascade(...)" o que
   // mascarava qual provider individual deu success/error.
   public lastSuccessfulProvider: string | null = null;
+  // Quando cascade esgota, registra qual foi o último que falhou (pra error telemetry).
+  public lastFailedProvider: string | null = null;
 
   constructor(opts: CascadeProviderOptions) {
     if (opts.providers.length === 0) {
@@ -85,6 +87,7 @@ export class CascadeProvider implements DMProvider {
       try {
         const result = await provider.generate(opts);
         this.lastSuccessfulProvider = provider.name;
+        this.lastFailedProvider = null; // reset — sucesso limpa
         this.onResult?.({
           providerName: provider.name,
           stage: 'success',
@@ -103,6 +106,7 @@ export class CascadeProvider implements DMProvider {
 
         if (isLast) {
           // Acabou a cascata — propaga o erro pro caller decidir
+          this.lastFailedProvider = provider.name;
           this.onResult?.({
             providerName: provider.name,
             stage: 'failed-fatal',

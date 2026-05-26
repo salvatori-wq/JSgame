@@ -141,11 +141,15 @@ export class DungeonMaster {
 
   // T1 — Helpers de telemetria, lazy-import pra evitar ciclo. Falhas silenciosas.
   // 2026-05-26: rastreia também effectiveProvider quando o ativo é cascade —
-  // CascadeProvider.lastSuccessfulProvider expõe qual provider individual
-  // respondeu (Cerebras/Gemini/Groq). Antes só salvávamos "cascade(...)".
-  private getEffectiveProvider(): string {
+  // CascadeProvider expõe lastSuccessfulProvider (sucesso) e lastFailedProvider
+  // (último que falhou quando cascade esgotou). Antes só salvávamos "cascade(...)".
+  private getEffectiveProviderForSuccess(): string {
     const cascade = this.provider as { lastSuccessfulProvider?: string | null };
     return cascade.lastSuccessfulProvider ?? this.provider.name;
+  }
+  private getEffectiveProviderForError(): string {
+    const cascade = this.provider as { lastFailedProvider?: string | null };
+    return cascade.lastFailedProvider ?? this.provider.name;
   }
   private async trackSuccess(ctx: NarrationContext, retried: boolean): Promise<void> {
     try {
@@ -156,7 +160,7 @@ export class DungeonMaster {
         payload: {
           retriedWithoutTools: retried,
           provider: this.provider.name,
-          effectiveProvider: this.getEffectiveProvider(),
+          effectiveProvider: this.getEffectiveProviderForSuccess(),
         },
       });
     } catch { /* ignore */ }
@@ -170,7 +174,7 @@ export class DungeonMaster {
         payload: {
           error: errMsg,
           provider: this.provider.name,
-          effectiveProvider: this.getEffectiveProvider(),
+          effectiveProvider: this.getEffectiveProviderForError(),
         },
       });
     } catch { /* ignore */ }
