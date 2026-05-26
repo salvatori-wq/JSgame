@@ -20,7 +20,7 @@ import { getSkill, type SkillId } from '../dnd/skills.js';
 import {
   startCombat, currentParticipant, advanceTurn, isCombatOver,
   resolvePlayerAttack, resolveEnemyTurn, resolvePlayerDodge, resolvePlayerDash,
-  resolvePlayerDisengage, resolveGrapple, resolveShove, resolveHelp,
+  resolvePlayerDisengage, resolveGrapple, resolveShove, resolveHelp, resolvePlayerHide,
   applyConditionTo,
 } from './combat.js';
 import {
@@ -456,6 +456,12 @@ export class Campaign {
           events.push(...r.events);
           log = r.log;
           if (targetId) setCombatFlag(combat, targetId, 'helped-next-attack');
+          break;
+        }
+        case 'hide': {
+          // Sprint 5 — Esconder. Stealth check vs maior passive Perception dos inimigos.
+          const r = resolvePlayerHide(player, combat);
+          log = r.log;
           break;
         }
         case 'two-weapon': {

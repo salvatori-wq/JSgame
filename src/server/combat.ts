@@ -230,10 +230,13 @@ export function resolvePlayerAttack(
   // F24 — Help flag: aliado deu Help no PJ pra esse próximo ataque
   const wasHelped = hasCombatFlag(combat, attacker.id, 'helped-next-attack');
   if (wasHelped) clearCombatFlag(combat, attacker.id, 'helped-next-attack');
+  // Sprint 5 — Hidden flag: ataque com surpresa = advantage. Atacar quebra hide.
+  const wasHidden = hasCombatFlag(combat, attacker.id, 'hidden');
+  if (wasHidden) clearCombatFlag(combat, attacker.id, 'hidden');
   // A2 — Buff engine: consome attack buffs (Bardic Insp 1d6, Bless 1d4, Faerie Fire advantage)
   const buffs = consumeBuffs(attacker, 'attack');
   const advantage =
-    wasHelped || buffs.advantage ||
+    wasHelped || wasHidden || buffs.advantage ||
     (!opts.isRanged && (target.conditions.includes('caido') || target.conditions.includes('restrito')));
 
   // A2 — soma buff bonuses ao attack roll
@@ -483,6 +486,35 @@ export function resolvePlayerDodge(attacker: CharacterSheet, combat: CombatState
   const log = `${attacker.characterName} usa Esquivar — ataques contra ele têm desvantagem até o próximo turno.`;
   combat.log.push(log);
   return { log };
+}
+
+// Sprint 5 — Hide (PHB pág 192): Stealth check vs maior passive Perception
+// dos inimigos vivos. Sucesso seta flag 'hidden' → próximo ataque tem advantage.
+// resolvePlayerAttack consome a flag automaticamente.
+export function resolvePlayerHide(
+  attacker: CharacterSheet,
+  combat: CombatState,
+): { success: boolean; roll: number; dc: number; log: string } {
+  const dexMod = abilityModifier(attacker.abilityScores.des);
+  const pb = proficiencyBonus(attacker.level);
+  const stealthBonus = dexMod + (attacker.proficientSkills.includes('furtividade') ? pb : 0);
+  const roll = rollD20({ modifier: stealthBonus });
+
+  // DC = maior passive perception dos inimigos vivos. Fallback 10 (PHB default).
+  // EnemySnapshot não tem passive perception explícito — derivamos de attackBonus
+  // como surrogate (typically passive ≈ 10 + WIS mod + prof).
+  const livingEnemies = combat.enemies.filter((e) => e.currentHp > 0);
+  const dc = Math.max(10, ...livingEnemies.map((e) => 10 + Math.floor(e.attackBonus / 2)));
+  const success = roll.total >= dc;
+
+  if (success) {
+    setCombatFlag(combat, attacker.id, 'hidden');
+  }
+  const log = success
+    ? `${attacker.characterName} se esconde (Furtividade ${roll.total} vs DC ${dc}) — invisível, próximo ataque com vantagem`
+    : `${attacker.characterName} tenta se esconder (Furtividade ${roll.total} vs DC ${dc}) — inimigos perceberam`;
+  combat.log.push(log);
+  return { success, roll: roll.total, dc, log };
 }
 
 export function resolvePlayerDash(attacker: CharacterSheet, combat: CombatState): { log: string } {
