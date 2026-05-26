@@ -150,6 +150,17 @@ export async function createFriendInvite(fromUserId: string, toEmail: string, lo
     sql: 'INSERT INTO friend_invites (id, from_user_id, to_email, lobby_code, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
     args: [invite.id, invite.fromUserId, invite.toEmail, invite.lobbyCode, invite.createdAt, invite.expiresAt],
   });
+  // Sprint 3 — Telemetria friend_invited. Lazy import pra evitar ciclo.
+  void (async () => {
+    try {
+      const { trackMetricEvent } = await import('./metrics.js');
+      await trackMetricEvent({
+        userId: fromUserId,
+        kind: 'friend_invited',
+        payload: { hasLobbyCode: !!lobbyCode },
+      });
+    } catch { /* ignore */ }
+  })();
   return invite;
 }
 

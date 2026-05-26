@@ -555,6 +555,11 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         socket.join(`lobby-${lobby.id}`);
         socket.emit('lobbyState', lobby);
         console.log(`[lobby] criado ${lobby.id} por ${ownerName}`);
+        // Sprint 3 — Telemetria lobby_created
+        void trackMetricEvent({
+          kind: 'lobby_created',
+          payload: { lobbyId: lobby.id, ownerName },
+        });
       } catch (err) {
         console.error('[socket] createLobby error:', err);
         socket.emit('error', `createLobby falhou: ${String(err)}`);
@@ -571,6 +576,11 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         socket.join(`lobby-${result.lobby.id}`);
         io.to(`lobby-${result.lobby.id}`).emit('lobbyState', result.lobby);
         console.log(`[lobby] ${ownerName} joinou ${result.lobby.id}`);
+        // Sprint 3 — Telemetria lobby_joined
+        void trackMetricEvent({
+          kind: 'lobby_joined',
+          payload: { lobbyId: result.lobby.id, ownerName },
+        });
       } catch (err) {
         console.error('[socket] joinLobby error:', err);
         socket.emit('error', `joinLobby falhou: ${String(err)}`);

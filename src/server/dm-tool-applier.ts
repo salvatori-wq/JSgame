@@ -44,6 +44,17 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       for (const pj of camp.party) {
         camp.pushAchievementEvent(pj.id, { kind: 'combat_started', isFirst: camp.combatStartCount === 1 });
       }
+      // Sprint 3 — Telemetria combat_started. Lazy import pra evitar ciclo.
+      void (async () => {
+        try {
+          const { trackMetricEvent } = await import('./metrics.js');
+          await trackMetricEvent({
+            sessionId: camp.state.id,
+            kind: 'combat_started',
+            payload: { enemies: tool.enemies.length, names: enemyNames },
+          });
+        } catch { /* ignore */ }
+      })();
       break;
     }
 
@@ -112,6 +123,18 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           importance: 1.2,
         });
         camp.state.combat = null;
+        // Sprint 3 — Telemetria combat_won/combat_lost por outcome.
+        const eventKind = tool.outcome === 'victory' ? 'combat_won' : 'combat_lost';
+        void (async () => {
+          try {
+            const { trackMetricEvent } = await import('./metrics.js');
+            await trackMetricEvent({
+              sessionId: camp.state.id,
+              kind: eventKind,
+              payload: { outcome: tool.outcome },
+            });
+          } catch { /* ignore */ }
+        })();
       }
       break;
     }

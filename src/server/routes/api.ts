@@ -29,7 +29,7 @@ import {
   listFriends, requestFriendship, acceptFriendship, removeFriendship,
   createFriendInvite, buildInviteEmail, listInvitesSentBy,
 } from '../friends.js';
-import { getMetricsSummary, getDmErrorRate, getAvgSessionLength } from '../metrics.js';
+import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -56,9 +56,52 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       hasGemini: !!process.env.GEMINI_API_KEY,
       hasGroq: !!process.env.GROQ_API_KEY,
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+      hasCerebras: !!process.env.CEREBRAS_API_KEY,
+      hasCloudflare: !!(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_API_TOKEN),
       hasEmail: !!process.env.BREVO_API_KEY,
       activeCampaigns: ctx.campaigns.size,
     });
+  });
+
+  // === DM health (Sprint 3) — detalhamento do cascade provider + métricas LLM
+  app.get('/api/dm/health', async (_req, res) => {
+    try {
+      // ctx.dm é DungeonMaster ou FallbackDM. provider é private → access via cast bypassed.
+      const providerName = 'provider' in ctx.dm ? (ctx.dm as unknown as { provider?: { name?: string } }).provider?.name ?? 'unknown' : 'fallback';
+      // Últimos 100 events de narration pra computar success rate / médio
+      const r = await (await import('../persistence.js')).getDbClient().execute({
+        sql: `SELECT kind, payload, created_at FROM metrics_events
+              WHERE kind IN ('narration_success', 'narration_error')
+              ORDER BY created_at DESC LIMIT 100`,
+        args: [],
+      });
+      let success = 0;
+      let error = 0;
+      const providerCounts: Record<string, number> = {};
+      for (const row of r.rows) {
+        if (row.kind === 'narration_success') success++;
+        else if (row.kind === 'narration_error') error++;
+        try {
+          const p = row.payload ? JSON.parse(row.payload as string) : {};
+          const prov = p.provider ?? 'unknown';
+          providerCounts[prov] = (providerCounts[prov] ?? 0) + 1;
+        } catch { /* ignore */ }
+      }
+      const total = success + error;
+      res.json({
+        provider: providerName,
+        activeCampaigns: ctx.campaigns.size,
+        last100: {
+          success,
+          error,
+          successRate: total > 0 ? (success / total) : null,
+        },
+        providerCounts,
+      });
+    } catch (err) {
+      console.error('[api] dm health:', err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // ════════════════════════════════════════════════════════════════════════
@@ -178,6 +221,7 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
 
   app.post('/api/characters', async (req, res) => {
     const sheet = req.body as CharacterSheet;
+    const wasNew = sheet?.id ? !(await loadCharacter(sheet.id)) : false;
     if (!sheet?.id || !sheet?.ownerName || !sheet?.characterName || !sheet?.classId || !sheet?.raceId) {
       res.status(400).json({ error: 'invalid sheet' });
       return;
@@ -190,6 +234,14 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     sheet.lastPlayedAt = Date.now();
     try {
       await saveCharacter(sheet);
+      // Sprint 3 — Telemetria: track character_created só se for PJ NOVO (não save de existing)
+      if (wasNew) {
+        void trackMetricEvent({
+          userId: reqUser?.id ?? null,
+          kind: 'character_created',
+          payload: { classId: sheet.classId, raceId: sheet.raceId, level: sheet.level },
+        });
+      }
       res.json({ ok: true, id: sheet.id });
     } catch (err) {
       console.error('[api] saveCharacter:', err);

@@ -81,6 +81,18 @@ export async function saveTombstone(input: {
       tomb.campaignId, tomb.campaignName, tomb.diedAt, tomb.epitaph, tomb.cause,
     ],
   });
+  // Sprint 3 — Telemetria character_died. Lazy import pra evitar ciclo.
+  void (async () => {
+    try {
+      const { trackMetricEvent } = await import('./metrics.js');
+      await trackMetricEvent({
+        userId: tomb.userId,
+        sessionId: tomb.campaignId,
+        kind: 'character_died',
+        payload: { classId: tomb.classId, level: tomb.level, cause: tomb.cause },
+      });
+    } catch { /* ignore */ }
+  })();
   return tomb;
 }
 
