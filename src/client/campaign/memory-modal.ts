@@ -3,7 +3,7 @@
 // Lê via REST /api/campaigns/:id/memory com search + filtros por kind.
 
 import type { MemoryFact, MemoryFactKind } from '../../shared/types';
-import { el, escapeHtml } from '../util';
+import { el, escapeHtml, onSwipeDown } from '../util';
 import { getCampaignMemory } from '../api';
 
 export interface MemoryModalOpts {
@@ -104,6 +104,12 @@ export function openMemoryModal(opts: MemoryModalOpts): void {
   currentEl = overlay;
 
   overlay.querySelector('.mem-modal-backdrop')?.addEventListener('click', () => {
+    closeMemoryModal();
+    onClose();
+  });
+
+  // Swipe down no modal (mobile) — fecha
+  onSwipeDown(modal, () => {
     closeMemoryModal();
     onClose();
   });

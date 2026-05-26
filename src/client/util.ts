@@ -86,3 +86,57 @@ export function setLastSession(s: LastSession): void {
 export function clearLastSession(): void {
   try { localStorage.removeItem(LAST_SESSION_KEY); } catch { /* ignore */ }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Touch gestures — swipe down detection pra fechar modals em mobile.
+// Usa touchstart/touchmove/touchend nativo, sem dependência externa.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Liga swipe-down em um elemento. Quando user arrasta dedo pra baixo > threshold,
+ * chama onSwipeDown. Útil pra modals dispensarem-se via gesto.
+ * Retorna função pra desligar (importante em modal close pra evitar leak).
+ *
+ * Threshold default: 80px de drag vertical com tolerância horizontal de 40px
+ * (evita disparar em scroll horizontal acidental).
+ */
+export function onSwipeDown(
+  el: HTMLElement,
+  onSwipeDown: () => void,
+  opts: { threshold?: number; horizTolerance?: number } = {},
+): () => void {
+  const threshold = opts.threshold ?? 80;
+  const horizTolerance = opts.horizTolerance ?? 40;
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  const onStart = (e: TouchEvent): void => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0]!.clientX;
+    startY = e.touches[0]!.clientY;
+    tracking = true;
+  };
+  const onEnd = (e: TouchEvent): void => {
+    if (!tracking) return;
+    tracking = false;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (dy > threshold && Math.abs(dx) < horizTolerance) {
+      onSwipeDown();
+    }
+  };
+  const onCancel = (): void => { tracking = false; };
+
+  el.addEventListener('touchstart', onStart, { passive: true });
+  el.addEventListener('touchend', onEnd, { passive: true });
+  el.addEventListener('touchcancel', onCancel, { passive: true });
+
+  return () => {
+    el.removeEventListener('touchstart', onStart);
+    el.removeEventListener('touchend', onEnd);
+    el.removeEventListener('touchcancel', onCancel);
+  };
+}

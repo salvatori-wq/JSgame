@@ -6,6 +6,7 @@ import type { DiceRoll, SkillId } from '../../shared/types';
 import { SKILLS } from '../../dnd/skills';
 import { ABILITY_SHORT } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
+import { playD20, playCrit, playDeathSaveFail } from '../audio';
 
 export interface PendingCheck {
   skill: SkillId;
@@ -90,6 +91,7 @@ export function showSkillCheckResult(
   die.classList.remove('sc-die-idle');
   die.classList.add('sc-die-rolling');
   verdict.textContent = '…';
+  playD20();
 
   const spinStart = Date.now();
   const spinTick = window.setInterval(() => {
@@ -100,8 +102,8 @@ export function showSkillCheckResult(
       face.textContent = String(roll.rolls[0] ?? 0);
 
       const success = roll.total >= check.dc;
-      if (roll.nat20) die.classList.add('sc-die-nat20');
-      else if (roll.nat1) die.classList.add('sc-die-nat1');
+      if (roll.nat20) { die.classList.add('sc-die-nat20'); playCrit(); }
+      else if (roll.nat1) { die.classList.add('sc-die-nat1'); playDeathSaveFail(); }
       else if (success) die.classList.add('sc-die-success');
       else die.classList.add('sc-die-fail');
 

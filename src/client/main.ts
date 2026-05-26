@@ -11,6 +11,7 @@ import { CampaignScreen } from './campaign/campaign-screen';
 import { LobbyScreen } from './lobby/lobby-screen';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
+import { setupAudioGesture } from './audio';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -24,6 +25,9 @@ if (!app) throw new Error('#app não existe no DOM');
   if (narrowScreen) document.body.classList.add('is-portrait-narrow');
   document.body.classList.add('vertical-layout');
 })();
+
+// === Audio gesture (mobile autoplay policy) — resume AudioContext em qualquer click ===
+setupAudioGesture();
 
 // === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

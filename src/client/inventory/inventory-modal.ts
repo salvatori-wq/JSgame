@@ -6,7 +6,7 @@ import type {
   ClientToServerEvents, ServerToClientEvents,
   CharacterSheet, InventoryItem,
 } from '../../shared/types';
-import { el, escapeHtml } from '../util';
+import { el, escapeHtml, onSwipeDown } from '../util';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -57,6 +57,12 @@ export function openInventoryModal(opts: InventoryModalOpts): void {
   currentEl = overlay;
 
   overlay.querySelector('.inv-modal-backdrop')?.addEventListener('click', () => {
+    closeInventoryModal();
+    onClose();
+  });
+
+  // Swipe down no modal (mobile) — fecha
+  onSwipeDown(modal, () => {
     closeInventoryModal();
     onClose();
   });

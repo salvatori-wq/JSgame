@@ -19,6 +19,8 @@ import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 import { openMemoryModal } from './memory-modal';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled } from '../audio';
+import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -84,12 +86,35 @@ export class CampaignScreen {
     const onNarration = (payload: { text: string; speaker?: string; mood?: string }): void => {
       this.narrations.push({ speaker: payload.speaker ?? 'Mestre', text: payload.text });
       if (this.narrations.length > 50) this.narrations = this.narrations.slice(-50);
+      // SFX: NPC falando (qualquer speaker que não seja Mestre/degradado/Sistema) → chime
+      const speaker = payload.speaker ?? 'Mestre';
+      if (speaker !== 'Mestre' && !speaker.startsWith('Mestre ') && speaker !== 'Sistema') {
+        playNpcSpeaks();
+      }
+      // Push notif se aba sem foco
+      notify({
+        title: `${speaker} — ${this.currentState?.name ?? 'Crônica'}`,
+        body: payload.text.slice(0, 140),
+        tag: 'narration',
+      });
       this.render();
     };
     s.on('dmNarration', onNarration);
     this.socketCleanups.push(() => s.off('dmNarration', onNarration));
 
     const onState = (state: CampaignState): void => {
+      // Detecta "agora é teu turno em combate" e notifica
+      const wasMyTurn = !!this.currentState?.combat?.active
+        && this.currentState.combat.initiativeOrder[this.currentState.combat.currentTurnIndex]?.id === this.opts.characterId;
+      const isMyTurnNow = !!state.combat?.active
+        && state.combat.initiativeOrder[state.combat.currentTurnIndex]?.id === this.opts.characterId;
+      if (!wasMyTurn && isMyTurnNow) {
+        notify({
+          title: 'É tua vez!',
+          body: `Combate em ${state.currentLocation} — joga teu turno.`,
+          tag: 'turn',
+        });
+      }
       this.currentState = state;
       // Persiste sessão ativa pra auto-rejoin no reload
       setLastSession({ characterId: this.opts.characterId, campaignId: state.id });
@@ -120,6 +145,27 @@ export class CampaignScreen {
       if (ev.text) {
         this.combatLog.push(ev.text);
         if (this.combatLog.length > 20) this.combatLog = this.combatLog.slice(-20);
+      }
+      // SFX baseado no tipo do evento
+      const myId = this.character?.id;
+      switch (ev.type) {
+        case 'damage':
+          // PJ teu tomou dano → bass thud; outro/inimigo → hit
+          if (ev.targetId && ev.targetId === myId) playDamage();
+          else playHit();
+          break;
+        case 'attack-miss':
+          playMiss();
+          break;
+        case 'spell-cast':
+          playSpellCast();
+          break;
+        case 'condition-applied':
+          playNpcSpeaks(); // chime suave de alerta — reusa SFX
+          break;
+        case 'death':
+          playDamage();
+          break;
       }
       this.render();
     };
@@ -269,6 +315,31 @@ export class CampaignScreen {
         el('h2', { text: this.currentState?.name ?? 'Carregando…' }),
         el('div', { class: 'camp-loc', text: this.currentState?.currentLocation ?? '...' }),
       ]),
+      el('button', {
+        class: 'camp-sfx-btn',
+        text: isSfxEnabled() ? '🔊' : '🔇',
+        attrs: { title: 'Liga/desliga sons' },
+        on: {
+          click: (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            setSfxEnabled(!isSfxEnabled());
+            btn.textContent = isSfxEnabled() ? '🔊' : '🔇';
+          },
+        },
+      }),
+      notifsSupported() ? el('button', {
+        class: 'camp-notif-btn',
+        text: isNotifsEnabled() ? '🔔' : '🔕',
+        attrs: { title: 'Liga/desliga notificações quando aba sem foco' },
+        on: {
+          click: async (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            const next = !isNotifsEnabled();
+            const ok = await setNotifsEnabled(next);
+            btn.textContent = ok ? '🔔' : '🔕';
+          },
+        },
+      }) : null,
       campId ? el('button', {
         class: 'camp-mem-btn',
         text: '🧠',

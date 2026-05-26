@@ -3237,6 +3237,26 @@ body.is-portrait-narrow .atk-stage {
   font-size: 14px;
 }
 .camp-mem-btn:hover { background: rgba(180, 120, 40, 0.3); border-color: var(--ink-gold); }
+.camp-sfx-btn {
+  background: rgba(40, 25, 14, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  color: var(--ink-warm);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.camp-sfx-btn:hover { background: rgba(180, 120, 40, 0.3); border-color: var(--ink-gold); }
+.camp-notif-btn {
+  background: rgba(40, 25, 14, 0.6);
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  color: var(--ink-warm);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.camp-notif-btn:hover { background: rgba(180, 120, 40, 0.3); border-color: var(--ink-gold); }
 
 /* Mode toggle no memory modal — Recentes vs Cronologia */
 .mem-mode-toggle {

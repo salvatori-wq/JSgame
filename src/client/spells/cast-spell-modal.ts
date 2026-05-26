@@ -9,7 +9,7 @@ import type {
 } from '../../shared/types';
 import { SPELLS, type SpellId } from '../../dnd/spells';
 import { isSpellcaster } from '../../dnd/spell-slots';
-import { el, escapeHtml } from '../util';
+import { el, escapeHtml, onSwipeDown } from '../util';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -76,6 +76,9 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
   // Click fora fecha
   const backdrop = overlay.querySelector('.cs-modal-backdrop');
   backdrop?.addEventListener('click', () => { closeCastSpellModal(); onClose(); });
+
+  // Swipe down (mobile) — fecha
+  onSwipeDown(modal, () => { closeCastSpellModal(); onClose(); });
 }
 
 export function closeCastSpellModal(): void {
