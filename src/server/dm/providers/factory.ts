@@ -1,19 +1,24 @@
 // JSgame · Auto-detect DM provider baseado em env vars.
 // Ordem: DM_PROVIDER explícito > CascadeProvider (todos disponíveis) > single fallback.
 //
-// Cascade — quando 2+ keys configuradas, builda um CascadeProvider que tenta:
-//   Gemini (free + qualidade narrativa) →
-//   Groq (free + 10× mais rápido) →
-//   Anthropic (pago opcional)
+// Cascade auto-build — quando 2+ keys configuradas, monta CascadeProvider em
+// ordem otimizada pra latência+qualidade+disponibilidade:
+//
+//   1. Cerebras Llama 3.3 70B   (~2000 tok/s, 1M tokens/dia free)
+//   2. Gemini 2.5 Flash         (qualidade narrativa premium, 1500/dia free)
+//   3. Groq Llama 3.3 70B       (rápido, 14.4K/dia free)
+//   4. Cloudflare Workers AI    (10K neurons/dia, infra distribuída)
+//   5. Anthropic Haiku          (pago opcional, latência consistente)
 //
 // Se um falhar (429 quota, safety block, 5xx, timeout), AUTO tenta o próximo
-// sem que o player perceba. Aprendizado playtest 2026-05-26: Gemini free tier
-// estourou quota → 100% das narrações degradaram. Cascade resolve isso.
+// sem que o player perceba. Capacidade combinada free: ~47K calls/dia.
 
 import type { DMProvider } from './base.js';
 import { GroqProvider } from './groq.js';
 import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';
+import { CerebrasProvider } from './cerebras.js';
+import { CloudflareProvider } from './cloudflare.js';
 import { CascadeProvider } from './cascade.js';
 
 export interface ProviderEnv {
@@ -25,6 +30,11 @@ export interface ProviderEnv {
   GROQ_MODEL?: string;
   GEMINI_API_KEY?: string;
   GEMINI_MODEL?: string;
+  CEREBRAS_API_KEY?: string;
+  CEREBRAS_MODEL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_MODEL?: string;
 }
 
 // Models Groq cujo context window NÃO comporta nosso prompt sistema D&D longo
@@ -50,10 +60,23 @@ function pickGroqModel(envModel: string | undefined): string {
 export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   const explicit = env.DM_PROVIDER?.toLowerCase();
 
+  if (explicit === 'cerebras' && env.CEREBRAS_API_KEY) {
+    return new CerebrasProvider({
+      apiKey: env.CEREBRAS_API_KEY,
+      model: env.CEREBRAS_MODEL ?? 'gpt-oss-120b',
+    });
+  }
   if (explicit === 'gemini' && env.GEMINI_API_KEY) {
     return new GeminiProvider({
       apiKey: env.GEMINI_API_KEY,
       model: env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+    });
+  }
+  if (explicit === 'cloudflare' && env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
+    return new CloudflareProvider({
+      accountId: env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: env.CLOUDFLARE_API_TOKEN,
+      model: env.CLOUDFLARE_MODEL ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
     });
   }
   if (explicit === 'anthropic' && env.ANTHROPIC_API_KEY) {
@@ -70,12 +93,16 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
     });
   }
 
-  // Auto-detect cascade — monta lista de providers disponíveis em ordem de
-  // preferência. Se 2+ keys configuradas, retorna CascadeProvider; se só 1,
-  // retorna o provider direto. Ordem: Gemini > Groq > Anthropic.
-  // (Gemini primeiro por qualidade narrativa; Groq segundo porque é rápido e
-  // tem free tier generoso; Anthropic terceiro porque cobra.)
+  // Auto-detect cascade — ordem priorizando latência+qualidade+free tier:
+  //   Cerebras (2000 tok/s, 1M/dia) → Gemini (narrativa premium) →
+  //   Groq (14.4K/dia) → Cloudflare (10K neurons/dia) → Anthropic (pago opcional)
   const available: DMProvider[] = [];
+  if (env.CEREBRAS_API_KEY) {
+    available.push(new CerebrasProvider({
+      apiKey: env.CEREBRAS_API_KEY,
+      model: env.CEREBRAS_MODEL ?? 'gpt-oss-120b',
+    }));
+  }
   if (env.GEMINI_API_KEY) {
     available.push(new GeminiProvider({
       apiKey: env.GEMINI_API_KEY,
@@ -86,6 +113,13 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
     available.push(new GroqProvider({
       apiKey: env.GROQ_API_KEY,
       model: pickGroqModel(env.GROQ_MODEL),
+    }));
+  }
+  if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
+    available.push(new CloudflareProvider({
+      accountId: env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: env.CLOUDFLARE_API_TOKEN,
+      model: env.CLOUDFLARE_MODEL ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
     }));
   }
   if (env.ANTHROPIC_API_KEY) {
