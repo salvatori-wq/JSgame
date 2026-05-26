@@ -23,6 +23,7 @@ import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabl
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
+import { showAchievementToast } from '../achievements-toast';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -233,6 +234,18 @@ export class CampaignScreen {
     };
     s.on('levelUp', onLevelUp);
     this.socketCleanups.push(() => s.off('levelUp', onLevelUp));
+
+    // F17 — Achievement unlocked toast
+    const onAch = (payload: { id: string; name: string; description: string; icon: string }): void => {
+      showAchievementToast(payload);
+      notify({
+        title: `🏆 ${payload.name}`,
+        body: payload.description,
+        tag: `ach-${payload.id}`,
+      });
+    };
+    s.on('achievementUnlocked', onAch);
+    this.socketCleanups.push(() => s.off('achievementUnlocked', onAch));
   }
 
   private maybeShowPendingCheck(): void {

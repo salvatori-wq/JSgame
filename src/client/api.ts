@@ -105,6 +105,17 @@ export async function listCampaigns(): Promise<CampaignSummary[]> {
   return data.campaigns;
 }
 
+// F17 — Achievements progress (precisa user logado, retorna 401 anon)
+import type { Achievement } from '../dnd/achievements';
+export interface AchievementStatusDTO {
+  achievement: Achievement;
+  unlocked: boolean;
+  unlockedAt: number | null;
+}
+export async function getAchievementProgress(): Promise<{ progress: AchievementStatusDTO[]; counters: Record<string, number> }> {
+  return fetchJson<{ progress: AchievementStatusDTO[]; counters: Record<string, number> }>('/api/achievements');
+}
+
 // Memória RAG da campanha — debug/UI. Filtros opcionais.
 export async function getCampaignMemory(
   campaignId: string,

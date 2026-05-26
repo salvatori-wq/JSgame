@@ -117,6 +117,22 @@ export async function initPersistence(): Promise<void> {
       created_at  INTEGER NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
+    // F17 — Achievements unlocked + counters cumulativos por user.
+    `CREATE TABLE IF NOT EXISTS achievements_unlocked (
+      user_id        TEXT NOT NULL,
+      achievement_id TEXT NOT NULL,
+      unlocked_at    INTEGER NOT NULL,
+      context        TEXT,
+      PRIMARY KEY (user_id, achievement_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_ach_user ON achievements_unlocked(user_id, unlocked_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS achievements_counters (
+      user_id    TEXT NOT NULL,
+      counter_id TEXT NOT NULL,
+      value      INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, counter_id)
+    )`,
   ], 'write');
 
   // Migration leve: adiciona user_id na tabela characters se não existe.

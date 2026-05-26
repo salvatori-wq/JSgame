@@ -2130,6 +2130,190 @@ body.is-portrait-narrow .sc-die {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.06); }
 }
+
+/* F17 — Achievement toast (slide-in canto sup-direito) */
+.ach-toast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9998;
+  background: linear-gradient(135deg, #2a1f0d 70%, #3a2818);
+  border: 1.5px solid #f0c050;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 340px;
+  min-width: 240px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(240, 192, 80, 0.4);
+  animation: ach-slide-in 0.35s cubic-bezier(0.2, 1.4, 0.5, 1);
+  cursor: pointer;
+}
+.ach-toast.is-closing {
+  animation: ach-slide-out 0.35s ease forwards;
+}
+.ach-toast-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 4px rgba(240, 192, 80, 0.6));
+}
+.ach-toast-body { flex: 1; }
+.ach-toast-hdr {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #f0c050;
+  text-transform: uppercase;
+}
+.ach-toast-name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--ink-warm);
+  margin: 2px 0 1px;
+}
+.ach-toast-desc {
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+@keyframes ach-slide-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes ach-slide-out {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
+@media (max-width: 600px) {
+  .ach-toast {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    max-width: none;
+  }
+}
+
+/* F17 — Profile screen */
+.profile-screen {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+}
+.profile-body {
+  margin-top: 16px;
+}
+.profile-summary {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(240, 192, 80, 0.3);
+  border-radius: 6px;
+  padding: 14px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.profile-summary-pct {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  color: #f0c050;
+}
+.profile-summary-bar {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.profile-summary-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #b88030, #f0c050);
+  transition: width 0.4s ease;
+}
+.profile-summary-pct-txt {
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.profile-section-h {
+  margin: 18px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(240, 192, 80, 0.2);
+  font-family: var(--font-heading);
+  font-size: 16px;
+}
+.profile-tier-h {
+  letter-spacing: 1px;
+}
+.profile-counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.profile-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.pc-icon { font-size: 16px; }
+.pc-label { flex: 1; color: var(--ink-soft); }
+.pc-val {
+  font-family: monospace;
+  font-weight: bold;
+  color: #f0c050;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.ach-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  transition: all 0.2s;
+}
+.ach-card.is-unlocked { border-color: rgba(240, 192, 80, 0.4); }
+.ach-card.is-unlocked.ach-tier-silver { border-color: rgba(192, 192, 192, 0.5); }
+.ach-card.is-unlocked.ach-tier-gold { border-color: rgba(240, 192, 80, 0.6); box-shadow: 0 0 8px rgba(240, 192, 80, 0.2); }
+.ach-card.is-unlocked.ach-tier-platinum { border-color: rgba(168, 216, 232, 0.6); box-shadow: 0 0 8px rgba(168, 216, 232, 0.2); }
+.ach-card.is-locked { opacity: 0.45; filter: grayscale(0.7); }
+.ach-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 36px;
+  text-align: center;
+}
+.ach-card-body { flex: 1; }
+.ach-card-name {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--ink-warm);
+}
+.ach-card-desc {
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.ach-card-when {
+  font-size: 10px;
+  color: #b88030;
+  margin-top: 4px;
+  font-family: monospace;
+}
+.profile-empty {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--ink-mute);
+}
+.profile-empty-sub {
+  margin-top: 8px;
+  font-size: 12px;
+}
 .cp-pj-cond {
   font-size: 10px;
   color: #d08840;

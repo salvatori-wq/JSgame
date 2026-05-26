@@ -30,6 +30,11 @@ import { rollDice } from '../dnd/dice.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
+import type { AchievementEvent } from './achievements.js';
+
+// F17: evento atribuído a um PJ específico (player culpado). Server consome
+// e mapeia pra userId pra creditar achievements. campaign não conhece socket.
+export type ScopedAchievementEvent = { playerId?: string | null; event: AchievementEvent };
 
 const MAX_RECENT_EVENTS = 30;
 const MAX_RECENT_NARRATIONS = 10;
@@ -222,6 +227,13 @@ export class Campaign {
 
       const roll = rollD20({ modifier: totalMod });
       const success = roll.total >= check.dc;
+      // F17: credita skill_check event
+      this.pushAchievementEvent(player.id, {
+        kind: 'skill_check',
+        success,
+        nat20: !!roll.nat20,
+        nat1: !!roll.nat1,
+      });
 
       const focus = this.buildMemoryFocus({
         skillCheckResolution: { playerId, skill: skill.name, playerName: player.characterName },
@@ -295,6 +307,18 @@ export class Campaign {
           if (!result) return { ok: false, events: [], log: 'alvo inválido' };
           events.push(...result.events);
           log = result.log;
+          // F17: credita attack event ao atacante
+          const target = combat.enemies.find((e) => e.id === targetId);
+          this.pushAchievementEvent(player.id, {
+            kind: 'attack_resolved',
+            hit: result.hit,
+            crit: result.crit,
+            nat20: !!result.attackRoll.nat20,
+            nat1: !!result.attackRoll.nat1,
+            killed: result.enemyKilled,
+            targetIsBoss: target?.isBoss ?? false,
+            targetName: target?.name ?? '',
+          });
           break;
         }
         case 'dodge': {
@@ -370,6 +394,24 @@ export class Campaign {
   // Reset a cada novo endCombatNarrate('victory') chamado.
   lastCombatXpAwards: AwardXpResult[] = [];
 
+  // F17: fila de achievement events. Server drena via drainAchievementEvents()
+  // depois de cada socket handler.
+  private pendingAchievementEvents: ScopedAchievementEvent[] = [];
+
+  pushAchievementEvent(playerId: string | null | undefined, event: AchievementEvent): void {
+    this.pendingAchievementEvents.push({ playerId: playerId ?? null, event });
+  }
+
+  drainAchievementEvents(): ScopedAchievementEvent[] {
+    const out = this.pendingAchievementEvents;
+    this.pendingAchievementEvents = [];
+    return out;
+  }
+
+  // F17: usado por server quando combate começa pra detectar "first combat".
+  // Track de quantos combates a campanha viu.
+  combatStartCount = 0;
+
   private async endCombatNarrate(outcome: 'victory' | 'defeat'): Promise<DMResponse | undefined> {
     const combat = this.state.combat;
     if (!combat) return undefined;
@@ -381,6 +423,12 @@ export class Campaign {
     // F16: vitória → distribui XP entre party viva, dispara level-ups.
     this.lastCombatXpAwards = [];
     if (outcome === 'victory') {
+      // F17: detecta "untouched" — ninguém da party caiu (currentHp > 0 ainda)
+      const allAlive = this.party.every((p) => p.currentHp > 0);
+      for (const pj of this.party) {
+        this.pushAchievementEvent(pj.id, { kind: 'combat_won', allAlive });
+      }
+
       const totalXp = combat.enemies.reduce((sum, e) => sum + (e.xpAward ?? 10), 0);
       if (totalXp > 0) {
         this.lastCombatXpAwards = awardXpToParty(this.party, totalXp);
@@ -394,6 +442,10 @@ export class Campaign {
               tags: `levelup progressao ${r.characterName.toLowerCase()}`,
               importance: 1.4,
             });
+            // F17: credita level_up por nível subido
+            for (const lu of r.levelUps) {
+              this.pushAchievementEvent(r.characterId, { kind: 'level_up', oldLevel: lu.oldLevel, newLevel: lu.newLevel });
+            }
           } else {
             this.pushRecentEvent(`${r.characterName} ganhou ${r.xpAwarded} XP`);
           }
@@ -512,6 +564,8 @@ export class Campaign {
       player.exhaustion = Math.max(0, player.exhaustion - 1);
 
       this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
+      // F17: credita long_rest event
+      this.pushAchievementEvent(player.id, { kind: 'long_rest' });
       return { ok: true, healed: player.currentHp - oldHp };
     });
   }
@@ -576,6 +630,16 @@ export class Campaign {
           this.pushRecentEvent(`${player.characterName} death save falha (${player.deathSaveFailures}/3)`);
         }
       }
+
+      // F17: emite death_save event pra creditar survivor/first_death etc.
+      this.pushAchievementEvent(player.id, {
+        kind: 'death_save',
+        success: total >= 10 || !!roll.nat20,
+        nat20: !!roll.nat20,
+        nat1: !!roll.nat1,
+        stabilized,
+        died,
+      });
 
       return {
         ok: true,
@@ -739,6 +803,8 @@ export class Campaign {
       if (!result.ok) return result;
 
       this.pushRecentEvent(result.narration);
+      // F17: credita spell_cast event
+      this.pushAchievementEvent(caster.id, { kind: 'spell_cast', spellId: String(spellId) });
 
       // Em combate: checa fim e avança turno
       let outcome: 'victory' | 'defeat' | undefined;
@@ -893,6 +959,7 @@ export class Campaign {
           party: this.party,
           enemies: tool.enemies,
         });
+        this.combatStartCount += 1;
         const enemyNames = tool.enemies.map((e) => e.name).join(', ');
         this.pushRecentEvent(`Combate iniciado: ${enemyNames}`);
         this.indexFact({
@@ -901,6 +968,10 @@ export class Campaign {
           tags: `combate inimigos ${enemyNames.toLowerCase()}`,
           importance: 1.3,
         });
+        // F17: credita "first_combat" pra todos os PJs da party (cada user é independente)
+        for (const pj of this.party) {
+          this.pushAchievementEvent(pj.id, { kind: 'combat_started', isFirst: this.combatStartCount === 1 });
+        }
         break;
       }
 
@@ -987,6 +1058,10 @@ export class Campaign {
             tags: `npc ${tool.name.toLowerCase()} ${tool.archetype.toLowerCase()}`,
             importance: 1.4,
           });
+          // F17: credita "first_npc" + counter unique_npcs em todos os PJs
+          for (const pj of this.party) {
+            this.pushAchievementEvent(pj.id, { kind: 'npc_met', name: tool.name });
+          }
         } else {
           existing.attitude = tool.attitude;
           existing.lastSeen = this.state.currentLocation;
@@ -1012,6 +1087,12 @@ export class Campaign {
             // Items mágicos/raros são âncoras de quest — boosta. Item normal pesa pouco.
             importance: tool.type === 'tesouro' ? 1.3 : 1.0,
           });
+          // F17: credita first_item ao PJ que recebeu
+          this.pushAchievementEvent(p.id, { kind: 'item_received' });
+          // Ouro? PHB tesouro com moeda — heurística simples: type=tesouro + nome contém "ouro"/"po"
+          if (tool.type === 'tesouro' && /ouro|gold|peças/i.test(tool.itemName)) {
+            this.pushAchievementEvent(p.id, { kind: 'gold_changed', newTotal: p.gold });
+          }
         }
         break;
       }
@@ -1032,6 +1113,10 @@ export class Campaign {
           tags: `local lugar ${tool.location.toLowerCase()}`,
           importance: 1.2,
         });
+        // F17: credita "location_visited" pra todos PJs presentes
+        for (const pj of this.party) {
+          this.pushAchievementEvent(pj.id, { kind: 'location_visited', location: tool.location });
+        }
         break;
       }
     }

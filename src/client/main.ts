@@ -10,6 +10,7 @@ import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
 import { LobbyScreen } from './lobby/lobby-screen';
 import { LoginScreen } from './auth/login-screen';
+import { ProfileScreen } from './profile/profile-screen';
 import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
@@ -55,7 +56,8 @@ type View =
   | { kind: 'wizard'; fromLobby?: boolean }
   | { kind: 'sheet'; id: string }
   | { kind: 'campaign'; characterId: string; campaignId?: string }
-  | { kind: 'lobby'; lobbyId?: string };
+  | { kind: 'lobby'; lobbyId?: string }
+  | { kind: 'profile' };
 
 let currentView: View = { kind: 'home' };
 let currentWizard: CharacterWizard | null = null;
@@ -98,7 +100,20 @@ async function render(): Promise<void> {
     case 'lobby':
       await renderLobby(currentView.lobbyId);
       break;
+    case 'profile':
+      await renderProfile();
+      break;
   }
+}
+
+async function renderProfile(): Promise<void> {
+  const container = el('div', { class: 'profile-container' });
+  app!.appendChild(container);
+  const screen = new ProfileScreen({
+    container,
+    onExit: () => navigate({ kind: 'home' }),
+  });
+  await screen.start();
 }
 
 function renderLogin(): void {
@@ -154,6 +169,12 @@ async function renderHome(): Promise<void> {
     root.appendChild(el('div', { class: 'user-badge' }, [
       el('span', { text: '👤' }),
       el('span', { class: 'user-badge-email', text: currentUser.email }),
+      el('button', {
+        class: 'user-badge-logout',
+        text: '🏆 Conquistas',
+        attrs: { type: 'button', title: 'Ver suas conquistas' },
+        on: { click: () => navigate({ kind: 'profile' }) },
+      }),
       el('button', {
         class: 'user-badge-logout',
         text: 'Sair',

@@ -28,6 +28,13 @@ import {
 } from './auth.js';
 import { sendEmail, buildMagicLinkEmail } from './email.js';
 import { uuid } from './util.js';
+import {
+  trackEvent as trackAchievement,
+  listUserProgress as listAchievementProgress,
+  getUserCounters as getAchievementCounters,
+  type AchievementEvent,
+  type UnlockResult,
+} from './achievements.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -395,6 +402,21 @@ async function main(): Promise<void> {
     }
   });
 
+  // F17 — Achievements. Lista TODOS marcos + status (unlocked? quando?) do user logado.
+  // Anon: 401 (precisa estar logado pra ver progresso).
+  app.get('/api/achievements', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    try {
+      const progress = await listAchievementProgress(user.id);
+      const counters = await getAchievementCounters(user.id);
+      res.json({ progress, counters });
+    } catch (err) {
+      console.error('[api] achievements:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // === Static (produção) — serve dist/client buildado pelo Vite
   if (process.env.NODE_ENV === 'production') {
     const staticDir = path.resolve(process.cwd(), 'dist/client');
@@ -447,6 +469,56 @@ async function main(): Promise<void> {
       io.to(camp.state.id).emit('campaignState', camp.state);
       io.to(camp.state.id).emit('partyUpdate', camp.party);
       io.to(camp.state.id).emit('combatState', camp.state.combat);
+    };
+
+    // F17: drena fila de achievement events do Campaign + dispara tracker.
+    // Mapeia playerId → userId via party do camp. Emite toast pro socket
+    // do user específico (achievements são pessoais, não broadcast).
+    const drainAchievements = async (camp: Campaign): Promise<void> => {
+      const events = camp.drainAchievementEvents();
+      if (events.length === 0) return;
+      // Agrupa por playerId pra buscar userId uma vez por player
+      const byPlayer = new Map<string, AchievementEvent[]>();
+      for (const ev of events) {
+        if (!ev.playerId) continue;
+        const arr = byPlayer.get(ev.playerId) ?? [];
+        arr.push(ev.event);
+        byPlayer.set(ev.playerId, arr);
+      }
+      for (const [playerId, evList] of byPlayer) {
+        const pj = camp.party.find((p) => p.id === playerId);
+        const userId = pj?.userId ?? null;
+        if (!userId) continue;
+        const unlocks: UnlockResult[] = [];
+        for (const e of evList) {
+          try {
+            const result = await trackAchievement(userId, e);
+            unlocks.push(...result);
+          } catch (err) {
+            console.warn('[achievements] track error:', err);
+          }
+        }
+        if (unlocks.length === 0) continue;
+        // Acha o socket conectado desse PJ pra emit do toast
+        const room = io.sockets.adapter.rooms.get(camp.state.id);
+        if (!room) continue;
+        for (const sockId of room) {
+          const s = io.sockets.sockets.get(sockId);
+          if (!s) continue;
+          // Match: este socket é o dono desse PJ? Pegamos o user do socket.data
+          const sUser = (s.data as { user?: User }).user;
+          if (sUser && sUser.id === userId) {
+            for (const u of unlocks) {
+              s.emit('achievementUnlocked', {
+                id: u.achievement.id,
+                name: u.achievement.name,
+                description: u.achievement.description,
+                icon: u.achievement.icon,
+              });
+            }
+          }
+        }
+      }
     };
 
     // F16: após combate vencido, emite xpAwarded + levelUp por player.
@@ -522,6 +594,25 @@ async function main(): Promise<void> {
         socket.emit('combatState', camp.state.combat);
         io.to(camp.state.id).emit('partyUpdate', camp.party);
 
+        // F17: credita "first_session" + "first_npc" potenciais + creditação de
+        // criação multi-classe. Cada character_created só dispara pra owner do PJ.
+        if (character.userId) {
+          try {
+            const unlocks = await trackAchievement(character.userId, { kind: 'session_started' });
+            const multiclassUnlocks = character.additionalClasses && character.additionalClasses.length > 0
+              ? await trackAchievement(character.userId, { kind: 'character_created', multiclass: true })
+              : [];
+            for (const u of [...unlocks, ...multiclassUnlocks]) {
+              socket.emit('achievementUnlocked', {
+                id: u.achievement.id, name: u.achievement.name,
+                description: u.achievement.description, icon: u.achievement.icon,
+              });
+            }
+          } catch (err) {
+            console.warn('[ach] joinCampaign tracking err:', err);
+          }
+        }
+
         // Se campanha nova (sem início ainda), inicia. startSession é coop-safe
         // (mutex + isStarted guard), múltiplas chamadas concorrentes resultam em 1 narração.
         if (camp.getNarrationLog().length === 0 && camp.state.recentEvents.length === 0) {
@@ -534,6 +625,7 @@ async function main(): Promise<void> {
                 mood: 'neutral',
               });
               broadcastState(camp);
+              await drainAchievements(camp);
             }
           });
         } else {
@@ -565,6 +657,7 @@ async function main(): Promise<void> {
             mood: 'neutral',
           });
           broadcastState(camp);
+          await drainAchievements(camp);
           await saveCampaign(camp.state);
 
           // Se DM iniciou combate E enemy ganhou initiative, kickoff enemy turn
@@ -576,6 +669,7 @@ async function main(): Promise<void> {
                 io.to(camp.state.id).emit('combatEvent', ev);
               }
               broadcastState(camp);
+              await drainAchievements(camp);
               await saveCampaign(camp.state);
             }
           }
@@ -615,6 +709,7 @@ async function main(): Promise<void> {
             mood: result.nat20 ? 'trickster' : result.nat1 ? 'sombrio' : 'neutral',
           });
           broadcastState(camp);
+          await drainAchievements(camp);
           await saveCampaign(camp.state);
         });
       } catch (err) {
@@ -651,6 +746,7 @@ async function main(): Promise<void> {
           }
           broadcastState(camp);
         }
+        await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] combatAction error:', err);
@@ -686,6 +782,7 @@ async function main(): Promise<void> {
           await flushPostCombatRewards(camp);
           broadcastState(camp);
         }
+        await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] castSpell error:', err);
@@ -796,6 +893,7 @@ async function main(): Promise<void> {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', camp.state);
+        await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] longRest error:', err);
@@ -826,6 +924,7 @@ async function main(): Promise<void> {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', camp.state);
+        await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] rollDeathSave error:', err);
