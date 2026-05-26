@@ -62,6 +62,22 @@ const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
 socket.on('connect', () => console.log('[client] socket connected', socket.id));
 socket.on('disconnect', (reason) => console.log('[client] socket disconnected:', reason));
 
+// A1.3 — Reconnection robustez: se socket reconecta E user está em campaign, re-emite
+// joinCampaign pra restaurar a room no server (server perde socket.join quando socket.id muda).
+// Server tem isStarted guard contra dupla startSession; partyUpdate é idempotente.
+let reconnectCount = 0;
+socket.on('connect', () => {
+  if (reconnectCount > 0 && currentView.kind === 'campaign') {
+    console.log('[client] reconnecting to campaign', currentView.campaignId);
+    socket.emit('joinCampaign', {
+      ownerName: getOwnerName(),
+      characterId: currentView.characterId,
+      campaignId: currentView.campaignId,
+    });
+  }
+  reconnectCount++;
+});
+
 // === Router state ===
 type View =
   | { kind: 'home' }

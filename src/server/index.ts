@@ -797,6 +797,15 @@ async function main(): Promise<void> {
             roll: result.roll,
             purpose: 'skill-check',
           });
+          // A1.1 — Spectator transcript: entrada permanente no log com resultado mecânico
+          // pra que aliados vejam "X rolou Y" mesmo sem skill-check-overlay.
+          const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+          const verdict = result.nat20 ? 'NAT20 CRIT' : result.nat1 ? 'NAT1 FALHA' : (result.success ? 'SUCESSO' : 'FALHOU');
+          io.to(camp.state.id).emit('dmNarration', {
+            text: `${pending.skill} (DC ${pending.dc}): rolou ${result.roll.total} → ${verdict}`,
+            speaker: `🎲 ${myName}`,
+            mood: result.success ? 'trickster' : 'sombrio',
+          });
           io.to(camp.state.id).emit('dmNarration', {
             text: result.dmResponse.narration,
             speaker: result.dmResponse.speaker ?? 'Mestre',
@@ -831,9 +840,12 @@ async function main(): Promise<void> {
           roll: result.roll,
           purpose: 'saving-throw',
         });
+        // A1.1 — Spectator transcript: speaker é o PJ que rolou (não genérico)
+        const saveName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+        const saveVerdict = result.nat20 ? 'NAT20 SUCESSO ÉPICO' : result.nat1 ? 'NAT1 FALHA CRÍTICA' : (result.success ? 'SUCESSO' : 'FALHOU');
         io.to(camp.state.id).emit('dmNarration', {
-          text: `Save ${pending.ability.toUpperCase()} DC${pending.dc}: ${result.roll.total} → ${result.success ? 'SUCESSO' : 'FALHOU'}`,
-          speaker: '🛡 Save',
+          text: `Save ${pending.ability.toUpperCase()} (DC ${pending.dc}): rolou ${result.roll.total} → ${saveVerdict}`,
+          speaker: `🛡 ${saveName}`,
           mood: result.success ? 'trickster' : 'sombrio',
         });
         broadcastState(camp);

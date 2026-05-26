@@ -153,12 +153,19 @@ export class LobbyScreen {
       root.appendChild(this.renderMyControls(me));
     }
 
-    // ── Host start button
+    // ── Host start button (A1.2: lista quem ainda falta)
     if (me?.isHost) {
+      const notReady = this.state?.players.filter((p) => p.status !== 'ready') ?? [];
+      const readyCount = (this.state?.players.length ?? 0) - notReady.length;
+      const totalCount = this.state?.players.length ?? 0;
+      const waitingNames = notReady.map((p) => p.ownerName).join(', ');
+      const btnText = allReady
+        ? `▶ Começar Crônica (${totalCount}/${totalCount} prontos)`
+        : `⏳ Aguardando ${notReady.length}: ${waitingNames} (${readyCount}/${totalCount})`;
       const startBtn = el('button', {
         class: 'lobby-start-btn',
-        text: allReady ? '▶ Começar Crônica' : '⏳ Aguardando todos prontos…',
-        attrs: { disabled: !allReady },
+        text: btnText,
+        attrs: { disabled: !allReady, title: allReady ? 'Inicia a campanha pra todos' : 'Esperando todos clicarem em "Pronto"' },
         on: { click: () => this.opts.socket.emit('lobbyStartCampaign') },
       });
       root.appendChild(startBtn);
