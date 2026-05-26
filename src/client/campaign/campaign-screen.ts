@@ -207,7 +207,8 @@ export class CampaignScreen {
     const onCombatEvent = (ev: CombatEvent): void => {
       if (ev.text) {
         this.combatLog.push(ev.text);
-        if (this.combatLog.length > 20) this.combatLog = this.combatLog.slice(-20);
+        // Sprint 4: capacity 20→50 — player gosta de scrollar log longo pra ver combate todo.
+        if (this.combatLog.length > 50) this.combatLog = this.combatLog.slice(-50);
       }
       // SFX baseado no tipo do evento
       const myId = this.character?.id;

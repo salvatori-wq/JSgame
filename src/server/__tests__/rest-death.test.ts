@@ -13,7 +13,7 @@ class MockDM {
   }
 }
 
-function makeChar(opts: { classId?: 'guerreiro' | 'mago' | 'clerigo'; currentHp?: number; conditions?: never[] } = {}): CharacterSheet {
+function makeChar(opts: { classId?: 'guerreiro' | 'mago' | 'clerigo' | 'bruxo'; currentHp?: number; conditions?: never[] } = {}): CharacterSheet {
   const sheet: CharacterSheet = {
     id: 'pj', ownerName: 'p', characterName: 'Test',
     raceId: 'humano', classId: opts.classId ?? 'guerreiro',
@@ -34,7 +34,7 @@ function makeChar(opts: { classId?: 'guerreiro' | 'mago' | 'clerigo'; currentHp?
     createdAt: 0, lastPlayedAt: 0, deathCount: 0, campaignsPlayed: [],
     deathSaveSuccesses: 0, deathSaveFailures: 0, exhaustion: 0,
   };
-  if (opts.classId === 'mago' || opts.classId === 'clerigo') applySpellcasterDefaults(sheet);
+  if (opts.classId === 'mago' || opts.classId === 'clerigo' || opts.classId === 'bruxo') applySpellcasterDefaults(sheet);
   return sheet;
 }
 
@@ -92,6 +92,32 @@ describe('Campaign rest', () => {
       const r = await camp.shortRest(pj.id, 2);
       expect(r.ok).toBe(true);
       expect(pj.conditions).not.toContain('inconsciente');
+    });
+
+    // BUG-005 fix (Sprint 4): Pact Magic Bruxo regenera slots em short rest (PHB pág 107).
+    it('Bruxo regenera spell slots em SHORT rest (BUG-005)', async () => {
+      const bruxo = makeChar({ classId: 'bruxo' });
+      bruxo.hitDiceRemaining = 2;
+      // Bruxo nv 3 tem 2 slots nv 2 (PHB pact magic)
+      const slotsBefore = bruxo.spellSlots[2].max;
+      expect(slotsBefore).toBeGreaterThan(0);  // sanity: tem slot pra gastar
+      bruxo.spellSlots[2].used = slotsBefore;  // gasta tudo
+      camp.addCharacter(bruxo);
+
+      const r = await camp.shortRest(bruxo.id, 1);
+      expect(r.ok).toBe(true);
+      expect(bruxo.spellSlots[2].used).toBe(0);  // regenerou
+    });
+
+    it('Mago NÃO regenera slots em short rest (só long rest)', async () => {
+      const mago = makeChar({ classId: 'mago' });
+      mago.hitDiceRemaining = 2;
+      mago.spellSlots[1].used = mago.spellSlots[1].max;
+      camp.addCharacter(mago);
+
+      const r = await camp.shortRest(mago.id, 1);
+      expect(r.ok).toBe(true);
+      expect(mago.spellSlots[1].used).toBe(mago.spellSlots[1].max);  // continua gasto
     });
   });
 

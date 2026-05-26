@@ -4,7 +4,7 @@
 import type { Campaign } from '../campaign.js';
 import { getClass } from '../../dnd/classes.js';
 import { rollDice, rollD20 } from '../../dnd/dice.js';
-import { restoreAllSlots } from '../../dnd/spell-slots.js';
+import { restoreAllSlots, isPactMagicClass } from '../../dnd/spell-slots.js';
 import { restoreOnShortRest, restoreOnLongRest } from '../class-features-engine.js';
 import { clearAllBuffs } from '../buff-engine.js';
 
@@ -60,7 +60,18 @@ export async function handleShortRest(camp: Campaign, playerId: string, hitDiceT
   // F23 — restaura features short-rest (action-surge, second-wind, channel-divinity, ki, wild-shape)
   restoreOnShortRest(player);
 
-  camp.pushRecentEvent(`${player.characterName} descansou curto: gastou ${spend} hit dice, curou ${actual} HP`);
+  // BUG-005 fix (Sprint 4): Pact Magic (Bruxo) regenera spell slots em SHORT rest.
+  // PHB pág 107. Antes os slots só voltavam no long rest — Bruxo perdia feature de classe.
+  // Nota MVP: PJ single-class Bruxo only. Multiclasse Mago/Bruxo (não suportado no
+  // wizard atual) precisaria slots separados conforme PHB pág 165.
+  let slotsRegenerated = false;
+  if (isPactMagicClass(player.classId)) {
+    restoreAllSlots(player);
+    slotsRegenerated = true;
+  }
+
+  const slotsNote = slotsRegenerated ? ' + slots pact magic regenerados' : '';
+  camp.pushRecentEvent(`${player.characterName} descansou curto: gastou ${spend} hit dice, curou ${actual} HP${slotsNote}`);
   return { ok: true, healed: actual, diceSpent: spend };
 }
 
