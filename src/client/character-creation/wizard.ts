@@ -1,7 +1,7 @@
 // JSgame · Character creation wizard. State machine simples — 5 steps.
 // Cada step é um módulo que renderiza no container e chama next(state).
 
-import type { CharacterSheet, AbilityScores, RaceId, ClassId, SkillId, AbilityKey } from '../../shared/types';
+import type { CharacterSheet, AbilityScores, RaceId, ClassId, SubclassId, SkillId, AbilityKey, PlannedLevel4Choice } from '../../shared/types';
 import type { BackgroundId } from '../../dnd/backgrounds';
 import { defaultPointBuyScores, applyRacialBonuses, abilityModifier } from '../../dnd/attributes';
 import { getRace, RACES } from '../../dnd/races';
@@ -13,24 +13,28 @@ import { el, uuid, getOwnerName } from '../util';
 import { saveCharacter } from '../api';
 import { renderRaceStep } from './step-race';
 import { renderClassStep } from './step-class';
+import { renderSubclassStep } from './step-subclass';
 import { renderAbilitiesStep } from './step-abilities';
 import { renderBackgroundStep } from './step-background';
+import { renderFeatStep } from './step-feat';
 import { renderReviewStep } from './step-review';
 
-export type WizardStep = 'race' | 'class' | 'abilities' | 'background' | 'review';
+export type WizardStep = 'race' | 'class' | 'subclass' | 'abilities' | 'background' | 'level4' | 'review';
 
 export interface WizardState {
   step: WizardStep;
   raceId: RaceId | null;
   classId: ClassId | null;
+  subclassId: SubclassId | null;
   abilityScoresBase: AbilityScores;       // após point buy, antes racial
   backgroundId: BackgroundId | null;
   chosenSkills: SkillId[];                // perícias escolhidas da classe (background dá próprias)
+  plannedLevel4Choice: PlannedLevel4Choice | null;  // opcional — pré-seleção pra nv 4
   characterName: string;
   alignment: import('../../shared/types').Alignment;
 }
 
-const STEP_ORDER: WizardStep[] = ['race', 'class', 'abilities', 'background', 'review'];
+const STEP_ORDER: WizardStep[] = ['race', 'class', 'subclass', 'abilities', 'background', 'level4', 'review'];
 
 export class CharacterWizard {
   private state: WizardState;
@@ -53,9 +57,11 @@ export class CharacterWizard {
       step: 'race',
       raceId: null,
       classId: null,
+      subclassId: null,
       abilityScoresBase: defaultPointBuyScores(),
       backgroundId: null,
       chosenSkills: [],
+      plannedLevel4Choice: null,
       characterName: '',
       alignment: 'nn',
     };
@@ -89,8 +95,10 @@ export class CharacterWizard {
     const stepLabels: Record<WizardStep, string> = {
       race: 'Raça',
       class: 'Classe',
+      subclass: 'Subclasse',
       abilities: 'Atributos',
       background: 'Antecedente',
+      level4: 'Nv 4',
       review: 'Revisão',
     };
 
@@ -138,10 +146,14 @@ export class CharacterWizard {
         return renderRaceStep(this.state, { update, next });
       case 'class':
         return renderClassStep(this.state, { update, next, back });
+      case 'subclass':
+        return renderSubclassStep(this.state, { update, next, back });
       case 'abilities':
         return renderAbilitiesStep(this.state, { update, next, back });
       case 'background':
         return renderBackgroundStep(this.state, { update, next, back });
+      case 'level4':
+        return renderFeatStep(this.state, { update, next, back });
       case 'review':
         return renderReviewStep(this.state, {
           update,
@@ -211,8 +223,10 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
     characterName: state.characterName.trim() || 'Sem Nome',
     raceId: state.raceId,
     classId: state.classId,
+    subclassId: state.subclassId,
     backgroundId: state.backgroundId,
     alignment: state.alignment,
+    plannedLevel4Choice: state.plannedLevel4Choice,
     level: 1,
     xp: 0,
     abilityScoresBase: state.abilityScoresBase,

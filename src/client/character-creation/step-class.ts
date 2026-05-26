@@ -49,7 +49,8 @@ function renderClassCard(
     attrs: { role: 'button', tabindex: 0 },
     on: {
       click: () => {
-        callbacks.update({ classId: klass.id, chosenSkills: [] });
+        // Subclass é dependente da classe — limpa pra evitar PJ com subclass de classe errada.
+        callbacks.update({ classId: klass.id, chosenSkills: [], subclassId: null });
         document.dispatchEvent(new CustomEvent('wiz:rerender'));
       },
     },

@@ -1,12 +1,14 @@
 // JSgame · Types compartilhados entre cliente e servidor.
 // Re-exporta D&D core + adiciona schemas de game state e socket events.
 
-import type { AbilityScores } from '../dnd/attributes';
+import type { AbilityScores, AbilityKey } from '../dnd/attributes';
 import type { ClassId } from '../dnd/classes';
 import type { RaceId } from '../dnd/races';
 import type { SkillId } from '../dnd/skills';
 import type { ConditionId } from '../dnd/conditions';
 import type { DiceRoll } from '../dnd/dice';
+import type { SubclassId } from '../dnd/subclasses';
+import type { FeatId } from '../dnd/feats';
 
 export type { AbilityScores, AbilityKey } from '../dnd/attributes';
 export type { ClassId, HitDie } from '../dnd/classes';
@@ -14,6 +16,13 @@ export type { RaceId } from '../dnd/races';
 export type { SkillId } from '../dnd/skills';
 export type { ConditionId } from '../dnd/conditions';
 export type { DiceRoll, DieKind } from '../dnd/dice';
+export type { SubclassId } from '../dnd/subclasses';
+export type { FeatId } from '../dnd/feats';
+
+// Escolha pré-planejada de ASI ou Feat — aplica quando PJ atinge nv 4.
+export type PlannedLevel4Choice =
+  | { kind: 'asi'; plusTwo: AbilityKey; plusOne: AbilityKey }
+  | { kind: 'feat'; featId: FeatId };
 
 // ════════════════════════════════════════════════════════════════════════════
 // CharacterSheet — ficha de personagem completa D&D 5e.
@@ -36,8 +45,12 @@ export interface CharacterSheet {
   characterName: string;   // nome do PJ (Borin, Lyra, …)
   raceId: RaceId;
   classId: ClassId;
+  subclassId?: SubclassId | null;   // escolhido no wizard; features aplicam quando PJ atinge nv do PHB (3 padrão)
   backgroundId: BackgroundId;
   alignment: Alignment;
+
+  // Escolhas pré-planejadas no wizard pra futuros level-ups (latentes até PJ subir).
+  plannedLevel4Choice?: PlannedLevel4Choice | null;
 
   // Progressão
   level: number;           // 1-20
@@ -113,6 +126,30 @@ export interface InventoryItem {
   quantity: number;
   weight?: number;
   description?: string;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MemoryFact — memória persistente do Mestre (RAG via FTS5).
+// ════════════════════════════════════════════════════════════════════════════
+
+export type MemoryFactKind =
+  | 'npc'         // fala/interação de NPC
+  | 'location'    // descrição de local visitado
+  | 'event'       // evento marcante (combate, escolha moral, traição)
+  | 'inventory'   // item recebido/perdido importante
+  | 'promise'     // promessa feita / quest aceita
+  | 'lore'        // pedaço de mundo/história revelado
+  | 'summary';    // auto-resumo comprimido pelo Mestre
+
+export interface MemoryFact {
+  id: string;
+  campaignId: string;
+  kind: MemoryFactKind;
+  text: string;          // conteúdo literal indexado (preferir falas/quotes exatas)
+  tags: string;          // espacial: lista de tokens-tag (ex: "npc personagens taverna")
+  importance: number;    // 0.0-2.0, default 1.0; >1 = boost no rank
+  sessionN: number;      // qual sessão da campanha
+  createdAt: number;
 }
 
 // ════════════════════════════════════════════════════════════════════════════

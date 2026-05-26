@@ -4,6 +4,8 @@ import { getRace } from '../../dnd/races';
 import { getClass, startingHitPoints } from '../../dnd/classes';
 import { getBackground } from '../../dnd/backgrounds';
 import { getSkill } from '../../dnd/skills';
+import { getSubclass } from '../../dnd/subclasses';
+import { getFeat } from '../../dnd/feats';
 import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT, abilityModifier, formatModifier, applyRacialBonuses, proficiencyBonus } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 import type { WizardState } from './wizard';
@@ -29,6 +31,7 @@ export function renderReviewStep(
 
   const race = getRace(state.raceId);
   const klass = getClass(state.classId);
+  const subclass = state.subclassId ? getSubclass(state.subclassId) : null;
   const background = getBackground(state.backgroundId);
   const finalScores = applyRacialBonuses(state.abilityScoresBase, race.abilityBonuses);
   const conMod = abilityModifier(finalScores.con);
@@ -76,12 +79,16 @@ export function renderReviewStep(
   sheet.appendChild(nameWrap);
 
   // Race/Class/Background headline
-  sheet.appendChild(el('div', { class: 'cs-headline' }, [
+  const headlineChildren = [
     el('span', { class: 'cs-race', text: race.name }),
     el('span', { class: 'cs-class', text: klass.name }),
-    el('span', { class: 'cs-bg', text: background.name }),
-    el('span', { class: 'cs-level', text: 'Nível 1' }),
-  ]));
+  ];
+  if (subclass) {
+    headlineChildren.push(el('span', { class: 'cs-subclass', text: subclass.name }));
+  }
+  headlineChildren.push(el('span', { class: 'cs-bg', text: background.name }));
+  headlineChildren.push(el('span', { class: 'cs-level', text: 'Nível 1' }));
+  sheet.appendChild(el('div', { class: 'cs-headline' }, headlineChildren));
 
   // Stats grid: HP, AC, PB, Speed
   sheet.appendChild(el('div', { class: 'cs-stats-grid' }, [
@@ -145,11 +152,43 @@ export function renderReviewStep(
     ]),
   ]));
 
+  // Subclass features (latente — só ativa quando nv certo)
+  if (subclass) {
+    sheet.appendChild(el('section', { class: 'cs-section' }, [
+      el('h3', { class: 'cs-h3', text: `Subclasse: ${subclass.name}` }),
+      el('p', { class: 'cs-feature-desc', text: subclass.description }),
+      el('ul', { class: 'cs-feature-list' },
+        subclass.features.map((f) =>
+          el('li', { class: 'cs-feature-item' }, [
+            el('b', { text: `nv ${f.level} · ${f.name}` }),
+            el('span', { class: 'cs-feature-text', text: ` — ${f.description}` }),
+          ]),
+        ),
+      ),
+    ]));
+  }
+
   // Característica do antecedente
   sheet.appendChild(el('section', { class: 'cs-section' }, [
     el('h3', { class: 'cs-h3', text: `Característica: ${background.feature.name}` }),
     el('p', { class: 'cs-feature-desc', text: background.feature.description }),
   ]));
+
+  // Escolha pré-planejada de nv 4 (ASI ou Feat) — latente
+  if (state.plannedLevel4Choice) {
+    const c = state.plannedLevel4Choice;
+    const lines: HTMLElement[] = [el('h3', { class: 'cs-h3', text: 'Planejado pra Nível 4' })];
+    if (c.kind === 'asi') {
+      lines.push(el('p', { class: 'cs-feature-desc', text: `ASI: +2 ${ABILITY_LABELS[c.plusTwo]} · +1 ${ABILITY_LABELS[c.plusOne]}` }));
+    } else {
+      const feat = getFeat(c.featId);
+      lines.push(el('p', { class: 'cs-feature-desc', text: `Talento: ${feat.name}` }));
+      lines.push(el('ul', { class: 'cs-feature-list' },
+        feat.benefit.map((b) => el('li', { class: 'cs-feature-item', text: b })),
+      ));
+    }
+    sheet.appendChild(el('section', { class: 'cs-section' }, lines));
+  }
 
   // Idiomas + proficiências
   sheet.appendChild(el('section', { class: 'cs-section' }, [
