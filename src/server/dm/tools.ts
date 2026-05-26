@@ -25,10 +25,13 @@ export type ValidatedTool =
   | { kind: 'update_objective'; questId: string; objectiveId: string; done: boolean; note?: string }
   | { kind: 'complete_quest'; questId: string; outcome: 'success' | 'failure'; summary: string }
   // F20 — marca momento memorável (kill épica, fala icônica, escolha moral, reviravolta)
-  | { kind: 'mark_highlight'; summary: string; highlightKind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist'; characterId?: string };
+  | { kind: 'mark_highlight'; summary: string; highlightKind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist'; characterId?: string }
+  // F27 — Saving throw genérico (ability save vs DC). DM dispara quando spell/trap/hazard.
+  | { kind: 'request_saving_throw'; ability: 'for' | 'des' | 'con' | 'int' | 'sab' | 'car'; dc: number; reason: string; playerId: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
+const VALID_ABILITIES = new Set(['for', 'des', 'con', 'int', 'sab', 'car']);
 const VALID_NPC_ATTITUDES = new Set(['amigavel', 'neutro', 'hostil', 'misterioso']);
 const VALID_ITEM_TYPES = new Set(['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc']);
 const VALID_OUTCOMES = new Set(['victory', 'defeat', 'fled']);
@@ -209,6 +212,21 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         : 'moment';
       const characterId = input.characterId ? String(input.characterId).slice(0, 60) : undefined;
       return { kind: 'mark_highlight', summary, highlightKind, characterId };
+    }
+
+    case 'request_saving_throw': {
+      const ability = String(input.ability ?? '').toLowerCase();
+      if (!VALID_ABILITIES.has(ability)) return null;
+      const dc = clamp(Number(input.dc) || 15, 5, 30);
+      const reason = String(input.reason ?? 'teste de resistência').slice(0, 200);
+      const playerId = String(input.playerId ?? 'active');
+      return {
+        kind: 'request_saving_throw',
+        ability: ability as 'for' | 'des' | 'con' | 'int' | 'sab' | 'car',
+        dc,
+        reason,
+        playerId,
+      };
     }
 
     default:

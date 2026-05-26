@@ -330,6 +330,24 @@ export const DM_TOOLS: DMToolDef[] = [
       required: ['questId', 'outcome', 'summary'],
     },
   },
+  {
+    name: 'request_saving_throw',
+    description: 'Pede teste de resistência (saving throw) pra player. Use pra spells com save (Dragon Breath, Fireball), traps, hazards. Server rola d20 + ability mod + prof (se tem) vs DC.',
+    schema: {
+      type: 'object',
+      properties: {
+        ability: {
+          type: 'string',
+          enum: ['for', 'des', 'con', 'int', 'sab', 'car'],
+          description: 'Atributo do save (for=Força, des=Destreza, con=Constituição, int=Inteligência, sab=Sabedoria, car=Carisma)',
+        },
+        dc: { type: 'number', description: 'Classe de Dificuldade (10/13/15/18/20). Default 15.' },
+        reason: { type: 'string', description: 'Por que do save (1 frase). Aparece pro player.' },
+        playerId: { type: 'string', description: 'ID do player alvo. "active" pro que tomou ação atual.' },
+      },
+      required: ['ability', 'reason'],
+    },
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -801,6 +801,39 @@ async function main(): Promise<void> {
       }
     });
 
+    // ── F27 — resolveSavingThrow: player rola ability save
+    socket.on('resolveSavingThrow', async () => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const pending = camp.getPendingSave();
+        if (!pending) return;
+        if (pending.playerId !== activePlayerId) {
+          socket.emit('error', 'esse save é de outro player');
+          return;
+        }
+        const result = await camp.resolveSavingThrow(activePlayerId);
+        if (!result) return;
+        io.to(camp.state.id).emit('diceRollResult', {
+          source: activePlayerId,
+          roll: result.roll,
+          purpose: 'saving-throw',
+        });
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `Save ${pending.ability.toUpperCase()} DC${pending.dc}: ${result.roll.total} → ${result.success ? 'SUCESSO' : 'FALHOU'}`,
+          speaker: '🛡 Save',
+          mood: result.success ? 'trickster' : 'sombrio',
+        });
+        broadcastState(camp);
+        await drainAchievements(camp);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] resolveSavingThrow error:', err);
+        socket.emit('error', `save falhou: ${String(err)}`);
+      }
+    });
+
     // ── combatAction: ataque/esquiva/disparada/etc ──
     socket.on('combatAction', async ({ action, targetId }) => {
       try {

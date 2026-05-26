@@ -218,6 +218,9 @@ export interface CampaignState {
   lastPlayedAt: number;
   // Skill check pendente — quem deve rolar, qual perícia, DC. null se nenhum.
   pendingCheck: { skill: SkillId; dc: number; reason: string; playerId: string } | null;
+  // F27 — Saving throw pendente (paralelo ao skill check). Ability save (FOR/DES/CON/INT/SAB/CAR).
+  // Disparado por spells (DM tool request_saving_throw), traps, hazards.
+  pendingSave: { ability: AbilityKey; dc: number; reason: string; playerId: string } | null;
   // Combate ativo (ou null em exploration)
   combat: CombatState | null;
   // F18 — Quests dadas pelo Mestre via DM tools. Persistem entre sessões.
@@ -266,6 +269,8 @@ export interface ClientToServerEvents {
   // Exploration
   takeAction: (payload: { action: ExplorationAction; details?: string }) => void;
   requestSkillCheck: (payload: { skill: SkillId; dc?: number }) => void;
+  // F27 — Saving throw genérico (FOR/DES/CON/INT/SAB/CAR vs DC).
+  resolveSavingThrow: () => void;
 
   // Combat
   rollInitiative: () => void;

@@ -86,6 +86,8 @@ export class Campaign {
       npcsMet: [],
       recentEvents: [],
       sessionNumber: 1,
+      // F27 — saving throw pendente (paralelo a pendingCheck)
+      pendingSave: null,
       startedAt: now,
       lastPlayedAt: now,
       pendingCheck: null,
@@ -280,6 +282,50 @@ export class Campaign {
 
   getPendingSkillCheck(): CampaignState['pendingCheck'] {
     return this.state.pendingCheck;
+  }
+
+  // F27 — Resolve saving throw pendente. Mesma estrutura de resolveSkillCheck mas
+  // pra ability save (FOR/DES/CON/INT/SAB/CAR). Proficiência se PJ tem em proficientSavingThrows.
+  async resolveSavingThrow(playerId: string): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; dmResponse?: DMResponse } | null> {
+    return this.enqueue(async () => {
+      const save = this.state.pendingSave;
+      if (!save) return null;
+      if (save.playerId !== playerId) return null;
+
+      const player = this.party.find((p) => p.id === playerId);
+      if (!player) return null;
+
+      // Limpa antes de rolar
+      this.state.pendingSave = null;
+
+      const abilityScore = player.abilityScores[save.ability];
+      const modifier = abilityModifier(abilityScore);
+      const proficient = player.proficientSavingThrows.includes(save.ability);
+      const pb = proficiencyBonus(player.level);
+      const totalMod = modifier + (proficient ? pb : 0);
+
+      const roll = rollD20({ modifier: totalMod });
+      const success = roll.total >= save.dc;
+      // F17: credita event genérico de skill_check (saves contam pra mesma metric)
+      this.pushAchievementEvent(player.id, {
+        kind: 'skill_check',
+        success,
+        nat20: !!roll.nat20,
+        nat1: !!roll.nat1,
+      });
+
+      this.pushRecentEvent(`${player.characterName} rolou save ${save.ability.toUpperCase()} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${save.dc}): ${success ? 'sucesso' : 'falhou'}`);
+
+      return { roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1 };
+    });
+  }
+
+  hasPendingSave(): boolean {
+    return this.state.pendingSave !== null;
+  }
+
+  getPendingSave(): CampaignState['pendingSave'] {
+    return this.state.pendingSave;
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -1293,6 +1339,18 @@ export class Campaign {
           tags: `highlight memoravel ${tool.highlightKind}${targetPj ? ` ${targetPj.characterName.toLowerCase()}` : ''}`,
           importance: 1.8, // alta — momento icônico
         });
+        break;
+      }
+
+      case 'request_saving_throw': {
+        const resolvedPlayerId = tool.playerId === 'active' && this.party[0] ? this.party[0].id : tool.playerId;
+        const owner = this.party.find((p) => p.id === resolvedPlayerId)?.id ?? this.party[0]?.id ?? resolvedPlayerId;
+        this.state.pendingSave = {
+          ability: tool.ability,
+          dc: tool.dc,
+          reason: tool.reason,
+          playerId: owner,
+        };
         break;
       }
 

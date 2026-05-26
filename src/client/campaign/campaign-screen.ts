@@ -349,6 +349,29 @@ export class CampaignScreen {
       ]));
     }
 
+    // F27 — Pending saving throw banner (paralelo ao skill check)
+    const pendingSave = this.currentState?.pendingSave;
+    if (pendingSave) {
+      const isMe = pendingSave.playerId === this.opts.characterId;
+      if (isMe) {
+        // Botão grande pra rolar
+        root.appendChild(el('div', { class: 'camp-check-banner' }, [
+          el('span', { text: `🛡 Save ${pendingSave.ability.toUpperCase()} (DC ${pendingSave.dc}) — ${pendingSave.reason}` }),
+          el('button', {
+            class: 'cdb-roll-btn',
+            text: '🎲 Rolar Save',
+            attrs: { type: 'button' },
+            on: { click: () => this.opts.socket.emit('resolveSavingThrow') },
+          }),
+        ]));
+      } else {
+        const ownerName = this.party.find((p) => p.id === pendingSave.playerId)?.characterName ?? 'Aliado';
+        root.appendChild(el('div', { class: 'camp-check-banner is-spectating' }, [
+          el('span', { text: `🛡 ${ownerName} está rolando save ${pendingSave.ability.toUpperCase()} (DC ${pendingSave.dc}) — ${pendingSave.reason}` }),
+        ]));
+      }
+    }
+
     // ── DM thinking indicator (qualquer jogador)
     if (this.dmThinkingBy) {
       root.appendChild(el('div', { class: 'camp-thinking' }, [
