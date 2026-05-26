@@ -6,6 +6,7 @@
 // - Traits especiais (visão no escuro, resistências, etc)
 
 import type { AbilityScores } from './attributes';
+import type { DamageType } from './damage-types';
 
 export type RaceId =
   | 'humano'
@@ -29,6 +30,11 @@ export interface RaceDef {
   languages: string[];
   darkvision?: number;         // em pés (0 = nenhum)
   traits: string[];            // descrições curtas pra UI
+  // F26 + 1A — Damage profile da raça (PHB cap 2). Wizard buildCharacterSheet copia
+  // pra CharacterSheet.resistances/immunities/vulnerabilities ao criar PJ.
+  defaultResistances?: DamageType[];
+  defaultImmunities?: DamageType[];
+  defaultVulnerabilities?: DamageType[];
 }
 
 export const RACES: Record<RaceId, RaceDef> = {
@@ -55,6 +61,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     languages: ['Comum', 'Anão'],
     darkvision: 60,
     traits: ['Resiliência Anã (vant em saves contra veneno)', 'Tenacidade Anã (+1 HP por nível)', 'Visão no Escuro 60 ft'],
+    defaultResistances: ['veneno'],   // PHB pág 20 — Resiliência Anã RAW
   },
   'anao-montanha': {
     id: 'anao-montanha',
@@ -67,6 +74,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     languages: ['Comum', 'Anão'],
     darkvision: 60,
     traits: ['Resiliência Anã (vant vs veneno)', 'Treinamento com Armadura Anã (leves+médias)', 'Visão no Escuro 60 ft'],
+    defaultResistances: ['veneno'],   // PHB pág 20 — Resiliência Anã RAW
   },
 
   'alto-elfo': {
@@ -115,6 +123,7 @@ export const RACES: Record<RaceId, RaceDef> = {
     size: 'pequeno',
     languages: ['Comum', 'Halfling'],
     traits: ['Sortudo', 'Bravo', 'Agilidade Halfling', 'Resiliência Robusta (vant vs veneno + resist dano de veneno)'],
+    defaultResistances: ['veneno'],   // PHB pág 28 — Resiliência Robusta RAW (resist dano veneno)
   },
 
   draconato: {
@@ -191,7 +200,11 @@ export const RACES: Record<RaceId, RaceDef> = {
     languages: ['Comum', 'Infernal'],
     darkvision: 60,
     traits: ['Resistência Infernal (resist dano de fogo)', 'Legado Infernal (cantrip Taumaturgia; nv3 Repreensão Infernal; nv5 Escuridão)', 'Visão no Escuro 60 ft'],
+    defaultResistances: ['fogo'],     // PHB pág 43 — Resistência Infernal RAW
   },
+  // Draconato: a resistência depende do ancestry escolhido (fogo/frio/raio/ácido/veneno),
+  // que ainda não tem UI de escolha — TODO 1A.next: quando step-race adicionar dropdown
+  // de ancestry, popular defaultResistances dinamicamente em buildCharacterSheet.
 };
 
 export function getRace(id: RaceId): RaceDef {

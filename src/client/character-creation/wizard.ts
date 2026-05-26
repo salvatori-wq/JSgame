@@ -281,6 +281,17 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
     exhaustion: 0,
   };
 
+  // F26 + 1A — Copia damage profile racial pra sheet (Tiefling=resist fogo, Anão=resist veneno).
+  if (race.defaultResistances && race.defaultResistances.length > 0) {
+    sheet.resistances = [...race.defaultResistances];
+  }
+  if (race.defaultImmunities && race.defaultImmunities.length > 0) {
+    sheet.immunities = [...race.defaultImmunities];
+  }
+  if (race.defaultVulnerabilities && race.defaultVulnerabilities.length > 0) {
+    sheet.vulnerabilities = [...race.defaultVulnerabilities];
+  }
+
   // Preenche slots/cantrips/spells iniciais se for caster
   applySpellcasterDefaults(sheet);
 

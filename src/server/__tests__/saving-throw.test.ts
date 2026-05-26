@@ -91,15 +91,15 @@ describe('F27 — Campaign.resolveSavingThrow', () => {
     const pj = mkPj(); // proficient em for, con
     camp.addCharacter(pj);
     // CON save: tem proficiência → bonus = 3 (mod) + 3 (pb nv 5) = 6
-    camp.state.pendingSave = { ability: 'con', dc: 10, reason: 'veneno', playerId: pj.id };
+    // d20+6 vs DC 10 → precisa nat ≥4 (P=17/20=85%).
+    // Estatística: 30 rolls, ≥20 sucessos. P(≥20|0.85,30) ≈ 0.9998 — efetivamente nunca falha.
     let success = 0;
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 30; i++) {
       camp.state.pendingSave = { ability: 'con', dc: 10, reason: 'veneno', playerId: pj.id };
       const r = await camp.resolveSavingThrow(pj.id);
       if (r?.success) success++;
     }
-    // d20+6 vs 10 quase sempre sucesso (precisa ≥4)
-    expect(success).toBeGreaterThanOrEqual(8);
+    expect(success).toBeGreaterThanOrEqual(20);
   });
 
   it('sem proficiência usa só ability mod', async () => {
