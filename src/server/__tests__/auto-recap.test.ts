@@ -127,7 +127,7 @@ describe('A3 — Auto-recap', () => {
 
   it('topImportant filtra por kinds quando passado', async () => {
     await memory.saveFact({ campaignId: 'c5', kind: 'npc', text: 'NPC', tags: '', importance: 1.5 });
-    await memory.saveFact({ campaignId: 'c5', kind: 'chatter', text: 'chitchat', tags: '', importance: 1.9 });
+    await memory.saveFact({ campaignId: 'c5', kind: 'lore', text: 'lore não-quest', tags: '', importance: 1.9 });
     const top = await memory.topImportant('c5', { limit: 5, kinds: ['npc', 'event'], minImportance: 1.3 });
     expect(top).toHaveLength(1);
     expect(top[0]!.kind).toBe('npc');

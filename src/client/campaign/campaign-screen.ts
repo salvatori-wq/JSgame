@@ -30,6 +30,7 @@ import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-
 import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
+import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -271,8 +272,8 @@ export class CampaignScreen {
       // bugs reais — só mostra erros reais (failure de tool call, save fail).
       const benign = /no active campaign|campaign not found|outro player|sem combate ativo/i;
       if (!benign.test(msg)) {
-        this.narrations.push({ speaker: '⚠ Erro', text: msg });
-        this.render();
+        // B6 — Toast inferior em vez de só push narração (mais visível)
+        toastError(msg);
       }
       this.dmThinkingBy = null;
     };

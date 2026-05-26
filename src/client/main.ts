@@ -11,6 +11,7 @@ import { CampaignScreen } from './campaign/campaign-screen';
 import { LobbyScreen } from './lobby/lobby-screen';
 import { LoginScreen } from './auth/login-screen';
 import { ProfileScreen } from './profile/profile-screen';
+import { toastError, toastWarn } from './toast';
 import { SheetScreen } from './sheet/sheet-screen';
 import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
@@ -390,7 +391,7 @@ async function renderHome(): Promise<void> {
     text: '🔗 Joinar Lobby',
     on: {
       click: () => {
-        if (!getOwnerName().trim()) { alert('Digite seu nome de jogador antes.'); return; }
+        if (!getOwnerName().trim()) { toastWarn('Digite seu nome de jogador antes.'); return; }
         const id = lobbyJoinInput.value.trim();
         if (!id) { lobbyJoinInput.focus(); return; }
         navigate({ kind: 'lobby', lobbyId: id });
@@ -402,7 +403,7 @@ async function renderHome(): Promise<void> {
     text: '🏛 Criar Lobby',
     on: {
       click: () => {
-        if (!getOwnerName().trim()) { alert('Digite seu nome de jogador antes.'); return; }
+        if (!getOwnerName().trim()) { toastWarn('Digite seu nome de jogador antes.'); return; }
         navigate({ kind: 'lobby' });
       },
     },
@@ -455,7 +456,7 @@ async function renderHome(): Promise<void> {
         const id = joinInput.value.trim();
         if (!id) { joinInput.focus(); return; }
         if (!selectedCharId) {
-          alert('Selecione um personagem primeiro (clique no card).');
+          toastWarn('Selecione um personagem primeiro (clique no card).');
           return;
         }
         navigate({ kind: 'campaign', characterId: selectedCharId, campaignId: id });
@@ -535,7 +536,7 @@ function renderCampaignCard(
       on: {
         click: () => {
           const charId = getSelectedChar();
-          if (!charId) { alert('Selecione um personagem primeiro.'); return; }
+          if (!charId) { toastWarn('Selecione um personagem primeiro.'); return; }
           navigate({ kind: 'campaign', characterId: charId, campaignId: c.id });
         },
       },

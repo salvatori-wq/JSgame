@@ -7,6 +7,7 @@ import {
   listFriends, acceptFriendship, removeFriendship, inviteFriendByEmail,
   type AchievementStatusDTO, type HighlightDTO, type StreakDTO, type FriendDTO,
 } from '../api';
+import { toastError, toastSuccess, toastInfo } from '../toast';
 
 interface ProfileScreenOpts {
   container: HTMLElement;
@@ -104,15 +105,15 @@ export class ProfileScreen {
       try {
         const r = await inviteFriendByEmail(email);
         if (r.mode === 'dev-log' && r.devLink) {
-          alert(`Modo dev — link gerado:\n${r.devLink}`);
+          toastInfo(`Modo dev — link: ${r.devLink}`, { durationMs: 15000 });
         } else {
-          alert(`Convite enviado pra ${email}!`);
+          toastSuccess(`Convite enviado pra ${email}`);
         }
         input.value = '';
         // Re-render lista
         this.start();
       } catch (err) {
-        alert(`Erro: ${String(err)}`);
+        toastError(`Convite falhou: ${String(err)}`);
       }
     });
     sec.appendChild(inviteForm);
@@ -144,7 +145,8 @@ export class ProfileScreen {
         class: 'pf-accept-btn',
         text: '✓ Aceitar',
         on: { click: async () => {
-          await acceptFriendship(f.userId).catch((err) => alert(`Erro: ${String(err)}`));
+          try { await acceptFriendship(f.userId); toastSuccess(`Amigo aceito: ${name}`); }
+          catch (err) { toastError(`Erro: ${String(err)}`); }
           this.start();
         } },
       }));
@@ -157,7 +159,8 @@ export class ProfileScreen {
         attrs: { title: 'Remover amigo' },
         on: { click: async () => {
           if (!confirm(`Remover ${name}?`)) return;
-          await removeFriendship(f.userId).catch((err) => alert(`Erro: ${String(err)}`));
+          try { await removeFriendship(f.userId); toastInfo(`Amigo removido: ${name}`); }
+          catch (err) { toastError(`Erro: ${String(err)}`); }
           this.start();
         } },
       }));

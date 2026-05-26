@@ -201,7 +201,9 @@ export class CharacterWizard {
       this.onComplete(sheet);
     } catch (err) {
       console.error('[wizard] save failed:', err);
-      alert(`Erro ao salvar: ${String(err)}`);
+      // B6 — Toast em vez de alert
+      const { toastError } = await import('../toast');
+      toastError(`Erro ao salvar: ${String(err)}`);
     }
   }
 }

@@ -160,18 +160,24 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
         on: {
           click: () => {
             if (a.id === 'attack' || a.id === 'grapple' || a.id === 'shove' || a.id === 'two-weapon') {
-              alert(`Clique no inimigo alvo (cards acima). Ação: ${a.label}.`);
+              void import('../toast').then(({ toastInfo }) => toastInfo(`Clique no inimigo alvo (cards acima). Ação: ${a.label}.`));
               // Marca ação pendente
               (window as unknown as { __pendingCombatAction?: CombatActionKind }).__pendingCombatAction = a.id;
               return;
             }
             if (a.id === 'help') {
               const allies = party.filter((p) => p.id !== myCharacterId && p.currentHp > 0);
-              if (allies.length === 0) { alert('Nenhum aliado vivo pra ajudar.'); return; }
+              if (allies.length === 0) {
+                void import('../toast').then(({ toastWarn }) => toastWarn('Nenhum aliado vivo pra ajudar.'));
+                return;
+              }
               const choice = prompt(`Ajudar quem? Digite o nome:\n${allies.map((al) => `- ${al.characterName}`).join('\n')}`);
               if (!choice) return;
               const target = allies.find((al) => al.characterName.toLowerCase() === choice.toLowerCase());
-              if (!target) { alert(`Aliado "${choice}" não encontrado.`); return; }
+              if (!target) {
+                void import('../toast').then(({ toastError }) => toastError(`Aliado "${choice}" não encontrado.`));
+                return;
+              }
               socket.emit('combatAction', { action: 'help', targetId: target.id });
               return;
             }
