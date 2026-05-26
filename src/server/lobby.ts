@@ -3,6 +3,7 @@
 // Quando todos ready, host inicia → cria Campaign + emite redirect.
 
 import type { LobbyState, LobbyPlayer, LobbyPlayerStatus } from '../shared/types.js';
+import type { DmPersonality } from '../dnd/dm-personality.js';
 
 const MAX_PLAYERS_PER_LOBBY = 6;
 const LOBBY_TTL_MS = 60 * 60 * 1000; // 1h sem atividade → garbage collect
@@ -146,6 +147,18 @@ export class LobbyManager {
     if (lobby.players.length < 1) return { ok: false, reason: 'lobby vazio' };
 
     lobby.campaignId = newCampaignId;
+    return { ok: true, lobby };
+  }
+
+  // 1C — Host (e só ele) muda personality do DM antes de começar.
+  setPersonality(socketId: string, dmPersonality: DmPersonality): { ok: boolean; lobby?: LobbyState; reason?: string } {
+    const lobbyId = this.socketToLobby.get(socketId);
+    if (!lobbyId) return { ok: false, reason: 'não está em lobby' };
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) return { ok: false, reason: 'lobby não encontrado' };
+    if (lobby.hostSocketId !== socketId) return { ok: false, reason: 'só o host pode mudar personality' };
+    if (lobby.campaignId) return { ok: false, reason: 'campanha já iniciada' };
+    lobby.dmPersonality = dmPersonality;
     return { ok: true, lobby };
   }
 

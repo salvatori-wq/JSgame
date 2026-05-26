@@ -28,6 +28,7 @@ import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { speak as ttsSpeak, isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
+import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -461,6 +462,11 @@ export class CampaignScreen {
     ]);
   }
 
+  private dmPersonalityLabel(id: DmPersonality): string {
+    const p = getPersonality(id);
+    return `${p.icon} ${p.label}`;
+  }
+
   private renderHeader(): HTMLElement {
     const campId = this.currentState?.id;
     return el('header', { class: 'camp-header' }, [
@@ -482,7 +488,11 @@ export class CampaignScreen {
       el('div', { class: 'camp-title' }, [
         el('h2', { text: this.currentState?.name ?? 'Carregando…' }),
         el('div', { class: 'camp-loc', text: this.currentState?.currentLocation ?? '...' }),
-      ]),
+        // 1C — indicador discreto de personality do DM ativa
+        this.currentState?.dmPersonality
+          ? el('div', { class: 'camp-personality-tag', attrs: { title: 'Estilo do Mestre' }, text: this.dmPersonalityLabel(this.currentState.dmPersonality) })
+          : null,
+      ].filter(Boolean) as HTMLElement[]),
       el('button', {
         class: 'camp-sfx-btn',
         text: isSfxEnabled() ? '🔊' : '🔇',

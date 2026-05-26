@@ -12,6 +12,7 @@ import type { CharacterSummary } from '../../server/persistence';
 import { el, escapeHtml, getOwnerName } from '../util';
 import { getRace } from '../../dnd/races';
 import { getClass } from '../../dnd/classes';
+import { ALL_PERSONALITIES, DEFAULT_PERSONALITY, getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -153,6 +154,16 @@ export class LobbyScreen {
       root.appendChild(this.renderMyControls(me));
     }
 
+    // 1C — Host escolhe personality do DM antes de começar.
+    if (me?.isHost) {
+      root.appendChild(this.renderPersonalityPicker());
+    } else if (this.state.dmPersonality) {
+      root.appendChild(el('div', { class: 'lobby-personality-info' }, [
+        el('span', { class: 'lp-pers-label', text: 'Estilo do Mestre:' }),
+        el('span', { class: 'lp-pers-value', text: this.personalityLabel(this.state.dmPersonality) }),
+      ]));
+    }
+
     // ── Host start button (A1.2: lista quem ainda falta)
     if (me?.isHost) {
       const notReady = this.state?.players.filter((p) => p.status !== 'ready') ?? [];
@@ -189,6 +200,34 @@ export class LobbyScreen {
         ? el('span', { class: 'lp-info', text: extraInfo.join(' · ') })
         : null,
     ].filter(Boolean) as HTMLElement[]);
+  }
+
+  private personalityLabel(id: DmPersonality): string {
+    const p = getPersonality(id);
+    return `${p.icon} ${p.label}`;
+  }
+
+  // 1C — Host-only: dropdown estilos do DM. Disabled quando campanha já começou.
+  private renderPersonalityPicker(): HTMLElement {
+    const current: DmPersonality = (this.state?.dmPersonality ?? DEFAULT_PERSONALITY);
+    const active = getPersonality(current);
+    const wrap = el('section', { class: 'lobby-personality-picker' });
+    wrap.appendChild(el('h3', { class: 'lobby-section-title', text: '🎭 Estilo do Mestre' }));
+    const row = el('div', { class: 'lpp-row' });
+    for (const p of ALL_PERSONALITIES) {
+      const btn = el('button', {
+        class: `lpp-opt ${p.id === current ? 'is-active' : ''}`,
+        attrs: { type: 'button', title: p.description },
+        on: { click: () => this.opts.socket.emit('lobbySetPersonality', { dmPersonality: p.id }) },
+      }, [
+        el('span', { class: 'lpp-icon', text: p.icon }),
+        el('span', { class: 'lpp-label', text: p.label }),
+      ]);
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+    wrap.appendChild(el('div', { class: 'lpp-desc', text: active.description }));
+    return wrap;
   }
 
   private renderMyControls(me: LobbyPlayer): HTMLElement {

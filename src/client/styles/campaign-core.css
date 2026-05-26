@@ -82,6 +82,19 @@
   color: var(--ink-mute);
 }
 
+/* 1C — DM personality tag (header) */
+.camp-personality-tag {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  background: rgba(60, 40, 100, 0.4);
+  border: 1px solid rgba(140, 110, 200, 0.45);
+  border-radius: 10px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: #c8a8ff;
+}
+
 .camp-hp {
   display: flex;
   flex-direction: column;

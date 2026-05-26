@@ -246,6 +246,9 @@ export interface CampaignState {
   combat: CombatState | null;
   // F18 — Quests dadas pelo Mestre via DM tools. Persistem entre sessões.
   quests?: Quest[];
+  // 1C — DM personality preset (sombrio/épico/comédia/noir/pulp). Default sombrio.
+  // Escolhido no lobby antes do start, persiste em DB.
+  dmPersonality?: import('../dnd/dm-personality').DmPersonality;
 }
 
 // Combate
@@ -316,6 +319,8 @@ export interface ClientToServerEvents {
   leaveLobby: () => void;
   lobbyUpdateStatus: (payload: { status: LobbyPlayerStatus; characterId?: string; wizardStep?: string }) => void;
   lobbyStartCampaign: () => void;
+  // 1C — Host (e só ele) muda personality do DM antes de começar a crônica.
+  lobbySetPersonality: (payload: { dmPersonality: import('../dnd/dm-personality').DmPersonality }) => void;
 
   // Social
   speakToNpc: (payload: { npcId: string; message: string; skill?: SkillId }) => void;
@@ -358,6 +363,8 @@ export interface LobbyState {
   players: LobbyPlayer[];
   createdAt: number;
   campaignId?: string;      // quando host inicia, vira o ID da campaign
+  // 1C — Personality escolhida pelo host antes do start. Vai pro CampaignState.dmPersonality.
+  dmPersonality?: import('../dnd/dm-personality').DmPersonality;
 }
 
 export interface ServerToClientEvents {

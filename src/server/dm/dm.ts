@@ -3,7 +3,7 @@
 // Tem FallbackDM offline pra quando provider falha (timeout, rate limit, sem key).
 
 import type { DMProvider, DMToolCall } from './providers/base.js';
-import { SYSTEM_PROMPT, DM_TOOLS, buildNarrationPrompt, type NarrationContext } from './prompts.js';
+import { getSystemPrompt, DM_TOOLS, buildNarrationPrompt, type NarrationContext } from './prompts.js';
 
 export interface DMResponse {
   narration: string;
@@ -44,10 +44,12 @@ export class DungeonMaster {
 
   async narrate(context: NarrationContext): Promise<DMResponse> {
     const userPrompt = buildNarrationPrompt(context);
+    // 1C — System prompt dinâmico baseado em CampaignState.dmPersonality (default sombrio).
+    const systemPrompt = getSystemPrompt(context.campaign.dmPersonality);
 
     let response;
     try {
-      response = await this.callWithBackoff(userPrompt, true);
+      response = await this.callWithBackoff(systemPrompt, userPrompt, true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Aprendizado Cave Run: Llama 4 Scout dá 400 em ~26% dos calls com tools.
@@ -55,7 +57,7 @@ export class DungeonMaster {
       if (/400|failed to call a function|tool/i.test(msg)) {
         console.warn('[dm] retry sem tools após erro:', msg.slice(0, 120));
         try {
-          response = await this.callWithBackoff(userPrompt, false);
+          response = await this.callWithBackoff(systemPrompt, userPrompt, false);
         } catch (err2) {
           console.warn('[dm] retry sem tools também falhou:', err2);
           return makeGracefulFallback(err2);
@@ -82,7 +84,7 @@ export class DungeonMaster {
    * Zero-budget alternative ao fallback Anthropic — espera Groq desbloquear sem
    * dependência externa.
    */
-  private async callWithBackoff(userPrompt: string, withTools: boolean): Promise<{ text: string; toolCalls: DMToolCall[] }> {
+  private async callWithBackoff(systemPrompt: string, userPrompt: string, withTools: boolean): Promise<{ text: string; toolCalls: DMToolCall[] }> {
     const delays = [0, 1000, 3000]; // 3 tentativas, total ~4s antes de falhar
     let lastErr: unknown;
     for (let attempt = 0; attempt < delays.length; attempt++) {
@@ -92,7 +94,7 @@ export class DungeonMaster {
       try {
         return await withTimeout(
           this.provider.generate({
-            systemPrompt: SYSTEM_PROMPT,
+            systemPrompt,
             userPrompt,
             tools: withTools ? DM_TOOLS : undefined,
             maxTokens: 1024,

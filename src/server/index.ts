@@ -1200,6 +1200,10 @@ async function main(): Promise<void> {
         }
         // Cria a Campaign e adiciona TODOS os PJs dos players ready
         const camp = await getOrCreateCampaign(newCampaignId, `Crônica de ${result.lobby.players[0]?.ownerName ?? 'aventureiros'}`, dm);
+        // 1C — Propaga personality do lobby pro CampaignState (vai pro SYSTEM_PROMPT).
+        if (result.lobby.dmPersonality) {
+          camp.state.dmPersonality = result.lobby.dmPersonality;
+        }
         for (const p of result.lobby.players) {
           if (p.characterId) {
             const character = await loadCharacter(p.characterId);
@@ -1214,6 +1218,21 @@ async function main(): Promise<void> {
       } catch (err) {
         console.error('[socket] lobbyStartCampaign error:', err);
         socket.emit('error', `lobbyStartCampaign falhou: ${String(err)}`);
+      }
+    });
+
+    // 1C — Host muda personality do DM (só vale antes da campanha iniciar).
+    socket.on('lobbySetPersonality', ({ dmPersonality }) => {
+      try {
+        const result = lobbyManager.setPersonality(socket.id, dmPersonality);
+        if (!result.ok || !result.lobby) {
+          socket.emit('error', result.reason ?? 'erro ao mudar personality');
+          return;
+        }
+        io.to(`lobby-${result.lobby.id}`).emit('lobbyState', result.lobby);
+      } catch (err) {
+        console.error('[socket] lobbySetPersonality error:', err);
+        socket.emit('error', `lobbySetPersonality falhou: ${String(err)}`);
       }
     });
 
