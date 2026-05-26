@@ -51,14 +51,12 @@ export class CloudflareProvider implements DMProvider {
     tools?: DMToolDef[];
     maxTokens?: number;
   }): Promise<DMRawResponse> {
-    // 2026-05-26 fix: Cloudflare Workers AI rodando Llama 3.3 70B NÃO suporta
-    // function calling do mesmo jeito que OpenAI/Anthropic — quando recebe `tools`
-    // no body, o modelo retorna o tool_call como JSON dentro de result.response
-    // (texto cru), causando vazamento de "```json {type:function...} ```" no chat.
-    // Solução: nunca passar tools pro Cloudflare. Ele só faz narração pura, sem
-    // tool_calls. Fluxo D&D (skill checks, dano, etc) funciona normalmente nos
-    // outros 3 providers do cascade (Cerebras/Gemini/Groq). Cloudflare é fallback
-    // de narração-only quando os 3 estouram.
+    // 2026-05-26 (rev): habilita tools de volta + parser inline.
+    // Cloudflare/Llama 3.3 70B retorna tool_call como JSON DENTRO do text:
+    //   ```json{"type":"function","name":"start_combat","parameters":{...}}```
+    // Antes desabilitei tools (vazava JSON pro chat). Mas isso quebrou combate:
+    // DM narrava briga mas não chamava start_combat → initiative/dados não rolavam.
+    // Agora: passa tools no body, parseia inline no response (post-processing).
     const body: Record<string, unknown> = {
       messages: [
         { role: 'system', content: opts.systemPrompt },
@@ -67,7 +65,13 @@ export class CloudflareProvider implements DMProvider {
       max_tokens: opts.maxTokens ?? 1024,
       temperature: 0.9,
     };
-    // NOTE: opts.tools ignorado intencionalmente — vide comentário acima.
+    if (opts.tools && opts.tools.length > 0) {
+      body.tools = opts.tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.schema,
+      }));
+    }
 
     const url = `${this.baseUrl}/accounts/${this.accountId}/ai/run/${this.model}`;
     const controller = new AbortController();
@@ -100,25 +104,107 @@ export class CloudflareProvider implements DMProvider {
     }
 
     const result = data.result ?? {};
-    const text = result.response ?? '';
+    let text = result.response ?? '';
 
     const toolCalls: { name: string; input: Record<string, unknown> }[] = [];
+    // 1) tool_calls no envelope nativo (caso CF mude API e suporte)
     for (const tc of result.tool_calls ?? []) {
       if (!tc.name) continue;
       try {
         const args = typeof tc.arguments === 'string' ? JSON.parse(tc.arguments) : (tc.arguments ?? {});
         toolCalls.push({ name: tc.name, input: args as Record<string, unknown> });
-      } catch {
-        // Argumentos malformados — ignora silenciosamente
-      }
+      } catch { /* ignora */ }
     }
+    // 2) tool_calls inline no text (Llama 3.3 70B retorna ```json{...}``` ou JSON direto).
+    //    Parseia + remove do text pra não vazar pro chat.
+    const parsed = parseInlineToolCalls(text);
+    text = parsed.cleanedText;
+    toolCalls.push(...parsed.toolCalls);
 
-    // Mesma proteção do Cerebras fix (2026-05-26): se Cloudflare retornar
-    // response vazia E sem tool_calls, throw → CascadeProvider failover.
+    // Empty response throw — CascadeProvider failover.
     if (text.length === 0 && toolCalls.length === 0) {
       throw new Error(`Cloudflare empty response: model=${this.model}`);
     }
 
     return { text, toolCalls };
   }
+}
+
+// Parser de tool_calls embedded no text. Suporta 2 formatos comuns do Llama:
+// 1. ```json {"type":"function","name":"foo","parameters":{...}} ```
+// 2. JSON direto sem code block: {"type":"function","name":"foo","parameters":{...}}
+// Retorna texto sem os JSON blocks + array de toolCalls extraídos.
+export function parseInlineToolCalls(text: string): {
+  cleanedText: string;
+  toolCalls: Array<{ name: string; input: Record<string, unknown> }>;
+} {
+  const toolCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  let cleaned = text;
+
+  // Pattern 1: ```json...``` blocks
+  const codeBlockRe = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g;
+  cleaned = cleaned.replace(codeBlockRe, (match, jsonStr) => {
+    const tc = tryParseToolCall(jsonStr);
+    if (tc) {
+      toolCalls.push(tc);
+      return ''; // remove o block do text
+    }
+    return match; // mantém se não for tool call
+  });
+
+  // Pattern 2: JSON direto no início do text (sem code block)
+  const trimmed = cleaned.trim();
+  if (trimmed.startsWith('{')) {
+    // Tenta achar onde fecha o JSON top-level
+    const endIdx = findMatchingBrace(trimmed, 0);
+    if (endIdx > 0) {
+      const candidate = trimmed.slice(0, endIdx + 1);
+      const tc = tryParseToolCall(candidate);
+      if (tc) {
+        toolCalls.push(tc);
+        cleaned = trimmed.slice(endIdx + 1).trimStart();
+      }
+    }
+  }
+
+  return { cleanedText: cleaned.trim(), toolCalls };
+}
+
+function tryParseToolCall(jsonStr: string): { name: string; input: Record<string, unknown> } | null {
+  try {
+    const obj = JSON.parse(jsonStr);
+    if (obj && typeof obj === 'object') {
+      // Formato Llama: {"type":"function","name":"X","parameters":{...}}
+      if (obj.type === 'function' && typeof obj.name === 'string') {
+        const params = obj.parameters ?? obj.arguments ?? {};
+        return { name: obj.name, input: typeof params === 'string' ? JSON.parse(params) : params };
+      }
+      // Formato direto: {"name":"X","parameters":{...}}
+      if (typeof obj.name === 'string' && (obj.parameters || obj.arguments)) {
+        const params = obj.parameters ?? obj.arguments;
+        return { name: obj.name, input: typeof params === 'string' ? JSON.parse(params) : params };
+      }
+    }
+  } catch { /* não é JSON válido */ }
+  return null;
+}
+
+function findMatchingBrace(s: string, start: number): number {
+  if (s[start] !== '{') return -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
 }

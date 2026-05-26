@@ -76,10 +76,10 @@ describe('CloudflareProvider', () => {
     expect(r.toolCalls).toEqual([{ name: 'apply_damage', input: { damage: 5, type: 'fogo' } }]);
   });
 
-  // 2026-05-26 fix tool-call leak: Cloudflare IGNORA tools no body.
-  // Llama 3.3 70B no CF não suporta function calling do mesmo jeito que OpenAI —
-  // quando recebia tools, retornava JSON cru no text. Agora narração-only.
-  it('IGNORA tools no body (evita JSON vazado no text)', async () => {
+  // 2026-05-26 rev2: Cloudflare passa tools E parseia tool_calls inline do text
+  // (Llama 3.3 70B retorna como JSON dentro do response). Parser extrai pra
+  // toolCalls array. Resolve bug do combate não iniciar.
+  it('passa tools no body quando fornecidos', async () => {
     let capturedBody: Record<string, unknown> = {};
     mockFetch((_, init) => {
       capturedBody = JSON.parse(init.body as string);
@@ -90,7 +90,26 @@ describe('CloudflareProvider', () => {
       systemPrompt: 's', userPrompt: 'u',
       tools: [{ name: 'roll', description: 'd', schema: { type: 'object' } }],
     });
-    expect(capturedBody.tools).toBeUndefined();
+    expect((capturedBody.tools as unknown[]).length).toBe(1);
+  });
+
+  it('parseia tool_call inline do text e remove do narration', async () => {
+    mockFetch(() => new Response(JSON.stringify({
+      success: true,
+      result: {
+        response: 'Você ataca o orc!\n```json\n{"type":"function","name":"start_combat","parameters":{"enemies":[{"name":"orc","hp":15}]}}\n```\nA batalha começa.',
+      },
+    }), { status: 200 }));
+    const p = new CloudflareProvider({ accountId: 'a', apiToken: 't', model: 'm' });
+    const r = await p.generate({
+      systemPrompt: 's', userPrompt: 'u',
+      tools: [{ name: 'start_combat', description: 'd', schema: { type: 'object' } }],
+    });
+    expect(r.toolCalls.length).toBe(1);
+    expect(r.toolCalls[0]!.name).toBe('start_combat');
+    expect(r.text).not.toContain('```json');
+    expect(r.text).toContain('Você ataca o orc');
+    expect(r.text).toContain('A batalha começa');
   });
 
   it('throw em response vazia (response="" + sem tool_calls) — caso failover cascade', async () => {

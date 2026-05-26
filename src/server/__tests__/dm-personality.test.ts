@@ -6,9 +6,9 @@ import { getSystemPrompt, SYSTEM_PROMPT } from '../dm/prompts.js';
 import { PERSONALITIES, ALL_PERSONALITIES, getPersonality, DEFAULT_PERSONALITY } from '../../dnd/dm-personality.js';
 
 describe('1C — DM Personality presets', () => {
-  it('5 personalities definidas (sombrio/epico/comedia/noir/pulp)', () => {
-    expect(ALL_PERSONALITIES.length).toBe(5);
-    expect(Object.keys(PERSONALITIES).sort()).toEqual(['comedia', 'epico', 'noir', 'pulp', 'sombrio']);
+  it('6 personalities definidas (sombrio/epico/comedia/noir/pulp/zueiro)', () => {
+    expect(ALL_PERSONALITIES.length).toBe(6);
+    expect(Object.keys(PERSONALITIES).sort()).toEqual(['comedia', 'epico', 'noir', 'pulp', 'sombrio', 'zueiro']);
   });
 
   it('cada preset tem id, label, icon, description, identityBlock não-vazio', () => {
@@ -66,7 +66,12 @@ describe('1C — DM Personality presets', () => {
   it('cada preset gera prompt distinto', () => {
     const prompts = ALL_PERSONALITIES.map((p) => getSystemPrompt(p.id));
     const unique = new Set(prompts);
-    expect(unique.size).toBe(5);
+    expect(unique.size).toBe(ALL_PERSONALITIES.length);
+  });
+
+  it('getSystemPrompt(zueiro) menciona BR coloquial', () => {
+    const prompt = getSystemPrompt('zueiro');
+    expect(prompt.toLowerCase()).toMatch(/zueiro|boteco|amigo/);
   });
 
   it('SYSTEM_PROMPT (retrocompat const) = getSystemPrompt(sombrio)', () => {
