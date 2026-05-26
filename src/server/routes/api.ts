@@ -31,6 +31,7 @@ import {
 } from '../friends.js';
 import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
 import { detectAnomalies, computeFunnel } from '../anomaly-detector.js';
+import { getDmErrorBreakdown } from '../dm-error-breakdown.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -113,6 +114,20 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json(result);
     } catch (err) {
       console.error('[api] anomalies:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // === DM errors breakdown (pós-deploy 2026-05-26) — categoriza últimos N erros
+  // por provider + categoria (rate_limit/timeout/parse/etc) pra diagnosticar
+  // alto error rate em prod.
+  app.get('/api/dm/errors', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(30, Number(req.query.days) || 1));
+      const result = await getDmErrorBreakdown(days);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] dm errors:', err);
       res.status(500).json({ error: String(err) });
     }
   });
