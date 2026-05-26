@@ -36,7 +36,8 @@ import { consumeBuffs, clearAllBuffs, tickBuffsEndOfTurn } from './buff-engine.j
 import type { SpellId } from '../dnd/spells.js';
 import { getClass } from '../dnd/classes.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
-import { rollDice } from '../dnd/dice.js';
+import { rollDice, parseDiceNotation } from '../dnd/dice.js';
+import { getConsumable, inferConsumableEffectFromName } from '../dnd/consumables.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
@@ -815,24 +816,61 @@ export class Campaign {
         return { ok: false, message: `${item.name} não é consumível` };
       }
 
-      // Heuristicas pra poções comuns
-      const name = item.name.toLowerCase();
+      // M4 — Resolve effect: prioriza catálogo CONSUMABLES (id-based), depois name-match (legado).
+      const fromCatalog = getConsumable(item.id);
+      const effect = fromCatalog
+        ? fromCatalog.effect
+        : (inferConsumableEffectFromName(item.name) ?? { kind: 'narrative' as const });
+
       let effectApplied = '';
-      if (/cura|poção.*cura|healing/.test(name)) {
-        // Roll 2d4+2 (poção comum) — usa rollDice
-        const roll = rollDice(2, 4, 2);
-        const oldHp = player.currentHp;
-        player.currentHp = Math.min(player.maxHp, player.currentHp + roll.total);
-        const healed = player.currentHp - oldHp;
-        if (healed > 0 && player.conditions.includes('inconsciente')) {
-          player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
+      switch (effect.kind) {
+        case 'heal': {
+          const dice = effect.heal!.dice;
+          // dice pode ser tipo "10" (constante) ou "2d4" — parseia
+          const numericConst = /^\d+$/.test(dice) ? parseInt(dice, 10) : null;
+          const rollTotal = numericConst !== null
+            ? numericConst
+            : (parseDiceNotation(dice)
+              ? rollDice(parseDiceNotation(dice)!.count, parseDiceNotation(dice)!.kind, parseDiceNotation(dice)!.modifier).total
+              : 0);
+          const total = rollTotal + (effect.heal!.bonus ?? 0);
+          const oldHp = player.currentHp;
+          player.currentHp = Math.min(player.maxHp, player.currentHp + total);
+          const healed = player.currentHp - oldHp;
+          if (healed > 0 && player.conditions.includes('inconsciente')) {
+            player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
+          }
+          effectApplied = `Curou ${healed} HP`;
+          break;
         }
-        effectApplied = `Curou ${healed} HP`;
-      } else if (/antídoto|veneno.*cura|poison.*cure/.test(name)) {
-        player.conditions = player.conditions.filter((c) => c !== 'envenenado');
-        effectApplied = 'Removeu condição envenenado';
-      } else {
-        effectApplied = `Usou ${item.name} (efeito narrado pelo Mestre)`;
+        case 'remove-condition': {
+          const removed: string[] = [];
+          for (const c of effect.removesConditions ?? []) {
+            if (player.conditions.includes(c)) {
+              player.conditions = player.conditions.filter((x) => x !== c);
+              removed.push(c);
+            }
+          }
+          effectApplied = removed.length > 0 ? `Removeu: ${removed.join(', ')}` : 'Nada a remover';
+          break;
+        }
+        case 'temp-hp': {
+          const dice = effect.tempHp!.dice;
+          const numericConst = /^\d+$/.test(dice) ? parseInt(dice, 10) : null;
+          const rollTotal = numericConst !== null
+            ? numericConst
+            : (parseDiceNotation(dice)
+              ? rollDice(parseDiceNotation(dice)!.count, parseDiceNotation(dice)!.kind, parseDiceNotation(dice)!.modifier).total
+              : 0);
+          const total = rollTotal + (effect.tempHp!.bonus ?? 0);
+          // Temp HP NÃO se acumula — usa o MAIOR (PHB pág 198)
+          player.tempHp = Math.max(player.tempHp, total);
+          effectApplied = `+${total} HP temporário`;
+          break;
+        }
+        case 'narrative':
+        default:
+          effectApplied = `Usou ${item.name} (efeito narrado pelo Mestre)`;
       }
 
       // Consome quantity
