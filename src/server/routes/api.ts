@@ -30,6 +30,7 @@ import {
   createFriendInvite, buildInviteEmail, listInvitesSentBy,
 } from '../friends.js';
 import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
+import { detectAnomalies, computeFunnel } from '../anomaly-detector.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -100,6 +101,30 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       });
     } catch (err) {
       console.error('[api] dm health:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // === DM anomalies (Sprint C) — alerts estruturados {severity, kind, value, baseline}
+  app.get('/api/dm/anomalies', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(30, Number(req.query.days) || 1));
+      const result = await detectAnomalies(days);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] anomalies:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // === DM funnel (Sprint C) — conversion entre etapas user journey
+  app.get('/api/dm/funnel', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(90, Number(req.query.days) || 7));
+      const result = await computeFunnel(days);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] funnel:', err);
       res.status(500).json({ error: String(err) });
     }
   });
