@@ -204,6 +204,7 @@ export interface EnemySnapshot {
   conditions: ConditionId[];
   description: string;
   isBoss: boolean;
+  xpAward: number;                     // F16: XP que essa kill concede (PHB CR→XP). Sem CR explícito = 10 (CR 0).
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -295,6 +296,23 @@ export interface ServerToClientEvents {
   dmThinking: (payload: { playerId: string; playerName: string; action: string }) => void;
   dmDone: () => void;
   error: (msg: string) => void;
+  // F16: XP ganho ao final do combate. Emitido pra TODOS players do combate.
+  xpAwarded: (payload: { characterId: string; characterName: string; xpAwarded: number; newXp: number }) => void;
+  // F16: subiu de nível. Emitido após xpAwarded quando houve level-up.
+  // Cliente abre overlay LEVEL UP no PJ correto.
+  levelUp: (payload: {
+    characterId: string;
+    characterName: string;
+    oldLevel: number;
+    newLevel: number;
+    hpGained: number;
+    proficiencyBonusGained: boolean;
+    slotsChanged: boolean;
+    level4ChoiceApplied: boolean;
+    notes: string[];
+  }) => void;
+  // F17: achievement unlocked. Cliente mostra toast.
+  achievementUnlocked: (payload: { id: string; name: string; description: string; icon: string }) => void;
 }
 
 export type ExplorationAction =

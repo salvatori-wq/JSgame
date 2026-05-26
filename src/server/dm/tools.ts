@@ -7,10 +7,11 @@ import type { ConditionId } from '../../dnd/conditions.js';
 import { SKILLS } from '../../dnd/skills.js';
 import { CONDITIONS } from '../../dnd/conditions.js';
 import { getMonster } from '../../dnd/monsters.js';
+import { xpForCR } from '../../dnd/leveling.js';
 
 export type ValidatedTool =
   | { kind: 'request_skill_check'; skill: SkillId; dc: number; reason: string; playerId: string }
-  | { kind: 'start_combat'; enemies: Array<{ name: string; hp: number; ac: number; attackBonus: number; damageDice: string; damageBonus: number; description?: string }>; surprise: boolean }
+  | { kind: 'start_combat'; enemies: Array<{ name: string; hp: number; ac: number; attackBonus: number; damageDice: string; damageBonus: number; description?: string; xpAward: number; isBoss?: boolean }>; surprise: boolean }
   | { kind: 'apply_damage'; playerId: string; damage: number; type: string; reason: string }
   | { kind: 'apply_condition'; targetId: string; condition: ConditionId; reason: string }
   | { kind: 'end_combat_with_outcome'; outcome: 'victory' | 'defeat' | 'fled'; reason: string }
@@ -57,11 +58,18 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
               damageDice: fromBestiary.damageDice,
               damageBonus: fromBestiary.damageBonus,
               description: fromBestiary.description,
+              xpAward: xpForCR(fromBestiary.cr),
+              isBoss: fromBestiary.isBoss,
             };
           }
           // Caso contrário, free-form (DM declara stats custom)
           const rawDice = String(e.damageDice ?? '1d6').replace(/\s+/g, '');
           const damageDice = DICE_NOTATION_RE.test(rawDice) ? rawDice : '1d6';
+          // CR custom opcional — DM pode declarar; senão, deriva de hp (heurística simples)
+          const customCr = Number(e.cr);
+          const xpAward = Number.isFinite(customCr) && customCr >= 0
+            ? xpForCR(customCr)
+            : estimateXpFromHp(Number(e.hp) || 10);
           return {
             name: String(e.name ?? 'Inimigo').slice(0, 60),
             hp: clamp(Number(e.hp) || 10, 1, 999),
@@ -70,6 +78,8 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
             damageDice,
             damageBonus: clamp(Number(e.damageBonus) || 0, -2, 20),
             description: e.description ? String(e.description).slice(0, 200) : undefined,
+            xpAward,
+            isBoss: !!e.isBoss,
           };
         })
         .slice(0, 12);
@@ -153,6 +163,21 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
 function clamp(n: number, min: number, max: number): number {
   if (!Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, n));
+}
+
+// Heurística: DM declarou enemy custom sem CR. Estima XP por hp.
+// HP < 5 = CR 0 (10 XP); HP < 10 = CR 1/8 (25); HP < 20 = CR 1/4 (50);
+// HP < 35 = CR 1/2 (100); HP < 60 = CR 1 (200); HP < 90 = CR 2 (450);
+// HP < 130 = CR 3 (700); senão CR 4 (1100). Conservador — evita inflação.
+function estimateXpFromHp(hp: number): number {
+  if (hp < 5) return 10;
+  if (hp < 10) return 25;
+  if (hp < 20) return 50;
+  if (hp < 35) return 100;
+  if (hp < 60) return 200;
+  if (hp < 90) return 450;
+  if (hp < 130) return 700;
+  return 1100;
 }
 
 // Re-export pra conveniência

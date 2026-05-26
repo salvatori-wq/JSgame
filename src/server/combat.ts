@@ -27,6 +27,8 @@ export interface StartCombatInput {
     damageDice?: string;
     damageBonus?: number;
     description?: string;
+    xpAward?: number;  // F16 — quanta XP a kill concede. Default 10 (CR 0).
+    isBoss?: boolean;
   }>;
 }
 
@@ -46,7 +48,8 @@ export function startCombat(input: StartCombatInput): CombatState {
       initiative: initRoll.total,
       conditions: [],
       description: e.description ?? '',
-      isBoss: false,
+      isBoss: !!e.isBoss,
+      xpAward: e.xpAward ?? 10,
     };
   });
 

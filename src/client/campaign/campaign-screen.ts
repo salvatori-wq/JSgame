@@ -21,6 +21,8 @@ import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-
 import { openMemoryModal } from './memory-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
+import { enqueueLevelUp } from '../level-up-overlay';
+import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -205,6 +207,32 @@ export class CampaignScreen {
     };
     s.on('error', onError);
     this.socketCleanups.push(() => s.off('error', onError));
+
+    // F16 — XP awarded (toast pequeno) + level up (overlay grande)
+    const onXp = (payload: { characterId: string; characterName: string; xpAwarded: number; newXp: number }): void => {
+      // Mostra toast pra TODOS players (não só o owner) pra share da glória
+      const isMe = payload.characterId === this.opts.characterId;
+      this.flashToast(`${isMe ? 'Você' : payload.characterName} ganhou +${payload.xpAwarded} XP`);
+    };
+    s.on('xpAwarded', onXp);
+    this.socketCleanups.push(() => s.off('xpAwarded', onXp));
+
+    const onLevelUp = (payload: {
+      characterId: string; characterName: string; oldLevel: number; newLevel: number;
+      hpGained: number; proficiencyBonusGained: boolean; slotsChanged: boolean;
+      level4ChoiceApplied: boolean; notes: string[];
+    }): void => {
+      // Overlay aparece pra TODOS — celebra a party junto. Só sound e visual,
+      // qualquer player pode fechar o próprio.
+      enqueueLevelUp(payload);
+      notify({
+        title: `🌟 LEVEL UP — ${payload.characterName}`,
+        body: `Nv ${payload.oldLevel} → Nv ${payload.newLevel}`,
+        tag: 'levelup',
+      });
+    };
+    s.on('levelUp', onLevelUp);
+    this.socketCleanups.push(() => s.off('levelUp', onLevelUp));
   }
 
   private maybeShowPendingCheck(): void {
@@ -380,6 +408,13 @@ export class CampaignScreen {
         const s = p.spellSlots[lvl as 1 | 2 | 3 | 4 | 5];
         if (s && s.max > 0) slotsInfo.push(`L${lvl}: ${s.max - s.used}/${s.max}`);
       }
+      // F16: XP progress 0..1 dentro do nível atual
+      const xpPct = Math.round(xpProgressInLevel(p.xp, p.level) * 100);
+      const xpToNext = xpToNextLevel(p.xp, p.level);
+      const xpAtMax = p.level >= 20;
+      const xpFloor = XP_FOR_LEVEL[p.level] ?? 0;
+      const xpInLevel = p.xp - xpFloor;
+
       list.appendChild(el('div', { class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}` }, [
         el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
         el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass} · HD ${p.hitDiceRemaining}/${p.level}` }),
@@ -390,6 +425,11 @@ export class CampaignScreen {
           }),
         ]),
         el('div', { class: 'cp-pj-hp-txt', text: `HP ${p.currentHp}/${p.maxHp}` }),
+        // F16 — XP bar
+        el('div', { class: 'cp-pj-xp-bar', attrs: { title: xpAtMax ? 'Nível máximo' : `${xpInLevel} XP no nv ${p.level} · faltam ${xpToNext} pro nv ${p.level + 1}` } }, [
+          el('div', { class: 'cp-pj-xp-fill', style: { width: `${xpPct}%` } }),
+        ]),
+        el('div', { class: 'cp-pj-xp-txt', text: xpAtMax ? '★ MAX (nv 20)' : `XP ${p.xp.toLocaleString('pt-BR')}${xpToNext > 0 ? ` · faltam ${xpToNext.toLocaleString('pt-BR')}` : ''}` }),
         slotsInfo.length > 0
           ? el('div', { class: 'cp-pj-slots', text: `🔮 ${slotsInfo.join(' · ')}` })
           : null,

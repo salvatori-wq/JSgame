@@ -29,6 +29,7 @@ import { restoreAllSlots } from '../dnd/spell-slots.js';
 import { rollDice } from '../dnd/dice.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
+import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
 
 const MAX_RECENT_EVENTS = 30;
 const MAX_RECENT_NARRATIONS = 10;
@@ -364,6 +365,11 @@ export class Campaign {
     return events;
   }
 
+  // F16: resultado do último combate vencido — distribuído entre PJs vivos.
+  // Lido por server/index.ts e emitido como evento `xpAward` por player.
+  // Reset a cada novo endCombatNarrate('victory') chamado.
+  lastCombatXpAwards: AwardXpResult[] = [];
+
   private async endCombatNarrate(outcome: 'victory' | 'defeat'): Promise<DMResponse | undefined> {
     const combat = this.state.combat;
     if (!combat) return undefined;
@@ -371,6 +377,29 @@ export class Campaign {
     combat.active = false;
     this.state.mode = 'exploration';
     this.pushRecentEvent(outcome === 'victory' ? 'Combate vencido' : 'Party caiu em combate');
+
+    // F16: vitória → distribui XP entre party viva, dispara level-ups.
+    this.lastCombatXpAwards = [];
+    if (outcome === 'victory') {
+      const totalXp = combat.enemies.reduce((sum, e) => sum + (e.xpAward ?? 10), 0);
+      if (totalXp > 0) {
+        this.lastCombatXpAwards = awardXpToParty(this.party, totalXp);
+        for (const r of this.lastCombatXpAwards) {
+          if (r.levelUps.length > 0) {
+            const last = r.levelUps[r.levelUps.length - 1]!;
+            this.pushRecentEvent(`${r.characterName} subiu pra nível ${last.newLevel} (+${r.xpAwarded} XP)`);
+            this.indexFact({
+              kind: 'event',
+              text: `${r.characterName} subiu pra nível ${last.newLevel} após combate em ${this.state.currentLocation}.`,
+              tags: `levelup progressao ${r.characterName.toLowerCase()}`,
+              importance: 1.4,
+            });
+          } else {
+            this.pushRecentEvent(`${r.characterName} ganhou ${r.xpAwarded} XP`);
+          }
+        }
+      }
+    }
 
     try {
       const focus = this.buildMemoryFocus({

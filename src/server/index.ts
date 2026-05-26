@@ -449,6 +449,45 @@ async function main(): Promise<void> {
       io.to(camp.state.id).emit('combatState', camp.state.combat);
     };
 
+    // F16: após combate vencido, emite xpAwarded + levelUp por player.
+    // Persiste PJs atualizados (xp + level + maxHp + slots). Chamado de
+    // combatAction / castSpell quando result.outcome === 'victory'.
+    const flushPostCombatRewards = async (camp: Campaign): Promise<void> => {
+      const awards = camp.lastCombatXpAwards;
+      if (!awards || awards.length === 0) return;
+      for (const award of awards) {
+        const pj = camp.party.find((p) => p.id === award.characterId);
+        if (!pj) continue;
+        io.to(camp.state.id).emit('xpAwarded', {
+          characterId: pj.id,
+          characterName: pj.characterName,
+          xpAwarded: award.xpAwarded,
+          newXp: pj.xp,
+        });
+        // Emite 1 levelUp por nível subido (no caso raro de subir N de uma vez)
+        for (const lu of award.levelUps) {
+          io.to(camp.state.id).emit('levelUp', {
+            characterId: pj.id,
+            characterName: pj.characterName,
+            oldLevel: lu.oldLevel,
+            newLevel: lu.newLevel,
+            hpGained: lu.hpGained,
+            proficiencyBonusGained: lu.proficiencyBonusGained,
+            slotsChanged: lu.slotsChanged,
+            level4ChoiceApplied: lu.level4ChoiceApplied,
+            notes: lu.notes,
+          });
+        }
+        // Persiste PJ com XP/level/HP/slots atualizados
+        try {
+          await saveCharacter(pj);
+        } catch (err) {
+          console.warn('[xp] saveCharacter falhou pra', pj.id, err);
+        }
+      }
+      camp.lastCombatXpAwards = [];
+    };
+
     // Helper: broadcast thinking → ação → done
     const withThinkingBroadcast = async <T>(
       camp: Campaign,
@@ -607,6 +646,9 @@ async function main(): Promise<void> {
             speaker: result.dmFinalNarration.speaker ?? 'Mestre',
             mood: result.outcome === 'victory' ? 'trickster' : 'sombrio',
           });
+          if (result.outcome === 'victory') {
+            await flushPostCombatRewards(camp);
+          }
           broadcastState(camp);
         }
         await saveCampaign(camp.state);
@@ -640,8 +682,9 @@ async function main(): Promise<void> {
         }
         broadcastState(camp);
 
-        if (result.outcome) {
-          // Combate acabou após magia — endCombatNarrate já narrou.
+        if (result.outcome === 'victory') {
+          await flushPostCombatRewards(camp);
+          broadcastState(camp);
         }
         await saveCampaign(camp.state);
       } catch (err) {
