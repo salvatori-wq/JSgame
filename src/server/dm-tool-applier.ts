@@ -48,6 +48,14 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
     }
 
     case 'apply_damage': {
+      // 2A — Counterspell mecânico: se há pendingEnemySpell.cancelled, BLOQUEIA damage subsequente
+      // do mesmo turn (DM acabou de declarar enemy_casts_spell que foi contramágica).
+      if (camp.state.pendingEnemySpell?.cancelled) {
+        camp.pushRecentEvent(`Dano de ${camp.state.pendingEnemySpell.spellName} ANULADO (Contramágica).`);
+        // Limpa pending (já resolvido) — próximo enemy_casts_spell abre nova janela
+        camp.state.pendingEnemySpell = null;
+        break;
+      }
       if (tool.playerId === 'all') {
         for (const p of camp.party) {
           p.currentHp = Math.max(0, p.currentHp - tool.damage);
@@ -65,10 +73,20 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         }
       }
       camp.pushRecentEvent(`Dano (${tool.type}): ${tool.damage} — ${tool.reason}`);
+      // Limpa pendingEnemySpell após aplicar damage (resolveu a sequência cast→damage)
+      if (camp.state.pendingEnemySpell) {
+        camp.state.pendingEnemySpell = null;
+      }
       break;
     }
 
     case 'apply_condition': {
+      // 2A — Counterspell mecânico: se pendingEnemySpell cancelada, condition vinda da spell é anulada.
+      if (camp.state.pendingEnemySpell?.cancelled) {
+        camp.pushRecentEvent(`Condition de ${camp.state.pendingEnemySpell.spellName} ANULADA (Contramágica).`);
+        camp.state.pendingEnemySpell = null;
+        break;
+      }
       if (camp.state.combat) {
         const r = applyConditionTo(camp.state.combat, camp.party, tool.targetId, tool.condition);
         if (r.applied) camp.pushRecentEvent(`${r.targetName} ficou ${tool.condition}`);

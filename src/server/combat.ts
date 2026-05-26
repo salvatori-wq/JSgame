@@ -15,6 +15,7 @@ import {
 import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
 import { consumeBuffs, readAcBonus } from './buff-engine.js';
+import { resetReactionsForRound } from './reaction-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -126,7 +127,11 @@ export function advanceTurn(combat: CombatState, party: CharacterSheet[]): { par
   const max = combat.initiativeOrder.length * 2;
   for (let i = 0; i < max; i++) {
     combat.currentTurnIndex = (combat.currentTurnIndex + 1) % combat.initiativeOrder.length;
-    if (combat.currentTurnIndex === 0) combat.round += 1;
+    if (combat.currentTurnIndex === 0) {
+      combat.round += 1;
+      // 2A — Reset reactions usadas no round anterior. Cada PJ ganha 1 reação por round.
+      resetReactionsForRound(combat, party);
+    }
     const next = combat.initiativeOrder[combat.currentTurnIndex];
     if (!next) continue;
     if (!isParticipantAlive(next, combat, party)) continue;
