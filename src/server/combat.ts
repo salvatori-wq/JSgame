@@ -222,6 +222,7 @@ export function resolvePlayerAttack(
       sourceId: attacker.id,
       targetId: target.id,
       value: damageRoll.total,
+      crit,
       text: `${attacker.characterName} ${crit ? 'CRITA' : 'acerta'} ${target.name}: ${damageRoll.total} de dano`,
     });
     if (enemyKilled) {
@@ -318,6 +319,7 @@ export function resolveEnemyTurn(
       sourceId: enemy.id,
       targetId: target.id,
       value: damageRoll.total,
+      crit,
       text: `${enemy.name} ${crit ? 'CRITA' : 'acerta'} ${target.characterName}: ${damageRoll.total} de dano`,
     });
     if (playerDowned) {

@@ -2665,6 +2665,98 @@ body.is-portrait-narrow .sc-die {
   margin-top: 4px;
   font-family: monospace;
 }
+
+/* F21 — Onboarding tour */
+.ot-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: lvlup-fade-in 0.3s ease;
+}
+.ot-backdrop.is-closing {
+  animation: lvlup-fade-out 0.2s ease forwards;
+}
+.ot-card {
+  background: linear-gradient(180deg, #2a1f0d 60%, #1a1208);
+  border: 2px solid #b88030;
+  border-radius: 10px;
+  padding: 32px 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  animation: lvlup-pop 0.4s cubic-bezier(0.25, 1.5, 0.5, 1);
+}
+.ot-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 12px rgba(240, 192, 80, 0.5));
+}
+.ot-title {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  color: #f0c050;
+  margin: 8px 0;
+  letter-spacing: 1px;
+}
+.ot-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  margin: 12px 0;
+}
+.ot-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 14px;
+}
+.ot-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.2s;
+}
+.ot-dot.is-active {
+  background: #f0c050;
+  box-shadow: 0 0 6px rgba(240, 192, 80, 0.6);
+}
+.ot-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ot-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  letter-spacing: 1px;
+  border: none;
+}
+.ot-btn-back {
+  background: transparent;
+  color: var(--ink-mute);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.ot-btn-back:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-soft);
+}
+.ot-btn-next {
+  background: linear-gradient(135deg, #b88030, #f0c050);
+  color: #1a1208;
+  font-weight: bold;
+}
+.ot-btn-next:hover { filter: brightness(1.1); }
 .cp-pj-cond {
   font-size: 10px;
   color: #d08840;

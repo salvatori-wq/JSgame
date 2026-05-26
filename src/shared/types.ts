@@ -360,4 +360,5 @@ export interface CombatEvent {
   value?: number;
   conditionId?: ConditionId;
   text?: string;
+  crit?: boolean;  // F21 — sinaliza ao cliente pra disparar combo SFX em crits consecutivos
 }

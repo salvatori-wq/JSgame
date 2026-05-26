@@ -17,6 +17,7 @@ import { getClass } from '../dnd/classes';
 import { portraitFor } from '../dnd/portrait';
 import { listTombstones, getStreak, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
+import { shouldShowTour, openOnboardingTour } from './onboarding-tour';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -640,4 +641,8 @@ if (last) {
     currentUser = await getMe();
   } catch { /* offline ou erro — segue anônimo */ }
   void render();
+  // F21: onboarding tour no primeiro acesso (somente na home, evita interromper auto-rejoin)
+  if (currentView.kind === 'home' && shouldShowTour()) {
+    setTimeout(() => openOnboardingTour(), 400);
+  }
 })();

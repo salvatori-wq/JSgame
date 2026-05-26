@@ -20,7 +20,7 @@ import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '.
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 import { openMemoryModal } from './memory-modal';
 import { openQuestLog, closeQuestLog } from './quest-log-modal';
-import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled } from '../audio';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
@@ -82,6 +82,8 @@ export class CampaignScreen {
     closeCastSpellModal();
     closeInventoryModal();
     closeQuestLog();
+    // F21: para música ambiente ao sair
+    setAmbient('silence');
   }
 
   private bindSocket(): void {
@@ -126,6 +128,8 @@ export class CampaignScreen {
       setLastSession({ characterId: this.opts.characterId, campaignId: state.id });
       // Se pendingCheck mudou e eu sou owner, abre overlay
       this.maybeShowPendingCheck();
+      // F21: ambient mood baseado em state.mode
+      setAmbient(state.combat?.active ? 'combat' : 'exploration');
       this.render();
     };
     s.on('campaignState', onState);
@@ -156,9 +160,15 @@ export class CampaignScreen {
       const myId = this.character?.id;
       switch (ev.type) {
         case 'damage':
-          // PJ teu tomou dano → bass thud; outro/inimigo → hit
-          if (ev.targetId && ev.targetId === myId) playDamage();
-          else playHit();
+          // F21: se foi crit, notifyCrit detecta combo (2+ seguidos = som épico)
+          if (ev.crit) {
+            notifyCrit();
+          } else if (ev.targetId && ev.targetId === myId) {
+            // PJ teu tomou dano (hit normal) → bass thud
+            playDamage();
+          } else {
+            playHit();
+          }
           break;
         case 'attack-miss':
           playMiss();
@@ -378,6 +388,28 @@ export class CampaignScreen {
             const btn = e.currentTarget as HTMLButtonElement;
             setSfxEnabled(!isSfxEnabled());
             btn.textContent = isSfxEnabled() ? '🔊' : '🔇';
+          },
+        },
+      }),
+      el('button', {
+        class: 'camp-sfx-btn',
+        text: isAmbientEnabled() ? '🎵' : '🎶',
+        attrs: { title: 'Liga/desliga música ambiente procedural (F21)' },
+        on: {
+          click: (e) => {
+            const btn = e.currentTarget as HTMLButtonElement;
+            const next = !isAmbientEnabled();
+            setAmbientEnabled(next);
+            btn.textContent = next ? '🎵' : '🎶';
+            btn.style.opacity = next ? '1' : '0.5';
+            if (next) {
+              setAmbient(this.currentState?.combat?.active ? 'combat' : 'exploration');
+            }
+          },
+          mouseover: (e) => {
+            // Refresh visual estado
+            const btn = e.currentTarget as HTMLButtonElement;
+            btn.style.opacity = isAmbientEnabled() ? '1' : '0.5';
           },
         },
       }),
