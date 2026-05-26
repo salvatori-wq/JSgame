@@ -84,3 +84,21 @@ npm test             # vitest (58 tests passando)
 
 Local em `C:\Users\JOÃO\JSgame\`. Não tem GitHub remote ainda.
 Cave Run continua em `C:\Users\JOÃO\D&D online\` — deploy Render ativo na URL legada, intocado.
+
+## Keep-alive em prod (Render free tier)
+
+Render free derruba a instância depois de ~15min sem requests, o que causa cold start de ~30s na próxima visita. Pra evitar isso em deploys públicos, configure um cron externo gratuito apontando pra `/api/health`:
+
+1. **cron-job.org** (grátis, sem cadastro de cartão):
+   - URL: `https://SEU-APP.onrender.com/api/health`
+   - Schedule: a cada **10 minutos** (Render dorme após 15min)
+   - Method: GET
+   - Notifications: opcional (alert se falhar 3x seguidas)
+
+2. **UptimeRobot** (alternativa free):
+   - HTTP(s) monitor, 5min interval
+   - Mesma URL
+
+`/api/health` responde em < 50ms e retorna `{ ok, uptime, dmProvider, activeCampaigns }` — bom pra debug rápido também.
+
+**Trade-off:** mantém a instância acordada 24/7 mas não conta no quota do Render free (tem 750h/mês de instância ativa, plenty pra single service).

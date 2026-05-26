@@ -174,6 +174,26 @@ async function main(): Promise<void> {
     }
   });
 
+  // Memória RAG do Mestre — debug/UI. Filtros opcionais via query string.
+  // q=texto pra busca FTS5; kind=npc|location|... pra filtrar; limit (default 50).
+  app.get('/api/campaigns/:id/memory', async (req, res) => {
+    if (!memoryStore) { res.status(503).json({ error: 'memory not initialized' }); return; }
+    const q = String(req.query.q ?? '').trim();
+    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10) || 50));
+    const kindParam = String(req.query.kind ?? '').trim();
+    const kinds = kindParam ? kindParam.split(',').map((s) => s.trim()) as any[] : undefined;
+    try {
+      const facts = q
+        ? await memoryStore.search(req.params.id, q, { limit, kinds })
+        : await memoryStore.recent(req.params.id, { limit, kinds });
+      const count = await memoryStore.count(req.params.id);
+      res.json({ facts, total: count });
+    } catch (err) {
+      console.error('[api] memory:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // === Static (produção) — serve dist/client buildado pelo Vite
   if (process.env.NODE_ENV === 'production') {
     const staticDir = path.resolve(process.cwd(), 'dist/client');

@@ -35,6 +35,7 @@ export interface SearchOptions {
   limit?: number;             // top-K (default 5)
   kinds?: MemoryFactKind[];   // filtrar por tipo
   minImportance?: number;     // descarta facts com importance abaixo de X
+  focusNames?: string[];      // PJ-aware boost: nomes dos PJs ativos. Facts mencionando-os sobem no rank.
 }
 
 export class MemoryStore {
@@ -108,7 +109,14 @@ export class MemoryStore {
     // FTS5 query: OR de keywords stem-reduzidas + prefix wildcard.
     // Stem garante que "goblins" busque por "goblin*" (capta sing+plur). Sem stem,
     // prefix `goblins*` falha em casar "goblin" singular — limitação de FTS5 puro.
-    const ftsQuery = keywords.map((k) => `${escapeFts(stemFtsToken(k))}*`).join(' OR ');
+    // PJ-aware: nomes dos PJs ativos viram termos extras na OR — facts mencionando
+    // o PJ ganham score natural maior via TF-IDF (não precisa boost manual).
+    const focusTokens = (opts.focusNames ?? [])
+      .flatMap((n) => extractKeywords(n))
+      .map((k) => `${escapeFts(stemFtsToken(k))}*`);
+    const queryTokens = keywords.map((k) => `${escapeFts(stemFtsToken(k))}*`);
+    const allTokens = [...new Set([...queryTokens, ...focusTokens])];
+    const ftsQuery = allTokens.join(' OR ');
 
     const sql = `
       SELECT

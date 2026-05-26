@@ -18,6 +18,7 @@ import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type Pend
 import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
+import { openMemoryModal } from './memory-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -268,6 +269,14 @@ export class CampaignScreen {
         el('h2', { text: this.currentState?.name ?? 'Carregando…' }),
         el('div', { class: 'camp-loc', text: this.currentState?.currentLocation ?? '...' }),
       ]),
+      campId ? el('button', {
+        class: 'camp-mem-btn',
+        text: '🧠',
+        attrs: { title: 'Memória do Mestre (RAG)' },
+        on: {
+          click: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
+        },
+      }) : null,
       campId ? el('button', {
         class: 'camp-share-btn',
         text: '🔗 Compartilhar',

@@ -34,6 +34,13 @@ const MAX_RECENT_EVENTS = 30;
 const MAX_RECENT_NARRATIONS = 10;
 // Quantos facts injetar no prompt do Mestre por narração — equilibra tokens vs recall
 const MEMORY_TOPK = 5;
+// Auto-resumo dispara quando narrationLog atinge este threshold. Após resumir,
+// trim pra últimas 3 entradas — preserva continuidade próxima sem inflar tokens.
+const AUTO_SUMMARIZE_AT = 10;
+const KEEP_AFTER_SUMMARIZE = 3;
+// Opt-out: setar MEMORY_AUTOSUMMARIZE=false desliga. Default ON — gasto controlado
+// (1 LLM call extra a cada 10 narrações ≈ 10% overhead, comprime ~80% dos tokens).
+const AUTO_SUMMARIZE_ENABLED = process.env.MEMORY_AUTOSUMMARIZE !== 'false';
 
 export class Campaign {
   state: CampaignState;
@@ -46,6 +53,9 @@ export class Campaign {
   private isStarted = false;
   private isStarting = false;
   private actionQueue: Promise<unknown> = Promise.resolve();
+  // Anti-duplicate: garante que só roda 1 auto-resumo por vez (não dispara enquanto
+  // anterior ainda chega da Groq). Sem isso, 2 narrações rápidas disparariam 2 sumários.
+  private summarizing = false;
 
   constructor(dm: DMInterface, opts?: { id?: string; name?: string; memory?: MemoryStore }) {
     this.dm = dm;
@@ -106,14 +116,18 @@ export class Campaign {
   // Centraliza a injeção de memória pra todos os 4-5 call sites do narrate().
   // ════════════════════════════════════════════════════════════════════════
 
-  private async retrieveMemory(focusText: string): Promise<MemoryFact[]> {
+  private async retrieveMemory(focusText: string, focusPlayerId?: string): Promise<MemoryFact[]> {
     if (!this.memory) return [];
     try {
       // Concatena foco (ação/local) com últimos eventos pra ampliar keywords.
       // Limit nas últimas 3 entradas pra não diluir foco com história antiga.
       const lastEvents = this.state.recentEvents.slice(-3).join(' ');
       const query = [focusText, this.state.currentLocation, lastEvents].filter(Boolean).join(' ');
-      return await this.memory.search(this.state.id, query, { limit: MEMORY_TOPK });
+      // PJ-aware: prioriza nome do PJ ativo. Se não houver, usa toda a party.
+      const focusNames = focusPlayerId
+        ? [this.party.find((p) => p.id === focusPlayerId)?.characterName].filter(Boolean) as string[]
+        : this.party.map((p) => p.characterName);
+      return await this.memory.search(this.state.id, query, { limit: MEMORY_TOPK, focusNames });
     } catch (err) {
       console.warn('[campaign] memory.search falhou:', err);
       return [];
@@ -122,17 +136,24 @@ export class Campaign {
 
   // Helper que extrai foco de uma chamada narrate() pra retrieval. Usa ação do
   // player se houver; senão usa skillCheck; senão usa local atual.
+  // Retorna { text, playerId? } pra retrieveMemory aplicar PJ-aware boost.
   private buildMemoryFocus(opts: {
-    playerAction?: { action: string; details?: string };
-    skillCheckResolution?: { skill: string; playerName: string };
-  }): string {
+    playerAction?: { playerId?: string; action: string; details?: string };
+    skillCheckResolution?: { playerId?: string; skill: string; playerName: string };
+  }): { text: string; playerId?: string } {
     if (opts.playerAction) {
-      return `${opts.playerAction.action}${opts.playerAction.details ? ' ' + opts.playerAction.details : ''}`;
+      return {
+        text: `${opts.playerAction.action}${opts.playerAction.details ? ' ' + opts.playerAction.details : ''}`,
+        playerId: opts.playerAction.playerId,
+      };
     }
     if (opts.skillCheckResolution) {
-      return `${opts.skillCheckResolution.playerName} ${opts.skillCheckResolution.skill}`;
+      return {
+        text: `${opts.skillCheckResolution.playerName} ${opts.skillCheckResolution.skill}`,
+        playerId: opts.skillCheckResolution.playerId,
+      };
     }
-    return this.state.currentLocation ?? '';
+    return { text: this.state.currentLocation ?? '' };
   }
 
   // ════════════════════════════════════════════════════════════════════════
@@ -144,7 +165,8 @@ export class Campaign {
       if (this.isStarted || this.isStarting) return null;
       this.isStarting = true;
       try {
-        const memoryFacts = await this.retrieveMemory(this.buildMemoryFocus({}));
+        const focus = this.buildMemoryFocus({});
+        const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
         const response = await this.dm.narrate({
           campaign: this.state,
           party: this.party,
@@ -162,9 +184,8 @@ export class Campaign {
 
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
     return this.enqueue(async () => {
-      const memoryFacts = await this.retrieveMemory(
-        this.buildMemoryFocus({ playerAction: { action: String(action), details } }),
-      );
+      const focus = this.buildMemoryFocus({ playerAction: { playerId, action: String(action), details } });
+      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
@@ -201,9 +222,10 @@ export class Campaign {
       const roll = rollD20({ modifier: totalMod });
       const success = roll.total >= check.dc;
 
-      const memoryFacts = await this.retrieveMemory(
-        this.buildMemoryFocus({ skillCheckResolution: { skill: skill.name, playerName: player.characterName } }),
-      );
+      const focus = this.buildMemoryFocus({
+        skillCheckResolution: { playerId, skill: skill.name, playerName: player.characterName },
+      });
+      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
       const dmResponse = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
@@ -351,9 +373,13 @@ export class Campaign {
     this.pushRecentEvent(outcome === 'victory' ? 'Combate vencido' : 'Party caiu em combate');
 
     try {
-      const memoryFacts = await this.retrieveMemory(
-        this.buildMemoryFocus({ playerAction: { action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido' } }),
-      );
+      const focus = this.buildMemoryFocus({
+        playerAction: {
+          playerId: this.party[0]?.id,
+          action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido',
+        },
+      });
+      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
@@ -748,6 +774,9 @@ export class Campaign {
     }
 
     this.state.lastPlayedAt = Date.now();
+
+    // Auto-resumo (fire-and-forget). Roda após aplicar tudo, sem bloquear o queue.
+    this.maybeAutoSummarize();
   }
 
   // Indexer fire-and-forget — salva fact relevante a partir de tool call. Não
@@ -767,6 +796,51 @@ export class Campaign {
     }).catch((err) => {
       console.warn('[campaign] memory.saveFact falhou:', err);
     });
+  }
+
+  // Auto-resumo fire-and-forget. Dispara quando narrationLog atinge threshold.
+  // Comprime via DM provider (1 call Groq), salva como fact `summary` no banco,
+  // trim narrationLog pra últimas 3 — futuras narrações usam o resumo via RAG.
+  private maybeAutoSummarize(): void {
+    if (!AUTO_SUMMARIZE_ENABLED) return;
+    if (!this.memory) return;
+    if (this.summarizing) return;
+    if (this.narrationLog.length < AUTO_SUMMARIZE_AT) return;
+    // Skip se DM não tem summarize (FallbackDM retorna null mesmo, mas evita gasto)
+    if (!('summarize' in this.dm)) return;
+
+    this.summarizing = true;
+    // Snapshot do log atual ANTES do trim — passa pro LLM
+    const toCompress = this.narrationLog.slice(0, this.narrationLog.length - KEEP_AFTER_SUMMARIZE);
+    if (toCompress.length === 0) {
+      this.summarizing = false;
+      return;
+    }
+    const compressText = toCompress.join('\n');
+
+    // Trim imediato (otimista) — se LLM falhar, perdemos a janela mas próximo
+    // ciclo refaz com narrações novas; melhor que segurar tokens à toa.
+    this.narrationLog = this.narrationLog.slice(-KEEP_AFTER_SUMMARIZE);
+
+    void (async () => {
+      try {
+        const summary = await this.dm.summarize(compressText);
+        if (summary) {
+          await this.memory!.saveFact({
+            campaignId: this.state.id,
+            kind: 'summary',
+            text: summary,
+            tags: `resumo sumario sessao${this.state.sessionNumber}`,
+            importance: 1.6, // alta — compactação significativa, vale priorizar
+            sessionN: this.state.sessionNumber,
+          });
+        }
+      } catch (err) {
+        console.warn('[campaign] auto-summarize falhou:', err);
+      } finally {
+        this.summarizing = false;
+      }
+    })();
   }
 
   private applyValidatedTool(tool: ValidatedTool): void {

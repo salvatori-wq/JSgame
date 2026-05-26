@@ -171,6 +171,20 @@ describe('MemoryStore.saveFact + search', () => {
     ).rejects.toThrow(/vazio/);
   });
 
+  it('PJ-aware boost: focusNames inclui nome do PJ na query e prioriza facts mencionando-o', async () => {
+    // Sem o boost, busca por "espada" retornaria ambos com mesmo rank
+    await store.saveFact({ campaignId: 'c', kind: 'inventory', text: 'Espada comum foi achada' });
+    await store.saveFact({ campaignId: 'c', kind: 'inventory', text: 'Borin pegou a espada lendária' });
+
+    const semBoost = await store.search('c', 'espada', { limit: 2 });
+    const comBoost = await store.search('c', 'espada', { limit: 2, focusNames: ['Borin'] });
+
+    // Com PJ-aware boost, o fact mencionando "Borin" sobe pro topo
+    expect(comBoost[0]!.text).toContain('Borin');
+    // Sem boost, ordering pode ser qualquer (depende de TF-IDF) — só conferimos que ambos vêm
+    expect(semBoost.length).toBe(2);
+  });
+
   it('busca sem keywords úteis cai pro recent()', async () => {
     await store.saveFact({ campaignId: 'c', kind: 'npc', text: 'fato A' });
     await store.saveFact({ campaignId: 'c', kind: 'npc', text: 'fato B' });

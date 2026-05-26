@@ -33,11 +33,18 @@ async function freshMemoryClient(): Promise<Client> {
 class MockDM {
   contexts: NarrationContext[] = [];
   responses: DMResponse[] = [];
+  summarizeCalls: string[] = [];
+  summarizeResponse: string | null = 'resumo: party visitou taverna, falou com Borin, vai pra masmorra';
 
   async narrate(ctx: NarrationContext): Promise<DMResponse> {
     this.contexts.push(ctx);
     const next = this.responses.shift();
     return next ?? { narration: 'mock', speaker: 'Mestre', toolCalls: [], raw: '' };
+  }
+
+  async summarize(text: string): Promise<string | null> {
+    this.summarizeCalls.push(text);
+    return this.summarizeResponse;
   }
 }
 
@@ -226,6 +233,55 @@ describe('Campaign + MemoryStore (RAG integration)', () => {
     const npcFacts = await memory.search('camp-test', 'borin', { kinds: ['npc'] });
     const borinIntroFacts = npcFacts.filter((f) => f.text.startsWith('NPC Borin'));
     expect(borinIntroFacts.length).toBe(1);
+  });
+
+  it('auto-resumo dispara após 10 narrações e salva fact summary', async () => {
+    // 10 narrações pra atingir threshold
+    for (let i = 0; i < 10; i++) {
+      dm.responses.push({ narration: `narração número ${i}`, speaker: 'Mestre', toolCalls: [], raw: '' });
+      await campaign.takeAction('p1', `ação${i}`);
+    }
+
+    // Aguarda fire-and-forget terminar (auto-resumo é async)
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(dm.summarizeCalls.length).toBeGreaterThan(0);
+    const summaryFacts = await memory.search('camp-test', 'resumo', { kinds: ['summary'] });
+    expect(summaryFacts.length).toBeGreaterThan(0);
+    expect(summaryFacts[0]!.text).toContain('Borin');
+    expect(summaryFacts[0]!.importance).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it('auto-resumo não duplica enquanto job anterior pendente', async () => {
+    // Mock summarize com delay artificial pra capturar concorrência
+    let calls = 0;
+    dm.summarize = async (text: string) => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 30));
+      return `resumo ${calls}`;
+    };
+
+    // Dispara 15 narrações rapidamente
+    for (let i = 0; i < 15; i++) {
+      dm.responses.push({ narration: `n${i}`, speaker: 'Mestre', toolCalls: [], raw: '' });
+      await campaign.takeAction('p1', `a${i}`);
+    }
+    await new Promise((r) => setTimeout(r, 100));
+
+    // 15 ações disparariam até 5 sumários sem guard. Com guard `summarizing`,
+    // deve ter no máximo 2 (1 do primeiro batch, 1 do segundo após reset).
+    expect(calls).toBeLessThanOrEqual(2);
+  });
+
+  it('auto-resumo trim narrationLog pra últimas 3 entradas', async () => {
+    for (let i = 0; i < 10; i++) {
+      dm.responses.push({ narration: `n${i}`, speaker: 'Mestre', toolCalls: [], raw: '' });
+      await campaign.takeAction('p1', `a${i}`);
+    }
+    await new Promise((r) => setTimeout(r, 50));
+
+    const log = campaign.getNarrationLog();
+    expect(log.length).toBeLessThanOrEqual(3);
   });
 
   it('isolation: facts não vazam entre campanhas', async () => {

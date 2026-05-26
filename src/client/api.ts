@@ -1,6 +1,6 @@
 // JSgame · Client API helpers. Fetch tipado pros endpoints REST.
 
-import type { CharacterSheet } from '../shared/types';
+import type { CharacterSheet, MemoryFact, MemoryFactKind } from '../shared/types';
 import type { CharacterSummary } from '../server/persistence';
 
 export interface ApiHealth {
@@ -63,4 +63,17 @@ export interface CampaignSummary {
 export async function listCampaigns(): Promise<CampaignSummary[]> {
   const data = await fetchJson<{ campaigns: CampaignSummary[] }>('/api/campaigns');
   return data.campaigns;
+}
+
+// Memória RAG da campanha — debug/UI. Filtros opcionais.
+export async function getCampaignMemory(
+  campaignId: string,
+  opts: { q?: string; kinds?: MemoryFactKind[]; limit?: number } = {},
+): Promise<{ facts: MemoryFact[]; total: number }> {
+  const qs = new URLSearchParams();
+  if (opts.q) qs.set('q', opts.q);
+  if (opts.kinds && opts.kinds.length > 0) qs.set('kind', opts.kinds.join(','));
+  if (opts.limit) qs.set('limit', String(opts.limit));
+  const url = `/api/campaigns/${encodeURIComponent(campaignId)}/memory${qs.toString() ? '?' + qs.toString() : ''}`;
+  return fetchJson<{ facts: MemoryFact[]; total: number }>(url);
 }

@@ -17,20 +17,37 @@ const LLM_TIMEOUT_MS = 15_000;
 export class DungeonMaster {
   constructor(private provider: DMProvider) {}
 
+  /**
+   * Comprime um bloco de narrações em 1-2 frases factuais — usado pelo Campaign
+   * pra auto-resumo periódico (zera o narrationLog após N=10 entradas).
+   * Sem tools, sem persona pesada — só compressão. Retorna null em falha (caller
+   * decide se ignora ou usa fallback).
+   */
+  async summarize(text: string): Promise<string | null> {
+    if (!text.trim()) return null;
+    try {
+      const response = await withTimeout(
+        this.provider.generate({
+          systemPrompt:
+            'Você comprime conversas de RPG D&D em PT-BR. Devolva 1-2 frases factuais (máx 35 palavras) preservando: nomes próprios, locais, decisões marcantes, promessas. Sem tom, sem floreio — apenas fatos.',
+          userPrompt: `Resuma estas narrações:\n${text}\n\nResumo curto:`,
+          maxTokens: 200,
+        }),
+        LLM_TIMEOUT_MS,
+      );
+      return response.text.trim() || null;
+    } catch (err) {
+      console.warn('[dm] summarize falhou:', err);
+      return null;
+    }
+  }
+
   async narrate(context: NarrationContext): Promise<DMResponse> {
     const userPrompt = buildNarrationPrompt(context);
 
     let response;
     try {
-      response = await withTimeout(
-        this.provider.generate({
-          systemPrompt: SYSTEM_PROMPT,
-          userPrompt,
-          tools: DM_TOOLS,
-          maxTokens: 1024,
-        }),
-        LLM_TIMEOUT_MS,
-      );
+      response = await this.callWithBackoff(userPrompt, true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Aprendizado Cave Run: Llama 4 Scout dá 400 em ~26% dos calls com tools.
@@ -38,21 +55,14 @@ export class DungeonMaster {
       if (/400|failed to call a function|tool/i.test(msg)) {
         console.warn('[dm] retry sem tools após erro:', msg.slice(0, 120));
         try {
-          response = await withTimeout(
-            this.provider.generate({
-              systemPrompt: SYSTEM_PROMPT,
-              userPrompt,
-              maxTokens: 1024,
-            }),
-            LLM_TIMEOUT_MS,
-          );
+          response = await this.callWithBackoff(userPrompt, false);
         } catch (err2) {
           console.warn('[dm] retry sem tools também falhou:', err2);
           return makeGracefulFallback(err2);
         }
       } else {
         // Timeout ou erro fatal — devolve fallback sem quebrar o queue
-        console.warn('[dm] LLM falhou/expirou:', msg.slice(0, 120));
+        console.warn('[dm] LLM falhou/expirou após backoff:', msg.slice(0, 120));
         return makeGracefulFallback(err);
       }
     }
@@ -64,6 +74,43 @@ export class DungeonMaster {
       toolCalls: response.toolCalls,
       raw: response.text,
     };
+  }
+
+  /**
+   * Chama provider.generate com backoff exponencial em erros transientes (429/503).
+   * Total budget: ~4s (delays 1s + 3s) antes de propagar pra graceful fallback.
+   * Zero-budget alternative ao fallback Anthropic — espera Groq desbloquear sem
+   * dependência externa.
+   */
+  private async callWithBackoff(userPrompt: string, withTools: boolean): Promise<{ text: string; toolCalls: DMToolCall[] }> {
+    const delays = [0, 1000, 3000]; // 3 tentativas, total ~4s antes de falhar
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt]! > 0) {
+        await new Promise((r) => setTimeout(r, delays[attempt]!));
+      }
+      try {
+        return await withTimeout(
+          this.provider.generate({
+            systemPrompt: SYSTEM_PROMPT,
+            userPrompt,
+            tools: withTools ? DM_TOOLS : undefined,
+            maxTokens: 1024,
+          }),
+          LLM_TIMEOUT_MS,
+        );
+      } catch (err) {
+        lastErr = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        // Só vale retry com backoff se erro transiente (rate limit/overload).
+        // 400/timeout/auth não se resolvem com espera — propaga já.
+        if (!/429|rate.?limit|503|502|504|overload/i.test(msg)) {
+          throw err;
+        }
+        console.warn(`[dm] tentativa ${attempt + 1}/${delays.length} falhou (transiente):`, msg.slice(0, 80));
+      }
+    }
+    throw lastErr ?? new Error('LLM falhou após backoff');
   }
 }
 
@@ -123,6 +170,11 @@ function extractJson(text: string): { narration?: string; speaker?: string } {
 // ════════════════════════════════════════════════════════════════════════════
 
 export class FallbackDM {
+  // FallbackDM não chama LLM nenhum — summarize sempre null. Campaign ignora.
+  async summarize(_text: string): Promise<string | null> {
+    return null;
+  }
+
   // ESLint warning OK: classe segue interface implícita do DungeonMaster
   async narrate(context: NarrationContext): Promise<DMResponse> {
     const partyName = context.party[0]?.characterName ?? 'aventureiro';
