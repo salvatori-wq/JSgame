@@ -249,6 +249,9 @@ export interface CampaignState {
   // 1C — DM personality preset (sombrio/épico/comédia/noir/pulp). Default sombrio.
   // Escolhido no lobby antes do start, persiste em DB.
   dmPersonality?: import('../dnd/dm-personality').DmPersonality;
+  // 3B — Dificuldade preferida pra encontros. DM respeita ao chamar start_combat_balanced.
+  // 'auto' = DM decide pelo contexto. Default 'auto'.
+  combatDifficulty?: 'easy' | 'medium' | 'hard' | 'deadly' | 'auto';
   // 2A — Spell inimiga pendente. DM seta via enemy_casts_spell, abre janela
   // de Counterspell pros casters do party. Server limpa após windowMs ou após
   // resolução de castReaction. Não persiste — é runtime mid-turn.
@@ -350,6 +353,8 @@ export interface ClientToServerEvents {
   // a pendingEnemySpell. Server resolve via reaction-engine. slotLevel = nível
   // do slot que será consumido (3-5). reactionId = pendingEnemySpell.id pra dedup.
   castReaction: (payload: { reactionId: string; spellId: 'counterspell'; slotLevel: 3 | 4 | 5 }) => void;
+  // 3B — Settings da campanha em runtime (só host ou player atualiza).
+  updateCampaignSettings: (payload: { combatDifficulty?: 'easy' | 'medium' | 'hard' | 'deadly' | 'auto' }) => void;
   // Dispel Magic é AÇÃO normal (não reaction) — usa cast normal via combatAction.
   // Future: socket dedicado pra dispelMagic targetId. Por ora, DM pode aplicar manual.
 

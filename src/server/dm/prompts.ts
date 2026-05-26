@@ -440,6 +440,12 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     ? `\n## NPCs JÁ APARECIDOS (use-os, NÃO invente novos)\n${ctx.campaign.npcsMet.map((n) => `- ${n.name} (${n.archetype}, ${n.attitude}) — última vez: ${n.lastSeen}`).join('\n')}`
     : '';
 
+  // 3B — Player choice de dificuldade. DM respeita ao chamar start_combat_balanced.
+  const difficulty = ctx.campaign.combatDifficulty ?? 'auto';
+  const difficultyBlock = difficulty !== 'auto'
+    ? `\n## DIFICULDADE DE COMBATE (preferência da party)\nQuando iniciar combate via start_combat_balanced, USE difficulty="${difficulty}". A party escolheu esse nível — respeite.`
+    : '';
+
   // F18 — Quests ativas. Mestre DEVE avançar/encerrar via tools quando contextualmente
   // apropriado. Não inventar quests novas se já existem (use IDs existentes).
   const activeQuests = (ctx.campaign.quests ?? []).filter((q) => q.status === 'active');
@@ -460,6 +466,7 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
 ${partySummary}
 ${npcsBlock}
 ${questsBlock}
+${difficultyBlock}
 
 ## FLAGS DO MUNDO
 ${Object.entries(ctx.campaign.worldFlags).length === 0 ? '(nenhuma ainda)' : Object.entries(ctx.campaign.worldFlags).map(([k, v]) => `- ${k}: ${v}`).join('\n')}

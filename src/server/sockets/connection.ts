@@ -632,6 +632,25 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
       }
     });
 
+    // 3B — Player atualiza settings da campanha (difficulty atual).
+    socket.on('updateCampaignSettings', async ({ combatDifficulty }) => {
+      try {
+        if (!activeCampaignId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        if (combatDifficulty !== undefined) {
+          const valid = ['easy', 'medium', 'hard', 'deadly', 'auto'];
+          if (!valid.includes(combatDifficulty)) { socket.emit('error', 'difficulty inválido'); return; }
+          camp.state.combatDifficulty = combatDifficulty;
+        }
+        await saveCampaign(camp.state);
+        broadcastState(camp);
+      } catch (err) {
+        console.error('[socket] updateCampaignSettings error:', err);
+        socket.emit('error', `updateCampaignSettings falhou: ${String(err)}`);
+      }
+    });
+
     socket.on('chat', ({ text }) => {
       if (!activeCampaignId || !activePlayerId) return;
       const trimmed = String(text ?? '').trim().slice(0, 280);

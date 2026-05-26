@@ -478,6 +478,33 @@ export class CampaignScreen {
     return `${p.icon} ${p.label}`;
   }
 
+  // 3B — Dropdown de dificuldade. Mudança emite updateCampaignSettings.
+  private renderDifficultyDropdown(): HTMLElement {
+    const current = this.currentState?.combatDifficulty ?? 'auto';
+    const select = document.createElement('select');
+    select.className = 'camp-difficulty-select';
+    select.title = 'Dificuldade preferida de combate (DM respeita)';
+    const opts: Array<['easy' | 'medium' | 'hard' | 'deadly' | 'auto', string]> = [
+      ['auto', '⚔ Auto'],
+      ['easy', '🟢 Fácil'],
+      ['medium', '🟡 Médio'],
+      ['hard', '🟠 Difícil'],
+      ['deadly', '🔴 Mortal'],
+    ];
+    for (const [val, label] of opts) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      if (val === current) opt.selected = true;
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', () => {
+      const v = select.value as 'easy' | 'medium' | 'hard' | 'deadly' | 'auto';
+      this.opts.socket.emit('updateCampaignSettings', { combatDifficulty: v });
+    });
+    return select;
+  }
+
   private renderHeader(): HTMLElement {
     const campId = this.currentState?.id;
     return el('header', { class: 'camp-header' }, [
@@ -573,6 +600,8 @@ export class CampaignScreen {
           click: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
         },
       }) : null,
+      // 3B — Dropdown de dificuldade de combate (DM respeita)
+      this.renderDifficultyDropdown(),
       // F18 — quest log
       el('button', {
         class: 'camp-mem-btn',
