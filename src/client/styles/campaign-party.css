@@ -783,6 +783,25 @@
   margin-top: 4px;
   font-family: monospace;
 }
+/* 3A — Botão exportar HTML standalone do highlight reel */
+.ph-export-btn {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  background: rgba(120, 80, 200, 0.25);
+  border: 1px solid rgba(180, 140, 240, 0.4);
+  border-radius: 3px;
+  color: #c8a8ff;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  transition: all 0.12s ease;
+}
+.ph-export-btn:hover {
+  background: rgba(140, 100, 220, 0.4);
+  color: #ffe0ff;
+  box-shadow: 0 0 8px rgba(180, 140, 240, 0.4);
+}
 
 /* F21 — Onboarding tour */
 .ot-backdrop {

@@ -85,6 +85,17 @@ export class ProfileScreen {
         el('div', { class: 'ph-body' }, [
           el('div', { class: 'ph-summary', text: h.summary }),
           el('div', { class: 'ph-meta', text: `${h.characterName ?? '—'} · ${when}` }),
+          // 3A — Botão exportar HTML standalone da campanha
+          el('a', {
+            class: 'ph-export-btn',
+            attrs: {
+              href: `/api/highlights/${h.campaignId}/export`,
+              target: '_blank',
+              rel: 'noopener',
+              title: 'Abrir reel HTML compartilhável (salvar/imprimir)',
+            },
+            text: '📜 Exportar',
+          }),
         ]),
       ]));
     }

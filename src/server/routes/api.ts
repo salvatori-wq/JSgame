@@ -24,7 +24,7 @@ import {
 } from '../achievements.js';
 import { listTombstonesForUser } from '../tombstones.js';
 import { getStreak } from '../streaks.js';
-import { listHighlightsForUser } from '../highlights.js';
+import { listHighlightsForUser, generateHighlightsHtml } from '../highlights.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -287,6 +287,22 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     } catch (err) {
       console.error('[api] highlights:', err);
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // 3A — Exporta highlight reel da campanha como HTML standalone (compartilhável).
+  // GET /api/highlights/:campaignId/export → text/html. Pode salvar como arquivo, ver offline.
+  app.get('/api/highlights/:campaignId/export', async (req, res) => {
+    try {
+      const campaignId = String(req.params.campaignId);
+      const campaign = await loadCampaign(campaignId);
+      const html = await generateHighlightsHtml(campaignId, { campaignName: campaign?.name });
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', `inline; filename="highlights-${campaignId.slice(0, 8)}.html"`);
+      res.send(html);
+    } catch (err) {
+      console.error('[api] highlights export:', err);
+      res.status(500).send('<html><body>Erro ao exportar.</body></html>');
     }
   });
 }
