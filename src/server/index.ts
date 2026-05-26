@@ -727,6 +727,17 @@ async function main(): Promise<void> {
         const camp = campaigns.get(activeCampaignId);
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
 
+        // FIX coop-1: echo da ação do player ANTES da narração do Mestre.
+        // Sem isso, ninguém vê o que o player fez — só a resposta do DM.
+        // Aparece como entrada própria no histórico de narrações de TODOS na room.
+        const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+        const echoText = details ? `${String(action)} — "${details}"` : String(action);
+        io.to(camp.state.id).emit('dmNarration', {
+          text: echoText,
+          speaker: `▶ ${myName}`,
+          mood: 'neutral',
+        });
+
         await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
           const response = await camp.takeAction(activePlayerId!, action, details);
           io.to(camp.state.id).emit('dmNarration', {
@@ -773,7 +784,7 @@ async function main(): Promise<void> {
         // Sem pending = clique duplo ou check já resolvido. Silent ignore — não polui o log do player.
         if (!pending) { return; }
         if (pending.playerId !== activePlayerId) {
-          socket.emit('error', 'esse check é de outro player');
+          // FIX coop-4: spectator-side check é silent — UI já mostra "X está rolando..."
           return;
         }
 
@@ -810,7 +821,7 @@ async function main(): Promise<void> {
         const pending = camp.getPendingSave();
         if (!pending) return;
         if (pending.playerId !== activePlayerId) {
-          socket.emit('error', 'esse save é de outro player');
+          // FIX coop-4: spectator silent — banner já mostra "X está rolando save"
           return;
         }
         const result = await camp.resolveSavingThrow(activePlayerId);
@@ -845,6 +856,17 @@ async function main(): Promise<void> {
         const result = await camp.playerCombatAction(activePlayerId, action, targetId);
         if (!result) { socket.emit('error', 'ação de combate inválida'); return; }
         if (!result.ok) { socket.emit('error', result.log || 'ação rejeitada'); return; }
+
+        // FIX coop-2: echo da ação de combate pra TODOS na room (sem isso,
+        // aliados não vêem o que você fez — só vêem combatEvent solto).
+        // Usa result.log já formatado pelo combat engine.
+        if (result.log) {
+          io.to(camp.state.id).emit('dmNarration', {
+            text: result.log,
+            speaker: `⚔ ${camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro'}`,
+            mood: 'neutral',
+          });
+        }
 
         for (const ev of result.events) {
           io.to(camp.state.id).emit('combatEvent', ev);
@@ -1176,10 +1198,18 @@ async function main(): Promise<void> {
       }
     });
 
-    // ── chat: broadcast pra room
+    // ── chat: broadcast pra room (FIX coop-3: usa nome de PJ real, não "Player")
     socket.on('chat', ({ text }) => {
-      if (!activeCampaignId) return;
-      io.to(activeCampaignId).emit('dmNarration', { text: `Chat: ${text}`, speaker: 'Player', mood: 'neutral' });
+      if (!activeCampaignId || !activePlayerId) return;
+      const trimmed = String(text ?? '').trim().slice(0, 280);
+      if (!trimmed) return;
+      const camp = campaigns.get(activeCampaignId);
+      const myName = camp?.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Anônimo';
+      io.to(activeCampaignId).emit('dmNarration', {
+        text: trimmed,
+        speaker: `💬 ${myName}`,
+        mood: 'neutral',
+      });
     });
   });
 

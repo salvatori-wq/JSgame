@@ -500,3 +500,37 @@ body.is-portrait-narrow .sc-die {
   font-size: 30px;
 }
 
+/* FIX coop-3 — Chat bar player→party (só aparece se party.length > 1) */
+.camp-chat-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(28, 18, 10, 0.85);
+  border: 1px solid rgba(160, 120, 60, 0.3);
+  border-radius: var(--r-md, 6px);
+}
+.camp-chat-input {
+  flex: 1;
+  background: rgba(10, 6, 4, 0.7);
+  border: 1px solid rgba(160, 120, 60, 0.4);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--ink-warm);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  outline: none;
+}
+.camp-chat-input:focus { border-color: var(--accent-rune); }
+.camp-chat-send {
+  padding: 8px 16px;
+  background: var(--accent-rune);
+  color: #1a1208;
+  border: none;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  cursor: pointer;
+}
+.camp-chat-send:hover { filter: brightness(1.15); }
+

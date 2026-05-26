@@ -231,9 +231,14 @@ export class CampaignScreen {
 
     const onError = (msg: string): void => {
       console.warn('[campaign] server error:', msg);
-      this.narrations.push({ speaker: '⚠ Erro', text: msg });
+      // FIX coop-4: filtra mensagens de race condition / spectator que não são
+      // bugs reais — só mostra erros reais (failure de tool call, save fail).
+      const benign = /no active campaign|campaign not found|outro player|sem combate ativo/i;
+      if (!benign.test(msg)) {
+        this.narrations.push({ speaker: '⚠ Erro', text: msg });
+        this.render();
+      }
       this.dmThinkingBy = null;
-      this.render();
     };
     s.on('error', onError);
     this.socketCleanups.push(() => s.off('error', onError));
@@ -393,7 +398,43 @@ export class CampaignScreen {
       root.appendChild(this.renderActionsBar());
     }
 
+    // FIX coop-3: barra de chat livre — aparece sempre que tem mais de 1 PJ na party
+    if (this.party.length > 1) {
+      root.appendChild(this.renderChatBar());
+    }
+
     this.container.appendChild(root);
+  }
+
+  // FIX coop-3: Chat livre player → party (broadcast pra room toda).
+  // Usa Enter pra enviar. Limpa input após envio. Limite 280 chars.
+  private renderChatBar(): HTMLElement {
+    const input = el('input', {
+      class: 'camp-chat-input',
+      attrs: {
+        type: 'text',
+        placeholder: '💬 Falar pra party (Enter pra enviar)',
+        maxlength: '280',
+      },
+    }) as HTMLInputElement;
+    const send = (): void => {
+      const text = input.value.trim();
+      if (!text) return;
+      this.opts.socket.emit('chat', { text });
+      input.value = '';
+    };
+    input.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); send(); }
+    });
+    return el('div', { class: 'camp-chat-bar' }, [
+      input,
+      el('button', {
+        class: 'camp-chat-send',
+        text: 'Enviar',
+        attrs: { type: 'button' },
+        on: { click: send },
+      }),
+    ]);
   }
 
   private renderHeader(): HTMLElement {
