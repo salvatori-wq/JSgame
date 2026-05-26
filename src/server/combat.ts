@@ -10,7 +10,7 @@ import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
 import { uuid } from './util.js';
 import {
   getRageDamageBonus, hasRageResistance, maybeSneakAttack, clearTurnFlags,
-  hasCombatFlag, clearCombatFlag,
+  hasCombatFlag, clearCombatFlag, setCombatFlag, clearStartOfTurnFlags,
 } from './class-features-engine.js';
 import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
@@ -142,6 +142,8 @@ export function advanceTurn(combat: CombatState, party: CharacterSheet[]): { par
       combat.log.push(`${next.name} pula o turno (condição incapacitante).`);
       continue;
     }
+    // M3 — limpa flags que duram "until start of next turn" (dodging)
+    clearStartOfTurnFlags(combat, next.id);
     return { participant: next, combatOver: false };
   }
   combat.active = false;
@@ -373,7 +375,9 @@ export function resolveEnemyTurn(
   }
 
   const advantage = target.conditions.includes('caido') || target.conditions.includes('cego');
-  const disadvantage = enemy.conditions.includes('cego') || enemy.conditions.includes('envenenado');
+  // M3 — Dodge real: target com flag 'dodging' impõe desvantagem em ataques contra ele.
+  const targetDodging = hasCombatFlag(combat, target.id, 'dodging');
+  const disadvantage = enemy.conditions.includes('cego') || enemy.conditions.includes('envenenado') || targetDodging;
 
   const attackRoll = rollD20({ modifier: enemy.attackBonus, advantage, disadvantage });
   // A2 — Buff engine: lê AC bonus passivo do PJ (Shield +5, magic armor, etc)
@@ -467,12 +471,16 @@ export function resolveEnemyTurn(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Outras ações de player (esquivar/disparar/etc): efeito narrativo simples.
-// Esquivar dá disadvantage em ataques contra player no próximo turno (placeholder).
+// Outras ações de player (esquivar/disparar/etc).
+// M3 — Esquivar REAL: marca flag 'dodging' no PJ, resolveEnemyAttack rola
+// 2d20 e pega o menor (disadvantage) quando ataca PJ com flag. Flag limpa
+// no início do próximo turno do PJ (clearTurnFlags em advanceTurn).
 // ════════════════════════════════════════════════════════════════════════════
 
 export function resolvePlayerDodge(attacker: CharacterSheet, combat: CombatState): { log: string } {
-  const log = `${attacker.characterName} usa Esquivar — qualquer ataque contra ele tem desvantagem até o próximo turno.`;
+  // M3 — Marca combat-flag pra dodge real. resolveEnemyAttack vai checar.
+  setCombatFlag(combat, attacker.id, 'dodging');
+  const log = `${attacker.characterName} usa Esquivar — ataques contra ele têm desvantagem até o próximo turno.`;
   combat.log.push(log);
   return { log };
 }

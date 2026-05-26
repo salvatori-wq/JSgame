@@ -302,9 +302,17 @@ export function maybeSneakAttack(
 
 // Clear flags one-shot (called at end of turn pra resetar sneak-attack-used).
 // F24 — também reseta bonus-action-used e disengaged-this-turn.
+// NOTA: 'dodging' (M3) NÃO é limpo aqui — Esquivar dura ATÉ o INÍCIO do próximo
+// turno do esquivador (PHB pág 192). Isso é tratado em clearStartOfTurnFlags.
 export function clearTurnFlags(combat: CombatState, characterId: string): void {
   clearCombatFlag(combat, characterId, 'sneak-attack-used-this-round');
   clearCombatFlag(combat, characterId, 'action-surge');
   clearCombatFlag(combat, characterId, 'bonus-action-used');
   clearCombatFlag(combat, characterId, 'disengaged-this-turn');
+}
+
+// M3 — Limpeza no INÍCIO do turno do PJ (next-turn cleanup).
+// Chamado por advanceTurn quando o participante começa o turno.
+export function clearStartOfTurnFlags(combat: CombatState, characterId: string): void {
+  clearCombatFlag(combat, characterId, 'dodging');
 }
