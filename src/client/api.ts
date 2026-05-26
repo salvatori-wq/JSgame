@@ -8,6 +8,8 @@ export interface ApiHealth {
   service?: string;
   uptime?: number;
   dmProvider?: string;
+  activeProvider?: string;
+  hasGemini?: boolean;
   hasGroq?: boolean;
   hasAnthropic?: boolean;
   hasEmail?: boolean;

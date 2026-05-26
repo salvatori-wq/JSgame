@@ -194,6 +194,8 @@ async function main(): Promise<void> {
       service: 'jsgame',
       uptime: process.uptime(),
       dmProvider: process.env.DM_PROVIDER ?? 'auto',
+      activeProvider: dm.constructor.name,
+      hasGemini: !!process.env.GEMINI_API_KEY,
       hasGroq: !!process.env.GROQ_API_KEY,
       hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
       hasEmail: !!process.env.BREVO_API_KEY,

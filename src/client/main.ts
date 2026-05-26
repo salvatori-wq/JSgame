@@ -161,9 +161,9 @@ async function renderHome(): Promise<void> {
       el('span', { class: 'bs-key', text: 'Servidor' }),
       el('span', { class: 'bs-val', text: health.ok ? '✓ online' : '✗ offline' }),
     ]),
-    el('div', { class: `bs-row ${health.hasGroq ? 'is-ok' : 'is-warn'}` }, [
+    el('div', { class: `bs-row ${(health.hasGemini || health.hasGroq || health.hasAnthropic) ? 'is-ok' : 'is-warn'}` }, [
       el('span', { class: 'bs-key', text: 'Mestre IA' }),
-      el('span', { class: 'bs-val', text: health.hasGroq ? `✓ ${health.dmProvider}` : '⚠ sem GROQ key' }),
+      el('span', { class: 'bs-val', text: (health.hasGemini || health.hasGroq || health.hasAnthropic) ? `✓ ${health.dmProvider}` : '⚠ sem provider' }),
     ]),
   ]));
 
