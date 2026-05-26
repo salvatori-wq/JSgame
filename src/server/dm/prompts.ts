@@ -331,6 +331,22 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'start_combat_balanced',
+    description: 'Inicia combate BALANCEADO automaticamente pra dificuldade. Use ao invés de start_combat quando você só quer dizer "easy/medium/hard/deadly" e deixar o server escolher inimigos do bestiary baseado no nível da party. Sem precisar pensar em monsterId/CR.',
+    schema: {
+      type: 'object',
+      properties: {
+        difficulty: {
+          type: 'string',
+          enum: ['easy', 'medium', 'hard', 'deadly'],
+          description: 'Dificuldade do encontro. PHB DMG XP thresholds.',
+        },
+        flavor: { type: 'string', description: 'Descrição narrativa breve do encontro (1 frase)' },
+      },
+      required: ['difficulty'],
+    },
+  },
+  {
     name: 'request_saving_throw',
     description: 'Pede teste de resistência (saving throw) pra player. Use pra spells com save (Dragon Breath, Fireball), traps, hazards. Server rola d20 + ability mod + prof (se tem) vs DC.',
     schema: {

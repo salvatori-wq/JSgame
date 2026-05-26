@@ -27,7 +27,9 @@ export type ValidatedTool =
   // F20 — marca momento memorável (kill épica, fala icônica, escolha moral, reviravolta)
   | { kind: 'mark_highlight'; summary: string; highlightKind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist'; characterId?: string }
   // F27 — Saving throw genérico (ability save vs DC). DM dispara quando spell/trap/hazard.
-  | { kind: 'request_saving_throw'; ability: 'for' | 'des' | 'con' | 'int' | 'sab' | 'car'; dc: number; reason: string; playerId: string };
+  | { kind: 'request_saving_throw'; ability: 'for' | 'des' | 'con' | 'int' | 'sab' | 'car'; dc: number; reason: string; playerId: string }
+  // B3 — Encounter builder: DM passa só difficulty, server calcula balanceamento
+  | { kind: 'start_combat_balanced'; difficulty: 'easy' | 'medium' | 'hard' | 'deadly'; flavor?: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -227,6 +229,15 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         reason,
         playerId,
       };
+    }
+
+    case 'start_combat_balanced': {
+      const diff = String(input.difficulty ?? 'medium').toLowerCase();
+      const validDiff: 'easy' | 'medium' | 'hard' | 'deadly' = ['easy', 'medium', 'hard', 'deadly'].includes(diff)
+        ? diff as 'easy' | 'medium' | 'hard' | 'deadly'
+        : 'medium';
+      const flavor = input.flavor ? String(input.flavor).slice(0, 200) : undefined;
+      return { kind: 'start_combat_balanced', difficulty: validDiff, flavor };
     }
 
     default:

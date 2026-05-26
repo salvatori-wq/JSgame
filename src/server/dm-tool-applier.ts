@@ -10,6 +10,7 @@ import type { Campaign } from './campaign.js';
 import type { ValidatedTool } from './dm/tools.js';
 import { startCombat, applyConditionTo } from './combat.js';
 import { awardXpToParty } from '../dnd/leveling.js';
+import { pickEncounter, picksToEnemyInputs } from '../dnd/encounter-builder.js';
 
 export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool): void {
   switch (tool.kind) {
@@ -270,6 +271,28 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         reason: tool.reason,
         playerId: owner,
       };
+      break;
+    }
+
+    case 'start_combat_balanced': {
+      // B3 — Builder calcula encontro balanceado pela party + difficulty.
+      const partyComp = camp.party.map((p) => ({ level: p.level }));
+      const encounter = pickEncounter(partyComp, tool.difficulty);
+      const enemies = picksToEnemyInputs(encounter.picks);
+      camp.state.mode = 'combat';
+      camp.state.combat = startCombat({ party: camp.party, enemies });
+      camp.combatStartCount += 1;
+      const names = encounter.picks.map((p) => `${p.count}× ${p.monster.name}`).join(', ');
+      camp.pushRecentEvent(`Combate balanceado (${tool.difficulty}, ${encounter.adjustedXp} XP): ${names}${tool.flavor ? ` — ${tool.flavor}` : ''}`);
+      camp.indexFact({
+        kind: 'event',
+        text: `Combate balanceado ${tool.difficulty} contra: ${names}. Local: ${camp.state.currentLocation}.`,
+        tags: `combate balanceado ${tool.difficulty}`,
+        importance: 1.3,
+      });
+      for (const pj of camp.party) {
+        camp.pushAchievementEvent(pj.id, { kind: 'combat_started', isFirst: camp.combatStartCount === 1 });
+      }
       break;
     }
 
