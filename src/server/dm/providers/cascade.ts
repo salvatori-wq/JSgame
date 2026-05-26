@@ -54,6 +54,10 @@ export class CascadeProvider implements DMProvider {
   readonly name: string;
   private providers: DMProvider[];
   private onResult?: CascadeProviderOptions['onProviderResult'];
+  // 2026-05-26: expõe qual provider EFETIVAMENTE respondeu na última chamada.
+  // dm.ts lê isso pra telemetria precisa — antes salvávamos "cascade(...)" o que
+  // mascarava qual provider individual deu success/error.
+  public lastSuccessfulProvider: string | null = null;
 
   constructor(opts: CascadeProviderOptions) {
     if (opts.providers.length === 0) {
@@ -80,6 +84,7 @@ export class CascadeProvider implements DMProvider {
       const provider = this.providers[i]!;
       try {
         const result = await provider.generate(opts);
+        this.lastSuccessfulProvider = provider.name;
         this.onResult?.({
           providerName: provider.name,
           stage: 'success',

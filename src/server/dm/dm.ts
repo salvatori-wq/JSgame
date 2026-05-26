@@ -140,13 +140,24 @@ export class DungeonMaster {
   }
 
   // T1 — Helpers de telemetria, lazy-import pra evitar ciclo. Falhas silenciosas.
+  // 2026-05-26: rastreia também effectiveProvider quando o ativo é cascade —
+  // CascadeProvider.lastSuccessfulProvider expõe qual provider individual
+  // respondeu (Cerebras/Gemini/Groq). Antes só salvávamos "cascade(...)".
+  private getEffectiveProvider(): string {
+    const cascade = this.provider as { lastSuccessfulProvider?: string | null };
+    return cascade.lastSuccessfulProvider ?? this.provider.name;
+  }
   private async trackSuccess(ctx: NarrationContext, retried: boolean): Promise<void> {
     try {
       const { trackMetricEvent } = await import('../metrics.js');
       await trackMetricEvent({
         sessionId: ctx.campaign.id,
         kind: 'narration_success',
-        payload: { retriedWithoutTools: retried, provider: this.provider.name },
+        payload: {
+          retriedWithoutTools: retried,
+          provider: this.provider.name,
+          effectiveProvider: this.getEffectiveProvider(),
+        },
       });
     } catch { /* ignore */ }
   }
@@ -156,7 +167,11 @@ export class DungeonMaster {
       await trackMetricEvent({
         sessionId: ctx.campaign.id,
         kind: 'narration_error',
-        payload: { error: errMsg, provider: this.provider.name },
+        payload: {
+          error: errMsg,
+          provider: this.provider.name,
+          effectiveProvider: this.getEffectiveProvider(),
+        },
       });
     } catch { /* ignore */ }
   }

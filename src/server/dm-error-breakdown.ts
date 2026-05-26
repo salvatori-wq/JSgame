@@ -73,10 +73,12 @@ export async function getDmErrorBreakdown(daysBack = 1): Promise<ErrorBreakdown>
 
   const events: ErrorEvent[] = [];
   for (const row of r.rows) {
-    let payload: { error?: string; provider?: string } = {};
+    let payload: { error?: string; provider?: string; effectiveProvider?: string } = {};
     try { payload = JSON.parse(String(row.payload ?? '{}')); } catch { /* ignore */ }
     const errorMsg = payload.error ?? 'unknown';
-    const provider = payload.provider ?? 'unknown';
+    // 2026-05-26: prefere effectiveProvider (qual provider individual falhou
+    // dentro do cascade) sobre o name do cascade. Antes "cascade(...)" mascarava.
+    const provider = payload.effectiveProvider ?? payload.provider ?? 'unknown';
     events.push({
       timestamp: Number(row.created_at),
       provider,
