@@ -8,12 +8,12 @@ import type { CharacterSheet } from '../../shared/types.js';
 import type { DMInterface, DMResponse } from '../dm/dm.js';
 
 // DM fake — não chama LLM, retorna narração canned
-class FakeDM implements DMInterface {
+const fakeDM = {
   async narrate(): Promise<DMResponse> {
-    return { narration: 'fake', speaker: 'Mestre', toolCalls: [] };
-  }
-  async summarize(): Promise<string | null> { return null; }
-}
+    return { narration: 'fake', speaker: 'Mestre', toolCalls: [], raw: '' };
+  },
+  async summarize(): Promise<string | null> { return null; },
+} as unknown as DMInterface;
 
 function makePJ(id: string, name: string, overrides: Partial<CharacterSheet> = {}): CharacterSheet {
   return {
@@ -164,7 +164,7 @@ describe('F18 — Campaign quest lifecycle', () => {
   let pj: CharacterSheet;
 
   beforeEach(() => {
-    camp = new Campaign(new FakeDM(), { id: 'camp-test', name: 'Test' });
+    camp = new Campaign(fakeDM, { id: 'camp-test', name: 'Test' });
     pj = makePJ('pj-1', 'Borin');
     camp.addCharacter(pj);
     camp['narrationLog'] = [];

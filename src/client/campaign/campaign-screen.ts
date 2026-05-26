@@ -25,6 +25,7 @@ import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../n
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 import { showAchievementToast } from '../achievements-toast';
+import { portraitFor } from '../../dnd/portrait';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -442,7 +443,12 @@ export class CampaignScreen {
       const xpFloor = XP_FOR_LEVEL[p.level] ?? 0;
       const xpInLevel = p.xp - xpFloor;
 
+      const portrait = portraitFor({ raceId: p.raceId, classId: p.classId });
       list.appendChild(el('div', { class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}` }, [
+        el('div', { class: 'cp-pj-portrait', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
+          el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
+          el('span', { class: 'cp-pj-portrait-class', text: portrait.class }),
+        ]),
         el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
         el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass} · HD ${p.hitDiceRemaining}/${p.level}` }),
         el('div', { class: 'cp-pj-hp-bar' }, [

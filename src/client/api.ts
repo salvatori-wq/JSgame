@@ -105,6 +105,26 @@ export async function listCampaigns(): Promise<CampaignSummary[]> {
   return data.campaigns;
 }
 
+// F19 — Tombstones (lápides) do user logado. Anon = lista vazia.
+export interface TombstoneDTO {
+  id: string;
+  userId: string | null;
+  characterId: string;
+  characterName: string;
+  raceId: string;
+  classId: string;
+  level: number;
+  campaignId: string | null;
+  campaignName: string | null;
+  diedAt: number;
+  epitaph: string;
+  cause: string | null;
+}
+export async function listTombstones(): Promise<TombstoneDTO[]> {
+  const data = await fetchJson<{ tombstones: TombstoneDTO[] }>('/api/tombstones');
+  return data.tombstones;
+}
+
 // F17 — Achievements progress (precisa user logado, retorna 401 anon)
 import type { Achievement } from '../dnd/achievements';
 export interface AchievementStatusDTO {

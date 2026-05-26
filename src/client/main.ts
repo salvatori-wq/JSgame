@@ -14,6 +14,8 @@ import { ProfileScreen } from './profile/profile-screen';
 import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
+import { portraitFor } from '../dnd/portrait';
+import { listTombstones, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
 
 const app = document.getElementById('app');
@@ -261,6 +263,10 @@ async function renderHome(): Promise<void> {
         const race = getRace(c.raceId as Parameters<typeof getRace>[0]);
         const klass = getClass(c.classId as Parameters<typeof getClass>[0]);
         const isSelected = c.id === selectedCharId;
+        const portrait = portraitFor({
+          raceId: c.raceId as Parameters<typeof portraitFor>[0]['raceId'],
+          classId: c.classId as Parameters<typeof portraitFor>[0]['classId'],
+        });
         const card = el('div', { class: `home-char-card${isSelected ? ' is-selected' : ''}` }, [
           el('div', {
             class: 'hcc-body',
@@ -271,8 +277,14 @@ async function renderHome(): Promise<void> {
               },
             },
           }, [
-            el('div', { class: 'hcc-name', text: c.characterName }),
-            el('div', { class: 'hcc-meta', text: `${race?.name ?? c.raceId} · ${klass?.name ?? c.classId} · Nv ${c.level}` }),
+            el('div', { class: 'hcc-portrait', style: { background: portrait.aura }, attrs: { title: `${c.raceId} ${c.classId}` } }, [
+              el('span', { class: 'hcc-portrait-race', text: portrait.race }),
+              el('span', { class: 'hcc-portrait-class', text: portrait.class }),
+            ]),
+            el('div', { class: 'hcc-info' }, [
+              el('div', { class: 'hcc-name', text: c.characterName }),
+              el('div', { class: 'hcc-meta', text: `${race?.name ?? c.raceId} · ${klass?.name ?? c.classId} · Nv ${c.level}` }),
+            ]),
           ]),
           el('div', { class: 'hcc-actions' }, [
             el('button', {
@@ -410,7 +422,53 @@ async function renderHome(): Promise<void> {
   root.appendChild(coopSection);
   await refreshCamps();
 
+  // F19 — Cemitério (só pra user logado; anon não persiste)
+  if (currentUser) {
+    const gy = el('section', { class: 'home-graveyard' });
+    gy.appendChild(el('h3', { class: 'cs-h3', text: '🪦 Cemitério' }));
+    const gyList = el('div', { class: 'graveyard-list' });
+    gy.appendChild(gyList);
+    try {
+      const tombs = await listTombstones();
+      if (tombs.length === 0) {
+        gyList.appendChild(el('div', { class: 'graveyard-empty', text: 'Ainda nenhum PJ seu morreu. (Sorte ou medo?)' }));
+      } else {
+        for (const t of tombs.slice(0, 10)) {
+          gyList.appendChild(renderTombstoneCard(t));
+        }
+        if (tombs.length > 10) {
+          gyList.appendChild(el('div', { class: 'graveyard-more', text: `+${tombs.length - 10} mortes mais antigas` }));
+        }
+      }
+    } catch (err) {
+      gyList.appendChild(el('div', { class: 'graveyard-empty', text: `Erro: ${String(err)}` }));
+    }
+    root.appendChild(gy);
+  }
+
   app!.appendChild(root);
+}
+
+function renderTombstoneCard(t: TombstoneDTO): HTMLElement {
+  const portrait = portraitFor({
+    raceId: t.raceId as Parameters<typeof portraitFor>[0]['raceId'],
+    classId: t.classId as Parameters<typeof portraitFor>[0]['classId'],
+  });
+  const when = new Date(t.diedAt);
+  const whenStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return el('div', { class: 'tombstone-card' }, [
+    el('div', { class: 'tomb-icon', text: '🪦' }),
+    el('div', { class: 'tomb-portrait', style: { background: portrait.aura, opacity: '0.5', filter: 'grayscale(0.8)' } }, [
+      el('span', { text: portrait.race }),
+      el('span', { text: portrait.class }),
+    ]),
+    el('div', { class: 'tomb-body' }, [
+      el('div', { class: 'tomb-name', text: `${t.characterName}` }),
+      el('div', { class: 'tomb-meta', text: `Nv ${t.level} · ${t.classId}${t.campaignName ? ` · ${t.campaignName}` : ''}` }),
+      el('div', { class: 'tomb-epitaph', text: `"${t.epitaph}"` }),
+      el('div', { class: 'tomb-when', text: `† ${whenStr}` }),
+    ]),
+  ]);
 }
 
 function renderCampaignCard(

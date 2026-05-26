@@ -35,6 +35,7 @@ import {
   type AchievementEvent,
   type UnlockResult,
 } from './achievements.js';
+import { saveTombstone, listTombstonesForUser } from './tombstones.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -413,6 +414,19 @@ async function main(): Promise<void> {
       res.json({ progress, counters });
     } catch (err) {
       console.error('[api] achievements:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // F19 — Cemitério de lápides do user. Anon não tem (não persiste).
+  app.get('/api/tombstones', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.json({ tombstones: [] }); return; }
+    try {
+      const tombs = await listTombstonesForUser(user.id);
+      res.json({ tombstones: tombs });
+    } catch (err) {
+      console.error('[api] tombstones:', err);
       res.status(500).json({ error: String(err) });
     }
   });
@@ -914,6 +928,22 @@ async function main(): Promise<void> {
         const r = await camp.rollDeathSave(activePlayerId);
         if (!r.ok) { socket.emit('error', r.reason ?? 'death save falhou'); return; }
         const playerName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Alguém';
+
+        // F19: PJ morreu → salva lápide persistente com epitáfio
+        if (r.died) {
+          const sheet = camp.party.find((p) => p.id === activePlayerId);
+          if (sheet) {
+            void saveTombstone({
+              sheet,
+              campaignId: camp.state.id,
+              campaignName: camp.state.name,
+              cause: 'death-save triple fail',
+            }).catch((err) => {
+              console.warn('[tombstones] saveTombstone falhou:', err);
+            });
+          }
+        }
+
         const msg = r.nat20
           ? `${playerName} rolou NAT 20 — recupera 1 HP!`
           : r.died

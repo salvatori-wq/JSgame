@@ -133,6 +133,23 @@ export async function initPersistence(): Promise<void> {
       updated_at INTEGER NOT NULL,
       PRIMARY KEY (user_id, counter_id)
     )`,
+    // F19 — Cemitério persistente. Cada PJ morto vira uma "lápide" com epitáfio.
+    // user_id null = morte anônima (PJ legado sem auth). Aparece em home no perfil.
+    `CREATE TABLE IF NOT EXISTS tombstones (
+      id              TEXT PRIMARY KEY,
+      user_id         TEXT,
+      character_id    TEXT NOT NULL,
+      character_name  TEXT NOT NULL,
+      race_id         TEXT NOT NULL,
+      class_id        TEXT NOT NULL,
+      level           INTEGER NOT NULL,
+      campaign_id     TEXT,
+      campaign_name   TEXT,
+      died_at         INTEGER NOT NULL,
+      epitaph         TEXT NOT NULL,
+      cause           TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_tombstones_user ON tombstones(user_id, died_at DESC)`,
   ], 'write');
 
   // Migration leve: adiciona user_id na tabela characters se não existe.
