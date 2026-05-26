@@ -162,5 +162,38 @@ function renderAbilityRow(
 
   row.appendChild(el('div', { class: 'ab-cost', text: `${pointBuyCost(baseScore) ?? '?'} pts` }));
 
+  // F33 — Slider (substitui drag dos +/- em sequência rápida; clamp via budget check)
+  const slider = el('input', {
+    class: 'ab-slider',
+    attrs: {
+      type: 'range',
+      min: String(POINT_BUY_MIN),
+      max: String(POINT_BUY_MAX),
+      step: '1',
+      value: String(baseScore),
+      'aria-label': `Score base ${key}`,
+    },
+    on: {
+      input: (e) => {
+        const desired = Number((e.target as HTMLInputElement).value);
+        // Tenta aplicar, mas se exceder budget, clampa pro maior valor possível.
+        let chosen = desired;
+        if (desired > baseScore) {
+          // Subindo — encontra maior valor ≤ desired que cabe no budget.
+          while (chosen > baseScore) {
+            const candidate = { ...state.abilityScoresBase, [key]: chosen };
+            const cost = totalPointBuyCost(candidate);
+            if (cost !== null && cost <= POINT_BUY_BUDGET) break;
+            chosen--;
+          }
+        }
+        state.abilityScoresBase[key] = chosen;
+        callbacks.update({ abilityScoresBase: { ...state.abilityScoresBase } });
+        rerender();
+      },
+    },
+  }) as HTMLInputElement;
+  row.appendChild(slider);
+
   return row;
 }

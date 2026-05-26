@@ -3,6 +3,7 @@
 import { ALL_RACES } from '../../dnd/races';
 import { ABILITY_SHORT, abilityModifier, formatModifier } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
+import { toggleCompare, isInCompareTray } from './compare-modal';
 import type { WizardState } from './wizard';
 
 export function renderRaceStep(
@@ -52,18 +53,18 @@ function renderRaceCard(
   parentLabel?: string,
 ): HTMLElement {
   const isSelected = state.raceId === race.id;
+  const isComparing = isInCompareTray('race', race.id);
   const bonusEntries = Object.entries(race.abilityBonuses)
     .filter(([, v]) => (v ?? 0) !== 0)
     .map(([k, v]) => `${ABILITY_SHORT[k as keyof typeof ABILITY_SHORT]} ${formatModifier(v ?? 0)}`)
     .join(', ');
 
   const card = el('article', {
-    class: `wiz-card wiz-card-race ${isSelected ? 'is-selected' : ''}`,
+    class: `wiz-card wiz-card-race ${isSelected ? 'is-selected' : ''} ${isComparing ? 'is-comparing' : ''}`,
     attrs: { role: 'button', tabindex: 0 },
     on: {
       click: () => {
         callbacks.update({ raceId: race.id });
-        // Re-render via parent — força re-render do wizard
         document.dispatchEvent(new CustomEvent('wiz:rerender'));
       },
     },
@@ -84,5 +85,19 @@ function renderRaceCard(
       ${race.traits.length > 3 ? `<li class="wc-traits-more">+ ${race.traits.length - 3} traços</li>` : ''}
     </ul>
   `;
+
+  card.appendChild(el('button', {
+    class: `wc-compare-btn ${isComparing ? 'is-on' : ''}`,
+    text: isComparing ? '⚖ comparando' : '⚖ comparar',
+    attrs: { type: 'button', title: 'Adicionar à comparação (até 3)' },
+    on: {
+      click: (e) => {
+        e.stopPropagation();
+        toggleCompare('race', race.id);
+        document.dispatchEvent(new CustomEvent('wiz:rerender'));
+      },
+    },
+  }));
+
   return card;
 }

@@ -1,8 +1,9 @@
 // JSgame · Step 2: escolha de classe (12 cards).
 
 import { ALL_CLASSES } from '../../dnd/classes';
-import { ABILITY_LABELS, ABILITY_SHORT } from '../../dnd/attributes';
+import { ABILITY_SHORT } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
+import { toggleCompare, isInCompareTray } from './compare-modal';
 import type { WizardState } from './wizard';
 
 export function renderClassStep(
@@ -39,13 +40,14 @@ function renderClassCard(
   callbacks: { update: (patch: Partial<WizardState>) => void },
 ): HTMLElement {
   const isSelected = state.classId === klass.id;
+  const isComparing = isInCompareTray('class', klass.id);
   const primary = Array.isArray(klass.primaryAbility)
     ? klass.primaryAbility.map((a) => ABILITY_SHORT[a]).join('/')
     : ABILITY_SHORT[klass.primaryAbility];
   const saves = klass.savingThrowProficiencies.map((a) => ABILITY_SHORT[a]).join(' · ');
 
   const card = el('article', {
-    class: `wiz-card wiz-card-class ${isSelected ? 'is-selected' : ''}`,
+    class: `wiz-card wiz-card-class ${isSelected ? 'is-selected' : ''} ${isComparing ? 'is-comparing' : ''}`,
     attrs: { role: 'button', tabindex: 0 },
     on: {
       click: () => {
@@ -66,5 +68,19 @@ function renderClassCard(
     </div>
     <div class="wc-skills-hint">Escolhe ${klass.skillChoices.count} perícias de ${klass.skillChoices.from.length}</div>
   `;
+
+  card.appendChild(el('button', {
+    class: `wc-compare-btn ${isComparing ? 'is-on' : ''}`,
+    text: isComparing ? '⚖ comparando' : '⚖ comparar',
+    attrs: { type: 'button', title: 'Adicionar à comparação (até 3)' },
+    on: {
+      click: (e) => {
+        e.stopPropagation();
+        toggleCompare('class', klass.id);
+        document.dispatchEvent(new CustomEvent('wiz:rerender'));
+      },
+    },
+  }));
+
   return card;
 }

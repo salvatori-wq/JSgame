@@ -19,6 +19,8 @@ import { renderAbilitiesStep } from './step-abilities';
 import { renderBackgroundStep } from './step-background';
 import { renderFeatStep } from './step-feat';
 import { renderReviewStep } from './step-review';
+import { renderLivePreview } from './live-preview';
+import { clearCompareTray } from './compare-modal';
 
 export type WizardStep = 'race' | 'class' | 'subclass' | 'abilities' | 'background' | 'level4' | 'review';
 
@@ -78,6 +80,7 @@ export class CharacterWizard {
 
   destroy(): void {
     document.removeEventListener('wiz:rerender', this.handleRerender);
+    clearCompareTray();
   }
 
   private handleRerender = (): void => {
@@ -86,9 +89,16 @@ export class CharacterWizard {
 
   private render(): void {
     this.container.innerHTML = '';
+    const stepBody = el('div', { class: 'wiz-step-body' }, [
+      this.renderStepContent(),
+    ]);
+    const stepArea = el('div', { class: 'wiz-step-area' }, [
+      stepBody,
+      renderLivePreview(this.state),
+    ]);
     const root = el('div', { class: 'wizard' }, [
       this.renderHeader(),
-      this.renderStepContent(),
+      stepArea,
     ]);
     this.container.appendChild(root);
   }
