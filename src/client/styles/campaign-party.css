@@ -25,14 +25,43 @@
   font-size: 12px;
   font-style: italic;
 }
+/* QW-6 — Versão prominente: maior, animada, visível mesmo em mobile. */
+.camp-thinking.is-prominent {
+  padding: 14px 18px;
+  margin: 12px 0;
+  background: linear-gradient(180deg, rgba(255, 220, 140, 0.12), rgba(255, 220, 140, 0.04));
+  border: 1px solid rgba(255, 220, 140, 0.45);
+  border-radius: 6px;
+  color: var(--ink-warm);
+  font-size: 14px;
+  font-style: normal;
+  box-shadow: 0 0 16px rgba(255, 220, 140, 0.15);
+  gap: 14px;
+}
+.camp-thinking.is-prominent .ct-spinner { font-size: 22px; }
+.camp-thinking.is-prominent .ct-txt {
+  flex: 1;
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+}
+.camp-thinking.is-prominent .ct-elapsed {
+  font-family: monospace;
+  font-size: 13px;
+  color: rgba(255, 220, 140, 0.75);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  min-width: 36px;
+  text-align: center;
+}
 .ct-spinner {
   display: inline-block;
   animation: thinking-pulse 1.4s ease-in-out infinite;
   font-size: 16px;
 }
 @keyframes thinking-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.9); }
-  50%      { opacity: 1.0; transform: scale(1.1); }
+  0%, 100% { opacity: 0.3; transform: scale(0.9) rotate(-8deg); }
+  50%      { opacity: 1.0; transform: scale(1.15) rotate(8deg); }
 }
 
 .camp-toast {

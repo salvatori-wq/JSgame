@@ -115,6 +115,44 @@ describe('A3 — Auto-recap', () => {
     expect(response?.narration).toContain('cena nova');  // narração principal preservada
   });
 
+  it('QW-4: recap + narrate executam em PARALELO (Promise.all)', async () => {
+    // Verifica que recap e narrate são paralelos: total ≈ max(recap_delay, narrate_delay),
+    // não soma (que seria caso sequencial).
+    await memory.saveFact({
+      campaignId: 'c-parallel', kind: 'npc',
+      text: 'Fact pra recap',
+      tags: 'parallel',
+      importance: 1.8,
+    });
+
+    // Mock DM com delays propositais — recap 200ms, narrate 200ms.
+    // Sequencial: ~400ms. Paralelo: ~200ms.
+    class SlowDM {
+      async narrate(): Promise<DMResponse> {
+        await new Promise((r) => setTimeout(r, 200));
+        return { narration: 'narração final', speaker: 'Mestre', toolCalls: [], raw: '' };
+      }
+      async summarize(): Promise<string | null> { return null; }
+      async generateRecap(): Promise<string | null> {
+        await new Promise((r) => setTimeout(r, 200));
+        return 'Anteriormente: o passado.';
+      }
+    }
+    const dm = new SlowDM();
+    const camp = new Campaign(dm as unknown as DMInterface, { id: 'c-parallel', name: 'CP', memory });
+    camp.addCharacter(mkPj());
+    camp.state.sessionNumber = 2;
+
+    const start = Date.now();
+    const response = await camp.startSession();
+    const elapsed = Date.now() - start;
+
+    // Paralelo: ~200ms + overhead. Limite generoso 320ms (caso sequencial seria 400+).
+    expect(elapsed).toBeLessThan(320);
+    // Ordem preservada: recap antes da narração principal
+    expect(response?.narration).toMatch(/Anteriormente: o passado\.[\s\S]*narração final/);
+  });
+
   it('topImportant ordena por importance DESC', async () => {
     await memory.saveFact({ campaignId: 'c4', kind: 'npc', text: 'A', tags: 'a', importance: 1.5 });
     await memory.saveFact({ campaignId: 'c4', kind: 'npc', text: 'B', tags: 'b', importance: 1.9 });

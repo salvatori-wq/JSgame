@@ -12,7 +12,7 @@ import type {
 } from '../../shared/types';
 import { SKILLS } from '../../dnd/skills';
 import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
-import { el, escapeHtml, setLastSession, clearLastSession } from '../util';
+import { el, escapeHtml, renderNarrationText, setLastSession, clearLastSession } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
@@ -32,7 +32,7 @@ import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
-import { openExplorationTutorial, shouldShowExplorationTutorial } from './exploration-tutorial';
+import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -61,9 +61,15 @@ export class CampaignScreen {
   private currentState: CampaignState | null = null;
   private skillCheckOverlay: PendingCheck | null = null;
   private dmThinkingBy: { playerName: string; action: string } | null = null;
+  // QW-6 — Start timestamp pra mostrar elapsed counter ("5s...") no thinking indicator.
+  private dmThinkingStartedAt: number | null = null;
+  private dmThinkingTimer: ReturnType<typeof setInterval> | null = null;
   private combatLog: string[] = [];
   // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
   private combatFlags: Record<string, string[]> = {};
+  // BUG-002 fix: idempotency lock pra trigger do tutorial — evita double-fire
+  // em coop (2 events chegam quase-simultâneo no mesmo client).
+  private explorationTutorialFired = false;
   private socketBound = false;
   private socketCleanups: Array<() => void> = [];
 
@@ -120,6 +126,10 @@ export class CampaignScreen {
         tag: 'narration',
       });
       this.render();
+      // BUG-002 fix: tenta disparar tutorial AQUI (narration handler) — caso
+      // state já tenha chegado antes (cenário rejoin), o trigger no onState
+      // não disparou porque narrationsArrived ainda era false.
+      this.maybeFireExplorationTutorial();
     };
     s.on('dmNarration', onNarration);
     this.socketCleanups.push(() => s.off('dmNarration', onNarration));
@@ -145,14 +155,11 @@ export class CampaignScreen {
         // Delay pequeno pra UI montar antes do overlay
         setTimeout(() => openCombatTutorial(), 500);
       }
-      // B7 — Tutorial first-exploration: dispara na PRIMEIRA chegada da primeira sessão
-      // (sessionNumber 1 + alguma narração ja chegou). Persiste flag pra não repetir.
-      const isFirstSession = state.sessionNumber === 1;
-      const hasFirstNarration = this.narrations.length > 0;
-      if (isFirstSession && hasFirstNarration && !this.currentState && shouldShowExplorationTutorial()) {
-        setTimeout(() => openExplorationTutorial(), 1200);  // delay maior pra player ler a narração primeiro
-      }
       this.currentState = state;
+      // BUG-002 fix: trigger usa função pura (testada) + tenta em TODO update de
+      // state — antes só disparava se `!this.currentState` (primeira vez), o que
+      // falhava em rejoin onde state arrives ANTES da narration.
+      this.maybeFireExplorationTutorial();
       // Persiste sessão ativa pra auto-rejoin no reload
       setLastSession({ characterId: this.opts.characterId, campaignId: state.id });
       // Se pendingCheck mudou e eu sou owner, abre overlay
@@ -262,13 +269,33 @@ export class CampaignScreen {
 
     const onThinking = (payload: { playerId: string; playerName: string; action: string }): void => {
       this.dmThinkingBy = { playerName: payload.playerName, action: payload.action };
+      this.dmThinkingStartedAt = Date.now();
+      // QW-6: tick timer pra refrescar elapsed counter em tempo real
+      if (this.dmThinkingTimer) clearInterval(this.dmThinkingTimer);
+      this.dmThinkingTimer = setInterval(() => {
+        // Re-render só o thinking element pra evitar redraw pesado a cada 1s
+        const el = this.container.querySelector('.ct-elapsed');
+        if (el && this.dmThinkingStartedAt) {
+          const sec = Math.floor((Date.now() - this.dmThinkingStartedAt) / 1000);
+          el.textContent = `${sec}s`;
+        }
+      }, 1000);
       this.render();
     };
     s.on('dmThinking', onThinking);
     this.socketCleanups.push(() => s.off('dmThinking', onThinking));
 
-    const onDone = (): void => {
+    const clearThinking = (): void => {
       this.dmThinkingBy = null;
+      this.dmThinkingStartedAt = null;
+      if (this.dmThinkingTimer) {
+        clearInterval(this.dmThinkingTimer);
+        this.dmThinkingTimer = null;
+      }
+    };
+
+    const onDone = (): void => {
+      clearThinking();
       this.render();
     };
     s.on('dmDone', onDone);
@@ -283,7 +310,7 @@ export class CampaignScreen {
         // B6 — Toast inferior em vez de só push narração (mais visível)
         toastError(msg);
       }
-      this.dmThinkingBy = null;
+      clearThinking();
     };
     s.on('error', onError);
     this.socketCleanups.push(() => s.off('error', onError));
@@ -335,6 +362,26 @@ export class CampaignScreen {
     };
     s.on('streakUpdate', onStreak);
     this.socketCleanups.push(() => s.off('streakUpdate', onStreak));
+  }
+
+  // BUG-002 fix: tenta disparar tutorial em qualquer momento (state ou narration).
+  // Função pura `shouldTriggerExplorationTutorial` faz o decision-making; método aqui
+  // só compõe o input e dispara o setTimeout idempotente.
+  private maybeFireExplorationTutorial(): void {
+    const state = this.currentState;
+    if (!state) return;
+    const trigger = shouldTriggerExplorationTutorial({
+      sessionNumber: state.sessionNumber,
+      narrationsArrived: this.narrations.length > 0,
+      alreadyFiredThisSession: this.explorationTutorialFired,
+      tutorialNotDoneYet: shouldShowExplorationTutorial(),
+    });
+    if (trigger) {
+      // Marca ANTES do setTimeout — protege contra race em coop (2 events
+      // chegando quase-simultâneo no mesmo cliente).
+      this.explorationTutorialFired = true;
+      setTimeout(() => openExplorationTutorial(), 1200);
+    }
   }
 
   private maybeShowPendingCheck(): void {
@@ -422,11 +469,14 @@ export class CampaignScreen {
       }
     }
 
-    // ── DM thinking indicator (qualquer jogador)
+    // ── DM thinking indicator (qualquer jogador). QW-6: visual mais óbvio +
+    // contador de segundos pra player não achar que travou em LLM lento.
     if (this.dmThinkingBy) {
-      root.appendChild(el('div', { class: 'camp-thinking' }, [
-        el('span', { class: 'ct-spinner', text: '💭' }),
-        el('span', { class: 'ct-txt', text: `${this.dmThinkingBy.playerName} → ${this.dmThinkingBy.action}…` }),
+      const sec = this.dmThinkingStartedAt ? Math.floor((Date.now() - this.dmThinkingStartedAt) / 1000) : 0;
+      root.appendChild(el('div', { class: 'camp-thinking is-prominent' }, [
+        el('span', { class: 'ct-spinner', text: '🎲' }),
+        el('span', { class: 'ct-txt', text: `Mestre escrevendo... (${this.dmThinkingBy.playerName} → ${this.dmThinkingBy.action})` }),
+        el('span', { class: 'ct-elapsed', text: `${sec}s` }),
       ]));
     }
 
@@ -747,9 +797,11 @@ export class CampaignScreen {
     }
     for (const n of this.narrations.slice(-10)) {
       const entry = el('div', { class: 'camp-narr-entry' });
+      // QW-2: renderNarrationText escapa HTML (XSS-safe) ANTES de aplicar
+      // markdown leve (**bold**, *italic*, `code`).
       entry.innerHTML = `
         <div class="cnn-speaker">${escapeHtml(n.speaker)}</div>
-        <div class="cnn-text">${escapeHtml(n.text)}</div>
+        <div class="cnn-text">${renderNarrationText(n.text)}</div>
       `;
       narrEl.appendChild(entry);
     }

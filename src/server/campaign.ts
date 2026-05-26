@@ -188,37 +188,44 @@ export class Campaign {
       if (this.isStarted || this.isStarting) return null;
       this.isStarting = true;
       try {
-        // A3 — Auto-recap pra sessão N > 1: busca top facts da memória e gera "Anteriormente...".
-        // Coloca o recap NA FRENTE da narração principal como parte do narration.
-        let recapPrefix = '';
-        if (this.state.sessionNumber > 1 && this.memory) {
+        // A3 — Auto-recap pra sessão N > 1. QW-4: paraleliza recap + narração
+        // principal (eram sequenciais → 8-12s na sessão 2+). São operações
+        // INDEPENDENTES (recap usa só facts, narrate usa só state) — Promise.all
+        // corta a latência pela metade.
+        const focus = this.buildMemoryFocus({});
+
+        const recapTask: Promise<string> = (async () => {
+          if (this.state.sessionNumber <= 1 || !this.memory) return '';
           try {
             const topFacts = await this.memory.topImportant(this.state.id, {
               limit: 6,
               kinds: ['npc', 'location', 'event', 'promise'],
               minImportance: 1.3,
             });
-            if (topFacts.length > 0) {
-              const recap = await this.dm.generateRecap(topFacts, this.state.dmPersonality);
-              if (recap) {
-                recapPrefix = recap + '\n\n';
-                this.pushRecentEvent(`Sessão ${this.state.sessionNumber} aberta com recap de ${topFacts.length} fatos.`);
-              }
+            if (topFacts.length === 0) return '';
+            const recap = await this.dm.generateRecap(topFacts, this.state.dmPersonality);
+            if (recap) {
+              this.pushRecentEvent(`Sessão ${this.state.sessionNumber} aberta com recap de ${topFacts.length} fatos.`);
+              return recap + '\n\n';
             }
+            return '';
           } catch (err) {
             console.warn('[campaign] auto-recap falhou:', err);
+            return '';
           }
-        }
+        })();
 
-        const focus = this.buildMemoryFocus({});
-        const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
-        const response = await this.dm.narrate({
-          campaign: this.state,
-          party: this.party,
-          recentNarrations: this.narrationLog,
-          memoryFacts,
-        });
-        // Prepend recap antes da narração de abertura
+        const narrateTask: Promise<DMResponse> = (async () => {
+          const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
+          return this.dm.narrate({
+            campaign: this.state,
+            party: this.party,
+            recentNarrations: this.narrationLog,
+            memoryFacts,
+          });
+        })();
+
+        const [recapPrefix, response] = await Promise.all([recapTask, narrateTask]);
         if (recapPrefix) {
           response.narration = recapPrefix + response.narration;
         }

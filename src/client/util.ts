@@ -51,6 +51,26 @@ export function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+// QW-2 — Narration markdown renderer. XSS-safe: escapa HTML PRIMEIRO, depois
+// aplica formatação leve via regex. Suporta **bold**, *italic* e `code`.
+// Newlines viram <br>. Não é parser markdown completo — só visual upgrade.
+export function renderNarrationText(s: string): string {
+  // 1) Escapa todo HTML primeiro — entrada arbitrária do LLM/player é untrusted
+  let out = escapeHtml(s);
+  // 2) Bold (precisa ser ANTES de italic — `**` é greedy match)
+  out = out.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  // 3) Italic com asterisco (precisa não capturar `*` adjacente de bold já processado)
+  out = out.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // 4) Italic com underscore (alternativa comum em outputs LLM)
+  out = out.replace(/(^|[^_])_([^_\n]+?)_(?!_)/g, '$1<em>$2</em>');
+  // 5) Inline code (backticks já escapados? não — backtick não está em escapeHtml,
+  //    mas também não é tag HTML, então OK)
+  out = out.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+  // 6) Quebras de linha → <br>
+  out = out.replace(/\n/g, '<br>');
+  return out;
+}
+
 export function uuid(): string {
   // Não-cryptographic — bom o suficiente pra character IDs locais.
   return 'id-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);

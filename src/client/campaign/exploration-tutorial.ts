@@ -1,6 +1,10 @@
 // JSgame · B7 — Tutorial first-exploration. Dispara na PRIMEIRA sessão
-// (sessionNumber=1 + narrationLog vazio quando o overlay vai abrir) e persiste
-// flag pra não reaparecer.
+// (sessionNumber=1 + narração chegou) e persiste flag pra não reaparecer.
+//
+// BUG-002 fix (2026-05-26): trigger usado a verificar `!this.currentState` em
+// onState, o que falhava em rejoin (state chega antes de narration). Agora
+// trigger é função pura chamável de QUALQUER evento (onState + onNarration),
+// idempotente via flag local `alreadyFiredThisSession`.
 
 import { el } from '../util';
 
@@ -12,6 +16,21 @@ export function shouldShowExplorationTutorial(): boolean {
 
 export function markExplorationTutorialDone(): void {
   try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* ignore */ }
+}
+
+export interface TutorialTriggerInput {
+  sessionNumber: number;
+  narrationsArrived: boolean;
+  alreadyFiredThisSession: boolean;
+  tutorialNotDoneYet: boolean;
+}
+
+// Pura: testável sem JSDOM. Dispara se TODOS os 4 critérios verdadeiros.
+export function shouldTriggerExplorationTutorial(input: TutorialTriggerInput): boolean {
+  return input.sessionNumber === 1
+    && input.narrationsArrived
+    && !input.alreadyFiredThisSession
+    && input.tutorialNotDoneYet;
 }
 
 interface Card {

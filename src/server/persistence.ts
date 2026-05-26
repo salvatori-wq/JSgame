@@ -358,6 +358,45 @@ export async function listRecentCampaigns(limit = 20): Promise<Array<{ id: strin
   }));
 }
 
+// QW-3 — Lista APENAS crônicas onde algum PJ do user (autenticado) está na party.
+// Schema atual não normaliza partyCharacterIds — está dentro do JSON state.
+// Estratégia: fetch top N candidates ordenadas por lastPlayedAt, filter em memória.
+// Performance: para N=200 campaigns ativas a custo é ~200 JSON.parse (microssegundos).
+export async function listRecentCampaignsByUserId(userId: string, limit = 20): Promise<Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }>> {
+  const client = requireClient();
+  // 1) Carrega IDs dos PJs do user
+  const charRows = await client.execute({
+    sql: 'SELECT id FROM characters WHERE user_id = ?',
+    args: [userId],
+  });
+  if (charRows.rows.length === 0) return [];
+  const charIds = new Set<string>(charRows.rows.map(r => r.id as string));
+
+  // 2) Pega campaigns mais recentes (até 4× o limit pra cobrir filtros)
+  const r = await client.execute({
+    sql: 'SELECT id, name, state, sessionNumber, lastPlayedAt FROM campaigns ORDER BY lastPlayedAt DESC LIMIT ?',
+    args: [Math.max(limit * 4, 80)],
+  });
+
+  const out: Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }> = [];
+  for (const row of r.rows) {
+    try {
+      const state = JSON.parse(row.state as string) as { partyCharacterIds?: string[] };
+      const partyIds = state.partyCharacterIds ?? [];
+      if (partyIds.some((id) => charIds.has(id))) {
+        out.push({
+          id: row.id as string,
+          name: row.name as string,
+          sessionNumber: Number(row.sessionNumber),
+          lastPlayedAt: Number(row.lastPlayedAt),
+        });
+        if (out.length >= limit) break;
+      }
+    } catch { /* state JSON corrupted — skip silenciosamente */ }
+  }
+  return out;
+}
+
 // Remove crônica + dados ligados (RAG memory + highlights).
 // Tombstones e metrics_events ficam — são history do user, não da crônica em si.
 export async function deleteCampaign(id: string): Promise<void> {

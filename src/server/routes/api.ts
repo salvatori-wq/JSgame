@@ -11,7 +11,7 @@ import { ALL_CONDITIONS } from '../../dnd/conditions.js';
 import { ALL_BACKGROUNDS } from '../../dnd/backgrounds.js';
 import {
   saveCharacter, loadCharacter, listCharactersByOwner, listCharactersByUserId, deleteCharacter,
-  loadCampaign, listRecentCampaigns, deleteCampaign,
+  loadCampaign, listRecentCampaigns, listRecentCampaignsByUserId, deleteCampaign,
 } from '../persistence.js';
 import {
   findOrCreateUser, createMagicLink, consumeMagicLink, createSession,
@@ -208,9 +208,16 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
   });
 
   // === Campaigns
-  app.get('/api/campaigns', async (_req, res) => {
+  // QW-3 — Filtra por user autenticado se houver session. Anônimo continua
+  // vendo todas (comportamento atual mantido).
+  app.get('/api/campaigns', async (req, res) => {
     try {
-      res.json({ campaigns: await listRecentCampaigns(20) });
+      const user = (req as ExpressReqWithUser).user;
+      if (user) {
+        res.json({ campaigns: await listRecentCampaignsByUserId(user.id, 20) });
+      } else {
+        res.json({ campaigns: await listRecentCampaigns(20) });
+      }
     } catch (err) {
       console.error('[api] listCampaigns:', err);
       res.status(500).json({ error: String(err) });
