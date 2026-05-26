@@ -25,6 +25,10 @@ import {
 import { listTombstonesForUser } from '../tombstones.js';
 import { getStreak } from '../streaks.js';
 import { listHighlightsForUser, generateHighlightsHtml } from '../highlights.js';
+import {
+  listFriends, requestFriendship, acceptFriendship, removeFriendship,
+  createFriendInvite, buildInviteEmail, listInvitesSentBy,
+} from '../friends.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -286,6 +290,92 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json({ highlights: items });
     } catch (err) {
       console.error('[api] highlights:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // A4 — Friend graph
+  app.get('/api/friends', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    try {
+      const friends = await listFriends(user.id);
+      res.json({ friends });
+    } catch (err) {
+      console.error('[api] friends:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/friends/request', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    const toUserId = String(req.body?.userId ?? '').trim();
+    if (!toUserId) { res.status(400).json({ error: 'userId obrigatório' }); return; }
+    try {
+      const r = await requestFriendship(user.id, toUserId);
+      if (!r.ok) { res.status(400).json({ error: r.reason }); return; }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] friends/request:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/friends/accept', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    const otherUserId = String(req.body?.userId ?? '').trim();
+    if (!otherUserId) { res.status(400).json({ error: 'userId obrigatório' }); return; }
+    try {
+      const r = await acceptFriendship(user.id, otherUserId);
+      if (!r.ok) { res.status(400).json({ error: r.reason }); return; }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] friends/accept:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.delete('/api/friends/:userId', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    try {
+      await removeFriendship(user.id, req.params.userId);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] friends DELETE:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post('/api/friends/invite', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    const toEmail = String(req.body?.email ?? '').trim();
+    const lobbyCode = req.body?.lobbyCode ? String(req.body.lobbyCode).trim() : undefined;
+    if (!toEmail || !toEmail.includes('@')) { res.status(400).json({ error: 'email inválido' }); return; }
+    try {
+      const invite = await createFriendInvite(user.id, toEmail, lobbyCode);
+      const fromName = user.displayName || user.email.split('@')[0]!;
+      const verifyUrl = `${req.protocol}://${req.headers.host}/?invite=${encodeURIComponent(invite.id)}${lobbyCode ? `&lobby=${encodeURIComponent(lobbyCode)}` : ''}`;
+      const emailMsg = buildInviteEmail({ fromName, toEmail, verifyUrl, lobbyCode });
+      const sent = await sendEmail(emailMsg);
+      res.json({ ok: true, mode: sent.mode, inviteId: invite.id, ...(sent.mode === 'dev-log' ? { devLink: verifyUrl } : {}) });
+    } catch (err) {
+      console.error('[api] friends/invite:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get('/api/friends/invites/sent', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    try {
+      const invites = await listInvitesSentBy(user.id);
+      res.json({ invites });
+    } catch (err) {
+      console.error('[api] friends/invites/sent:', err);
       res.status(500).json({ error: String(err) });
     }
   });

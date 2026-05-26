@@ -135,6 +135,35 @@ export async function listHighlights(): Promise<HighlightDTO[]> {
   return data.highlights;
 }
 
+// A4 — Friend graph
+export interface FriendDTO {
+  userId: string;
+  displayName: string | null;
+  email: string;
+  status: 'pending' | 'accepted';
+  iRequested: boolean;
+  createdAt: number;
+}
+export async function listFriends(): Promise<FriendDTO[]> {
+  const data = await fetchJson<{ friends: FriendDTO[] }>('/api/friends');
+  return data.friends;
+}
+export async function requestFriendship(userId: string): Promise<void> {
+  await fetchJson('/api/friends/request', { method: 'POST', body: JSON.stringify({ userId }) });
+}
+export async function acceptFriendship(userId: string): Promise<void> {
+  await fetchJson('/api/friends/accept', { method: 'POST', body: JSON.stringify({ userId }) });
+}
+export async function removeFriendship(userId: string): Promise<void> {
+  await fetchJson(`/api/friends/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+export async function inviteFriendByEmail(email: string, lobbyCode?: string): Promise<{ ok: boolean; mode: string; devLink?: string }> {
+  return fetchJson<{ ok: boolean; mode: string; devLink?: string }>(
+    '/api/friends/invite',
+    { method: 'POST', body: JSON.stringify({ email, lobbyCode }) },
+  );
+}
+
 // F19 — Tombstones (lápides) do user logado. Anon = lista vazia.
 export interface TombstoneDTO {
   id: string;

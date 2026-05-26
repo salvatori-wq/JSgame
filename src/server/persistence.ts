@@ -172,6 +172,43 @@ export async function initPersistence(): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_highlights_user ON highlights(user_id, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_highlights_campaign ON highlights(campaign_id, created_at DESC)`,
+    // A4 — Friend graph. Par simétrico (sempre user_a < user_b alfabético pra evitar duplicação).
+    // status='pending' (pediu mas não aceito) | 'accepted'. Removidos = DELETE row.
+    `CREATE TABLE IF NOT EXISTS friendships (
+      user_a      TEXT NOT NULL,
+      user_b      TEXT NOT NULL,
+      status      TEXT NOT NULL DEFAULT 'pending',
+      requested_by TEXT NOT NULL,
+      created_at  INTEGER NOT NULL,
+      accepted_at INTEGER,
+      PRIMARY KEY (user_a, user_b)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_friendships_a ON friendships(user_a, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_friendships_b ON friendships(user_b, status)`,
+    // A4 — Invites por email pra users que ainda não existem. Email-keyed.
+    // Quando user registra com email match, invite vira friendship automática.
+    `CREATE TABLE IF NOT EXISTS friend_invites (
+      id           TEXT PRIMARY KEY,
+      from_user_id TEXT NOT NULL,
+      to_email     TEXT NOT NULL COLLATE NOCASE,
+      lobby_code   TEXT,
+      created_at   INTEGER NOT NULL,
+      expires_at   INTEGER NOT NULL,
+      consumed_at  INTEGER
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_friend_invites_email ON friend_invites(to_email, consumed_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_friend_invites_from ON friend_invites(from_user_id, created_at DESC)`,
+    // T1 — Telemetria mínima. Eventos genéricos por user/anon + ts.
+    `CREATE TABLE IF NOT EXISTS metrics_events (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT,
+      session_id TEXT,
+      kind       TEXT NOT NULL,
+      payload    TEXT,
+      created_at INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_metrics_kind ON metrics_events(kind, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_metrics_user ON metrics_events(user_id, created_at DESC)`,
   ], 'write');
 
   // Migration leve: adiciona user_id na tabela characters se não existe.

@@ -174,6 +174,17 @@ export async function consumeMagicLink(token: string): Promise<{ ok: true; user:
 
   const user = await getUserById(userId);
   if (!user) return { ok: false, reason: 'usuário não encontrado' };
+
+  // A4 — Auto-aceita convites de amizade pendentes pra este email.
+  // Importação dinâmica pra evitar ciclo (friends → auth → friends).
+  try {
+    const { resolveInvitesForNewUser } = await import('./friends.js');
+    const r = await resolveInvitesForNewUser(user.id, user.email);
+    if (r.accepted > 0) console.log(`[friends] auto-aceitou ${r.accepted} convite(s) pra ${user.email}`);
+  } catch (err) {
+    console.warn('[friends] resolveInvitesForNewUser falhou:', err);
+  }
+
   return { ok: true, user };
 }
 

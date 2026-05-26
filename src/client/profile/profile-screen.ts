@@ -2,7 +2,11 @@
 // Hidden achievements ainda não unlocked mostram "?? ???" pra preservar surpresa.
 
 import { el } from '../util';
-import { getAchievementProgress, listHighlights, getStreak, type AchievementStatusDTO, type HighlightDTO, type StreakDTO } from '../api';
+import {
+  getAchievementProgress, listHighlights, getStreak,
+  listFriends, acceptFriendship, removeFriendship, inviteFriendByEmail,
+  type AchievementStatusDTO, type HighlightDTO, type StreakDTO, type FriendDTO,
+} from '../api';
 
 interface ProfileScreenOpts {
   container: HTMLElement;
@@ -46,6 +50,9 @@ export class ProfileScreen {
       if (highlights.length > 0) {
         body.appendChild(this.renderHighlights(highlights));
       }
+      // A4 — Amigos (coop)
+      const friends = await listFriends().catch(() => [] as FriendDTO[]);
+      body.appendChild(this.renderFriends(friends));
       const data = await getAchievementProgress();
       this.renderProgress(body, data.progress, data.counters);
     } catch (err) {
@@ -69,6 +76,93 @@ export class ProfileScreen {
         el('div', { class: 'profile-streak-meta', text: `Recorde: ${streak.longestStreak} dias · Total ativo: ${streak.totalDays} dias` }),
       ]),
     ]);
+  }
+
+  // A4 — Lista amigos + form de convite por email.
+  private renderFriends(friends: FriendDTO[]): HTMLElement {
+    const sec = el('section', { class: 'profile-friends-section' });
+    sec.appendChild(el('h3', { class: 'profile-section-h', text: `👥 Amigos (${friends.filter((f) => f.status === 'accepted').length})` }));
+
+    // Form de convite por email
+    const inviteForm = el('form', { class: 'profile-invite-form' });
+    const input = document.createElement('input');
+    input.type = 'email';
+    input.placeholder = 'amigo@email.com';
+    input.required = true;
+    input.className = 'profile-invite-input';
+    const btn = el('button', {
+      class: 'profile-invite-btn',
+      text: '📧 Convidar pra jogar',
+      attrs: { type: 'submit' },
+    });
+    inviteForm.appendChild(input);
+    inviteForm.appendChild(btn);
+    inviteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = input.value.trim();
+      if (!email) return;
+      try {
+        const r = await inviteFriendByEmail(email);
+        if (r.mode === 'dev-log' && r.devLink) {
+          alert(`Modo dev — link gerado:\n${r.devLink}`);
+        } else {
+          alert(`Convite enviado pra ${email}!`);
+        }
+        input.value = '';
+        // Re-render lista
+        this.start();
+      } catch (err) {
+        alert(`Erro: ${String(err)}`);
+      }
+    });
+    sec.appendChild(inviteForm);
+
+    // Lista
+    if (friends.length === 0) {
+      sec.appendChild(el('div', { class: 'profile-friends-empty', text: 'Nenhum amigo ainda. Convide alguém pra jogar coop.' }));
+    } else {
+      const list = el('div', { class: 'profile-friends-list' });
+      // Pendentes recebidos primeiro (precisam ação)
+      const pendingIn = friends.filter((f) => f.status === 'pending' && !f.iRequested);
+      const pendingOut = friends.filter((f) => f.status === 'pending' && f.iRequested);
+      const accepted = friends.filter((f) => f.status === 'accepted');
+      for (const f of [...pendingIn, ...accepted, ...pendingOut]) {
+        list.appendChild(this.renderFriendRow(f));
+      }
+      sec.appendChild(list);
+    }
+    return sec;
+  }
+
+  private renderFriendRow(f: FriendDTO): HTMLElement {
+    const name = f.displayName || f.email.split('@')[0]!;
+    const row = el('div', { class: `profile-friend-row is-${f.status}` });
+    row.appendChild(el('div', { class: 'pf-name', text: name }));
+    row.appendChild(el('div', { class: 'pf-email', text: f.email }));
+    if (f.status === 'pending' && !f.iRequested) {
+      row.appendChild(el('button', {
+        class: 'pf-accept-btn',
+        text: '✓ Aceitar',
+        on: { click: async () => {
+          await acceptFriendship(f.userId).catch((err) => alert(`Erro: ${String(err)}`));
+          this.start();
+        } },
+      }));
+    } else if (f.status === 'pending' && f.iRequested) {
+      row.appendChild(el('div', { class: 'pf-pending-tag', text: 'aguardando' }));
+    } else {
+      row.appendChild(el('button', {
+        class: 'pf-remove-btn',
+        text: '×',
+        attrs: { title: 'Remover amigo' },
+        on: { click: async () => {
+          if (!confirm(`Remover ${name}?`)) return;
+          await removeFriendship(f.userId).catch((err) => alert(`Erro: ${String(err)}`));
+          this.start();
+        } },
+      }));
+    }
+    return row;
   }
 
   private renderHighlights(highlights: HighlightDTO[]): HTMLElement {

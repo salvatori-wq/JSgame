@@ -783,6 +783,81 @@
   margin-top: 4px;
   font-family: monospace;
 }
+/* A4 — Profile: friends section */
+.profile-friends-section { margin: 18px 0; }
+.profile-invite-form {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.profile-invite-input {
+  flex: 1;
+  padding: 7px 10px;
+  background: rgba(40, 30, 60, 0.5);
+  border: 1px solid rgba(140, 120, 200, 0.4);
+  border-radius: 3px;
+  color: var(--ink-warm);
+  font-size: 13px;
+}
+.profile-invite-btn {
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #6840a0, #4030c0);
+  border: 1px solid #c8a8ff;
+  border-radius: 3px;
+  color: var(--ink-warm);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.profile-invite-btn:hover { box-shadow: 0 0 10px rgba(200, 168, 255, 0.5); }
+.profile-friends-empty {
+  text-align: center;
+  padding: 18px;
+  color: var(--ink-mute);
+  font-style: italic;
+  font-size: 12px;
+}
+.profile-friends-list { display: flex; flex-direction: column; gap: 6px; }
+.profile-friend-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(40, 30, 50, 0.4);
+  border: 1px solid rgba(140, 120, 180, 0.25);
+  border-radius: 3px;
+}
+.profile-friend-row.is-pending { border-left: 3px solid #f0d050; }
+.profile-friend-row.is-accepted { border-left: 3px solid #80c8a0; }
+.pf-name { color: var(--ink-warm); font-weight: 600; font-size: 13px; }
+.pf-email { color: var(--ink-mute); font-size: 11px; font-family: monospace; }
+.pf-accept-btn {
+  padding: 4px 10px;
+  background: rgba(80, 160, 100, 0.4);
+  border: 1px solid #80c8a0;
+  border-radius: 3px;
+  color: #c0ffd0;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pf-pending-tag {
+  font-size: 10px;
+  color: #f0d050;
+  font-style: italic;
+}
+.pf-remove-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid rgba(180, 80, 80, 0.4);
+  border-radius: 3px;
+  color: rgba(255, 120, 100, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pf-remove-btn:hover { background: rgba(180, 60, 60, 0.4); color: #fff; }
+
 /* 3A — Botão exportar HTML standalone do highlight reel */
 .ph-export-btn {
   display: inline-block;
