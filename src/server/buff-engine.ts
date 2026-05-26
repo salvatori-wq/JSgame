@@ -112,6 +112,7 @@ export function clearAllBuffs(target: CharacterSheet): void {
 }
 
 // Helpers de factory pra buffs comuns (DRY pros chamadores).
+// M2 — sourceSpellLevel populado pra Dispel Magic calcular DC corretamente.
 export function makeBardicInspiration(sourceName: string): ActiveBuff {
   return {
     id: `bardic-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -119,11 +120,12 @@ export function makeBardicInspiration(sourceName: string): ActiveBuff {
     appliesTo: 'attack',
     effect: { kind: 'dice-bonus', dice: '1d6' },
     charges: 1,
+    sourceSpellLevel: 1,  // class feature — tratada como nv 1
   };
 }
 
-export function makeBless(): ActiveBuff[] {
-  // Bless aplica em attack rolls + saving throws.
+export function makeBless(slotLevel = 1): ActiveBuff[] {
+  // Bless aplica em attack rolls + saving throws. PHB nv 1.
   // Sources distintos pra addBuff não desduplicar entre eles.
   return [
     {
@@ -132,6 +134,7 @@ export function makeBless(): ActiveBuff[] {
       appliesTo: 'attack',
       effect: { kind: 'dice-bonus', dice: '1d4' },
       turnsLeft: 10,
+      sourceSpellLevel: slotLevel,
     },
     {
       id: `bless-save-${Date.now()}`,
@@ -139,6 +142,7 @@ export function makeBless(): ActiveBuff[] {
       appliesTo: 'save',
       effect: { kind: 'dice-bonus', dice: '1d4' },
       turnsLeft: 10,
+      sourceSpellLevel: slotLevel,
     },
   ];
 }
@@ -150,6 +154,7 @@ export function makeGuidance(): ActiveBuff {
     appliesTo: 'skill-check',
     effect: { kind: 'dice-bonus', dice: '1d4' },
     charges: 1,
+    sourceSpellLevel: 0,  // cantrip
   };
 }
 
@@ -160,15 +165,17 @@ export function makeShield(): ActiveBuff {
     appliesTo: 'ac',
     effect: { kind: 'flat-bonus', value: 5 },
     turnsLeft: 1,
+    sourceSpellLevel: 1,
   };
 }
 
-export function makeFaerieFire(): ActiveBuff {
+export function makeFaerieFire(slotLevel = 1): ActiveBuff {
   return {
     id: `faerie-fire-${Date.now()}`,
     source: 'Faerie Fire',
     appliesTo: 'attack',
     effect: { kind: 'advantage' },
     turnsLeft: 10,
+    sourceSpellLevel: slotLevel,
   };
 }

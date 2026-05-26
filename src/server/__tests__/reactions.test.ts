@@ -152,8 +152,8 @@ describe('2A — Counterspell', () => {
 });
 
 describe('2A — Dispel Magic', () => {
-  function buff(source: string): ActiveBuff {
-    return { id: `b-${source}`, source, appliesTo: 'attack', effect: { kind: 'dice-bonus', dice: '1d4' }, turnsLeft: 5 };
+  function buff(source: string, sourceSpellLevel?: number): ActiveBuff {
+    return { id: `b-${source}`, source, appliesTo: 'attack', effect: { kind: 'dice-bonus', dice: '1d4' }, turnsLeft: 5, sourceSpellLevel };
   }
 
   it('slot ≥3 = auto-dispel todos buffs', () => {
@@ -209,5 +209,41 @@ describe('2A — Dispel Magic', () => {
     const r = resolveDispelMagic({ caster, target, slotLevel: 3 });
     expect(r.events.length).toBe(1);
     expect(r.events[0]!.text).toContain('Bless'.length > 0 ? 'dissipa' : 'nada');
+  });
+
+  // M2 — sourceSpellLevel real influencia DC do check quando slot < buff level
+  it('M2 — buff nv 1 (Bless) é dispelado auto por slot nv 3', () => {
+    const caster = mkMago();
+    const target = mkMago();
+    target.activeBuffs = [buff('Bless', 1)];  // nv 1
+    const r = resolveDispelMagic({ caster, target, slotLevel: 3 });
+    expect(r.dispelled).toHaveLength(1);
+  });
+
+  it('M2 — buff nv 5 vs slot 3 = check com DC 15', () => {
+    const caster = mkMago();
+    const target = mkMago();
+    target.activeBuffs = [buff('SpellAlto', 5)];  // nv 5
+    // Slot 3 < nv 5 → check DC 10+5=15. Mago nv 5 INT 18 = +4 → precisa nat ≥11 = 50%.
+    // 50 trials, espera ~25 dispelados. P(15 ≤ dispelled ≤ 35) bem alta.
+    let dispelledCount = 0;
+    for (let i = 0; i < 50; i++) {
+      const c = mkMago();
+      const t = mkMago();
+      t.activeBuffs = [buff('SpellAlto', 5)];
+      const r = resolveDispelMagic({ caster: c, target: t, slotLevel: 3 });
+      if (r.dispelled.length > 0) dispelledCount++;
+    }
+    expect(dispelledCount).toBeGreaterThanOrEqual(15);
+    expect(dispelledCount).toBeLessThanOrEqual(35);
+  });
+
+  it('M2 — buff sem sourceSpellLevel cai em fallback nv 3', () => {
+    const caster = mkMago();
+    const target = mkMago();
+    target.activeBuffs = [buff('Legacy')];  // sem level
+    // Slot 3 vs fallback 3 → auto-dispel
+    const r = resolveDispelMagic({ caster, target, slotLevel: 3 });
+    expect(r.dispelled).toHaveLength(1);
   });
 });

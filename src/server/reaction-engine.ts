@@ -145,13 +145,14 @@ export function resolveDispelMagic(input: DispelMagicInput): DispelMagicResult {
   slot.used += 1;
 
   // Estratégia simples: tenta dispelar TODOS buffs ativos um por um.
-  // Buffs sem nível conhecido = assume nv 3 (PHB ambíguo, regra de mesa comum).
+  // M2 — sourceSpellLevel real do buff (PHB pág 231). Buffs sem nível conhecido
+  // (legado) caem em fallback nv 3 (regra de mesa comum).
   const dispelled: ActiveBuff[] = [];
   const castingMod = getCastingAbilityMod(caster.classId, caster);
 
   const survivors: ActiveBuff[] = [];
   for (const buff of buffs) {
-    const buffLevel = 3; // simplificação MVP — todos buffs assumidos nv 3
+    const buffLevel = typeof buff.sourceSpellLevel === 'number' ? Math.max(0, buff.sourceSpellLevel) : 3;
     if (slotLevel >= buffLevel) {
       dispelled.push(buff);
       continue;

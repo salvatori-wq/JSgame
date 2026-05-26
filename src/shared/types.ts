@@ -152,6 +152,10 @@ export interface ActiveBuff {
   // Duração: charges (consome ao usar) OU turnsLeft (decrementa fim turno) OU permanente.
   charges?: number;                      // ex: Bardic Insp = 1 use
   turnsLeft?: number;                    // ex: Bless = 10 turnos (1 min)
+  // M2 — Nível do slot que criou o buff. Usado por Dispel Magic pra calcular DC.
+  // Defaults: bardic=class-feature (treat as 1), bless=1, shield=1, faerie-fire=1.
+  // Magias upcast preservam o slot original (não a level base da magia).
+  sourceSpellLevel?: number;
 }
 
 export type BuffEffect =
