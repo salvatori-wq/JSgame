@@ -592,3 +592,54 @@
 }
 .ct-skip:hover { color: var(--accent-blood, #c04030); }
 
+/* ════════════════════════════════════════════════════════════════════════
+   C1 — Mobile combat tabs (Inimigos / Ações / Log)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Desktop: esconde tab strip — tudo aparece de uma vez */
+.cb-tabs { display: none; }
+
+/* Mobile portrait: tabs visíveis, sections filtradas por data-active-tab */
+body.is-portrait-narrow .cb-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(20, 8, 8, 0.6);
+  border: 1px solid rgba(180, 60, 50, 0.4);
+  border-radius: var(--r-md, 6px);
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+body.is-portrait-narrow .cb-tab-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 8px 6px;
+  background: rgba(40, 16, 16, 0.5);
+  border: 1px solid rgba(180, 60, 50, 0.3);
+  border-radius: 4px;
+  color: var(--ink-warm, #e4c896);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  transition: all 0.15s ease;
+}
+body.is-portrait-narrow .cb-tab-btn.is-active {
+  background: rgba(180, 60, 50, 0.45);
+  border-color: var(--ink-gold, #d4af5a);
+  color: var(--ink-gold, #d4af5a);
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(212, 175, 90, 0.3);
+}
+
+/* Filtra sections em mobile: cada tab esconde a que não é a ativa */
+body.is-portrait-narrow .combat-screen[data-active-tab="enemies"] .cb-tab-content:not(.cb-tab-enemies) { display: none !important; }
+body.is-portrait-narrow .combat-screen[data-active-tab="actions"] .cb-tab-content:not(.cb-tab-actions) { display: none !important; }
+body.is-portrait-narrow .combat-screen[data-active-tab="log"] .cb-tab-content:not(.cb-tab-log) { display: none !important; }
+
+/* Swipe hint sutil (mobile only) */
+body.is-portrait-narrow .combat-screen { touch-action: pan-y; }
+

@@ -22,11 +22,64 @@ export interface CombatScreenOpts {
   combatLog: string[];          // mensagens combat events recentes
 }
 
+// C1 — Mobile tabs: persistente entre re-renders via window state.
+// Default 'actions' (mais usado). Mobile only — desktop mostra tudo de uma vez.
+type CombatTab = 'enemies' | 'actions' | 'log';
+function getActiveTab(): CombatTab {
+  return ((window as unknown as { __combatTab?: CombatTab }).__combatTab) ?? 'actions';
+}
+function setActiveTab(tab: CombatTab): void {
+  (window as unknown as { __combatTab?: CombatTab }).__combatTab = tab;
+  document.querySelectorAll('.combat-screen').forEach((el) => el.setAttribute('data-active-tab', tab));
+  document.querySelectorAll('.cb-tab-btn').forEach((b) => {
+    const target = b.getAttribute('data-tab');
+    b.classList.toggle('is-active', target === tab);
+  });
+}
+
 export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpts): void {
   const { combat, party, myCharacterId, socket, combatLog } = opts;
   const myChar = party.find((p) => p.id === myCharacterId) ?? null;
 
-  const root = el('section', { class: 'combat-screen' });
+  const activeTab = getActiveTab();
+  const root = el('section', { class: 'combat-screen', attrs: { 'data-active-tab': activeTab } });
+
+  // C1 — Tab strip (mobile only via CSS; desktop hide via .cb-tabs { display: none })
+  const tabStrip = el('div', { class: 'cb-tabs' }, [
+    el('button', {
+      class: `cb-tab-btn ${activeTab === 'enemies' ? 'is-active' : ''}`,
+      text: `⚔ Inimigos (${combat.enemies.filter((e) => e.currentHp > 0).length})`,
+      attrs: { type: 'button', 'data-tab': 'enemies' },
+      on: { click: () => setActiveTab('enemies') },
+    }),
+    el('button', {
+      class: `cb-tab-btn ${activeTab === 'actions' ? 'is-active' : ''}`,
+      text: '🎲 Ações',
+      attrs: { type: 'button', 'data-tab': 'actions' },
+      on: { click: () => setActiveTab('actions') },
+    }),
+    el('button', {
+      class: `cb-tab-btn ${activeTab === 'log' ? 'is-active' : ''}`,
+      text: `📜 Log${combatLog.length > 0 ? ` (${combatLog.length})` : ''}`,
+      attrs: { type: 'button', 'data-tab': 'log' },
+      on: { click: () => setActiveTab('log') },
+    }),
+  ]);
+  root.appendChild(tabStrip);
+
+  // Swipe handlers (mobile)
+  let touchStartX = 0;
+  root.addEventListener('touchstart', (e: TouchEvent) => {
+    touchStartX = e.touches[0]?.clientX ?? 0;
+  }, { passive: true });
+  root.addEventListener('touchend', (e: TouchEvent) => {
+    const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX;
+    if (Math.abs(dx) < 60) return;
+    const tabs: CombatTab[] = ['enemies', 'actions', 'log'];
+    const idx = tabs.indexOf(getActiveTab());
+    if (dx > 0 && idx > 0) setActiveTab(tabs[idx - 1]!);
+    else if (dx < 0 && idx < tabs.length - 1) setActiveTab(tabs[idx + 1]!);
+  });
 
   // ── Header: round + current turn
   const current = combat.initiativeOrder[combat.currentTurnIndex];
@@ -65,9 +118,9 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   });
   root.appendChild(initTracker);
 
-  // ── Enemies portraits
+  // ── Enemies portraits (C1: wrap em tab)
   if (combat.enemies.length > 0) {
-    const enemiesGrid = el('div', { class: 'cb-enemies' });
+    const enemiesGrid = el('div', { class: 'cb-enemies cb-tab-content cb-tab-enemies' });
     for (const en of combat.enemies) {
       enemiesGrid.appendChild(renderEnemyCard(en, () => {
         // Se for meu turno e o enemy estiver vivo, ataca (ou pending action)
@@ -97,7 +150,7 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       { id: 'shove', label: 'Empurrar', icon: '👐', hint: 'Atletismo contestado — alvo derrubado (caído)' },
       { id: 'two-weapon', label: '2ª Arma', icon: '🗡', hint: 'Ataque bônus com weapon off-hand (1 por turno)' },
     ];
-    const bar = el('div', { class: 'cb-actions' });
+    const bar = el('div', { class: 'cb-actions cb-tab-content cb-tab-actions' });
     bar.appendChild(el('div', { class: 'cb-actions-title', text: `🎯 Seu turno, ${escapeHtml(myChar.characterName)}` }));
     const grid = el('div', { class: 'cb-actions-grid' });
     for (const a of actions) {
@@ -156,16 +209,20 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
 
     // F23 — Class Features Big 7 bar (rage/surge/etc) — só se classe tem
     const featuresBar = renderClassFeaturesBar(myChar, socket, party);
-    if (featuresBar) root.appendChild(featuresBar);
+    if (featuresBar) {
+      // C1: dentro da tab actions
+      featuresBar.classList.add('cb-tab-content', 'cb-tab-actions');
+      root.appendChild(featuresBar);
+    }
   } else {
-    const waiting = el('div', { class: 'cb-waiting' });
+    const waiting = el('div', { class: 'cb-waiting cb-tab-content cb-tab-actions' });
     waiting.appendChild(el('div', { class: 'cb-waiting-txt', text: current ? `⏳ Aguardando ${current.name}…` : '⏳ Aguardando próximo turno' }));
     root.appendChild(waiting);
   }
 
   // ── Combat log
   if (combatLog.length > 0 || combat.log.length > 0) {
-    const logEl = el('div', { class: 'cb-log' });
+    const logEl = el('div', { class: 'cb-log cb-tab-content cb-tab-log' });
     logEl.appendChild(el('div', { class: 'cb-log-title', text: '📜 Log de combate' }));
     const items = [...combat.log.slice(-6), ...combatLog.slice(-4)];
     for (const ln of items.slice(-10)) {
