@@ -37,6 +37,56 @@ export interface MonsterDef {
   // F23 — tag pra Turn Undead detectar morto-vivo via type. (Já temos type field.)
   // F26 — Damage type principal do ataque desse monstro (default cortante)
   attackDamageType?: import('./damage-types').DamageType;
+  // M1 — Ability scores opcional explícito. Se ausente, server infere por CR + type.
+  abilityScores?: { for: number; des: number; con: number; int: number; sab: number; car: number };
+}
+
+// M1 — Inferência de ability scores por CR + tipo (PHB / MM patterns).
+// CR baixo → scores menores. Tipos têm bias: feras STR/CON+, aberrações INT/CAR+,
+// mortos-vivos CON-, construtos STR/CON+/INT- etc.
+export function inferAbilityScores(m: MonsterDef): { for: number; des: number; con: number; int: number; sab: number; car: number } {
+  if (m.abilityScores) return m.abilityScores;
+  // Base por CR
+  const cr = Number(m.cr);
+  let base: number;
+  if (cr < 0.5) base = 10;
+  else if (cr < 3) base = 12;
+  else if (cr < 7) base = 14;
+  else if (cr < 12) base = 16;
+  else if (cr < 18) base = 18;
+  else base = 20;
+  const scores = { for: base, des: base, con: base, int: base, sab: base, car: base };
+  // Ajustes por tipo (idiomas D&D 5e clássicos)
+  switch (m.type) {
+    case 'fera':
+      scores.int = Math.max(2, base - 8); scores.car = Math.max(4, base - 6); scores.for += 2; scores.con += 1; break;
+    case 'morto-vivo':
+      scores.con = Math.max(8, base - 2); scores.int = Math.max(4, base - 4); scores.car = Math.max(4, base - 4); break;
+    case 'construto':
+      scores.for += 2; scores.con += 2; scores.int = Math.max(3, base - 6); scores.car = Math.max(3, base - 6); break;
+    case 'aberração':
+      scores.int += 2; scores.car += 1; scores.sab += 1; break;
+    case 'dragão':
+      scores.for += 4; scores.con += 4; scores.int += 2; scores.car += 2; break;
+    case 'gigante':
+      scores.for += 4; scores.con += 2; scores.int -= 2; break;
+    case 'fey':
+      scores.des += 2; scores.car += 2; break;
+    case 'demônio':
+    case 'diabólico':
+      scores.for += 2; scores.con += 2; scores.car += 2; break;
+    case 'celestial':
+      scores.sab += 2; scores.car += 2; break;
+    case 'planta':
+      scores.con += 2; scores.int = Math.max(3, base - 6); break;
+    case 'elemental':
+      scores.con += 2; scores.des += 2; break;
+    case 'humanoide':
+    case 'monstro':
+    default:
+      // sem ajuste
+  }
+  return scores;
 }
 
 export const MONSTERS: Record<string, MonsterDef> = {

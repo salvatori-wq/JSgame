@@ -299,6 +299,8 @@ export interface EnemySnapshot {
   immunities?: import('../dnd/damage-types').DamageType[];
   vulnerabilities?: import('../dnd/damage-types').DamageType[];
   attackDamageType?: import('../dnd/damage-types').DamageType;
+  // M1 — Ability scores reais do monstro (do bestiary). Server usa em saves vs spells.
+  abilityScores?: { for: number; des: number; con: number; int: number; sab: number; car: number };
 }
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -156,9 +156,9 @@ function applyDamageSpell(
     let outcome = '';
 
     if (effect.save) {
-      // Save DC
+      // Save DC. M1 — enemy agora tem abilityScores reais do bestiary (ou inferidos por CR+type).
       const targetAbilityMod = enemyTarget
-        ? 0  // simplificação: enemy não tem ability scores no MVP
+        ? (enemyTarget.abilityScores ? abilityModifier(enemyTarget.abilityScores[effect.save.ability]) : 0)
         : abilityModifier(playerTarget!.abilityScores[effect.save.ability]);
       const saveRoll = rollD20({ modifier: targetAbilityMod });
       const saved = saveRoll.total >= saveDC;
@@ -294,8 +294,9 @@ function applyConditionSpell(
 
     let saved = false;
     if (effect.save) {
+      // M1 — enemy ability scores real (do bestiary, ou inferidos)
       const mod = enemyTarget
-        ? 0
+        ? (enemyTarget.abilityScores ? abilityModifier(enemyTarget.abilityScores[effect.save.ability]) : 0)
         : abilityModifier(playerTarget!.abilityScores[effect.save.ability]);
       const saveRoll = rollD20({ modifier: mod });
       saved = saveRoll.total >= saveDC;

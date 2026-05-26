@@ -6,12 +6,12 @@ import type { SkillId } from '../../dnd/skills.js';
 import type { ConditionId } from '../../dnd/conditions.js';
 import { SKILLS } from '../../dnd/skills.js';
 import { CONDITIONS } from '../../dnd/conditions.js';
-import { getMonster } from '../../dnd/monsters.js';
+import { getMonster, inferAbilityScores } from '../../dnd/monsters.js';
 import { xpForCR } from '../../dnd/leveling.js';
 
 export type ValidatedTool =
   | { kind: 'request_skill_check'; skill: SkillId; dc: number; reason: string; playerId: string }
-  | { kind: 'start_combat'; enemies: Array<{ name: string; hp: number; ac: number; attackBonus: number; damageDice: string; damageBonus: number; description?: string; xpAward: number; isBoss?: boolean }>; surprise: boolean }
+  | { kind: 'start_combat'; enemies: Array<{ name: string; hp: number; ac: number; attackBonus: number; damageDice: string; damageBonus: number; description?: string; xpAward: number; isBoss?: boolean; abilityScores?: { for: number; des: number; con: number; int: number; sab: number; car: number } }>; surprise: boolean }
   | { kind: 'apply_damage'; playerId: string; damage: number; type: string; reason: string }
   | { kind: 'apply_condition'; targetId: string; condition: ConditionId; reason: string }
   | { kind: 'end_combat_with_outcome'; outcome: 'victory' | 'defeat' | 'fled'; reason: string }
@@ -73,6 +73,8 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
               description: fromBestiary.description,
               xpAward: xpForCR(fromBestiary.cr),
               isBoss: fromBestiary.isBoss,
+              // M1 — Ability scores reais (inferidos por CR+type se monster def não declara)
+              abilityScores: inferAbilityScores(fromBestiary),
             };
           }
           // Caso contrário, free-form (DM declara stats custom)

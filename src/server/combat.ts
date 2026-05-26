@@ -42,6 +42,8 @@ export interface StartCombatInput {
     immunities?: import('../dnd/damage-types.js').DamageType[];
     vulnerabilities?: import('../dnd/damage-types.js').DamageType[];
     attackDamageType?: import('../dnd/damage-types.js').DamageType;
+    // M1 — Ability scores reais (bestiary + inferAbilityScores)
+    abilityScores?: { for: number; des: number; con: number; int: number; sab: number; car: number };
   }>;
 }
 
@@ -67,6 +69,7 @@ export function startCombat(input: StartCombatInput): CombatState {
       immunities: e.immunities,
       vulnerabilities: e.vulnerabilities,
       attackDamageType: e.attackDamageType,
+      abilityScores: e.abilityScores,
     };
   });
 
