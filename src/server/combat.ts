@@ -13,6 +13,7 @@ import {
   hasCombatFlag, clearCombatFlag,
 } from './class-features-engine.js';
 import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
+import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -34,6 +35,11 @@ export interface StartCombatInput {
     description?: string;
     xpAward?: number;  // F16 — quanta XP a kill concede. Default 10 (CR 0).
     isBoss?: boolean;
+    // F26 — Damage profile vindo do MonsterDef (start_combat usa MONSTERS dict)
+    resistances?: import('../dnd/damage-types.js').DamageType[];
+    immunities?: import('../dnd/damage-types.js').DamageType[];
+    vulnerabilities?: import('../dnd/damage-types.js').DamageType[];
+    attackDamageType?: import('../dnd/damage-types.js').DamageType;
   }>;
 }
 
@@ -55,6 +61,10 @@ export function startCombat(input: StartCombatInput): CombatState {
       description: e.description ?? '',
       isBoss: !!e.isBoss,
       xpAward: e.xpAward ?? 10,
+      resistances: e.resistances,
+      immunities: e.immunities,
+      vulnerabilities: e.vulnerabilities,
+      attackDamageType: e.attackDamageType,
     };
   });
 
@@ -190,7 +200,7 @@ export function resolvePlayerAttack(
   attacker: CharacterSheet,
   targetEnemyId: string,
   combat: CombatState,
-  opts: { damageDice?: string; isRanged?: boolean } = {},
+  opts: { damageDice?: string; isRanged?: boolean; damageType?: DamageType } = {},
 ): PlayerAttackResult | null {
   const target = combat.enemies.find((e) => e.id === targetEnemyId);
   if (!target || target.currentHp <= 0) return null;
@@ -242,6 +252,16 @@ export function resolvePlayerAttack(
     if (sneak.applied && sneak.damageRoll) {
       totalDamage += sneak.damageRoll.total;
     }
+    // F26 — aplica resistance/immunity/vulnerability do alvo
+    const dmgType = opts.damageType ?? 'cortante';
+    const profile = {
+      resistances: target.resistances,
+      immunities: target.immunities,
+      vulnerabilities: target.vulnerabilities,
+    };
+    const rawDamage = totalDamage;
+    totalDamage = applyDamageMultiplier(totalDamage, dmgType, profile);
+    const verdict = damageVerdict(dmgType, profile);
     target.currentHp = Math.max(0, target.currentHp - totalDamage);
     enemyKilled = target.currentHp === 0;
 
@@ -251,7 +271,7 @@ export function resolvePlayerAttack(
       targetId: target.id,
       value: totalDamage,
       crit,
-      text: `${attacker.characterName} ${crit ? 'CRITA' : 'acerta'} ${target.name}: ${totalDamage} de dano${sneak.applied ? ` (sneak +${sneak.damageRoll!.total})` : ''}${rageBonus ? ` (+${rageBonus} fúria)` : ''}`,
+      text: `${attacker.characterName} ${crit ? 'CRITA' : 'acerta'} ${target.name}: ${totalDamage} ${dmgType}${verdict ? ` (${verdict})` : ''}${rawDamage !== totalDamage ? ` [${rawDamage} bruto]` : ''}${sneak.applied ? ` (sneak +${sneak.damageRoll!.total})` : ''}${rageBonus ? ` (+${rageBonus} fúria)` : ''}`,
     });
     if (enemyKilled) {
       events.push({
@@ -336,9 +356,16 @@ export function resolveEnemyTurn(
     const totalDice = crit ? parsed.count * 2 : parsed.count;
     damageRoll = rollDice(totalDice, parsed.kind, enemy.damageBonus + parsed.modifier);
     // F23 — Rage resistance halves bludgeoning/piercing/slashing (assume todo dmg físico)
-    const finalDmg = hasRageResistance(target, combat)
+    let finalDmg = hasRageResistance(target, combat)
       ? Math.floor(damageRoll.total / 2)
       : damageRoll.total;
+    // F26 — PJ damage profile (race/class/item resistances/immunities/vulnerabilities)
+    const dmgType: DamageType = enemy.attackDamageType ?? 'cortante';
+    finalDmg = applyDamageMultiplier(finalDmg, dmgType, {
+      resistances: target.resistances,
+      immunities: target.immunities,
+      vulnerabilities: target.vulnerabilities,
+    });
     target.currentHp = Math.max(0, target.currentHp - finalDmg);
     playerDowned = target.currentHp === 0;
 

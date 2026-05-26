@@ -30,6 +30,13 @@ export interface MonsterDef {
   abilities?: string[];    // ex: ["Multiataque", "Visão no Escuro"]
   description: string;
   isBoss: boolean;
+  // F26 — Resistance/immunity/vulnerability por tipo de dano (DamageType[]).
+  resistances?: import('./damage-types').DamageType[];
+  immunities?: import('./damage-types').DamageType[];
+  vulnerabilities?: import('./damage-types').DamageType[];
+  // F23 — tag pra Turn Undead detectar morto-vivo via type. (Já temos type field.)
+  // F26 — Damage type principal do ataque desse monstro (default cortante)
+  attackDamageType?: import('./damage-types').DamageType;
 }
 
 export const MONSTERS: Record<string, MonsterDef> = {
@@ -64,6 +71,9 @@ export const MONSTERS: Record<string, MonsterDef> = {
     abilities: ['Vulnerável a contundente', 'Imune a veneno + envenenado', 'Visão no Escuro 18m'],
     description: 'Ossos amarelados de quem ousou desafiar a morte mal. Chacoalha quando anda.',
     isBoss: false,
+    vulnerabilities: ['contundente'],
+    immunities: ['veneno'],
+    attackDamageType: 'cortante',
   },
 
   // ═════════ CR 1/4 ═════════

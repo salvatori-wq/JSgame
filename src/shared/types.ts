@@ -131,6 +131,12 @@ export interface CharacterSheet {
   // só 1 por vez. Quebra ao: lançar outra de concentração, ficar inconsciente,
   // ou falhar CON save DC max(10, dmg/2) ao receber dano.
   concentratingOn?: string | null;
+
+  // F26 — Damage profile (race/class/item-derived). Tiefling=resist fogo, Anão Montanha=
+  // resist veneno, etc. Esses arrays podem ser injetados ao criar PJ ou via magic item.
+  resistances?: import('../dnd/damage-types').DamageType[];
+  immunities?: import('../dnd/damage-types').DamageType[];
+  vulnerabilities?: import('../dnd/damage-types').DamageType[];
 }
 
 export interface InventoryItem {
@@ -242,6 +248,11 @@ export interface EnemySnapshot {
   description: string;
   isBoss: boolean;
   xpAward: number;                     // F16: XP que essa kill concede (PHB CR→XP). Sem CR explícito = 10 (CR 0).
+  // F26 — Damage profile (resistance/immunity/vulnerability) carried do MonsterDef.
+  resistances?: import('../dnd/damage-types').DamageType[];
+  immunities?: import('../dnd/damage-types').DamageType[];
+  vulnerabilities?: import('../dnd/damage-types').DamageType[];
+  attackDamageType?: import('../dnd/damage-types').DamageType;
 }
 
 // ════════════════════════════════════════════════════════════════════════════

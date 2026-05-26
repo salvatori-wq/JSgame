@@ -10,6 +10,7 @@ import { getSpell, type SpellId } from '../dnd/spells.js';
 import { getCastingAbilityMod, isSpellcaster } from '../dnd/spell-slots.js';
 import { rollD20, rollNotation } from '../dnd/dice.js';
 import { proficiencyBonus, abilityModifier } from '../dnd/attributes.js';
+import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
 
 export interface CastSpellResult {
   ok: boolean;
@@ -186,6 +187,15 @@ function applyDamageSpell(
       }
     }
 
+    // F26 — Aplica resistance/immunity/vulnerability do alvo (PJ ou enemy)
+    const dmgType = effect.damageType as DamageType;
+    const profile = enemyTarget
+      ? { resistances: enemyTarget.resistances, immunities: enemyTarget.immunities, vulnerabilities: enemyTarget.vulnerabilities }
+      : { resistances: playerTarget!.resistances, immunities: playerTarget!.immunities, vulnerabilities: playerTarget!.vulnerabilities };
+    const rawDmg = dmg;
+    dmg = applyDamageMultiplier(dmg, dmgType, profile);
+    const verdict = damageVerdict(dmgType, profile);
+
     // Aplica dano
     if (dmg > 0) {
       if (enemyTarget) {
@@ -203,13 +213,13 @@ function applyDamageSpell(
     }
 
     damageTotal += dmg;
-    parts.push(`${targetName} (${outcome})`);
+    parts.push(`${targetName} (${outcome}${verdict ? ` · ${verdict}` : ''}${rawDmg !== dmg ? ` ${rawDmg}→${dmg}` : ''})`);
     events.push({
       type: 'damage',
       sourceId: caster.id,
       targetId: tid,
       value: dmg,
-      text: `${caster.characterName} → ${targetName}: ${dmg} ${effect.damageType}`,
+      text: `${caster.characterName} → ${targetName}: ${dmg} ${effect.damageType}${verdict ? ` (${verdict})` : ''}`,
     });
   }
 
