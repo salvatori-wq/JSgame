@@ -1,0 +1,145 @@
+// JSgame · T1 — Telemetria mínima.
+// Tracker de eventos em metrics_events table (criada em persistence schema).
+// Não é admin-gated por enquanto — endpoint /api/metrics/summary aberto pra qualquer
+// user autenticado (zero data sensível, só contagens agregadas).
+
+import { getDbClient } from './persistence.js';
+import { uuid } from './util.js';
+
+export type MetricsEventKind =
+  | 'session_started'         // user inicia/continua campanha
+  | 'campaign_created'        // nova campanha começou
+  | 'character_created'       // wizard finalizado
+  | 'combat_started'
+  | 'combat_won'
+  | 'combat_lost'
+  | 'character_died'
+  | 'narration_success'       // DM gerou narração com tools válidos
+  | 'narration_error'         // DM falhou (timeout, tool inválido, etc)
+  | 'lobby_created'
+  | 'lobby_joined'
+  | 'friend_invited'
+  | 'highlight_exported';
+
+export interface MetricsEvent {
+  id: string;
+  userId: string | null;
+  sessionId: string | null;       // campaign-id quando aplicável
+  kind: MetricsEventKind;
+  payload: string | null;          // JSON stringificado
+  createdAt: number;
+}
+
+export async function trackMetricEvent(opts: {
+  userId?: string | null;
+  sessionId?: string | null;
+  kind: MetricsEventKind;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await getDbClient().execute({
+      sql: 'INSERT INTO metrics_events (id, user_id, session_id, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      args: [
+        uuid(),
+        opts.userId ?? null,
+        opts.sessionId ?? null,
+        opts.kind,
+        opts.payload ? JSON.stringify(opts.payload) : null,
+        Date.now(),
+      ],
+    });
+  } catch (err) {
+    // Falhas silenciosas — telemetria nunca quebra fluxo principal
+    console.warn('[metrics] track failed:', err);
+  }
+}
+
+// Agregado pra /api/metrics/summary. Retorna contagens por kind nos últimos N dias.
+export async function getMetricsSummary(daysBack = 7): Promise<{
+  byKind: Record<string, number>;
+  totalEvents: number;
+  dau: number;             // distinct user_id nas últimas 24h
+  wau: number;             // distinct user_id nos últimos 7 dias
+  windowStart: number;
+  windowEnd: number;
+}> {
+  const now = Date.now();
+  const windowStart = now - daysBack * 24 * 60 * 60 * 1000;
+  const dauStart = now - 24 * 60 * 60 * 1000;
+  const wauStart = now - 7 * 24 * 60 * 60 * 1000;
+
+  const byKindRes = await getDbClient().execute({
+    sql: 'SELECT kind, COUNT(*) AS c FROM metrics_events WHERE created_at >= ? GROUP BY kind',
+    args: [windowStart],
+  });
+  const byKind: Record<string, number> = {};
+  let totalEvents = 0;
+  for (const row of byKindRes.rows) {
+    const c = Number(row.c);
+    byKind[String(row.kind)] = c;
+    totalEvents += c;
+  }
+
+  const dauRes = await getDbClient().execute({
+    sql: 'SELECT COUNT(DISTINCT user_id) AS c FROM metrics_events WHERE created_at >= ? AND user_id IS NOT NULL',
+    args: [dauStart],
+  });
+  const wauRes = await getDbClient().execute({
+    sql: 'SELECT COUNT(DISTINCT user_id) AS c FROM metrics_events WHERE created_at >= ? AND user_id IS NOT NULL',
+    args: [wauStart],
+  });
+
+  return {
+    byKind,
+    totalEvents,
+    dau: Number(dauRes.rows[0]?.c ?? 0),
+    wau: Number(wauRes.rows[0]?.c ?? 0),
+    windowStart,
+    windowEnd: now,
+  };
+}
+
+// DM error rate nos últimos N dias (úteis pra acompanhar saúde do LLM provider).
+export async function getDmErrorRate(daysBack = 7): Promise<{ success: number; error: number; rate: number }> {
+  const since = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+  const r = await getDbClient().execute({
+    sql: "SELECT kind, COUNT(*) AS c FROM metrics_events WHERE created_at >= ? AND kind IN ('narration_success', 'narration_error') GROUP BY kind",
+    args: [since],
+  });
+  let success = 0, error = 0;
+  for (const row of r.rows) {
+    const c = Number(row.c);
+    if (row.kind === 'narration_success') success = c;
+    else if (row.kind === 'narration_error') error = c;
+  }
+  const total = success + error;
+  return { success, error, rate: total > 0 ? error / total : 0 };
+}
+
+// Session length médio: agrupa eventos por session_id, calcula min(created_at) → max(created_at).
+export async function getAvgSessionLength(daysBack = 7): Promise<{ avgMs: number; sampleCount: number }> {
+  const since = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+  const r = await getDbClient().execute({
+    sql: `SELECT session_id, MIN(created_at) AS start_ts, MAX(created_at) AS end_ts
+          FROM metrics_events
+          WHERE created_at >= ? AND session_id IS NOT NULL
+          GROUP BY session_id
+          HAVING COUNT(*) >= 2`,
+    args: [since],
+  });
+  let totalMs = 0;
+  let count = 0;
+  for (const row of r.rows) {
+    const start = Number(row.start_ts);
+    const end = Number(row.end_ts);
+    const ms = end - start;
+    if (ms > 0 && ms < 8 * 60 * 60 * 1000) {  // descarta sessões > 8h (provavelmente abandonadas)
+      totalMs += ms;
+      count += 1;
+    }
+  }
+  return {
+    avgMs: count > 0 ? Math.floor(totalMs / count) : 0,
+    sampleCount: count,
+  };
+}

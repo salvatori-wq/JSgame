@@ -29,6 +29,7 @@ import {
   listFriends, requestFriendship, acceptFriendship, removeFriendship,
   createFriendInvite, buildInviteEmail, listInvitesSentBy,
 } from '../friends.js';
+import { getMetricsSummary, getDmErrorRate, getAvgSessionLength } from '../metrics.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -376,6 +377,24 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json({ invites });
     } catch (err) {
       console.error('[api] friends/invites/sent:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // T1 — Telemetria summary (DAU + WAU + DM error rate + avg session length)
+  app.get('/api/metrics/summary', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.status(401).json({ error: 'login required' }); return; }
+    const days = Math.min(90, Math.max(1, parseInt(String(req.query.days ?? '7'), 10) || 7));
+    try {
+      const [summary, dmRate, sessionLen] = await Promise.all([
+        getMetricsSummary(days),
+        getDmErrorRate(days),
+        getAvgSessionLength(days),
+      ]);
+      res.json({ days, summary, dmRate, sessionLen });
+    } catch (err) {
+      console.error('[api] metrics/summary:', err);
       res.status(500).json({ error: String(err) });
     }
   });

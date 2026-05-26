@@ -13,6 +13,7 @@ import { saveTombstone } from '../tombstones.js';
 import { bumpStreak } from '../streaks.js';
 import { trackEvent as trackAchievement } from '../achievements.js';
 import { resolveCounterspell } from '../reaction-engine.js';
+import { trackMetricEvent } from '../metrics.js';
 import type { User } from '../auth.js';
 
 export interface ConnectionCtx {
@@ -84,6 +85,14 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           }
         }
 
+        // T1 — Telemetria: track session_started
+        void trackMetricEvent({
+          userId: character.userId,
+          sessionId: camp.state.id,
+          kind: 'session_started',
+          payload: { sessionNumber: camp.state.sessionNumber, partySize: camp.party.length },
+        });
+
         if (camp.getNarrationLog().length === 0 && camp.state.recentEvents.length === 0) {
           await withThinkingBroadcast(camp, character.id, 'abrir cena', async () => {
             const response = await camp.startSession();
@@ -95,6 +104,12 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
               });
               broadcastState(camp);
               await drainAchievements(camp);
+              // T1 — Track campaign_created se é o primeiro narration
+              void trackMetricEvent({
+                userId: character.userId,
+                sessionId: camp.state.id,
+                kind: 'campaign_created',
+              });
             }
           });
         } else {

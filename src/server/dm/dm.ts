@@ -72,6 +72,7 @@ export class DungeonMaster {
     const systemPrompt = getSystemPrompt(context.campaign.dmPersonality);
 
     let response;
+    let retriedWithoutTools = false;
     try {
       response = await this.callWithBackoff(systemPrompt, userPrompt, true);
     } catch (err) {
@@ -82,16 +83,22 @@ export class DungeonMaster {
         console.warn('[dm] retry sem tools após erro:', msg.slice(0, 120));
         try {
           response = await this.callWithBackoff(systemPrompt, userPrompt, false);
+          retriedWithoutTools = true;
         } catch (err2) {
           console.warn('[dm] retry sem tools também falhou:', err2);
+          // T1 — track narration_error
+          void this.trackError(context, msg.slice(0, 80));
           return makeGracefulFallback(err2);
         }
       } else {
         // Timeout ou erro fatal — devolve fallback sem quebrar o queue
         console.warn('[dm] LLM falhou/expirou após backoff:', msg.slice(0, 120));
+        void this.trackError(context, msg.slice(0, 80));
         return makeGracefulFallback(err);
       }
     }
+    // T1 — track narration_success
+    void this.trackSuccess(context, retriedWithoutTools);
 
     const parsed = extractJson(response.text);
     return {
@@ -100,6 +107,28 @@ export class DungeonMaster {
       toolCalls: response.toolCalls,
       raw: response.text,
     };
+  }
+
+  // T1 — Helpers de telemetria, lazy-import pra evitar ciclo. Falhas silenciosas.
+  private async trackSuccess(ctx: NarrationContext, retried: boolean): Promise<void> {
+    try {
+      const { trackMetricEvent } = await import('../metrics.js');
+      await trackMetricEvent({
+        sessionId: ctx.campaign.id,
+        kind: 'narration_success',
+        payload: { retriedWithoutTools: retried, provider: this.provider.name },
+      });
+    } catch { /* ignore */ }
+  }
+  private async trackError(ctx: NarrationContext, errMsg: string): Promise<void> {
+    try {
+      const { trackMetricEvent } = await import('../metrics.js');
+      await trackMetricEvent({
+        sessionId: ctx.campaign.id,
+        kind: 'narration_error',
+        payload: { error: errMsg, provider: this.provider.name },
+      });
+    } catch { /* ignore */ }
   }
 
   /**
