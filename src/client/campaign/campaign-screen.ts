@@ -45,12 +45,12 @@ interface CampaignScreenOpts {
   onExit: () => void;
 }
 
-const ACTIONS: Array<{ id: ExplorationAction; label: string; icon: string }> = [
-  { id: 'explore',       label: 'Explorar',         icon: '🔍' },
-  { id: 'investigate',   label: 'Investigar',       icon: '🔎' },
-  { id: 'talk',          label: 'Falar',            icon: '🗣' },
-  { id: 'sneak',         label: 'Furtar-se',        icon: '🥷' },
-  { id: 'attack',        label: 'Atacar',           icon: '⚔' },
+const ACTIONS: Array<{ id: ExplorationAction; label: string; icon: string; promptText: string; placeholder: string }> = [
+  { id: 'explore',     label: 'Explorar',   icon: '🔍', promptText: 'Explorar o quê?',       placeholder: 'a taverna, o beco, o baú...' },
+  { id: 'investigate', label: 'Investigar', icon: '🔎', promptText: 'Investigar o quê?',     placeholder: 'a marca na parede, o cadáver...' },
+  { id: 'talk',        label: 'Falar',      icon: '🗣', promptText: 'Falar com quem? (e o quê?)', placeholder: 'taverneiro: pergunto sobre o mendigo' },
+  { id: 'sneak',       label: 'Furtar-se',  icon: '🥷', promptText: 'Furtar-se de quem/onde?', placeholder: 'passar pelo guarda, esconder atrás do barril' },
+  { id: 'attack',      label: 'Atacar',     icon: '⚔', promptText: 'Atacar o quê/quem?',     placeholder: 'o orc da esquerda, o vidro' },
 ];
 
 export class CampaignScreen {
@@ -929,7 +929,7 @@ export class CampaignScreen {
       grid.appendChild(el('button', {
         class: 'camp-action-btn',
         attrs: { type: 'button', disabled },
-        on: { click: () => this.takeAction(a.id) },
+        on: { click: () => this.promptAndTakeAction(a) },
       }, [
         el('span', { class: 'caa-icon', text: a.icon }),
         el('span', { class: 'caa-label', text: a.label }),
@@ -1002,6 +1002,18 @@ export class CampaignScreen {
     });
     actionsEl.appendChild(el('div', { class: 'camp-custom-row' }, [customInput, customBtn]));
     return actionsEl;
+  }
+
+  // 2026-05-26 fix UX: clique em botão genérico (Explorar/Investigar/Falar/etc)
+  // sem detalhes manda action sozinha pro DM, que tem que improvisar o quê o
+  // player tá fazendo — gera narrações desconexas. Agora pedimos contexto antes
+  // de enviar. Player escreve "a taverna" → DM responde coerente. Cancel = nada.
+  private promptAndTakeAction(a: typeof ACTIONS[number]): void {
+    const details = window.prompt(a.promptText, '');
+    if (details === null) return; // cancel
+    const trimmed = details.trim();
+    if (trimmed.length === 0) return; // vazio = nada
+    this.takeAction(a.id, trimmed);
   }
 
   private takeAction(action: ExplorationAction, details?: string): void {
