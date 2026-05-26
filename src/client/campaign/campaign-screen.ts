@@ -32,6 +32,7 @@ import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
+import { openExplorationTutorial, shouldShowExplorationTutorial } from './exploration-tutorial';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -143,6 +144,13 @@ export class CampaignScreen {
       if (!wasCombat && isCombat && shouldShowCombatTutorial()) {
         // Delay pequeno pra UI montar antes do overlay
         setTimeout(() => openCombatTutorial(), 500);
+      }
+      // B7 — Tutorial first-exploration: dispara na PRIMEIRA chegada da primeira sessão
+      // (sessionNumber 1 + alguma narração ja chegou). Persiste flag pra não repetir.
+      const isFirstSession = state.sessionNumber === 1;
+      const hasFirstNarration = this.narrations.length > 0;
+      if (isFirstSession && hasFirstNarration && !this.currentState && shouldShowExplorationTutorial()) {
+        setTimeout(() => openExplorationTutorial(), 1200);  // delay maior pra player ler a narração primeiro
       }
       this.currentState = state;
       // Persiste sessão ativa pra auto-rejoin no reload
