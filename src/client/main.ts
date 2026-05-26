@@ -223,7 +223,7 @@ async function renderHome(): Promise<void> {
       },
     },
   }) as HTMLInputElement;
-  root.appendChild(el('section', {}, [
+  root.appendChild(el('section', { class: 'home-owner-section' }, [
     el('h3', { class: 'cs-h3', text: 'Quem é você?' }),
     ownerInput,
   ]));
