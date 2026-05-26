@@ -24,13 +24,22 @@ const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
 
 // === Mobile-first body classes ===
+// Bug-fix (QA): is-portrait-narrow agora avalia SÓ width<600 (não Math.min) e
+// reavalia em resize/orientationchange. Antes: laptop com janela estreita
+// (480x900) ativava narrow mesmo sendo desktop e cancelava grid F30.
 (function applyEnvironmentClasses(): void {
   const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
   const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  const narrowScreen = Math.min(window.innerWidth, window.innerHeight) <= 480;
   if (hasCoarsePointer || hasTouch) document.body.classList.add('is-touch');
-  if (narrowScreen) document.body.classList.add('is-portrait-narrow');
   document.body.classList.add('vertical-layout');
+
+  const evalNarrow = (): void => {
+    const isNarrow = window.innerWidth < 600;
+    document.body.classList.toggle('is-portrait-narrow', isNarrow);
+  };
+  evalNarrow();
+  window.addEventListener('resize', evalNarrow, { passive: true });
+  window.addEventListener('orientationchange', evalNarrow, { passive: true });
 })();
 
 // === Audio gesture (mobile autoplay policy) — resume AudioContext em qualquer click ===
