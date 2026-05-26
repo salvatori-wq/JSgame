@@ -8,93 +8,31 @@ import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import {
   initPersistence, getDbClient,
-  saveCharacter, loadCharacter, listCharactersByOwner, listCharactersByUserId, deleteCharacter,
-  saveCampaign, loadCampaign, listRecentCampaigns,
+  loadCharacter, loadCampaign, saveCampaign, saveCharacter,
 } from './persistence.js';
-import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '../shared/types.js';
-import { ALL_CLASSES } from '../dnd/classes.js';
-import { ALL_RACES } from '../dnd/races.js';
-import { ALL_SKILLS } from '../dnd/skills.js';
-import { ALL_CONDITIONS } from '../dnd/conditions.js';
-import { ALL_BACKGROUNDS } from '../dnd/backgrounds.js';
+import type { ClientToServerEvents, ServerToClientEvents } from '../shared/types.js';
 import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaign.js';
 import { buildProviderFromEnv } from './dm/providers/factory.js';
 import { LobbyManager } from './lobby.js';
 import { MemoryStore } from './memory.js';
 import {
-  findOrCreateUser, createMagicLink, consumeMagicLink, createSession, validateSession,
-  revokeSession, updateUserDisplayName, cleanupExpiredTokens,
-  MAGIC_LINK_TTL_MS, SESSION_TTL_MS, type User,
+  validateSession, cleanupExpiredTokens, SESSION_TTL_MS, type User,
 } from './auth.js';
-import { sendEmail, buildMagicLinkEmail } from './email.js';
 import { uuid } from './util.js';
 import {
   trackEvent as trackAchievement,
-  listUserProgress as listAchievementProgress,
-  getUserCounters as getAchievementCounters,
-  type AchievementEvent,
-  type UnlockResult,
+  type AchievementEvent, type UnlockResult,
 } from './achievements.js';
-import { saveTombstone, listTombstonesForUser } from './tombstones.js';
-import { bumpStreak, getStreak } from './streaks.js';
-import { saveHighlight, listHighlightsForUser } from './highlights.js';
+import { saveTombstone } from './tombstones.js';
+import { bumpStreak } from './streaks.js';
+import { saveHighlight } from './highlights.js';
 import { serializeCombatFlags } from './class-features-engine.js';
 import { resolveCounterspell } from './reaction-engine.js';
+import { parseSessionCookie, type ExpressReqWithUser } from './http/cookies.js';
+import { registerApiRoutes } from './routes/api.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
-
-// ════════════════════════════════════════════════════════════════════════════
-// Auth — cookie helpers e tipos (sem cookie-parser dep)
-// ════════════════════════════════════════════════════════════════════════════
-
-const SESSION_COOKIE = 'jsg_session';
-
-interface ExpressReqWithUser extends express.Request {
-  user?: User;
-}
-
-function parseSessionCookie(cookieHeader: string | undefined): string | null {
-  if (!cookieHeader) return null;
-  const pairs = cookieHeader.split(';');
-  for (const pair of pairs) {
-    const eq = pair.indexOf('=');
-    if (eq < 0) continue;
-    const k = pair.slice(0, eq).trim();
-    if (k === SESSION_COOKIE) {
-      const v = pair.slice(eq + 1).trim();
-      return decodeURIComponent(v);
-    }
-  }
-  return null;
-}
-
-function buildSessionCookie(token: string, expiresAt: number): string {
-  const maxAge = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-  const inProd = process.env.NODE_ENV === 'production';
-  const parts = [
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
-    'Path=/',
-    'HttpOnly',
-    `Max-Age=${maxAge}`,
-    'SameSite=Lax',
-  ];
-  if (inProd) parts.push('Secure');
-  return parts.join('; ');
-}
-
-function buildLogoutCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax`;
-}
-
-function getVerifyBaseUrl(req: express.Request): string {
-  // Em prod, usa o host da request (Render). Em dev, frontend rodando em :5173 valida via API.
-  // PUBLIC_URL pode sobrescrever (útil pra deploy com domínio próprio).
-  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
-  const proto = (req.headers['x-forwarded-proto'] as string)?.split(',')[0] || req.protocol;
-  const host = req.headers.host;
-  return `${proto}://${host}`;
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 // DM provider init (1x no boot)
@@ -189,279 +127,8 @@ async function main(): Promise<void> {
     cleanupExpiredTokens().catch((err) => console.warn('[auth] cleanup falhou:', err));
   }, 60 * 60 * 1000);
 
-  // === Health
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      ok: true,
-      service: 'jsgame',
-      uptime: process.uptime(),
-      dmProvider: process.env.DM_PROVIDER ?? 'auto',
-      activeProvider: dm.constructor.name,
-      hasGemini: !!process.env.GEMINI_API_KEY,
-      hasGroq: !!process.env.GROQ_API_KEY,
-      hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
-      hasEmail: !!process.env.BREVO_API_KEY,
-      activeCampaigns: campaigns.size,
-    });
-  });
-
-  // ════════════════════════════════════════════════════════════════════════
-  // Auth endpoints — magic link passwordless
-  // ════════════════════════════════════════════════════════════════════════
-
-  // POST /api/auth/request-link { email }
-  // Cria/encontra user, gera token 15min, manda email com link.
-  // Resposta NÃO confirma se email existe ou não (anti-enumeration).
-  app.post('/api/auth/request-link', async (req, res) => {
-    const email = String(req.body?.email ?? '').trim();
-    if (!email) {
-      res.status(400).json({ ok: false, error: 'email obrigatório' });
-      return;
-    }
-
-    try {
-      const user = await findOrCreateUser(email);
-      const { token, expiresAt } = await createMagicLink(user.id);
-      const verifyUrl = `${getVerifyBaseUrl(req)}/api/auth/verify?token=${encodeURIComponent(token)}`;
-
-      const sent = await sendEmail(
-        buildMagicLinkEmail({ email: user.email, verifyUrl, expiresMin: Math.round(MAGIC_LINK_TTL_MS / 60000) }),
-      );
-
-      // Resposta uniforme — sempre "ok" pra não vazar se email existe
-      res.json({
-        ok: true,
-        mode: sent.mode,
-        expiresAt,
-        // Em dev (sem BREVO_API_KEY), retorna o link no response pra facilitar testar
-        ...(sent.mode === 'dev-log' ? { devLink: verifyUrl } : {}),
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('inválido')) {
-        res.status(400).json({ ok: false, error: 'email inválido' });
-        return;
-      }
-      console.error('[auth] request-link:', err);
-      res.status(500).json({ ok: false, error: 'erro interno' });
-    }
-  });
-
-  // GET /api/auth/verify?token=X
-  // Consome token, cria sessão, set cookie, redirect pra home.
-  // Se token inválido, redirect pra /?auth_error=<reason>
-  app.get('/api/auth/verify', async (req, res) => {
-    const token = String(req.query.token ?? '').trim();
-    if (!token) {
-      res.redirect('/?auth_error=missing_token');
-      return;
-    }
-
-    try {
-      const result = await consumeMagicLink(token);
-      if (!result.ok) {
-        res.redirect(`/?auth_error=${encodeURIComponent(result.reason)}`);
-        return;
-      }
-      const session = await createSession(result.user.id);
-      res.setHeader('Set-Cookie', buildSessionCookie(session.token, session.expiresAt));
-      res.redirect('/?auth=success');
-    } catch (err) {
-      console.error('[auth] verify:', err);
-      res.redirect('/?auth_error=server_error');
-    }
-  });
-
-  // POST /api/auth/logout — revoga sessão atual + limpa cookie
-  app.post('/api/auth/logout', async (req, res) => {
-    const token = parseSessionCookie(req.headers.cookie);
-    if (token) {
-      try { await revokeSession(token); }
-      catch (err) { console.warn('[auth] revokeSession:', err); }
-    }
-    res.setHeader('Set-Cookie', buildLogoutCookie());
-    res.json({ ok: true });
-  });
-
-  // GET /api/auth/me — retorna user da sessão atual (null se anon)
-  app.get('/api/auth/me', (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    res.json({ user: user ?? null });
-  });
-
-  // PATCH /api/auth/me { displayName } — atualiza display name
-  app.patch('/api/auth/me', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    if (!user) { res.status(401).json({ ok: false, error: 'não autenticado' }); return; }
-    const name = String(req.body?.displayName ?? '').trim();
-    try {
-      await updateUserDisplayName(user.id, name);
-      res.json({ ok: true });
-    } catch (err) {
-      console.error('[auth] updateName:', err);
-      res.status(500).json({ ok: false, error: 'erro interno' });
-    }
-  });
-
-  // === D&D reference data
-  app.get('/api/dnd/races', (_req, res) => { res.json({ races: ALL_RACES }); });
-  app.get('/api/dnd/classes', (_req, res) => { res.json({ classes: ALL_CLASSES }); });
-  app.get('/api/dnd/skills', (_req, res) => { res.json({ skills: ALL_SKILLS }); });
-  app.get('/api/dnd/conditions', (_req, res) => { res.json({ conditions: ALL_CONDITIONS }); });
-  app.get('/api/dnd/backgrounds', (_req, res) => { res.json({ backgrounds: ALL_BACKGROUNDS }); });
-
-  // === Characters CRUD
-  app.get('/api/characters', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    try {
-      // Se logado, lista por userId (cross-device). Senão, fallback pra ownerName legado.
-      if (user) {
-        res.json({ characters: await listCharactersByUserId(user.id) });
-        return;
-      }
-      const owner = String(req.query.owner ?? '').trim();
-      if (!owner) { res.status(400).json({ error: 'owner required' }); return; }
-      res.json({ characters: await listCharactersByOwner(owner) });
-    } catch (err) {
-      console.error('[api] listCharacters:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-  app.get('/api/characters/:id', async (req, res) => {
-    try {
-      const sheet = await loadCharacter(req.params.id);
-      if (!sheet) { res.status(404).json({ error: 'not found' }); return; }
-      res.json({ character: sheet });
-    } catch (err) {
-      console.error('[api] loadCharacter:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-  app.post('/api/characters', async (req, res) => {
-    const sheet = req.body as CharacterSheet;
-    if (!sheet?.id || !sheet?.ownerName || !sheet?.characterName || !sheet?.classId || !sheet?.raceId) {
-      res.status(400).json({ error: 'invalid sheet' });
-      return;
-    }
-    const reqUser = (req as ExpressReqWithUser).user;
-    // Se logado, vincula PJ ao userId (sobrescreve qualquer userId enviado pelo cliente).
-    // Cliente não controla isto — server confia só na sessão validada.
-    if (reqUser) {
-      sheet.userId = reqUser.id;
-      if (!sheet.ownerName.trim()) sheet.ownerName = reqUser.displayName || reqUser.email.split('@')[0]!;
-    }
-    sheet.lastPlayedAt = Date.now();
-    try {
-      await saveCharacter(sheet);
-      res.json({ ok: true, id: sheet.id });
-    } catch (err) {
-      console.error('[api] saveCharacter:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-  app.delete('/api/characters/:id', async (req, res) => {
-    try {
-      await deleteCharacter(req.params.id);
-      res.json({ ok: true });
-    } catch (err) {
-      console.error('[api] deleteCharacter:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // === Campaigns
-  app.get('/api/campaigns', async (_req, res) => {
-    try {
-      res.json({ campaigns: await listRecentCampaigns(20) });
-    } catch (err) {
-      console.error('[api] listCampaigns:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-  app.get('/api/campaigns/:id', async (req, res) => {
-    try {
-      const c = await loadCampaign(req.params.id);
-      if (!c) { res.status(404).json({ error: 'not found' }); return; }
-      res.json({ campaign: c });
-    } catch (err) {
-      console.error('[api] loadCampaign:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // Memória RAG do Mestre — debug/UI. Filtros opcionais via query string.
-  // q=texto pra busca FTS5; kind=npc|location|... pra filtrar; limit (default 50).
-  app.get('/api/campaigns/:id/memory', async (req, res) => {
-    if (!memoryStore) { res.status(503).json({ error: 'memory not initialized' }); return; }
-    const q = String(req.query.q ?? '').trim();
-    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10) || 50));
-    const kindParam = String(req.query.kind ?? '').trim();
-    const kinds = kindParam ? kindParam.split(',').map((s) => s.trim()) as any[] : undefined;
-    try {
-      const facts = q
-        ? await memoryStore.search(req.params.id, q, { limit, kinds })
-        : await memoryStore.recent(req.params.id, { limit, kinds });
-      const count = await memoryStore.count(req.params.id);
-      res.json({ facts, total: count });
-    } catch (err) {
-      console.error('[api] memory:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // F17 — Achievements. Lista TODOS marcos + status (unlocked? quando?) do user logado.
-  // Anon: 401 (precisa estar logado pra ver progresso).
-  app.get('/api/achievements', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    if (!user) { res.status(401).json({ error: 'login required' }); return; }
-    try {
-      const progress = await listAchievementProgress(user.id);
-      const counters = await getAchievementCounters(user.id);
-      res.json({ progress, counters });
-    } catch (err) {
-      console.error('[api] achievements:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // F19 — Cemitério de lápides do user. Anon não tem (não persiste).
-  app.get('/api/tombstones', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    if (!user) { res.json({ tombstones: [] }); return; }
-    try {
-      const tombs = await listTombstonesForUser(user.id);
-      res.json({ tombstones: tombs });
-    } catch (err) {
-      console.error('[api] tombstones:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // F20 — Daily streak state pro user logado
-  app.get('/api/streak', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    if (!user) { res.json({ streak: null }); return; }
-    try {
-      const streak = await getStreak(user.id);
-      res.json({ streak });
-    } catch (err) {
-      console.error('[api] streak:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
-
-  // F20 — Highlights do user (reel de momentos memoráveis)
-  app.get('/api/highlights', async (req, res) => {
-    const user = (req as ExpressReqWithUser).user;
-    if (!user) { res.json({ highlights: [] }); return; }
-    try {
-      const items = await listHighlightsForUser(user.id);
-      res.json({ highlights: items });
-    } catch (err) {
-      console.error('[api] highlights:', err);
-      res.status(500).json({ error: String(err) });
-    }
-  });
+  // 2B — Routes Express extraídas pra src/server/routes/api.ts
+  registerApiRoutes(app, { campaigns, memoryStore, dm });
 
   // === Static (produção) — serve dist/client buildado pelo Vite
   if (process.env.NODE_ENV === 'production') {
