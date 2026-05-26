@@ -108,6 +108,8 @@ export class GeminiProvider implements DMProvider {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      // 429 = quota/rate limit. Mensagem padrão pra cascade detectar via regex.
+      // Outros 5xx propagam como erro retriable.
       throw new Error(`Gemini ${res.status}: ${text.slice(0, 300)}`);
     }
 
@@ -115,12 +117,18 @@ export class GeminiProvider implements DMProvider {
     if (data.error) {
       throw new Error(`Gemini error ${data.error.code}: ${data.error.message}`);
     }
+    // Safety block — throw classificado pra cascade pegar e tentar próximo provider.
+    // Antes retornávamos text:'' silenciosamente, que vira "Mestre travou" pro player.
+    // Melhor: deixar o cascade decidir (Groq tem safety mais frouxo).
     if (data.promptFeedback?.blockReason) {
-      // Safety block — retorna texto vazio em vez de throw (caller vai degradar)
-      return { text: '', toolCalls: [] };
+      throw new Error(`Gemini safety block: ${data.promptFeedback.blockReason}`);
     }
 
     const candidate = data.candidates?.[0];
+    // finishReason SAFETY/RECITATION = Gemini cortou pelo conteúdo. Tratar igual safety block.
+    if (candidate?.finishReason && /safety|recitation|blocked/i.test(candidate.finishReason)) {
+      throw new Error(`Gemini finishReason ${candidate.finishReason} — content filtered`);
+    }
     let text = '';
     const toolCalls: { name: string; input: Record<string, unknown> }[] = [];
     for (const part of candidate?.content?.parts ?? []) {

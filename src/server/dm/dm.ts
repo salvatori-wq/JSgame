@@ -12,7 +12,12 @@ export interface DMResponse {
   raw: string;
 }
 
-const LLM_TIMEOUT_MS = 15_000;
+// Timeout 25s — Gemini Flash com prompt sistema longo (D&D persona + 7 tools)
+// passa de 15s em horários de pico. Ajustado pra dar margem antes do graceful
+// fallback. Soma com backoff: pior caso ~80s antes de UI degradar.
+const LLM_TIMEOUT_MS = 25_000;
+// Summarize/recap são chamadas leves — timeout menor pra não pendurar a UI.
+const LLM_TIMEOUT_SHORT_MS = 12_000;
 
 export class DungeonMaster {
   constructor(private provider: DMProvider) {}
@@ -33,7 +38,7 @@ export class DungeonMaster {
           userPrompt: `Resuma estas narrações:\n${text}\n\nResumo curto:`,
           maxTokens: 200,
         }),
-        LLM_TIMEOUT_MS,
+        LLM_TIMEOUT_SHORT_MS,
       );
       return response.text.trim() || null;
     } catch (err) {
@@ -57,7 +62,7 @@ export class DungeonMaster {
           userPrompt: `Fatos relevantes da campanha:\n${factsList}\n\nGere o recap em 2-3 frases:`,
           maxTokens: 200,
         }),
-        LLM_TIMEOUT_MS,
+        LLM_TIMEOUT_SHORT_MS,
       );
       return response.text.trim() || null;
     } catch (err) {
