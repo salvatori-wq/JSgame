@@ -2,7 +2,7 @@
 // Hidden achievements ainda não unlocked mostram "?? ???" pra preservar surpresa.
 
 import { el } from '../util';
-import { getAchievementProgress, type AchievementStatusDTO } from '../api';
+import { getAchievementProgress, listHighlights, getStreak, type AchievementStatusDTO, type HighlightDTO, type StreakDTO } from '../api';
 
 interface ProfileScreenOpts {
   container: HTMLElement;
@@ -36,6 +36,16 @@ export class ProfileScreen {
     this.container.appendChild(root);
 
     try {
+      // F20 — streak header (se houver)
+      const streak = await getStreak().catch(() => null);
+      if (streak && streak.currentStreak > 0) {
+        body.appendChild(this.renderStreak(streak));
+      }
+      // F20 — highlights antes dos achievements (lugar de prestígio)
+      const highlights = await listHighlights().catch(() => [] as HighlightDTO[]);
+      if (highlights.length > 0) {
+        body.appendChild(this.renderHighlights(highlights));
+      }
       const data = await getAchievementProgress();
       this.renderProgress(body, data.progress, data.counters);
     } catch (err) {
@@ -49,6 +59,37 @@ export class ProfileScreen {
         body.appendChild(el('div', { class: 'profile-empty', text: `Erro: ${msg}` }));
       }
     }
+  }
+
+  private renderStreak(streak: StreakDTO): HTMLElement {
+    return el('div', { class: 'profile-streak' }, [
+      el('div', { class: 'profile-streak-icon', text: '🔥' }),
+      el('div', { class: 'profile-streak-body' }, [
+        el('div', { class: 'profile-streak-current', text: `${streak.currentStreak} dias seguidos` }),
+        el('div', { class: 'profile-streak-meta', text: `Recorde: ${streak.longestStreak} dias · Total ativo: ${streak.totalDays} dias` }),
+      ]),
+    ]);
+  }
+
+  private renderHighlights(highlights: HighlightDTO[]): HTMLElement {
+    const sec = el('section');
+    sec.appendChild(el('h3', { class: 'profile-section-h', text: `✨ Highlight Reel (${highlights.length})` }));
+    const list = el('div', { class: 'profile-highlights' });
+    const KIND_ICON: Record<string, string> = {
+      moment: '✨', kill: '⚔', speech: '🗣', choice: '⚖', twist: '🌀',
+    };
+    for (const h of highlights.slice(0, 20)) {
+      const when = new Date(h.createdAt).toLocaleDateString();
+      list.appendChild(el('div', { class: `profile-highlight is-${h.kind}` }, [
+        el('div', { class: 'ph-icon', text: KIND_ICON[h.kind] ?? '✨' }),
+        el('div', { class: 'ph-body' }, [
+          el('div', { class: 'ph-summary', text: h.summary }),
+          el('div', { class: 'ph-meta', text: `${h.characterName ?? '—'} · ${when}` }),
+        ]),
+      ]));
+    }
+    sec.appendChild(list);
+    return sec;
   }
 
   private renderProgress(parent: HTMLElement, progress: AchievementStatusDTO[], counters: Record<string, number>): void {

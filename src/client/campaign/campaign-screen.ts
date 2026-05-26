@@ -249,6 +249,16 @@ export class CampaignScreen {
     };
     s.on('achievementUnlocked', onAch);
     this.socketCleanups.push(() => s.off('achievementUnlocked', onAch));
+
+    // F20 — Daily streak update (só dispara em joinCampaign 1x/sessão)
+    const onStreak = (payload: { currentStreak: number; longestStreak: number; brokeRecord: boolean }): void => {
+      const msg = payload.brokeRecord
+        ? `🔥 ${payload.currentStreak} dias! NOVO recorde pessoal!`
+        : `🔥 ${payload.currentStreak} dias seguidos`;
+      this.flashToast(msg);
+    };
+    s.on('streakUpdate', onStreak);
+    this.socketCleanups.push(() => s.off('streakUpdate', onStreak));
   }
 
   private maybeShowPendingCheck(): void {

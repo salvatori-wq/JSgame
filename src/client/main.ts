@@ -15,7 +15,7 @@ import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
 import { getClass } from '../dnd/classes';
 import { portraitFor } from '../dnd/portrait';
-import { listTombstones, type TombstoneDTO } from './api';
+import { listTombstones, getStreak, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
 
 const app = document.getElementById('app');
@@ -168,9 +168,18 @@ async function renderHome(): Promise<void> {
 
   // User badge — mostra email logado ou botão "Entrar"
   if (currentUser) {
+    // F20: fetch streak inline (async — populated quando chegar)
+    const streakBadge = el('span', { class: 'user-badge-streak', text: '' });
+    getStreak().then((s) => {
+      if (s && s.currentStreak > 0) {
+        streakBadge.textContent = `🔥 ${s.currentStreak}d`;
+        streakBadge.setAttribute('title', `Streak atual: ${s.currentStreak} dias · Recorde: ${s.longestStreak} dias · Total: ${s.totalDays} dias ativo`);
+      }
+    }).catch(() => { /* silent */ });
     root.appendChild(el('div', { class: 'user-badge' }, [
       el('span', { text: '👤' }),
       el('span', { class: 'user-badge-email', text: currentUser.email }),
+      streakBadge,
       el('button', {
         class: 'user-badge-logout',
         text: '🏆 Conquistas',

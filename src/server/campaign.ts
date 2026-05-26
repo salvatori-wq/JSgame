@@ -413,6 +413,20 @@ export class Campaign {
   // Track de quantos combates a campanha viu.
   combatStartCount = 0;
 
+  // F20: highlights pendentes pra persistir. Server drena depois do handler.
+  pendingHighlights: Array<{
+    characterId: string | null;
+    characterName: string | null;
+    summary: string;
+    kind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist';
+  }> = [];
+
+  drainHighlights(): typeof this.pendingHighlights {
+    const out = this.pendingHighlights;
+    this.pendingHighlights = [];
+    return out;
+  }
+
   private async endCombatNarrate(outcome: 'victory' | 'defeat'): Promise<DMResponse | undefined> {
     const combat = this.state.combat;
     if (!combat) return undefined;
@@ -1180,6 +1194,31 @@ export class Campaign {
             importance: 1.3,
           });
         }
+        break;
+      }
+
+      case 'mark_highlight': {
+        // F20: empilha no bus pra server persistir (precisa userId do PJ).
+        // Aproveita o sistema de events pra rotear pro user correto.
+        const targetPj = tool.characterId
+          ? this.party.find((p) => p.id === tool.characterId)
+          : this.party[0];
+        // Pusha como event "highlight_marked" — server adiciona handler.
+        // Pra evitar inflar AchievementEvent, vamos guardar como pendingHighlight.
+        this.pendingHighlights.push({
+          characterId: targetPj?.id ?? null,
+          characterName: targetPj?.characterName ?? null,
+          summary: tool.summary,
+          kind: tool.highlightKind,
+        });
+        this.pushRecentEvent(`✨ Highlight: ${tool.summary}`);
+        // RAG: indexa também — momentos memoráveis devem voltar no contexto futuro
+        this.indexFact({
+          kind: 'event',
+          text: `Momento memorável (${tool.highlightKind}): ${tool.summary}`,
+          tags: `highlight memoravel ${tool.highlightKind}${targetPj ? ` ${targetPj.characterName.toLowerCase()}` : ''}`,
+          importance: 1.8, // alta — momento icônico
+        });
         break;
       }
 

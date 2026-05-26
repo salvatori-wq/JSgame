@@ -36,6 +36,8 @@ import {
   type UnlockResult,
 } from './achievements.js';
 import { saveTombstone, listTombstonesForUser } from './tombstones.js';
+import { bumpStreak, getStreak } from './streaks.js';
+import { saveHighlight, listHighlightsForUser } from './highlights.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -431,6 +433,32 @@ async function main(): Promise<void> {
     }
   });
 
+  // F20 — Daily streak state pro user logado
+  app.get('/api/streak', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.json({ streak: null }); return; }
+    try {
+      const streak = await getStreak(user.id);
+      res.json({ streak });
+    } catch (err) {
+      console.error('[api] streak:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // F20 — Highlights do user (reel de momentos memoráveis)
+  app.get('/api/highlights', async (req, res) => {
+    const user = (req as ExpressReqWithUser).user;
+    if (!user) { res.json({ highlights: [] }); return; }
+    try {
+      const items = await listHighlightsForUser(user.id);
+      res.json({ highlights: items });
+    } catch (err) {
+      console.error('[api] highlights:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // === Static (produção) — serve dist/client buildado pelo Vite
   if (process.env.NODE_ENV === 'production') {
     const staticDir = path.resolve(process.cwd(), 'dist/client');
@@ -483,6 +511,31 @@ async function main(): Promise<void> {
       io.to(camp.state.id).emit('campaignState', camp.state);
       io.to(camp.state.id).emit('partyUpdate', camp.party);
       io.to(camp.state.id).emit('combatState', camp.state.combat);
+    };
+
+    // F20: drena highlights pendentes do Campaign + persiste por user.
+    const drainHighlights = async (camp: Campaign): Promise<void> => {
+      const items = camp.drainHighlights();
+      if (items.length === 0) return;
+      for (const h of items) {
+        // Routing por userId do PJ. Se sem PJ específico, usa o primeiro com userId.
+        const pj = h.characterId
+          ? camp.party.find((p) => p.id === h.characterId)
+          : camp.party.find((p) => p.userId);
+        const userId = pj?.userId ?? null;
+        try {
+          await saveHighlight({
+            userId,
+            campaignId: camp.state.id,
+            characterId: h.characterId,
+            characterName: h.characterName,
+            summary: h.summary,
+            kind: h.kind,
+          });
+        } catch (err) {
+          console.warn('[highlights] save falhou:', err);
+        }
+      }
     };
 
     // F17: drena fila de achievement events do Campaign + dispara tracker.
@@ -622,6 +675,15 @@ async function main(): Promise<void> {
                 description: u.achievement.description, icon: u.achievement.icon,
               });
             }
+            // F20: bump streak. Toast só se for bump (não no-op)
+            const streak = await bumpStreak(character.userId);
+            if (streak?.bumped) {
+              socket.emit('streakUpdate', {
+                currentStreak: streak.currentStreak,
+                longestStreak: streak.longestStreak,
+                brokeRecord: streak.brokeRecord,
+              });
+            }
           } catch (err) {
             console.warn('[ach] joinCampaign tracking err:', err);
           }
@@ -676,6 +738,7 @@ async function main(): Promise<void> {
           }
           broadcastState(camp);
           await drainAchievements(camp);
+          await drainHighlights(camp);
           await saveCampaign(camp.state);
 
           // Se DM iniciou combate E enemy ganhou initiative, kickoff enemy turn

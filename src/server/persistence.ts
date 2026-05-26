@@ -150,6 +150,28 @@ export async function initPersistence(): Promise<void> {
       cause           TEXT
     )`,
     `CREATE INDEX IF NOT EXISTS idx_tombstones_user ON tombstones(user_id, died_at DESC)`,
+    // F20 — Daily streak (1 row por user)
+    `CREATE TABLE IF NOT EXISTS daily_streaks (
+      user_id          TEXT PRIMARY KEY,
+      current_streak   INTEGER NOT NULL DEFAULT 0,
+      longest_streak   INTEGER NOT NULL DEFAULT 0,
+      last_active_date TEXT NOT NULL,
+      total_days       INTEGER NOT NULL DEFAULT 0,
+      updated_at       INTEGER NOT NULL
+    )`,
+    // F20 — Highlights (momentos marcantes flagados pelo DM via mark_highlight)
+    `CREATE TABLE IF NOT EXISTS highlights (
+      id            TEXT PRIMARY KEY,
+      user_id       TEXT,
+      campaign_id   TEXT NOT NULL,
+      character_id  TEXT,
+      character_name TEXT,
+      summary       TEXT NOT NULL,
+      kind          TEXT NOT NULL DEFAULT 'moment',
+      created_at    INTEGER NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_highlights_user ON highlights(user_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_highlights_campaign ON highlights(campaign_id, created_at DESC)`,
   ], 'write');
 
   // Migration leve: adiciona user_id na tabela characters se não existe.

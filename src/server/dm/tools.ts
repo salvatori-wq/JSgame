@@ -23,7 +23,9 @@ export type ValidatedTool =
   // F18 — Quest tracking
   | { kind: 'set_quest'; questId: string; title: string; description: string; objectives: Array<{ id: string; description: string }>; rewardXp: number; giver?: string }
   | { kind: 'update_objective'; questId: string; objectiveId: string; done: boolean; note?: string }
-  | { kind: 'complete_quest'; questId: string; outcome: 'success' | 'failure'; summary: string };
+  | { kind: 'complete_quest'; questId: string; outcome: 'success' | 'failure'; summary: string }
+  // F20 — marca momento memorável (kill épica, fala icônica, escolha moral, reviravolta)
+  | { kind: 'mark_highlight'; summary: string; highlightKind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist'; characterId?: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -195,6 +197,18 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
       const validOutcome: 'success' | 'failure' = outcome === 'failure' ? 'failure' : 'success';
       const summary = String(input.summary ?? '').slice(0, 400);
       return { kind: 'complete_quest', questId, outcome: validOutcome, summary };
+    }
+
+    case 'mark_highlight': {
+      const summary = String(input.summary ?? '').slice(0, 400);
+      if (!summary) return null;
+      const kindStr = String(input.highlightKind ?? input.kind ?? 'moment').toLowerCase();
+      const validKinds = new Set(['moment', 'kill', 'speech', 'choice', 'twist']);
+      const highlightKind = validKinds.has(kindStr)
+        ? (kindStr as 'moment' | 'kill' | 'speech' | 'choice' | 'twist')
+        : 'moment';
+      const characterId = input.characterId ? String(input.characterId).slice(0, 60) : undefined;
+      return { kind: 'mark_highlight', summary, highlightKind, characterId };
     }
 
     default:

@@ -105,6 +105,34 @@ export async function listCampaigns(): Promise<CampaignSummary[]> {
   return data.campaigns;
 }
 
+// F20 — Daily streak
+export interface StreakDTO {
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDate: string;
+  totalDays: number;
+}
+export async function getStreak(): Promise<StreakDTO | null> {
+  const data = await fetchJson<{ streak: StreakDTO | null }>('/api/streak');
+  return data.streak;
+}
+
+// F20 — Highlights
+export interface HighlightDTO {
+  id: string;
+  userId: string | null;
+  campaignId: string;
+  characterId: string | null;
+  characterName: string | null;
+  summary: string;
+  kind: 'moment' | 'kill' | 'speech' | 'choice' | 'twist';
+  createdAt: number;
+}
+export async function listHighlights(): Promise<HighlightDTO[]> {
+  const data = await fetchJson<{ highlights: HighlightDTO[] }>('/api/highlights');
+  return data.highlights;
+}
+
 // F19 — Tombstones (lápides) do user logado. Anon = lista vazia.
 export interface TombstoneDTO {
   id: string;

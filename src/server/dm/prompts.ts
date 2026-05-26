@@ -70,6 +70,7 @@ Use TOOLS quando ação narrativa exigir mecânica:
 - set_quest: quando NPC dá missão OU party descobre algo perseguível ("salve a vila", "ache o cristal"). Use questId único curto.
 - update_objective: quando party cumpre um passo de quest ativa
 - complete_quest: quando todos objetivos cumpridos (success) OU quest virou impossível (failure). Success distribui rewardXp.
+- mark_highlight: PARCIMÔNIA — só pra momento que merece reel (kill épica de boss, escolha moral pesada, fala icônica). Máx 1-2 por sessão.
 
 Ferramentas validadas server-side (rejeita inputs inválidos). Você sugere — server decide.
 
@@ -297,6 +298,23 @@ export const DM_TOOLS: DMToolDef[] = [
         note: { type: 'string', description: 'Nota narrativa opcional sobre como foi resolvido' },
       },
       required: ['questId', 'objectiveId'],
+    },
+  },
+  {
+    name: 'mark_highlight',
+    description: 'Marca um MOMENTO MEMORÁVEL pra entrar no highlight reel do jogador. Use com PARCIMÔNIA — só pra cenas que realmente merecem ser lembradas anos depois (kill épica em boss, fala icônica de NPC, escolha moral pesada, reviravolta de plot). Máx 1-2 por sessão.',
+    schema: {
+      type: 'object',
+      properties: {
+        summary: { type: 'string', description: 'Resumo do momento em 1-2 frases (vira card no reel)' },
+        highlightKind: {
+          type: 'string',
+          enum: ['moment', 'kill', 'speech', 'choice', 'twist'],
+          description: 'kill=baixou boss; speech=fala marcante; choice=escolha moral importante; twist=reviravolta; moment=catchall',
+        },
+        characterId: { type: 'string', description: 'PJ protagonista (opcional). Sem isso, vira highlight da campanha inteira.' },
+      },
+      required: ['summary'],
     },
   },
   {

@@ -2596,6 +2596,75 @@ body.is-portrait-narrow .sc-die {
   margin-top: 3px;
   font-family: monospace;
 }
+
+/* F20 — User badge streak */
+.user-badge-streak {
+  font-size: 11px;
+  color: #f0a030;
+  background: rgba(240, 160, 48, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+/* F20 — Profile streak block */
+.profile-streak {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, rgba(240, 160, 48, 0.15), rgba(240, 192, 80, 0.05));
+  border: 1px solid rgba(240, 160, 48, 0.3);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.profile-streak-icon {
+  font-size: 32px;
+  filter: drop-shadow(0 0 6px rgba(240, 160, 48, 0.5));
+}
+.profile-streak-current {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: #f0a030;
+}
+.profile-streak-meta {
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+
+/* F20 — Highlights reel */
+.profile-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid #f0c050;
+  padding: 10px 12px;
+  border-radius: 0 4px 4px 0;
+}
+.profile-highlight.is-kill    { border-left-color: #c04040; }
+.profile-highlight.is-speech  { border-left-color: #4080c0; }
+.profile-highlight.is-choice  { border-left-color: #c08030; }
+.profile-highlight.is-twist   { border-left-color: #a060c0; }
+.ph-icon { font-size: 22px; flex-shrink: 0; }
+.ph-body { flex: 1; }
+.ph-summary {
+  font-size: 13px;
+  color: var(--ink-warm);
+  line-height: 1.4;
+}
+.ph-meta {
+  font-size: 10px;
+  color: var(--ink-mute);
+  margin-top: 4px;
+  font-family: monospace;
+}
 .cp-pj-cond {
   font-size: 10px;
   color: #d08840;

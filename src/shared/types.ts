@@ -340,6 +340,8 @@ export interface ServerToClientEvents {
   }) => void;
   // F17: achievement unlocked. Cliente mostra toast.
   achievementUnlocked: (payload: { id: string; name: string; description: string; icon: string }) => void;
+  // F20: daily streak bump (user logado). Cliente mostra toast/badge.
+  streakUpdate: (payload: { currentStreak: number; longestStreak: number; brokeRecord: boolean }) => void;
 }
 
 export type ExplorationAction =
