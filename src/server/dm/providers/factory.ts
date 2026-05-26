@@ -27,6 +27,26 @@ export interface ProviderEnv {
   GEMINI_MODEL?: string;
 }
 
+// Models Groq cujo context window NÃO comporta nosso prompt sistema D&D longo
+// + 7 tool defs + recent narrations. Confirmado em prod: llama-3.1-8b-instant
+// deu 413 "Request too large" em narrações simples. Se o env apontar pra um
+// desses, ignoramos e forçamos 70b-versatile (128K context — plenty).
+const GROQ_MODELS_TOO_SMALL = new Set([
+  'llama-3.1-8b-instant',
+  'llama-3.2-1b-preview',
+  'llama-3.2-3b-preview',
+]);
+const GROQ_MODEL_DEFAULT = 'llama-3.3-70b-versatile';
+
+function pickGroqModel(envModel: string | undefined): string {
+  if (!envModel) return GROQ_MODEL_DEFAULT;
+  if (GROQ_MODELS_TOO_SMALL.has(envModel)) {
+    console.warn(`[factory] GROQ_MODEL=${envModel} tem context window pequeno demais pra prompt D&D — usando ${GROQ_MODEL_DEFAULT}`);
+    return GROQ_MODEL_DEFAULT;
+  }
+  return envModel;
+}
+
 export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   const explicit = env.DM_PROVIDER?.toLowerCase();
 
@@ -46,7 +66,7 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   if (explicit === 'groq' && env.GROQ_API_KEY) {
     return new GroqProvider({
       apiKey: env.GROQ_API_KEY,
-      model: env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+      model: pickGroqModel(env.GROQ_MODEL),
     });
   }
 
@@ -65,7 +85,7 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   if (env.GROQ_API_KEY) {
     available.push(new GroqProvider({
       apiKey: env.GROQ_API_KEY,
-      model: env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+      model: pickGroqModel(env.GROQ_MODEL),
     }));
   }
   if (env.ANTHROPIC_API_KEY) {
