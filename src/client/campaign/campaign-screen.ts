@@ -26,6 +26,7 @@ import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
+import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -182,6 +183,21 @@ export class CampaignScreen {
         case 'death':
           playDamage();
           break;
+      }
+      // F34 — Floating numbers + HP flash. Antes do render pra agarrar
+      // o elemento alvo ainda renderizado com o HP "atual" pré-flash.
+      if (ev.targetId) {
+        const targetEl = findCombatTarget(ev.targetId);
+        if (targetEl) {
+          if (ev.type === 'damage' && typeof ev.value === 'number') {
+            spawnFloating(targetEl, { value: ev.value, kind: ev.crit ? 'crit' : 'damage' });
+            flashHpBar(targetEl);
+          } else if (ev.type === 'heal' && typeof ev.value === 'number') {
+            spawnFloating(targetEl, { value: ev.value, kind: 'heal' });
+          } else if (ev.type === 'attack-miss') {
+            spawnFloating(targetEl, { value: 0, kind: 'miss' });
+          }
+        }
       }
       this.render();
     };
@@ -486,7 +502,10 @@ export class CampaignScreen {
       const xpInLevel = p.xp - xpFloor;
 
       const portrait = portraitFor({ raceId: p.raceId, classId: p.classId });
-      list.appendChild(el('div', { class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}` }, [
+      list.appendChild(el('div', {
+        class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}`,
+        attrs: { 'data-combat-target': p.id },
+      }, [
         el('div', { class: 'cp-pj-portrait', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
           el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
           el('span', { class: 'cp-pj-portrait-class', text: portrait.class }),

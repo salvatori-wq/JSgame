@@ -269,8 +269,13 @@ async function renderHome(): Promise<void> {
       charsList.appendChild(el('div', { class: 'home-empty', text: 'Digite seu nome pra ver seus personagens.' }));
       return;
     }
+    // F34 — skeleton placeholder enquanto fetch carrega
+    for (let i = 0; i < 2; i++) {
+      charsList.appendChild(el('div', { class: 'skeleton skeleton-card' }));
+    }
     try {
       const chars = await listCharacters(o);
+      charsList.innerHTML = '';
       if (chars.length === 0) {
         charsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhum personagem ainda. Crie o primeiro!' }));
         selectedCharId = null;
@@ -403,8 +408,12 @@ async function renderHome(): Promise<void> {
 
   const refreshCamps = async (): Promise<void> => {
     campsList.innerHTML = '';
+    for (let i = 0; i < 2; i++) {
+      campsList.appendChild(el('div', { class: 'skeleton skeleton-card' }));
+    }
     try {
       const camps = await listCampaigns();
+      campsList.innerHTML = '';
       if (camps.length === 0) {
         campsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhuma crônica em andamento ainda.' }));
         return;

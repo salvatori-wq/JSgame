@@ -157,6 +157,7 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
   const dead = en.currentHp <= 0;
   const card = el('div', {
     class: `cb-enemy-card ${dead ? 'is-dead' : ''} ${clickable && !dead ? 'is-clickable' : ''}`,
+    attrs: { 'data-combat-target': en.id },
     on: clickable && !dead ? { click: onClick } : undefined,
   }, [
     el('div', { class: 'cb-enemy-name', text: en.name }),

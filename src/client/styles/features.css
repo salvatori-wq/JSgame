@@ -155,3 +155,60 @@
   border-bottom: 1px solid rgba(255, 230, 180, 0.12);
   margin: 8px 0 4px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   F34 — Microinteractions: hover/active polish + skeleton loaders
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Hover universal pra botões — todos com transição uniforme.
+   Limita-se a botões SEM classe específica (evita conflito com já-customizados). */
+button:not([disabled]) {
+  transition:
+    transform 0.15s cubic-bezier(0.2, 0.6, 0.3, 1),
+    box-shadow 0.15s ease,
+    filter 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+button:not([disabled]):active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Press feedback nos botões principais do flow */
+.home-btn:not([disabled]):hover,
+.wiz-cta:not([disabled]):hover,
+.cb-action-btn:not([disabled]):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4), 0 0 0 1px var(--accent-rune);
+}
+
+/* Skeleton loader genérico */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(80, 56, 30, 0.18) 0%,
+    rgba(120, 90, 50, 0.32) 50%,
+    rgba(80, 56, 30, 0.18) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton-card {
+  height: 60px;
+  margin-bottom: 8px;
+}
+.skeleton-line {
+  height: 14px;
+  margin: 6px 0;
+}
+.skeleton-line--80 { width: 80%; }
+.skeleton-line--60 { width: 60%; }
+.skeleton-line--40 { width: 40%; }
+
+@keyframes skeleton-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
