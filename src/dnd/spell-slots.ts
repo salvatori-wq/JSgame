@@ -1,77 +1,101 @@
-// JSgame · D&D 5e spell slots por classe/nível (PHB cap 3).
-// Tabela só até nv 5 (foco do MVP). Slots > nv 3 ficam zerados — caster ainda
-// não tem magias daquele nível anyway.
+// JSgame · D&D 5e spell slots por classe/nível (PHB pág 113).
+// BUG-004 fix (2026-05-26): tabela expandida pra nv 1-20 conforme PHB.
+// Antes só ia até nv 5 — PJ Mago nv 11 não tinha slot pra Fireball (nv 3 já
+// disponível desde nv 5) ou higher levels.
 
 import type { ClassId } from './classes';
 import type { CharacterSheet } from '../shared/types';
 import type { SpellId } from './spells';
 import { spellsForClass } from './spells';
 
-type SlotsByLevel = Record<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9, { max: number; used: number }>;
+export type SpellSlotLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type SlotsByLevel = Record<SpellSlotLevel, { max: number; used: number }>;
+type LevelSlotMap = Partial<Record<SpellSlotLevel, number>>;
 
-// Tabela: classe → nível → { slots por nível de magia }
-// 0 = não casta nesse spell-level. Empty = 0.
-const SPELL_SLOTS_TABLE: Partial<Record<ClassId, Record<number, Partial<Record<1 | 2 | 3 | 4 | 5, number>>>>> = {
-  // Full casters
-  bardo: {
-    1: { 1: 2 },
-    2: { 1: 3 },
-    3: { 1: 4, 2: 2 },
-    4: { 1: 4, 2: 3 },
-    5: { 1: 4, 2: 3, 3: 2 },
-  },
-  clerigo: {
-    1: { 1: 2 },
-    2: { 1: 3 },
-    3: { 1: 4, 2: 2 },
-    4: { 1: 4, 2: 3 },
-    5: { 1: 4, 2: 3, 3: 2 },
-  },
-  druida: {
-    1: { 1: 2 },
-    2: { 1: 3 },
-    3: { 1: 4, 2: 2 },
-    4: { 1: 4, 2: 3 },
-    5: { 1: 4, 2: 3, 3: 2 },
-  },
-  feiticeiro: {
-    1: { 1: 2 },
-    2: { 1: 3 },
-    3: { 1: 4, 2: 2 },
-    4: { 1: 4, 2: 3 },
-    5: { 1: 4, 2: 3, 3: 2 },
-  },
-  mago: {
-    1: { 1: 2 },
-    2: { 1: 3 },
-    3: { 1: 4, 2: 2 },
-    4: { 1: 4, 2: 3 },
-    5: { 1: 4, 2: 3, 3: 2 },
-  },
-  // Pact magic (Bruxo): poucos slots mas regeneram em short rest.
-  // Simplificação MVP: trata como casters de slots normais (regen vai em F5.2 rest).
-  bruxo: {
-    1: { 1: 1 },
-    2: { 1: 2 },
-    3: { 2: 2 },
-    4: { 2: 2 },
-    5: { 3: 2 },
-  },
-  // Half casters: começam a castar no nv 2
-  paladino: {
-    1: {},
-    2: { 1: 2 },
-    3: { 1: 3 },
-    4: { 1: 3 },
-    5: { 1: 4, 2: 2 },
-  },
-  patrulheiro: {
-    1: {},
-    2: { 1: 2 },
-    3: { 1: 3 },
-    4: { 1: 3 },
-    5: { 1: 4, 2: 2 },
-  },
+// PHB pág 113 — Full casters (Bardo, Clérigo, Druida, Feiticeiro, Mago)
+// usam EXATAMENTE a mesma tabela. Extraído pra evitar duplicação.
+const FULL_CASTER_SLOTS: Record<number, LevelSlotMap> = {
+  1:  { 1: 2 },
+  2:  { 1: 3 },
+  3:  { 1: 4, 2: 2 },
+  4:  { 1: 4, 2: 3 },
+  5:  { 1: 4, 2: 3, 3: 2 },
+  6:  { 1: 4, 2: 3, 3: 3 },
+  7:  { 1: 4, 2: 3, 3: 3, 4: 1 },
+  8:  { 1: 4, 2: 3, 3: 3, 4: 2 },
+  9:  { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
+  10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
+  11: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 },
+  12: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 },
+  13: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 },
+  14: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 },
+  15: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 },
+  16: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 },
+  17: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 },
+  18: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 },
+  19: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 },
+  20: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 },
+};
+
+// Half casters (Paladino, Patrulheiro) — começam nv 2, max nv 5 slots.
+const HALF_CASTER_SLOTS: Record<number, LevelSlotMap> = {
+  1:  {},
+  2:  { 1: 2 },
+  3:  { 1: 3 },
+  4:  { 1: 3 },
+  5:  { 1: 4, 2: 2 },
+  6:  { 1: 4, 2: 2 },
+  7:  { 1: 4, 2: 3 },
+  8:  { 1: 4, 2: 3 },
+  9:  { 1: 4, 2: 3, 3: 2 },
+  10: { 1: 4, 2: 3, 3: 2 },
+  11: { 1: 4, 2: 3, 3: 3 },
+  12: { 1: 4, 2: 3, 3: 3 },
+  13: { 1: 4, 2: 3, 3: 3, 4: 1 },
+  14: { 1: 4, 2: 3, 3: 3, 4: 1 },
+  15: { 1: 4, 2: 3, 3: 3, 4: 2 },
+  16: { 1: 4, 2: 3, 3: 3, 4: 2 },
+  17: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
+  18: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 },
+  19: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
+  20: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
+};
+
+// Pact Magic (Bruxo) — poucos slots mas REGENERAM EM SHORT REST (PHB pág 107).
+// Todos slots na MESMA spell-level (não escalonado tipo full caster).
+// BUG-005 (short rest regen) endereçado em Sprint 4 — aqui só completa tabela.
+const PACT_MAGIC_SLOTS: Record<number, LevelSlotMap> = {
+  1:  { 1: 1 },
+  2:  { 1: 2 },
+  3:  { 2: 2 },
+  4:  { 2: 2 },
+  5:  { 3: 2 },
+  6:  { 3: 2 },
+  7:  { 4: 2 },
+  8:  { 4: 2 },
+  9:  { 5: 2 },
+  10: { 5: 2 },
+  11: { 5: 3 },
+  12: { 5: 3 },
+  13: { 5: 3 },
+  14: { 5: 3 },
+  15: { 5: 3 },
+  16: { 5: 3 },
+  17: { 5: 4 },
+  18: { 5: 4 },
+  19: { 5: 4 },
+  20: { 5: 4 },
+};
+
+const SPELL_SLOTS_TABLE: Partial<Record<ClassId, Record<number, LevelSlotMap>>> = {
+  bardo:       FULL_CASTER_SLOTS,
+  clerigo:     FULL_CASTER_SLOTS,
+  druida:      FULL_CASTER_SLOTS,
+  feiticeiro:  FULL_CASTER_SLOTS,
+  mago:        FULL_CASTER_SLOTS,
+  bruxo:       PACT_MAGIC_SLOTS,
+  paladino:    HALF_CASTER_SLOTS,
+  patrulheiro: HALF_CASTER_SLOTS,
   // Non-casters (omitidos): barbaro, guerreiro, ladino, monge
 };
 
@@ -93,10 +117,12 @@ export function getStartingSlots(classId: ClassId, level: number): SlotsByLevel 
   };
   const classTable = SPELL_SLOTS_TABLE[classId];
   if (!classTable) return empty;
-  const levelTable = classTable[level] ?? classTable[1] ?? {};
+  // Clamp level entre 1-20 (PHB cap). PJ "nv 25" via debug ainda usa tabela do nv 20.
+  const effectiveLevel = Math.max(1, Math.min(20, level));
+  const levelTable = classTable[effectiveLevel] ?? {};
   for (const [k, v] of Object.entries(levelTable)) {
-    const slotLvl = Number(k) as 1 | 2 | 3 | 4 | 5;
-    if (slotLvl >= 1 && slotLvl <= 5) {
+    const slotLvl = Number(k) as SpellSlotLevel;
+    if (slotLvl >= 1 && slotLvl <= 9) {
       empty[slotLvl] = { max: v ?? 0, used: 0 };
     }
   }
@@ -182,4 +208,10 @@ export function restoreAllSlots(sheet: CharacterSheet): void {
 // Lista classes que castam magia.
 export function isSpellcaster(classId: ClassId): boolean {
   return classId in SPELL_SLOTS_TABLE;
+}
+
+// BUG-005 / Sprint 4 helper: marca classes que usam pact magic (regen em short rest).
+// Atualmente só Bruxo. Multiclasse Mago/Bruxo tem slots separados (PHB pág 165).
+export function isPactMagicClass(classId: ClassId): boolean {
+  return classId === 'bruxo';
 }
