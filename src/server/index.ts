@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import {
   initPersistence, getDbClient,
-  loadCharacter, loadCampaign, saveCampaign, saveCharacter,
+  loadCharacter, loadCampaign, saveCampaign,
 } from './persistence.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/types.js';
 import { Campaign, DungeonMaster, FallbackDM, type DMInterface } from './campaign.js';
@@ -21,15 +21,13 @@ import {
 import { uuid } from './util.js';
 import {
   trackEvent as trackAchievement,
-  type AchievementEvent, type UnlockResult,
 } from './achievements.js';
 import { saveTombstone } from './tombstones.js';
 import { bumpStreak } from './streaks.js';
-import { saveHighlight } from './highlights.js';
-import { serializeCombatFlags } from './class-features-engine.js';
 import { resolveCounterspell } from './reaction-engine.js';
 import { parseSessionCookie, type ExpressReqWithUser } from './http/cookies.js';
 import { registerApiRoutes } from './routes/api.js';
+import { buildSocketHelpers } from './sockets/helpers.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -162,6 +160,10 @@ async function main(): Promise<void> {
     next();
   });
 
+  // 2B — Socket helpers compartilhados (extraídos pra sockets/helpers.ts)
+  const helpers = buildSocketHelpers(io);
+  const { broadcastState, drainHighlights, drainAchievements, flushPostCombatRewards, withThinkingBroadcast } = helpers;
+
   io.on('connection', (socket) => {
     const sUser = (socket.data as { user?: User }).user;
     console.log(`[socket] connected ${socket.id}${sUser ? ` (user=${sUser.email})` : ' (anon)'}`);
@@ -176,149 +178,6 @@ async function main(): Promise<void> {
         io.to(`lobby-${lobby.id}`).emit('lobbyState', lobby);
       }
     });
-
-    // Helper: broadcast estado completo pra room
-    const broadcastState = (camp: Campaign): void => {
-      io.to(camp.state.id).emit('campaignState', camp.state);
-      io.to(camp.state.id).emit('partyUpdate', camp.party);
-      io.to(camp.state.id).emit('combatState', camp.state.combat);
-      // 1B — Combat-local flags (rage, action-surge) por characterId pro client.
-      if (camp.state.combat?.active) {
-        io.to(camp.state.id).emit('combatFlags', serializeCombatFlags(camp.state.combat));
-      } else {
-        io.to(camp.state.id).emit('combatFlags', {});
-      }
-    };
-
-    // F20: drena highlights pendentes do Campaign + persiste por user.
-    const drainHighlights = async (camp: Campaign): Promise<void> => {
-      const items = camp.drainHighlights();
-      if (items.length === 0) return;
-      for (const h of items) {
-        // Routing por userId do PJ. Se sem PJ específico, usa o primeiro com userId.
-        const pj = h.characterId
-          ? camp.party.find((p) => p.id === h.characterId)
-          : camp.party.find((p) => p.userId);
-        const userId = pj?.userId ?? null;
-        try {
-          await saveHighlight({
-            userId,
-            campaignId: camp.state.id,
-            characterId: h.characterId,
-            characterName: h.characterName,
-            summary: h.summary,
-            kind: h.kind,
-          });
-        } catch (err) {
-          console.warn('[highlights] save falhou:', err);
-        }
-      }
-    };
-
-    // F17: drena fila de achievement events do Campaign + dispara tracker.
-    // Mapeia playerId → userId via party do camp. Emite toast pro socket
-    // do user específico (achievements são pessoais, não broadcast).
-    const drainAchievements = async (camp: Campaign): Promise<void> => {
-      const events = camp.drainAchievementEvents();
-      if (events.length === 0) return;
-      // Agrupa por playerId pra buscar userId uma vez por player
-      const byPlayer = new Map<string, AchievementEvent[]>();
-      for (const ev of events) {
-        if (!ev.playerId) continue;
-        const arr = byPlayer.get(ev.playerId) ?? [];
-        arr.push(ev.event);
-        byPlayer.set(ev.playerId, arr);
-      }
-      for (const [playerId, evList] of byPlayer) {
-        const pj = camp.party.find((p) => p.id === playerId);
-        const userId = pj?.userId ?? null;
-        if (!userId) continue;
-        const unlocks: UnlockResult[] = [];
-        for (const e of evList) {
-          try {
-            const result = await trackAchievement(userId, e);
-            unlocks.push(...result);
-          } catch (err) {
-            console.warn('[achievements] track error:', err);
-          }
-        }
-        if (unlocks.length === 0) continue;
-        // Acha o socket conectado desse PJ pra emit do toast
-        const room = io.sockets.adapter.rooms.get(camp.state.id);
-        if (!room) continue;
-        for (const sockId of room) {
-          const s = io.sockets.sockets.get(sockId);
-          if (!s) continue;
-          // Match: este socket é o dono desse PJ? Pegamos o user do socket.data
-          const sUser = (s.data as { user?: User }).user;
-          if (sUser && sUser.id === userId) {
-            for (const u of unlocks) {
-              s.emit('achievementUnlocked', {
-                id: u.achievement.id,
-                name: u.achievement.name,
-                description: u.achievement.description,
-                icon: u.achievement.icon,
-              });
-            }
-          }
-        }
-      }
-    };
-
-    // F16: após combate vencido, emite xpAwarded + levelUp por player.
-    // Persiste PJs atualizados (xp + level + maxHp + slots). Chamado de
-    // combatAction / castSpell quando result.outcome === 'victory'.
-    const flushPostCombatRewards = async (camp: Campaign): Promise<void> => {
-      const awards = camp.lastCombatXpAwards;
-      if (!awards || awards.length === 0) return;
-      for (const award of awards) {
-        const pj = camp.party.find((p) => p.id === award.characterId);
-        if (!pj) continue;
-        io.to(camp.state.id).emit('xpAwarded', {
-          characterId: pj.id,
-          characterName: pj.characterName,
-          xpAwarded: award.xpAwarded,
-          newXp: pj.xp,
-        });
-        // Emite 1 levelUp por nível subido (no caso raro de subir N de uma vez)
-        for (const lu of award.levelUps) {
-          io.to(camp.state.id).emit('levelUp', {
-            characterId: pj.id,
-            characterName: pj.characterName,
-            oldLevel: lu.oldLevel,
-            newLevel: lu.newLevel,
-            hpGained: lu.hpGained,
-            proficiencyBonusGained: lu.proficiencyBonusGained,
-            slotsChanged: lu.slotsChanged,
-            level4ChoiceApplied: lu.level4ChoiceApplied,
-            notes: lu.notes,
-          });
-        }
-        // Persiste PJ com XP/level/HP/slots atualizados
-        try {
-          await saveCharacter(pj);
-        } catch (err) {
-          console.warn('[xp] saveCharacter falhou pra', pj.id, err);
-        }
-      }
-      camp.lastCombatXpAwards = [];
-    };
-
-    // Helper: broadcast thinking → ação → done
-    const withThinkingBroadcast = async <T>(
-      camp: Campaign,
-      playerId: string,
-      actionLabel: string,
-      fn: () => Promise<T>,
-    ): Promise<T> => {
-      const playerName = camp.party.find((p) => p.id === playerId)?.characterName ?? 'Alguém';
-      io.to(camp.state.id).emit('dmThinking', { playerId, playerName, action: actionLabel });
-      try {
-        return await fn();
-      } finally {
-        io.to(camp.state.id).emit('dmDone');
-      }
-    };
 
     // ── joinCampaign: cria/carrega campanha + adiciona character ──
     socket.on('joinCampaign', async ({ campaignId, ownerName, characterId }) => {
