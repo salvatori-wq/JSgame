@@ -12,11 +12,11 @@ export interface DMResponse {
   raw: string;
 }
 
-// Timeout 25s — Gemini Flash com prompt sistema longo (D&D persona + 7 tools)
-// passa de 15s em horários de pico. Ajustado pra dar margem antes do graceful
-// fallback. Soma com backoff: pior caso ~80s antes de UI degradar.
-const LLM_TIMEOUT_MS = 25_000;
-// Summarize/recap são chamadas leves — timeout menor pra não pendurar a UI.
+// Timeout 35s — cobre cascade interno (Gemini falha rápido com 429 + Groq 70b
+// com prompt longo + 7 tools pode levar 20-30s sem cache). Antes era 25s e
+// alguns chamados Groq lentos disparavam timeout antes da resposta chegar.
+const LLM_TIMEOUT_MS = 35_000;
+// Summarize/recap são chamadas leves (prompt curto, sem tools) — timeout 12s.
 const LLM_TIMEOUT_SHORT_MS = 12_000;
 
 export class DungeonMaster {
@@ -163,12 +163,16 @@ export class DungeonMaster {
 
   /**
    * Chama provider.generate com backoff exponencial em erros transientes (429/503).
-   * Total budget: ~4s (delays 1s + 3s) antes de propagar pra graceful fallback.
-   * Zero-budget alternative ao fallback Anthropic — espera Groq desbloquear sem
-   * dependência externa.
+   *
+   * Estratégia pós-cascade: como CascadeProvider já tenta Gemini→Groq→Anthropic
+   * internamente em UMA chamada, backoff aqui só ajuda em erros transientes que
+   * afetem TODOS os providers simultaneamente (ex: rede do Render lenta).
+   * Reduzimos pra 2 tentativas total com 2s entre elas — pior caso 35+2+35 = 72s
+   * mas só pra cenários patológicos. Caso normal é 1 chamada cascade-interna
+   * resolvendo em ~5-25s.
    */
   private async callWithBackoff(systemPrompt: string, userPrompt: string, withTools: boolean): Promise<{ text: string; toolCalls: DMToolCall[] }> {
-    const delays = [0, 1000, 3000]; // 3 tentativas, total ~4s antes de falhar
+    const delays = [0, 2000]; // 2 tentativas, total ~2s de espera entre elas
     let lastErr: unknown;
     for (let attempt = 0; attempt < delays.length; attempt++) {
       if (delays[attempt]! > 0) {
@@ -187,9 +191,11 @@ export class DungeonMaster {
       } catch (err) {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
-        // Só vale retry com backoff se erro transiente (rate limit/overload).
-        // 400/timeout/auth não se resolvem com espera — propaga já.
-        if (!/429|rate.?limit|503|502|504|overload/i.test(msg)) {
+        // Só vale retry com backoff se erro transiente (rate limit/overload/timeout).
+        // 400/auth/parse não se resolvem com espera — propaga já.
+        // Timeout AGORA é retriable: cascade pode ter ido até o último provider e
+        // ele estava lento; 2ª tentativa pode pegar um momento melhor.
+        if (!/429|rate.?limit|503|502|504|overload|timeout/i.test(msg)) {
           throw err;
         }
         console.warn(`[dm] tentativa ${attempt + 1}/${delays.length} falhou (transiente):`, msg.slice(0, 80));
