@@ -59,6 +59,45 @@ export interface ErrorBreakdown {
   recentEvents: ErrorEvent[];
 }
 
+// Timeline de TODAS narrações (success + error) agrupado por hora.
+// Útil pra ver picos de uso e identificar burst patterns.
+export async function getDmTimeline(daysBack = 1): Promise<{
+  windowStart: number;
+  windowEnd: number;
+  totalSuccess: number;
+  totalError: number;
+  hourlyBuckets: Array<{ hourUtc: string; success: number; error: number; total: number }>;
+}> {
+  const now = Date.now();
+  const since = now - daysBack * 24 * 60 * 60 * 1000;
+  const db = getDbClient();
+
+  const r = await db.execute({
+    sql: `SELECT created_at, kind FROM metrics_events
+          WHERE created_at >= ? AND kind IN ('narration_success', 'narration_error')
+          ORDER BY created_at ASC`,
+    args: [since],
+  });
+
+  const buckets = new Map<string, { success: number; error: number }>();
+  let totalSuccess = 0, totalError = 0;
+  for (const row of r.rows) {
+    const ts = Number(row.created_at);
+    const d = new Date(ts);
+    const hourKey = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00Z`;
+    if (!buckets.has(hourKey)) buckets.set(hourKey, { success: 0, error: 0 });
+    const b = buckets.get(hourKey)!;
+    if (row.kind === 'narration_success') { b.success++; totalSuccess++; }
+    else { b.error++; totalError++; }
+  }
+
+  const hourlyBuckets = Array.from(buckets.entries())
+    .map(([hourUtc, v]) => ({ hourUtc, success: v.success, error: v.error, total: v.success + v.error }))
+    .sort((a, b) => a.hourUtc.localeCompare(b.hourUtc));
+
+  return { windowStart: since, windowEnd: now, totalSuccess, totalError, hourlyBuckets };
+}
+
 export async function getDmErrorBreakdown(daysBack = 1): Promise<ErrorBreakdown> {
   const now = Date.now();
   const since = now - daysBack * 24 * 60 * 60 * 1000;

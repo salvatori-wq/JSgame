@@ -31,7 +31,7 @@ import {
 } from '../friends.js';
 import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
 import { detectAnomalies, computeFunnel } from '../anomaly-detector.js';
-import { getDmErrorBreakdown } from '../dm-error-breakdown.js';
+import { getDmErrorBreakdown, getDmTimeline } from '../dm-error-breakdown.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
 import type { DMInterface } from '../campaign.js';
@@ -114,6 +114,19 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json(result);
     } catch (err) {
       console.error('[api] anomalies:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // === DM timeline (pós-deploy 2026-05-26) — narrações por hora UTC pra
+  // visualizar picos de uso. Útil pra responder "quem está consumindo o free tier?".
+  app.get('/api/dm/timeline', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(30, Number(req.query.days) || 1));
+      const result = await getDmTimeline(days);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] dm timeline:', err);
       res.status(500).json({ error: String(err) });
     }
   });
