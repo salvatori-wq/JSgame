@@ -112,6 +112,15 @@ export class CerebrasProvider implements DMProvider {
       }
     }
 
+    // 2026-05-26 fix: Cerebras (esp. gpt-oss-120b) às vezes retorna text="" SEM tool_calls.
+    // Isso passava silencioso pro cascade (sem erro lançado), entupia o fluxo de
+    // narração vazia → degraded fallback no client. Detectado em prod via
+    // /api/dm/errors: 3x "empty narration after retry" eram desse cenário.
+    // Agora joga erro → CascadeProvider failover pro próximo provider funcional.
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Cerebras empty response: model=${this.model} finish_reason=${choice?.finish_reason ?? 'none'}`);
+    }
+
     return { text, toolCalls };
   }
 }

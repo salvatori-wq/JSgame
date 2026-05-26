@@ -103,4 +103,33 @@ describe('CerebrasProvider', () => {
     expect(r.toolCalls).toEqual([]);
     expect(r.text).toBe('narração');
   });
+
+  it('throw em response vazia (text="" + sem tool_calls) — caso gpt-oss-120b', async () => {
+    // Bug observado em prod 2026-05-26: Cerebras gpt-oss-120b retornava 200 OK
+    // com content="" e nenhum tool_call → cascade não failovava → degraded UX.
+    // Agora joga erro → cascade pula pro próximo provider.
+    mockFetch(() => new Response(JSON.stringify({
+      choices: [{ message: { content: '', tool_calls: [] }, finish_reason: 'stop' }],
+    }), { status: 200 }));
+    const p = new CerebrasProvider({ apiKey: 'k', model: 'gpt-oss-120b' });
+    await expect(p.generate({ systemPrompt: 's', userPrompt: 'u' }))
+      .rejects.toThrow(/empty response/i);
+  });
+
+  it('NÃO throw em response com tool_calls mas text vazia (válido — só tool)', async () => {
+    // Edge case legítimo: LLM responde APENAS com tool_call, text=null/"". OK.
+    mockFetch(() => new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: null,
+          tool_calls: [{ id: 't1', function: { name: 'roll', arguments: '{}' } }],
+        },
+        finish_reason: 'tool_calls',
+      }],
+    }), { status: 200 }));
+    const p = new CerebrasProvider({ apiKey: 'k', model: 'm' });
+    const r = await p.generate({ systemPrompt: 's', userPrompt: 'u' });
+    expect(r.toolCalls.length).toBe(1);
+    expect(r.text).toBe('');
+  });
 });

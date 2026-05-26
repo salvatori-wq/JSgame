@@ -63,7 +63,7 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   if (explicit === 'cerebras' && env.CEREBRAS_API_KEY) {
     return new CerebrasProvider({
       apiKey: env.CEREBRAS_API_KEY,
-      model: env.CEREBRAS_MODEL ?? 'gpt-oss-120b',
+      model: env.CEREBRAS_MODEL ?? 'llama-3.3-70b',
     });
   }
   if (explicit === 'gemini' && env.GEMINI_API_KEY) {
@@ -100,7 +100,7 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
   if (env.CEREBRAS_API_KEY) {
     available.push(new CerebrasProvider({
       apiKey: env.CEREBRAS_API_KEY,
-      model: env.CEREBRAS_MODEL ?? 'gpt-oss-120b',
+      model: env.CEREBRAS_MODEL ?? 'llama-3.3-70b',
     }));
   }
   if (env.GEMINI_API_KEY) {
