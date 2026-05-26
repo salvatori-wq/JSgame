@@ -79,3 +79,35 @@ git log --oneline | head -10
 - Execução rápida + decisões executivas (não perguntar muito)
 - Sempre que abrir nova conversa nesse projeto, comece lendo `HANDOFF_*.md` mais recente
 - Cave Run e JSgame em pastas isoladas — nunca cruzar config/código
+
+## Estado Atual
+
+> Última atualização: 2026-05-26 (fim sessão deploy + plano playtest)
+
+### Concluído nesta sessão
+- 12 commits novos (S2 + A3 + A4 + A5 + M1-4 + B6 + B7 + T1) — 469→533 tests verdes (+64)
+- Deploy prod live (`git push origin main` + manual deploy via Chrome MCP)
+- Gemini Flash ativo (env var configurada via Render dashboard, DM_PROVIDER removido pra auto-detect priorizar Gemini)
+- `/api/health` retorna: `hasGemini:true, activeProvider:DungeonMaster, dmProvider:auto`
+- Plano profundo de playtest documentado em `PLAYTEST_PLAN.md`
+
+### Pendente / Próximos passos
+- [ ] **Executar playtest seguindo `PLAYTEST_PLAN.md`** — 12 features novas precisam validação end-to-end (counterspell, dodge, auto-recap, friend invites, tutorial, etc)
+- [ ] Configurar `BREVO_API_KEY` no Render (atualmente friend invites vão em dev-log)
+- [ ] TODOs técnicos do handoff: split `connection.ts` (648 LOC), split `campaign.ts` (932 LOC), hook telemetria em mais pontos, pact magic warlock, spell slots nv 6-9
+
+### Decisões importantes desta sessão
+- DM_PROVIDER deletado do env: factory.ts auto-detect prioriza Gemini > Anthropic > Groq por qualidade
+- vitest.config.ts criado com `singleFork:true` pra evitar SQLITE_BUSY entre test files
+- Counterspell mecânico: dm-tool-applier bloqueia apply_damage/apply_condition quando pendingEnemySpell.cancelled
+- Dodge: combat-flag `dodging` impõe disadvantage; limpa no INÍCIO do próximo turno (PHB pág 192)
+
+### Arquivos-chave criados nesta sessão
+- `src/server/friends.ts` — friend graph + invite por email
+- `src/server/metrics.ts` — telemetria DAU/WAU/error rate
+- `src/server/campaign-handlers/{item,rest}-handler.ts` — split de campaign.ts
+- `src/dnd/consumables.ts` — catálogo poções id-based
+- `src/client/toast.ts` — toast UI genérico
+- `src/client/campaign/exploration-tutorial.ts` — tutorial 6 cards
+- `PLAYTEST_PLAN.md` — protocolo de playtest + bug-fix eficiente
+- `HANDOFF_2026-05-26_playtest-pronto.md` — handoff abertura próxima sessão
