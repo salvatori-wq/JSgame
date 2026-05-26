@@ -36,8 +36,9 @@ import { consumeBuffs, clearAllBuffs, tickBuffsEndOfTurn } from './buff-engine.j
 import type { SpellId } from '../dnd/spells.js';
 import { getClass } from '../dnd/classes.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
-import { rollDice, parseDiceNotation } from '../dnd/dice.js';
-import { getConsumable, inferConsumableEffectFromName } from '../dnd/consumables.js';
+import { rollDice } from '../dnd/dice.js';
+import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
+import { handleShortRest, handleLongRest, handleRollDeathSave } from './campaign-handlers/rest-handler.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
@@ -658,71 +659,13 @@ export class Campaign {
   // Rest — short (gasta hit dice, cura) + long (full restore)
   // ════════════════════════════════════════════════════════════════════════
 
+  // A5 — Rest handlers delegam pra campaign-handlers/rest-handler.ts.
   async shortRest(playerId: string, hitDiceToSpend: number): Promise<{ ok: boolean; healed: number; diceSpent: number; reason?: string }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, healed: 0, diceSpent: 0, reason: 'jogador não encontrado' };
-      if (this.state.combat?.active) return { ok: false, healed: 0, diceSpent: 0, reason: 'sem descanso durante combate' };
-
-      const spend = Math.max(0, Math.min(hitDiceToSpend, player.hitDiceRemaining));
-      if (spend === 0) return { ok: false, healed: 0, diceSpent: 0, reason: 'sem hit dice disponíveis' };
-
-      const klass = getClass(player.classId);
-      const conMod = Math.floor((player.abilityScores.con - 10) / 2);
-      const roll = rollDice(spend, klass.hitDie, conMod * spend);
-      const healed = Math.max(spend, roll.total); // pelo menos N pontos (1 por die)
-      const oldHp = player.currentHp;
-      player.currentHp = Math.min(player.maxHp, player.currentHp + healed);
-      const actual = player.currentHp - oldHp;
-      player.hitDiceRemaining = Math.max(0, player.hitDiceRemaining - spend);
-
-      // Cura traz de volta da inconsciência
-      if (actual > 0 && player.conditions.includes('inconsciente')) {
-        player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
-        player.deathSaveSuccesses = 0;
-        player.deathSaveFailures = 0;
-      }
-
-      // F23 — restaura features short-rest (action-surge, second-wind, channel-divinity, ki, wild-shape)
-      restoreOnShortRest(player);
-
-      this.pushRecentEvent(`${player.characterName} descansou curto: gastou ${spend} hit dice, curou ${actual} HP`);
-      return { ok: true, healed: actual, diceSpent: spend };
-    });
+    return this.enqueue(() => handleShortRest(this, playerId, hitDiceToSpend));
   }
 
   async longRest(playerId: string): Promise<{ ok: boolean; healed: number; reason?: string }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, healed: 0, reason: 'jogador não encontrado' };
-      if (this.state.combat?.active) return { ok: false, healed: 0, reason: 'sem descanso durante combate' };
-
-      const oldHp = player.currentHp;
-      player.currentHp = player.maxHp;
-      // Hit dice: recupera metade do total max (min 1)
-      const totalDice = player.level; // max hit dice = level
-      const recovered = Math.max(1, Math.floor(totalDice / 2));
-      player.hitDiceRemaining = Math.min(totalDice, player.hitDiceRemaining + recovered);
-      // Spell slots full restore
-      restoreAllSlots(player);
-      // Cura conditions de batalha
-      player.conditions = player.conditions.filter((c) => c !== 'inconsciente' && c !== 'envenenado' && c !== 'amedrontado');
-      player.deathSaveSuccesses = 0;
-      player.deathSaveFailures = 0;
-      // Long rest reduz exaustão em 1
-      player.exhaustion = Math.max(0, player.exhaustion - 1);
-      // F23 — restaura todas as features (long-rest reseta tudo)
-      restoreOnLongRest(player);
-      // F25 — sai de concentration
-      player.concentratingOn = null;
-      // A2 — long rest limpa buffs ativos
-      clearAllBuffs(player);
-
-      this.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);
-      // F17: credita long_rest event
-      this.pushAchievementEvent(player.id, { kind: 'long_rest' });
-      return { ok: true, healed: player.currentHp - oldHp };
-    });
+    return this.enqueue(() => handleLongRest(this, playerId));
   }
 
   // F23 — Class feature: aplica efeito (rage, surge, second-wind, etc).
@@ -746,6 +689,7 @@ export class Campaign {
   // 3 sucessos = estabiliza. 3 falhas = morre (deathCount++).
   // ════════════════════════════════════════════════════════════════════════
 
+  // A5 — Death save handler delegado.
   async rollDeathSave(playerId: string): Promise<{
     ok: boolean;
     rollTotal?: number;
@@ -758,219 +702,24 @@ export class Campaign {
     failures?: number;
     reason?: string;
   }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, reason: 'jogador não encontrado' };
-      if (player.currentHp > 0) return { ok: false, reason: 'só precisa de death save em HP=0' };
-      if (player.deathSaveSuccesses >= 3) return { ok: false, reason: 'já estabilizou' };
-      if (player.deathSaveFailures >= 3) return { ok: false, reason: 'já morreu' };
-
-      const roll = rollD20();
-      const total = roll.total;
-      let stabilized = false;
-      let died = false;
-
-      if (roll.nat20) {
-        // Recupera 1 HP
-        player.currentHp = 1;
-        player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
-        player.deathSaveSuccesses = 0;
-        player.deathSaveFailures = 0;
-        this.pushRecentEvent(`${player.characterName} rolou NAT 20 no death save — recupera 1 HP`);
-      } else if (roll.nat1) {
-        player.deathSaveFailures = Math.min(3, player.deathSaveFailures + 2);
-        this.pushRecentEvent(`${player.characterName} rolou NAT 1 — duas falhas (${player.deathSaveFailures}/3)`);
-      } else if (total >= 10) {
-        player.deathSaveSuccesses += 1;
-        if (player.deathSaveSuccesses >= 3) {
-          stabilized = true;
-          player.deathSaveSuccesses = 0;
-          player.deathSaveFailures = 0;
-          this.pushRecentEvent(`${player.characterName} estabilizou (3 sucessos)`);
-        } else {
-          this.pushRecentEvent(`${player.characterName} death save sucesso (${player.deathSaveSuccesses}/3)`);
-        }
-      } else {
-        player.deathSaveFailures += 1;
-        if (player.deathSaveFailures >= 3) {
-          died = true;
-          player.deathCount += 1;
-          this.pushRecentEvent(`${player.characterName} morreu (3 falhas)`);
-        } else {
-          this.pushRecentEvent(`${player.characterName} death save falha (${player.deathSaveFailures}/3)`);
-        }
-      }
-
-      // F17: emite death_save event pra creditar survivor/first_death etc.
-      this.pushAchievementEvent(player.id, {
-        kind: 'death_save',
-        success: total >= 10 || !!roll.nat20,
-        nat20: !!roll.nat20,
-        nat1: !!roll.nat1,
-        stabilized,
-        died,
-      });
-
-      return {
-        ok: true,
-        rollTotal: total,
-        success: total >= 10 || !!roll.nat20,
-        nat20: !!roll.nat20,
-        nat1: !!roll.nat1,
-        stabilized,
-        died,
-        successes: player.deathSaveSuccesses,
-        failures: player.deathSaveFailures,
-      };
-    });
+    return this.enqueue(() => handleRollDeathSave(this, playerId));
   }
 
   // ════════════════════════════════════════════════════════════════════════
   // Inventory — use/equip/unequip items
   // ════════════════════════════════════════════════════════════════════════
 
+  // A5 — Item handlers delegam pra src/server/campaign-handlers/item-handler.ts.
   async useItem(playerId: string, itemId: string): Promise<{ ok: boolean; message: string; effectApplied?: string }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, message: 'jogador não encontrado' };
-      const idx = player.inventory.findIndex((i) => i.id === itemId);
-      if (idx < 0) return { ok: false, message: 'item não está no inventário' };
-      const item = player.inventory[idx]!;
-
-      // Apenas consumíveis usam diretamente
-      if (item.type !== 'consumivel') {
-        return { ok: false, message: `${item.name} não é consumível` };
-      }
-
-      // M4 — Resolve effect: prioriza catálogo CONSUMABLES (id-based), depois name-match (legado).
-      const fromCatalog = getConsumable(item.id);
-      const effect = fromCatalog
-        ? fromCatalog.effect
-        : (inferConsumableEffectFromName(item.name) ?? { kind: 'narrative' as const });
-
-      let effectApplied = '';
-      switch (effect.kind) {
-        case 'heal': {
-          const dice = effect.heal!.dice;
-          // dice pode ser tipo "10" (constante) ou "2d4" — parseia
-          const numericConst = /^\d+$/.test(dice) ? parseInt(dice, 10) : null;
-          const rollTotal = numericConst !== null
-            ? numericConst
-            : (parseDiceNotation(dice)
-              ? rollDice(parseDiceNotation(dice)!.count, parseDiceNotation(dice)!.kind, parseDiceNotation(dice)!.modifier).total
-              : 0);
-          const total = rollTotal + (effect.heal!.bonus ?? 0);
-          const oldHp = player.currentHp;
-          player.currentHp = Math.min(player.maxHp, player.currentHp + total);
-          const healed = player.currentHp - oldHp;
-          if (healed > 0 && player.conditions.includes('inconsciente')) {
-            player.conditions = player.conditions.filter((c) => c !== 'inconsciente');
-          }
-          effectApplied = `Curou ${healed} HP`;
-          break;
-        }
-        case 'remove-condition': {
-          const removed: string[] = [];
-          for (const c of effect.removesConditions ?? []) {
-            if (player.conditions.includes(c)) {
-              player.conditions = player.conditions.filter((x) => x !== c);
-              removed.push(c);
-            }
-          }
-          effectApplied = removed.length > 0 ? `Removeu: ${removed.join(', ')}` : 'Nada a remover';
-          break;
-        }
-        case 'temp-hp': {
-          const dice = effect.tempHp!.dice;
-          const numericConst = /^\d+$/.test(dice) ? parseInt(dice, 10) : null;
-          const rollTotal = numericConst !== null
-            ? numericConst
-            : (parseDiceNotation(dice)
-              ? rollDice(parseDiceNotation(dice)!.count, parseDiceNotation(dice)!.kind, parseDiceNotation(dice)!.modifier).total
-              : 0);
-          const total = rollTotal + (effect.tempHp!.bonus ?? 0);
-          // Temp HP NÃO se acumula — usa o MAIOR (PHB pág 198)
-          player.tempHp = Math.max(player.tempHp, total);
-          effectApplied = `+${total} HP temporário`;
-          break;
-        }
-        case 'narrative':
-        default:
-          effectApplied = `Usou ${item.name} (efeito narrado pelo Mestre)`;
-      }
-
-      // Consome quantity
-      item.quantity -= 1;
-      if (item.quantity <= 0) {
-        player.inventory.splice(idx, 1);
-      }
-      this.pushRecentEvent(`${player.characterName} usou ${item.name}: ${effectApplied}`);
-      return { ok: true, message: `${player.characterName} usou ${item.name}`, effectApplied };
-    });
+    return this.enqueue(() => handleUseItem(this, playerId, itemId));
   }
 
   async equipItem(playerId: string, itemId: string, slot: 'weapon' | 'armor' | 'shield'): Promise<{ ok: boolean; message: string }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, message: 'jogador não encontrado' };
-      const item = player.inventory.find((i) => i.id === itemId);
-      if (!item) return { ok: false, message: 'item não está no inventário' };
-
-      // Valida tipo conforme slot
-      if (slot === 'weapon' && item.type !== 'arma') return { ok: false, message: `${item.name} não é arma` };
-      if (slot === 'armor' && item.type !== 'armadura') return { ok: false, message: `${item.name} não é armadura` };
-      if (slot === 'shield' && item.type !== 'escudo') return { ok: false, message: `${item.name} não é escudo` };
-
-      if (slot === 'weapon') {
-        if (!player.equippedWeapons.includes(itemId)) {
-          // Até 2 armas
-          if (player.equippedWeapons.length >= 2) player.equippedWeapons.shift();
-          player.equippedWeapons.push(itemId);
-        }
-      } else if (slot === 'armor') {
-        player.equippedArmor = itemId;
-        // Re-calcula AC: armadura média = 14 + DEX(max 2); leve = 11 + DEX; pesada = base fixo
-        // Pra MVP, usa nome do item:
-        const conMod = Math.floor((player.abilityScores.des - 10) / 2);
-        const armorName = item.name.toLowerCase();
-        if (/couro/.test(armorName)) player.armorClass = 11 + conMod;
-        else if (/cota.*malha|chain/.test(armorName)) player.armorClass = 13 + Math.min(2, conMod);
-        else if (/cota.*placas|plate/.test(armorName)) player.armorClass = 18;
-        else player.armorClass = 12 + conMod;
-      } else if (slot === 'shield') {
-        player.equippedShield = itemId;
-        player.armorClass += 2;
-      }
-      this.pushRecentEvent(`${player.characterName} equipou ${item.name}`);
-      return { ok: true, message: `${player.characterName} equipou ${item.name}` };
-    });
+    return this.enqueue(() => handleEquipItem(this, playerId, itemId, slot));
   }
 
   async unequipItem(playerId: string, slot: 'weapon' | 'armor' | 'shield', itemId?: string): Promise<{ ok: boolean; message: string }> {
-    return this.enqueue(async () => {
-      const player = this.party.find((p) => p.id === playerId);
-      if (!player) return { ok: false, message: 'jogador não encontrado' };
-
-      if (slot === 'weapon') {
-        if (itemId) {
-          player.equippedWeapons = player.equippedWeapons.filter((w) => w !== itemId);
-        } else {
-          player.equippedWeapons = [];
-        }
-      } else if (slot === 'armor') {
-        player.equippedArmor = undefined;
-        const conMod = Math.floor((player.abilityScores.des - 10) / 2);
-        player.armorClass = 10 + conMod;
-        if (player.equippedShield) player.armorClass += 2;
-      } else if (slot === 'shield') {
-        if (player.equippedShield) {
-          player.equippedShield = undefined;
-          player.armorClass -= 2;
-        }
-      }
-      this.pushRecentEvent(`${player.characterName} desequipou ${slot}`);
-      return { ok: true, message: `${player.characterName} desequipou ${slot}` };
-    });
+    return this.enqueue(() => handleUnequipItem(this, playerId, slot, itemId));
   }
 
   // ════════════════════════════════════════════════════════════════════════
