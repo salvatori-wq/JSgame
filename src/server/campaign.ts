@@ -82,6 +82,7 @@ export class Campaign {
       lastPlayedAt: now,
       pendingCheck: null,
       combat: null,
+      quests: [],
     };
   }
 
@@ -1116,6 +1117,98 @@ export class Campaign {
         // F17: credita "location_visited" pra todos PJs presentes
         for (const pj of this.party) {
           this.pushAchievementEvent(pj.id, { kind: 'location_visited', location: tool.location });
+        }
+        break;
+      }
+
+      // F18 — Quest tracking
+      case 'set_quest': {
+        if (!this.state.quests) this.state.quests = [];
+        // Idempotente: se já existe quest com este id (active OR completed), ignore re-create
+        const existing = this.state.quests.find((q) => q.id === tool.questId);
+        if (existing) {
+          // Se a quest já está completa, não a "ressuscita". Se ativa, atualiza title/desc/objs.
+          if (existing.status === 'active') {
+            existing.title = tool.title;
+            existing.description = tool.description;
+            // Merge objetivos por id — preserva flag done de existentes
+            const newObjs = tool.objectives.map((o) => {
+              const prev = existing.objectives.find((x) => x.id === o.id);
+              return { id: o.id, description: o.description, done: prev?.done ?? false };
+            });
+            existing.objectives = newObjs;
+            existing.rewardXp = tool.rewardXp;
+            if (tool.giver) existing.giver = tool.giver;
+            this.pushRecentEvent(`Quest atualizada: ${tool.title}`);
+          }
+        } else {
+          const quest = {
+            id: tool.questId,
+            title: tool.title,
+            description: tool.description,
+            objectives: tool.objectives.map((o) => ({ id: o.id, description: o.description, done: false })),
+            status: 'active' as const,
+            rewardXp: tool.rewardXp,
+            giver: tool.giver,
+            acceptedAt: Date.now(),
+          };
+          this.state.quests.push(quest);
+          this.pushRecentEvent(`Nova quest: ${tool.title}${tool.giver ? ` (de ${tool.giver})` : ''}`);
+          // RAG indexa como kind=promise importance=1.7 — alta prioridade pro DM lembrar
+          this.indexFact({
+            kind: 'promise',
+            text: `Quest "${tool.title}": ${tool.description}${tool.giver ? ` Dada por ${tool.giver}.` : ''} Reward ${tool.rewardXp} XP.`,
+            tags: `quest missao promessa ${tool.title.toLowerCase()} ${tool.giver?.toLowerCase() ?? ''}`,
+            importance: 1.7,
+          });
+        }
+        break;
+      }
+
+      case 'update_objective': {
+        const quest = this.state.quests?.find((q) => q.id === tool.questId);
+        if (!quest || quest.status !== 'active') break;
+        const obj = quest.objectives.find((o) => o.id === tool.objectiveId);
+        if (!obj) break;
+        obj.done = tool.done;
+        this.pushRecentEvent(`Quest "${quest.title}": ${obj.description} ${tool.done ? '✓' : '○'}${tool.note ? ` — ${tool.note}` : ''}`);
+        if (tool.done) {
+          this.indexFact({
+            kind: 'event',
+            text: `Quest "${quest.title}" avançou: ${obj.description}${tool.note ? ` — ${tool.note}` : ''}.`,
+            tags: `quest objetivo ${quest.title.toLowerCase()}`,
+            importance: 1.3,
+          });
+        }
+        break;
+      }
+
+      case 'complete_quest': {
+        const quest = this.state.quests?.find((q) => q.id === tool.questId);
+        if (!quest || quest.status !== 'active') break;
+        quest.status = tool.outcome === 'success' ? 'completed' : 'failed';
+        quest.completedAt = Date.now();
+        this.pushRecentEvent(`Quest ${tool.outcome === 'success' ? 'CONCLUÍDA' : 'FALHOU'}: ${quest.title} — ${tool.summary}`);
+        this.indexFact({
+          kind: 'event',
+          text: `Quest "${quest.title}" ${tool.outcome === 'success' ? 'concluída' : 'falhou'}: ${tool.summary}`,
+          tags: `quest desfecho ${tool.outcome} ${quest.title.toLowerCase()}`,
+          importance: 1.5,
+        });
+        // Sucesso → distribui rewardXp à party viva (mesma fórmula F16)
+        if (tool.outcome === 'success' && quest.rewardXp > 0) {
+          const awards = awardXpToParty(this.party, quest.rewardXp);
+          // Anexa aos lastCombatXpAwards pra server emit xpAwarded + levelUp
+          // (reusa pipeline F16 — UI já trata)
+          this.lastCombatXpAwards = [...(this.lastCombatXpAwards ?? []), ...awards];
+          for (const r of awards) {
+            if (r.levelUps.length > 0) {
+              this.pushRecentEvent(`${r.characterName} subiu pra nível ${r.levelUps[r.levelUps.length - 1]!.newLevel} (reward de quest)`);
+              for (const lu of r.levelUps) {
+                this.pushAchievementEvent(r.characterId, { kind: 'level_up', oldLevel: lu.oldLevel, newLevel: lu.newLevel });
+              }
+            }
+          }
         }
         break;
       }

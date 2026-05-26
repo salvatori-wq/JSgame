@@ -19,6 +19,7 @@ import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 import { openMemoryModal } from './memory-modal';
+import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
@@ -79,6 +80,7 @@ export class CampaignScreen {
     closeSkillCheck();
     closeCastSpellModal();
     closeInventoryModal();
+    closeQuestLog();
   }
 
   private bindSocket(): void {
@@ -389,6 +391,18 @@ export class CampaignScreen {
           click: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
         },
       }) : null,
+      // F18 — quest log
+      el('button', {
+        class: 'camp-mem-btn',
+        text: '📜',
+        attrs: { title: 'Quest Log (missões ativas)' },
+        on: {
+          click: () => openQuestLog({
+            quests: this.currentState?.quests ?? [],
+            onClose: () => { /* nothing */ },
+          }),
+        },
+      }),
       campId ? el('button', {
         class: 'camp-share-btn',
         text: '🔗 Compartilhar',

@@ -133,6 +133,31 @@ export interface InventoryItem {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// Quest — F18. Missões com objetivos, dadas/atualizadas/completadas por DM tools.
+// Persiste em CampaignState.quests. RAG indexa como kind=promise importance=1.7.
+// ════════════════════════════════════════════════════════════════════════════
+
+export type QuestStatus = 'active' | 'completed' | 'failed';
+
+export interface QuestObjective {
+  id: string;
+  description: string;
+  done: boolean;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;        // narrativo curto
+  objectives: QuestObjective[];
+  status: QuestStatus;
+  rewardXp: number;           // XP distribuído à party na complete_quest
+  giver?: string;             // nome do NPC que deu (display only)
+  acceptedAt: number;
+  completedAt?: number;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // MemoryFact — memória persistente do Mestre (RAG via FTS5).
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -179,6 +204,8 @@ export interface CampaignState {
   pendingCheck: { skill: SkillId; dc: number; reason: string; playerId: string } | null;
   // Combate ativo (ou null em exploration)
   combat: CombatState | null;
+  // F18 — Quests dadas pelo Mestre via DM tools. Persistem entre sessões.
+  quests?: Quest[];
 }
 
 // Combate

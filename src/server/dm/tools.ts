@@ -19,7 +19,11 @@ export type ValidatedTool =
   | { kind: 'npc_speaks'; name: string; archetype: string; attitude: 'amigavel' | 'neutro' | 'hostil' | 'misterioso' }
   | { kind: 'give_item'; playerId: string; itemName: string; type: 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc'; quantity: number; description: string }
   | { kind: 'advance_time'; amount: string; reason: string }
-  | { kind: 'describe_scene'; location: string; description: string };
+  | { kind: 'describe_scene'; location: string; description: string }
+  // F18 — Quest tracking
+  | { kind: 'set_quest'; questId: string; title: string; description: string; objectives: Array<{ id: string; description: string }>; rewardXp: number; giver?: string }
+  | { kind: 'update_objective'; questId: string; objectiveId: string; done: boolean; note?: string }
+  | { kind: 'complete_quest'; questId: string; outcome: 'success' | 'failure'; summary: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -153,6 +157,44 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
       if (!location) return null;
       const description = String(input.description ?? '').slice(0, 400);
       return { kind: 'describe_scene', location, description };
+    }
+
+    case 'set_quest': {
+      const title = String(input.title ?? '').slice(0, 80);
+      if (!title) return null;
+      const description = String(input.description ?? '').slice(0, 400);
+      const questId = String(input.questId ?? '').slice(0, 60) || `quest-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const rewardXp = clamp(Number(input.rewardXp) || 100, 0, 10000);
+      const giver = input.giver ? String(input.giver).slice(0, 60) : undefined;
+      const rawObjectives = Array.isArray(input.objectives) ? input.objectives : [];
+      const objectives = rawObjectives
+        .filter((o: unknown): o is Record<string, unknown> => typeof o === 'object' && o !== null)
+        .map((o, idx) => ({
+          id: String(o.id ?? `obj-${idx + 1}`).slice(0, 40),
+          description: String(o.description ?? '').slice(0, 200),
+        }))
+        .filter((o) => o.description.length > 0)
+        .slice(0, 8);
+      if (objectives.length === 0) return null;
+      return { kind: 'set_quest', questId, title, description, objectives, rewardXp, giver };
+    }
+
+    case 'update_objective': {
+      const questId = String(input.questId ?? '').slice(0, 60);
+      const objectiveId = String(input.objectiveId ?? '').slice(0, 40);
+      if (!questId || !objectiveId) return null;
+      const done = input.done === undefined ? true : !!input.done;
+      const note = input.note ? String(input.note).slice(0, 200) : undefined;
+      return { kind: 'update_objective', questId, objectiveId, done, note };
+    }
+
+    case 'complete_quest': {
+      const questId = String(input.questId ?? '').slice(0, 60);
+      if (!questId) return null;
+      const outcome = String(input.outcome ?? 'success').toLowerCase();
+      const validOutcome: 'success' | 'failure' = outcome === 'failure' ? 'failure' : 'success';
+      const summary = String(input.summary ?? '').slice(0, 400);
+      return { kind: 'complete_quest', questId, outcome: validOutcome, summary };
     }
 
     default:

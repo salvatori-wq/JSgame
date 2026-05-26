@@ -67,6 +67,9 @@ Use TOOLS quando ação narrativa exigir mecânica:
 - give_item: dar item ao player (loot, presente, troca)
 - advance_time: passar tempo (horas, dia/noite)
 - describe_scene: setar/mudar local atual
+- set_quest: quando NPC dá missão OU party descobre algo perseguível ("salve a vila", "ache o cristal"). Use questId único curto.
+- update_objective: quando party cumpre um passo de quest ativa
+- complete_quest: quando todos objetivos cumpridos (success) OU quest virou impossível (failure). Success distribui rewardXp.
 
 Ferramentas validadas server-side (rejeita inputs inválidos). Você sugere — server decide.
 
@@ -256,6 +259,59 @@ export const DM_TOOLS: DMToolDef[] = [
       required: ['location'],
     },
   },
+  {
+    name: 'set_quest',
+    description: 'Registra uma quest/missão dada por NPC ou descoberta. Aparece no quest log do player. Use questId único curto (ex: "salvar-vila", "achar-cristal"). Objetivos são passos atomicos pra rastrear.',
+    schema: {
+      type: 'object',
+      properties: {
+        questId: { type: 'string', description: 'ID curto e único (snake-case). Ex: "salvar-vila-mortis"' },
+        title: { type: 'string', description: 'Título da quest (≤60 chars)' },
+        description: { type: 'string', description: 'Descrição narrativa (2-3 frases). O "o quê" e "por quê".' },
+        objectives: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'ID curto do objetivo (ex: "achar-mapa")' },
+              description: { type: 'string', description: 'O que precisa ser feito (1 frase)' },
+            },
+          },
+          description: '1-8 objetivos. Cada um é um passo concreto pra completar a quest.',
+        },
+        rewardXp: { type: 'number', description: 'XP que será distribuído à party ao completar (default 100). Escale com dificuldade: trivial=50, médio=200, épico=1000.' },
+        giver: { type: 'string', description: 'Nome do NPC que deu a quest (opcional, pra display)' },
+      },
+      required: ['questId', 'title', 'description', 'objectives'],
+    },
+  },
+  {
+    name: 'update_objective',
+    description: 'Marca um objetivo de uma quest como feito (ou desfaz). Use quando party completa um passo de uma quest ativa.',
+    schema: {
+      type: 'object',
+      properties: {
+        questId: { type: 'string', description: 'ID da quest existente' },
+        objectiveId: { type: 'string', description: 'ID do objetivo dentro da quest' },
+        done: { type: 'boolean', description: 'true = marcar como feito (default). false = desfazer.' },
+        note: { type: 'string', description: 'Nota narrativa opcional sobre como foi resolvido' },
+      },
+      required: ['questId', 'objectiveId'],
+    },
+  },
+  {
+    name: 'complete_quest',
+    description: 'Encerra uma quest. outcome=success → distribui rewardXp à party (level-ups aplicados auto). outcome=failure → quest fica como falha (sem reward). Use quando todos os objetivos foram cumpridos OU quando a quest se torna impossível.',
+    schema: {
+      type: 'object',
+      properties: {
+        questId: { type: 'string', description: 'ID da quest a encerrar' },
+        outcome: { type: 'string', enum: ['success', 'failure'], description: 'Resultado final' },
+        summary: { type: 'string', description: 'Como a quest terminou (1-2 frases). Vira fact narrativo permanente.' },
+      },
+      required: ['questId', 'outcome', 'summary'],
+    },
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -323,6 +379,16 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     ? `\n## NPCs JÁ APARECIDOS (use-os, NÃO invente novos)\n${ctx.campaign.npcsMet.map((n) => `- ${n.name} (${n.archetype}, ${n.attitude}) — última vez: ${n.lastSeen}`).join('\n')}`
     : '';
 
+  // F18 — Quests ativas. Mestre DEVE avançar/encerrar via tools quando contextualmente
+  // apropriado. Não inventar quests novas se já existem (use IDs existentes).
+  const activeQuests = (ctx.campaign.quests ?? []).filter((q) => q.status === 'active');
+  const questsBlock = activeQuests.length > 0
+    ? `\n## QUESTS ATIVAS (use update_objective/complete_quest quando avançar)\n${activeQuests.map((q) => {
+        const objs = q.objectives.map((o) => `${o.done ? '✓' : '○'} [${o.id}] ${o.description}`).join('\n    ');
+        return `- **${q.title}** (id: ${q.id}${q.giver ? `, de ${q.giver}` : ''}) — reward ${q.rewardXp} XP\n    Objetivos:\n    ${objs}`;
+      }).join('\n')}`
+    : '';
+
   return `## CONTEXTO DA CAMPANHA
 **Campanha**: ${ctx.campaign.name}
 **Sessão**: ${ctx.campaign.sessionNumber}
@@ -332,6 +398,7 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
 ## A PARTY
 ${partySummary}
 ${npcsBlock}
+${questsBlock}
 
 ## FLAGS DO MUNDO
 ${Object.entries(ctx.campaign.worldFlags).length === 0 ? '(nenhuma ainda)' : Object.entries(ctx.campaign.worldFlags).map(([k, v]) => `- ${k}: ${v}`).join('\n')}

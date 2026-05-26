@@ -656,6 +656,10 @@ async function main(): Promise<void> {
             speaker: response.speaker ?? 'Mestre',
             mood: 'neutral',
           });
+          // F18: complete_quest pode ter deixado XP awards pendentes — flush
+          if (camp.lastCombatXpAwards && camp.lastCombatXpAwards.length > 0) {
+            await flushPostCombatRewards(camp);
+          }
           broadcastState(camp);
           await drainAchievements(camp);
           await saveCampaign(camp.state);

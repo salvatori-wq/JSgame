@@ -2314,6 +2314,136 @@ body.is-portrait-narrow .sc-die {
   margin-top: 8px;
   font-size: 12px;
 }
+
+/* F18 — Quest log modal */
+.qlm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  animation: lvlup-fade-in 0.2s ease;
+}
+.qlm-card {
+  background: linear-gradient(180deg, #1a1308 60%, #2a1f0d);
+  border: 1.5px solid #b88030;
+  border-radius: 8px;
+  padding: 18px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+.qlm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(184, 128, 48, 0.3);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.qlm-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: #f0c050;
+  margin: 0;
+  letter-spacing: 1px;
+}
+.qlm-close-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--ink-soft);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.qlm-close-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.qlm-section {
+  margin: 14px 0 8px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: #f0c050;
+}
+.qlm-section-done { color: #80b850; }
+.qlm-section-failed { color: #c06040; }
+.qlm-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.qlm-quest {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(184, 128, 48, 0.3);
+  border-radius: 5px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.qlm-quest-completed {
+  opacity: 0.7;
+  border-color: rgba(128, 184, 80, 0.4);
+}
+.qlm-quest-failed {
+  opacity: 0.5;
+  border-color: rgba(192, 96, 64, 0.4);
+}
+.qlm-quest-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.qlm-quest-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: var(--ink-warm);
+}
+.qlm-quest-giver {
+  font-size: 10px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.qlm-quest-desc {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 6px 0 8px;
+  line-height: 1.4;
+}
+.qlm-quest-objs {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+.qlm-obj {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+  color: var(--ink-soft);
+}
+.qlm-obj.is-done {
+  color: var(--ink-mute);
+  text-decoration: line-through;
+}
+.qlm-obj-mark {
+  color: #f0c050;
+  width: 14px;
+  flex-shrink: 0;
+}
+.qlm-obj.is-done .qlm-obj-mark { color: #80b850; }
+.qlm-quest-reward {
+  font-size: 11px;
+  color: #b88030;
+  margin-top: 6px;
+  font-family: monospace;
+}
 .cp-pj-cond {
   font-size: 10px;
   color: #d08840;
