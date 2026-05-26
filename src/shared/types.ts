@@ -367,6 +367,9 @@ export interface ServerToClientEvents {
   lobbyRedirect: (payload: { campaignId: string }) => void;
   partyUpdate: (characters: CharacterSheet[]) => void;
   combatState: (state: CombatState | null) => void;
+  // 1B — Combat-local flags (rage, action-surge, etc) por characterId. Server emit
+  // junto com combatState, vai pro client renderizar badges de rage no party panel.
+  combatFlags: (flags: Record<string, string[]>) => void;
   dmNarration: (payload: { text: string; speaker?: string; mood?: 'sombrio' | 'sarcastico' | 'trickster' | 'neutral' }) => void;
   diceRollResult: (payload: { source: string; roll: DiceRoll; purpose: string }) => void;
   characterUpdate: (character: CharacterSheet) => void;

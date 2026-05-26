@@ -38,6 +38,7 @@ import {
 import { saveTombstone, listTombstonesForUser } from './tombstones.js';
 import { bumpStreak, getStreak } from './streaks.js';
 import { saveHighlight, listHighlightsForUser } from './highlights.js';
+import { serializeCombatFlags } from './class-features-engine.js';
 
 // Render usa PORT (default 10000). Local usa SERVER_PORT (default 3001).
 const PORT = parseInt(process.env.PORT ?? process.env.SERVER_PORT ?? '3001', 10);
@@ -513,6 +514,12 @@ async function main(): Promise<void> {
       io.to(camp.state.id).emit('campaignState', camp.state);
       io.to(camp.state.id).emit('partyUpdate', camp.party);
       io.to(camp.state.id).emit('combatState', camp.state.combat);
+      // 1B — Combat-local flags (rage, action-surge) por characterId pro client.
+      if (camp.state.combat?.active) {
+        io.to(camp.state.id).emit('combatFlags', serializeCombatFlags(camp.state.combat));
+      } else {
+        io.to(camp.state.id).emit('combatFlags', {});
+      }
     };
 
     // F20: drena highlights pendentes do Campaign + persiste por user.

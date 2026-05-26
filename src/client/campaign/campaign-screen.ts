@@ -58,6 +58,8 @@ export class CampaignScreen {
   private skillCheckOverlay: PendingCheck | null = null;
   private dmThinkingBy: { playerName: string; action: string } | null = null;
   private combatLog: string[] = [];
+  // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
+  private combatFlags: Record<string, string[]> = {};
   private socketBound = false;
   private socketCleanups: Array<() => void> = [];
 
@@ -166,6 +168,13 @@ export class CampaignScreen {
     };
     s.on('combatState', onCombat);
     this.socketCleanups.push(() => s.off('combatState', onCombat));
+
+    const onCombatFlags = (flags: Record<string, string[]>): void => {
+      this.combatFlags = flags;
+      this.render();
+    };
+    s.on('combatFlags', onCombatFlags);
+    this.socketCleanups.push(() => s.off('combatFlags', onCombatFlags));
 
     const onCombatEvent = (ev: CombatEvent): void => {
       if (ev.text) {
@@ -634,6 +643,18 @@ export class CampaignScreen {
           : null,
         p.exhaustion > 0
           ? el('div', { class: 'cp-pj-exhaustion', text: `💀 Exaustão ${p.exhaustion}/6` })
+          : null,
+        // 1B — Concentration badge (F25): exibe magia ativa em concentração.
+        p.concentratingOn
+          ? el('div', { class: 'cp-pj-conc', text: `🧠 Conc: ${p.concentratingOn}` })
+          : null,
+        // 1B — Active buffs badge (A2): Bardic, Bless, Guidance, Shield, Faerie Fire.
+        p.activeBuffs && p.activeBuffs.length > 0
+          ? el('div', { class: 'cp-pj-buffs', text: `✨ ${p.activeBuffs.map((b) => b.source).join(' · ')}` })
+          : null,
+        // 1B — Rage badge (F23): flag combat-local serializada via combatFlags event.
+        (this.combatFlags[p.id] && this.combatFlags[p.id]!.includes('rage'))
+          ? el('div', { class: 'cp-pj-rage', text: '🔥 FÚRIA' })
           : null,
       ].filter(Boolean) as HTMLElement[]));
     }

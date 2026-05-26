@@ -34,6 +34,22 @@ export function clearCombatFlag(combat: CombatState, characterId: string, flag: 
   getFlags(combat, characterId).delete(flag);
 }
 
+// 1B — Serializa flags por characterId pro client (rage badge, etc).
+// Retorna apenas flags player-relevantes (filtra ruído como sneak-attack-used).
+const PLAYER_VISIBLE_FLAGS = new Set([
+  'rage', 'ki-flurry', 'wild-shape', 'action-surge',
+]);
+export function serializeCombatFlags(combat: CombatState): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const map = combatLocalFlags.get(combat);
+  if (!map) return out;
+  for (const [charId, flags] of map.entries()) {
+    const visible = [...flags].filter((f) => PLAYER_VISIBLE_FLAGS.has(f));
+    if (visible.length > 0) out[charId] = visible;
+  }
+  return out;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Inicializa estrutura classFeatureUses ao carregar PJ (preserva used anterior se já existir).
 // ════════════════════════════════════════════════════════════════════════════

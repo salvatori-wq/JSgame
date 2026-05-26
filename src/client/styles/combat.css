@@ -194,9 +194,34 @@
 }
 .cb-enemy-cond {
   font-size: 10px;
-  color: #d08840;
   margin-top: 4px;
-  font-style: italic;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+/* 1B — Severity-colored condition pills (enemy + party). */
+.cb-cond-pill {
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.cb-cond-severe {
+  background: rgba(180, 30, 30, 0.34);
+  color: #ff9080;
+  border: 1px solid rgba(255, 80, 60, 0.55);
+}
+.cb-cond-moderate {
+  background: rgba(180, 100, 30, 0.30);
+  color: #ffb060;
+  border: 1px solid rgba(220, 150, 60, 0.5);
+}
+.cb-cond-mild {
+  background: rgba(80, 100, 130, 0.30);
+  color: #b0c8e0;
+  border: 1px solid rgba(140, 170, 210, 0.5);
 }
 .cb-enemy-desc {
   font-size: 10px;

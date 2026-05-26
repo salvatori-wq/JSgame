@@ -234,6 +234,14 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   container.appendChild(root);
 }
 
+// 1B — coloring de condition por severidade pra UI imediata.
+// severe: imobiliza/incapacita. moderate: penalty grande. mild: penalty menor.
+function conditionSeverity(c: string): 'severe' | 'moderate' | 'mild' {
+  if (['inconsciente', 'paralisado', 'petrificado', 'atordoado'].includes(c)) return 'severe';
+  if (['amedrontado', 'agarrado', 'restrito', 'envenenado', 'enfeiticado', 'caido'].includes(c)) return 'moderate';
+  return 'mild';
+}
+
 function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: boolean): HTMLElement {
   const pct = en.maxHp > 0 ? Math.round((en.currentHp / en.maxHp) * 100) : 0;
   const dead = en.currentHp <= 0;
@@ -253,7 +261,11 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
     el('div', { class: 'cb-enemy-hp-txt', text: `HP ${en.currentHp}/${en.maxHp}` }),
   ]);
   if (en.conditions.length > 0) {
-    card.appendChild(el('div', { class: 'cb-enemy-cond', text: en.conditions.join(' · ') }));
+    const condRow = el('div', { class: 'cb-enemy-cond' });
+    for (const c of en.conditions) {
+      condRow.appendChild(el('span', { class: `cb-cond-pill cb-cond-${conditionSeverity(c)}`, text: c }));
+    }
+    card.appendChild(condRow);
   }
   if (en.description) {
     card.appendChild(el('div', { class: 'cb-enemy-desc', text: en.description }));
