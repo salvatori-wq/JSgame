@@ -594,18 +594,19 @@ export class CampaignScreen {
 
   // α.1 — Re-sincroniza chips de sugestão com state.suggestedActions.
   // Chips ficam no NarrationLog (depois da última narração).
+  // Atualizado: combat também tem chips (tactical, derivados ou do DM).
   private updateSuggestedChips(): void {
     if (!this.narrationLog) return;
     const suggestions = this.currentState?.suggestedActions ?? [];
-    // Só mostra chips fora de combate (combat-screen tem própria UI)
-    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
-    if (isCombat || suggestions.length === 0 || this.isDmThinking) {
+    if (suggestions.length === 0 || this.isDmThinking) {
       this.narrationLog.setSuggestedChips([]);
       return;
     }
+    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
     const chips = suggestions.map((s) => ({
       label: s.label,
       ...(s.hint ? { hint: s.hint } : {}),
+      ...(isCombat ? { variant: 'combat' as const } : {}),
       onClick: () => {
         // 'custom' não é ExplorationAction — mapeia pra 'explore' (DM lê details)
         const action: ExplorationAction = (s.action === 'custom' ? 'explore' : s.action) as ExplorationAction;

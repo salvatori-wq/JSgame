@@ -74,13 +74,13 @@ describe('modes — escalas medievais', () => {
   it('Phrygian tem 2ª menor característica (intervalo de 1 semitom)', () => {
     const scale = getScale(60, 'phrygian'); // C4
     // C → Db = 1 semitom = ratio 2^(1/12)
-    expect(scale[1] / scale[0]).toBeCloseTo(Math.pow(2, 1/12), 3);
+    expect(scale[1]! / scale[0]!).toBeCloseTo(Math.pow(2, 1/12), 3);
   });
 
   it('Lydian tem 4ª aumentada (tritone)', () => {
     const scale = getScale(60, 'lydian');
     // C → F# (4ª aumentada) = 6 semitons
-    expect(scale[3] / scale[0]).toBeCloseTo(Math.pow(2, 6/12), 3);
+    expect(scale[3]! / scale[0]!).toBeCloseTo(Math.pow(2, 6/12), 3);
   });
 
   it('midiToHz: A4 (MIDI 69) = 440Hz exato', () => {

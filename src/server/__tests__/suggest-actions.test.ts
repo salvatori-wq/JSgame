@@ -160,15 +160,21 @@ describe('α.1 — Campaign suggest_actions handler', () => {
     expect(camp.state.suggestedActions![0]!.label).toBe('B1');
   });
 
-  it('applyDMResponse reseta suggestedActions antes de processar tools', async () => {
+  it('applyDMResponse reseta chips antigos + injeta fallback se DM não chamou suggest_actions', async () => {
     // Setup: chips de "cena anterior" no state
     camp.state.suggestedActions = [{ label: 'Velho', action: 'explore', details: 'velho' }];
 
-    // DMResponse SEM suggest_actions tool — chips devem sumir
+    // DMResponse SEM suggest_actions tool — chips "velhos" somem,
+    // mas fallback contextual entra (player NUNCA fica sem opções).
     const apply = (camp as unknown as { applyDMResponse: (r: DMResponse) => void }).applyDMResponse.bind(camp);
     apply({ narration: 'cena nova', speaker: 'Mestre', toolCalls: [], raw: '' });
 
-    expect(camp.state.suggestedActions).toEqual([]);
+    const chips = camp.state.suggestedActions ?? [];
+    // Chip "Velho" desapareceu (não acumula)
+    expect(chips.find((c) => c.label === 'Velho')).toBeUndefined();
+    // Fallback exploration entrou (4 chips genéricos)
+    expect(chips.length).toBe(4);
+    expect(chips.some((c) => c.label === 'Observar arredores')).toBe(true);
   });
 
   it('applyDMResponse sobrescreve chips quando DM manda novo suggest_actions', () => {

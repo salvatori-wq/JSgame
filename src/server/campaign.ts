@@ -14,6 +14,7 @@ import type {
 } from '../shared/types.js';
 import { DungeonMaster, FallbackDM, type DMInterface, type DMResponse } from './dm/dm.js';
 import { validateToolCall, type ValidatedTool } from './dm/tools.js';
+import { generateFallbackChips } from './dm/suggest-fallback.js';
 import { rollD20, type DiceRoll } from '../dnd/dice.js';
 import { abilityModifier, proficiencyBonus } from '../dnd/attributes.js';
 import { getSkill, type SkillId } from '../dnd/skills.js';
@@ -984,7 +985,7 @@ export class Campaign {
 
     // α.1 — Reseta suggestedActions ANTES de processar tools: chips são da CENA
     // ATUAL. Se o DM mandar suggest_actions nesta response, sobrescreve com novo
-    // set. Se esqueceu, fica vazio e a UI mostra fallback "💡 Pedir ideias".
+    // set. Se esqueceu, fallback abaixo garante chips contextuais.
     this.state.suggestedActions = [];
 
     for (const tc of response.toolCalls) {
@@ -994,6 +995,12 @@ export class Campaign {
         continue;
       }
       this.applyValidatedTool(valid);
+    }
+
+    // Fallback: se o DM não chamou suggest_actions, derivamos chips contextuais
+    // de state (combat enemies, exploration genéricos). Player NUNCA fica sem opções.
+    if (this.state.suggestedActions.length === 0) {
+      this.state.suggestedActions = generateFallbackChips(this.state);
     }
 
     this.state.lastPlayedAt = Date.now();

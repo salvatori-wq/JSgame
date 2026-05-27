@@ -55,6 +55,8 @@ function prefersReducedMotion(): boolean {
 export interface SuggestedChip {
   label: string;
   hint?: string;
+  /** 'combat' aplica visual avermelhado (tactical). Default exploration (dourado). */
+  variant?: 'combat';
   // Callback dispara takeAction com action/details. NarrationLog não conhece socket.
   onClick: () => void;
 }
@@ -273,7 +275,7 @@ export class NarrationLog {
     const wrap = el('div', { class: 'cn-suggested-chips', attrs: { role: 'group', 'aria-label': 'Ações sugeridas' } });
     for (const chip of chips) {
       const btn = el('button', {
-        class: 'cn-chip',
+        class: `cn-chip${chip.variant === 'combat' ? ' is-combat' : ''}`,
         attrs: { type: 'button' },
         on: { click: () => chip.onClick() },
       }, [
