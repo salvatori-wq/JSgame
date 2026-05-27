@@ -151,6 +151,38 @@ button:disabled,
   box-shadow: 0 0 14px rgba(244, 208, 127, 0.7);
 }
 
+/* POLISH α.4 — Tutorial inline no overlay de skill check (1ª vez apenas).
+ * Caixa âmbar com hint sobre d20/DC/inspiração. Não-bloqueante. */
+.sc-tutorial {
+  margin: 12px auto 8px;
+  padding: 10px 14px;
+  max-width: 380px;
+  background: rgba(244, 208, 127, 0.08);
+  border: 1px solid rgba(244, 208, 127, 0.35);
+  border-radius: var(--r-soft);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  animation: tip-fade-in 500ms ease-out;
+}
+.sc-tutorial-title {
+  font-family: var(--font-heading);
+  font-size: var(--fs-md);
+  color: var(--ink-gold);
+  margin-bottom: 4px;
+  letter-spacing: 0.06em;
+}
+.sc-tutorial-body {
+  color: var(--ink-warm);
+}
+.sc-tutorial-body b {
+  color: var(--ink-gold);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-tutorial { animation: none; }
+}
+
 /* POLISH α.6 — Dica rotativa no thinking indicator. Suave abaixo do texto
  * principal; pisca discretamente quando troca pra player notar sem distrair. */
 .cn-thinking-tip {

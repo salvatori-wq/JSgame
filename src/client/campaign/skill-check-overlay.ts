@@ -42,6 +42,24 @@ export function showPendingSkillCheck(
   stage.appendChild(labelLine);
   stage.appendChild(subLine);
 
+  // POLISH α.4 — Tutorial inline na PRIMEIRA vez que o player vê o overlay.
+  // localStorage flag persiste entre sessões. Explica brevemente d20 + DC +
+  // Inspiração pra não deixar o player perdido. Some na 2ª vez em diante.
+  if (!hasSeenSkillCheckTutorial()) {
+    markSkillCheckTutorialSeen();
+    const tutorial = el('div', { class: 'sc-tutorial' }, [
+      el('div', { class: 'sc-tutorial-title', text: '🎲 Primeiro teste de perícia!' }),
+      el('div', { class: 'sc-tutorial-body' }, [
+        el('span', { text: 'Você rola um ' }),
+        el('b', { text: 'd20' }),
+        el('span', { text: ` + seu bônus. Soma ≥ ` }),
+        el('b', { text: 'DC' }),
+        el('span', { text: ` = sucesso. Nat 20 = crítico, Nat 1 = falha crítica.` }),
+      ]),
+    ]);
+    stage.appendChild(tutorial);
+  }
+
   // Row: chip-bônus | dado 3D | chip-DC
   const row = el('div', { class: 'sc-row' });
   row.appendChild(el('span', {
@@ -179,4 +197,29 @@ export function closeSkillCheck(): void {
 
 function formatMod(n: number): string {
   return n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`;
+}
+
+// POLISH α.4 — Tutorial seen flag em localStorage. Persiste entre sessões pro
+// player não ver o mesmo hint toda vez. Helper exportado pra tests.
+const TUTORIAL_KEY = 'jsgame:skillCheckTutorialSeen';
+
+export function hasSeenSkillCheckTutorial(): boolean {
+  try {
+    return localStorage.getItem(TUTORIAL_KEY) === '1';
+  } catch {
+    return false;  // SSR ou localStorage bloqueado — sempre mostra
+  }
+}
+
+export function markSkillCheckTutorialSeen(): void {
+  try {
+    localStorage.setItem(TUTORIAL_KEY, '1');
+  } catch { /* silent */ }
+}
+
+/** Reseta o flag — útil pra testar / re-onboarding manual. */
+export function resetSkillCheckTutorial(): void {
+  try {
+    localStorage.removeItem(TUTORIAL_KEY);
+  } catch { /* silent */ }
 }
