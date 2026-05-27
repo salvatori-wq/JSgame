@@ -144,6 +144,97 @@ describe('MP3 — m-layout.css aplicado aos 7 modais em portrait-narrow', () => 
   });
 });
 
+describe('MP4 — wizard.css mobile (Sessão 4)', () => {
+  const css = readCss('wizard.css');
+
+  it('cards de wizard padding compacto + desc line-clamp 3 em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.wc-desc\s*\{[\s\S]*?-webkit-line-clamp:\s*3/);
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.wiz-card\s*\{[\s\S]*?padding:\s*10px\s+12px/);
+  });
+
+  it('CTAs wizard hit ≥44px em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.wiz-back,[\s\S]*?\.wiz-cta\s*\{[\s\S]*?min-height:\s*var\(--m-hit-comfortable/);
+  });
+
+  it('wiz-footer-sticky respeita safe-area-inset-bottom', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.wiz-footer-sticky\s*\{[\s\S]*?env\(safe-area-inset-bottom/);
+  });
+});
+
+describe('MP4 — sheet.css mobile (Sessão 4)', () => {
+  const css = readCss('sheet.css');
+
+  it('sheet-top-row vira 3-col fixo em mobile (era auto-fit)', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.sheet-top-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*1fr\)/);
+  });
+
+  it('sheet-attrs vira 3-col em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.sheet-attrs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3,\s*1fr\)/);
+  });
+
+  it('sheet-skills vira 1-col em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.sheet-skills\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+  });
+
+  it('sheet-print hit ≥40px em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.sheet-print\s*\{[\s\S]*?min-width:\s*var\(--m-hit-min/);
+  });
+});
+
+describe('MP4 — lobby.css mobile (Sessão 4)', () => {
+  const css = readCss('lobby.css');
+
+  it('ready-card vira sticky bottom em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.lobby-ready-card\s*\{[\s\S]*?position:\s*sticky[\s\S]*?bottom:\s*0/);
+  });
+
+  it('start-btn hit ≥44px CTA em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.lobby-start-btn\s*\{[\s\S]*?min-height:\s*var\(--m-hit-comfortable/);
+  });
+
+  it('player-row hit ≥40px em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.lobby-player-row\s*\{[\s\S]*?min-height:\s*var\(--m-hit-min/);
+  });
+});
+
+describe('MP4 — campaign-party.css profile mobile (Sessão 4)', () => {
+  const css = readCss('campaign-party.css');
+
+  it('profile-summary vira sticky top em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-summary\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0/);
+  });
+
+  it('profile-section-h vira sticky abaixo do summary', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-section-h\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*92px/);
+  });
+});
+
+describe('MP4 — m-layout.css toques finais (Sessão 4)', () => {
+  const css = readCss('m-layout.css');
+
+  it('toast container respeita env safe-area-inset-bottom em mobile', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.toast-container\s*\{[\s\S]*?env\(safe-area-inset-bottom/);
+  });
+
+  it('achievement toast vira top-banner em mobile', () => {
+    expect(css).toMatch(/\.achievement-toast[\s\S]*?\.ach-toast[\s\S]*?\{[\s\S]*?top:\s*calc\(/);
+  });
+
+  it('tap-highlight-color transparent aplicado em ≥10 classes interativas', () => {
+    // Pega o bloco grande de tap-highlight-color: transparent
+    const matches = css.match(/-webkit-tap-highlight-color:\s*transparent/g);
+    expect(matches).not.toBeNull();
+    // Bloco transversal + bloco do .m-* helpers = ao menos 2 ocorrências; selectors cobertos contam classes diferentes
+    const blockMatch = css.match(/(body\.is-portrait-narrow\s+\.[\w-]+,?\s*)+\{\s*-webkit-tap-highlight-color:\s*transparent;\s*\}/);
+    expect(blockMatch).not.toBeNull();
+    expect(blockMatch![0].split(',').length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('body scroll-padding-bottom em mobile pra sticky footers', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s*\{\s*scroll-padding-bottom:\s*80px/);
+  });
+});
+
 describe('MP2 — modals.css combat mobile', () => {
   const css = readCss('modals.css');
 

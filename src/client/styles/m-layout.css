@@ -294,3 +294,77 @@ body.is-portrait-narrow .qlm-quest {
     animation: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MP4 — Toques finais transversais
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Toast container respeita safe-area-inset-bottom */
+body.is-portrait-narrow .toast-container {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Achievement toast — em mobile vira top-banner (não slide-right) */
+body.is-portrait-narrow .achievement-toast,
+body.is-portrait-narrow .ach-toast {
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: 8px;
+  right: 8px;
+  bottom: auto;
+  max-width: none;
+  width: auto;
+}
+
+/* Floating numbers no combate respeitam safe-area-top */
+body.is-portrait-narrow .fn-pop {
+  top: max(60px, calc(env(safe-area-inset-top, 0px) + 60px));
+}
+
+/* Tap highlight removido universal pra elementos interativos comuns */
+body.is-portrait-narrow .cb-action-btn,
+body.is-portrait-narrow .cb-tab-btn,
+body.is-portrait-narrow .cb-feature-btn,
+body.is-portrait-narrow .camp-action-btn,
+body.is-portrait-narrow .camp-mem-btn,
+body.is-portrait-narrow .camp-share-btn,
+body.is-portrait-narrow .camp-overflow-btn,
+body.is-portrait-narrow .wiz-back-btn,
+body.is-portrait-narrow .wiz-cta,
+body.is-portrait-narrow .wiz-back,
+body.is-portrait-narrow .wiz-card,
+body.is-portrait-narrow .wp-step,
+body.is-portrait-narrow .ab-btn,
+body.is-portrait-narrow .home-char-card,
+body.is-portrait-narrow .home-btn,
+body.is-portrait-narrow .lobby-mode-btn,
+body.is-portrait-narrow .lobby-start-btn,
+body.is-portrait-narrow .lobby-share-btn,
+body.is-portrait-narrow .lobby-player-row,
+body.is-portrait-narrow .lpp-opt,
+body.is-portrait-narrow .sc-roll-btn,
+body.is-portrait-narrow .sc-chip,
+body.is-portrait-narrow .cn-chip,
+body.is-portrait-narrow .inv-modal-close,
+body.is-portrait-narrow .inv-action-btn,
+body.is-portrait-narrow .inv-mini-btn,
+body.is-portrait-narrow .shop-buy-btn,
+body.is-portrait-narrow .shop-sell-btn,
+body.is-portrait-narrow .shop-tab,
+body.is-portrait-narrow .ach-tab,
+body.is-portrait-narrow .mem-chip,
+body.is-portrait-narrow .cs-modal-close,
+body.is-portrait-narrow .cs-spell-card,
+body.is-portrait-narrow .qlm-close-btn,
+body.is-portrait-narrow .om-item {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Body scroll-padding-bottom em mobile pra sticky footers não comerem conteúdo */
+body.is-portrait-narrow {
+  scroll-padding-bottom: 80px;
+}
+
+/* Home padding consistente em mobile */
+body.is-portrait-narrow .home-container {
+  padding: var(--m-padding-screen, 12px);
+}

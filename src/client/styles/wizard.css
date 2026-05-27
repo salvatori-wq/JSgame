@@ -1272,3 +1272,57 @@ body.is-portrait-narrow .character-sheet {
 body.is-portrait-narrow .wlp-ab-grid { grid-template-columns: repeat(3, 1fr); }
 body.is-portrait-narrow .wlp-stats { flex-wrap: wrap; }
 
+/* ════════════════════════════════════════════════════════════════════════
+   MP4 — Wizard mobile polish: step bar compacta + cards 1-col enxutos
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Step bar em mobile: barra de progresso linear ABAIXO dos números.
+   Hoje wp-label já oculta (só número visível); aqui só refina padding/size. */
+body.is-portrait-narrow .wiz-progress {
+  gap: 4px;
+}
+body.is-portrait-narrow .wp-step {
+  padding: 8px 2px;
+  font-size: 10px;
+  min-height: 32px;
+}
+body.is-portrait-narrow .wp-num {
+  font-size: 14px;
+}
+
+/* Race/class card desc — clamp 3 linhas em mobile pra ficar compacto */
+body.is-portrait-narrow .wc-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+}
+body.is-portrait-narrow .wiz-card {
+  padding: 10px 12px;
+}
+body.is-portrait-narrow .wc-name {
+  font-size: 15px;
+}
+body.is-portrait-narrow .wc-traits {
+  display: none;  /* "ver mais" via tap no card seria ideal, mas keep simple */
+}
+body.is-portrait-narrow .wc-feature {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Wizard CTAs (back/next/finish) hit confortável */
+body.is-portrait-narrow .wiz-back,
+body.is-portrait-narrow .wiz-cta {
+  min-height: var(--m-hit-comfortable, 44px);
+  padding: 10px 18px;
+}
+
+/* Wizard footer sticky padding inclui safe-area */
+body.is-portrait-narrow .wiz-footer-sticky {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+

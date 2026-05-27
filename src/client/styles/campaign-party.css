@@ -457,6 +457,36 @@
   padding: 40px 16px;
   color: var(--ink-mute);
 }
+
+/* MP4 — Profile mobile polish */
+body.is-portrait-narrow .profile-screen {
+  padding: var(--m-padding-screen, 12px);
+}
+body.is-portrait-narrow .profile-summary {
+  padding: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: linear-gradient(180deg, rgba(20, 14, 8, 0.97), rgba(20, 14, 8, 0.92));
+  backdrop-filter: blur(4px);
+}
+body.is-portrait-narrow .profile-section-h {
+  position: sticky;
+  top: 92px;
+  z-index: 3;
+  margin: 14px -12px 6px;
+  padding: 8px 12px;
+  background: rgba(20, 14, 8, 0.95);
+  backdrop-filter: blur(2px);
+  font-size: 14px;
+}
+body.is-portrait-narrow .profile-counters {
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+body.is-portrait-narrow .profile-grid {
+  grid-template-columns: 1fr;
+}
 .profile-empty-sub {
   margin-top: 8px;
   font-size: 12px;

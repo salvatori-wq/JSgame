@@ -511,6 +511,80 @@
   }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   MP4 — Sheet mobile polish: vitals 3+4 fixos, atributos 3-col, skills 1-col
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Header: empilha portrait à esquerda + title centro + print baixo
+   (já tem grid-template-areas implícito via grid-column). Mobile mantém compacto. */
+body.is-portrait-narrow .sheet-header {
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+body.is-portrait-narrow .sheet-portrait {
+  width: 56px;
+  height: 56px;
+  font-size: 24px;
+}
+body.is-portrait-narrow .sheet-name { font-size: 22px; }
+body.is-portrait-narrow .sheet-subtitle { font-size: 13px; }
+body.is-portrait-narrow .sheet-print {
+  min-width: var(--m-hit-min, 40px);
+  min-height: var(--m-hit-min, 40px);
+}
+
+/* Vitals: 3-col fixo (HP/AC/XP em row 1 — primeiros 3 cards).
+   Auto-fit minmax cuida do resto: Init/Speed/Prof/Insp viram row 2 wrap. */
+body.is-portrait-narrow .sheet-top-row {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+body.is-portrait-narrow .sheet-vital {
+  padding: 8px 4px;
+}
+body.is-portrait-narrow .sv-value {
+  font-size: 18px;
+  margin: 2px 0;
+}
+body.is-portrait-narrow .sv-label {
+  font-size: 9px;
+}
+
+/* Atributos: 3-col em mobile (era auto-fit minmax 96px) */
+body.is-portrait-narrow .sheet-attrs {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+body.is-portrait-narrow .sheet-attr {
+  padding: 8px 4px;
+}
+body.is-portrait-narrow .sa-mod {
+  font-size: 22px;
+}
+
+/* Skills: 1-col mobile + padding mais respirável + scroll smooth */
+body.is-portrait-narrow .sheet-skills {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+body.is-portrait-narrow .sheet-skill {
+  padding: 6px 8px;
+  min-height: 30px;
+}
+body.is-portrait-narrow .sheet-saves-list {
+  grid-template-columns: 1fr;
+}
+body.is-portrait-narrow .sheet-combat-row {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Sheet body scroll-padding pra ancoragens (#section) não esconderem atrás de sticky */
+body.is-portrait-narrow .sheet-screen {
+  scroll-padding-bottom: 80px;
+}
+
 /* ─── Print ─── */
 @media print {
   body { background: white; color: black; }

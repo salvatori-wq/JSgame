@@ -273,5 +273,43 @@ body.is-portrait-narrow .lp-info { grid-column: 1 / -1; }
 body.is-portrait-narrow .lpp-row { grid-template-columns: repeat(3, 1fr); }
 body.is-portrait-narrow .lpp-label { font-size: 9px; }
 
+/* ════════════════════════════════════════════════════════════════════════
+   MP4 — Lobby mobile polish: hit ≥40px + ready sticky bottom
+   ════════════════════════════════════════════════════════════════════════ */
+
+body.is-portrait-narrow .lobby-container {
+  padding: var(--m-padding-screen, 12px);
+}
+body.is-portrait-narrow .lobby-mode-btn,
+body.is-portrait-narrow .lobby-share-btn,
+body.is-portrait-narrow .lobby-back-mode-btn,
+body.is-portrait-narrow .lobby-unready-btn,
+body.is-portrait-narrow .lobby-start-btn {
+  min-height: var(--m-hit-min, 40px);
+}
+body.is-portrait-narrow .lobby-start-btn {
+  min-height: var(--m-hit-comfortable, 44px);
+  width: 100%;
+}
+/* Ready card sticky bottom em mobile pra sempre alcançável */
+body.is-portrait-narrow .lobby-ready-card {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 8px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+body.is-portrait-narrow .lobby-player-row {
+  min-height: var(--m-hit-min, 40px);
+  padding: 10px 12px;
+}
+body.is-portrait-narrow .lobby-char-card {
+  min-height: var(--m-hit-min, 40px);
+  padding: 12px;
+}
+body.is-portrait-narrow .lobby-chars-grid {
+  grid-template-columns: 1fr;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════ */
 
