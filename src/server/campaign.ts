@@ -537,7 +537,7 @@ export class Campaign {
         return { roll: synthetic, success: false, nat20: false, nat1: false };
       }
       const dmAdv = consumePendingAdvantage(this.state, player.id, 'save');
-      let advMode = dmAdv ?? 'normal';
+      let advMode: 'advantage' | 'disadvantage' | 'normal' = dmAdv ?? 'normal';
       if (buffs.advantage) advMode = combineAdvantage(advMode, 'advantage');
       if (buffs.disadvantage) advMode = combineAdvantage(advMode, 'disadvantage');
       const roll = rollD20({

@@ -43,6 +43,7 @@ import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics } from './action-dock-topics';
+import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type PartyMessage } from './chat-sheet';
 import { popAll as popAllSheets } from '../sheet-stack-manager';
@@ -820,7 +821,17 @@ export class CampaignScreen {
 
     if (pendingSave) {
       const isMe = pendingSave.playerId === this.opts.characterId;
-      if (isMe) {
+      if (isMe && this.character) {
+        // η.6 — Fórmula didática em vez de banner seco
+        wrap.appendChild(renderSavingThrowFormula({
+          character: this.character,
+          ability: pendingSave.ability,
+          dc: pendingSave.dc,
+          reason: pendingSave.reason,
+          onRoll: () => this.opts.socket.emit('resolveSavingThrow'),
+        }));
+      } else if (isMe) {
+        // Fallback se character ainda null
         wrap.appendChild(el('div', { class: 'camp-check-banner' }, [
           el('span', { text: `🛡 Save ${pendingSave.ability.toUpperCase()} (DC ${pendingSave.dc}) — ${pendingSave.reason}` }),
           el('button', {
