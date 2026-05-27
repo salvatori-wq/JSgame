@@ -8,10 +8,11 @@
 //   2. Gemini 2.5 Flash         (qualidade narrativa premium, 1500/dia free)
 //   3. Groq Llama 3.3 70B       (rápido, 14.4K/dia free)
 //   4. Cloudflare Workers AI    (10K neurons/dia, infra distribuída)
-//   5. Anthropic Haiku          (pago opcional, latência consistente)
+//   5. Mistral Small            (free tier, 1 req/s — γ.4 rede final pré-degraded)
+//   6. Anthropic Haiku          (pago opcional, latência consistente)
 //
-// Se um falhar (429 quota, safety block, 5xx, timeout), AUTO tenta o próximo
-// sem que o player perceba. Capacidade combinada free: ~47K calls/dia.
+// Se um falhar (429 quota, safety block, 5xx, timeout, empty response), AUTO
+// tenta o próximo sem que o player perceba. Capacidade combinada free: ~47K+ calls/dia.
 
 import type { DMProvider } from './base.js';
 import { GroqProvider } from './groq.js';
@@ -19,6 +20,7 @@ import { AnthropicProvider } from './anthropic.js';
 import { GeminiProvider } from './gemini.js';
 import { CerebrasProvider } from './cerebras.js';
 import { CloudflareProvider } from './cloudflare.js';
+import { MistralProvider } from './mistral.js';
 import { CascadeProvider } from './cascade.js';
 
 export interface ProviderEnv {
@@ -35,6 +37,8 @@ export interface ProviderEnv {
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_API_TOKEN?: string;
   CLOUDFLARE_MODEL?: string;
+  MISTRAL_API_KEY?: string;
+  MISTRAL_MODEL?: string;
 }
 
 // Models Groq cujo context window NÃO comporta nosso prompt sistema D&D longo
@@ -92,10 +96,17 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
       model: pickGroqModel(env.GROQ_MODEL),
     });
   }
+  if (explicit === 'mistral' && env.MISTRAL_API_KEY) {
+    return new MistralProvider({
+      apiKey: env.MISTRAL_API_KEY,
+      model: env.MISTRAL_MODEL ?? 'mistral-small-latest',
+    });
+  }
 
   // Auto-detect cascade — ordem priorizando latência+qualidade+free tier:
   //   Cerebras (2000 tok/s, 1M/dia) → Gemini (narrativa premium) →
-  //   Groq (14.4K/dia) → Cloudflare (10K neurons/dia) → Anthropic (pago opcional)
+  //   Groq (14.4K/dia) → Cloudflare (10K neurons/dia) → Mistral (500K/dia) →
+  //   Anthropic (pago opcional)
   const available: DMProvider[] = [];
   if (env.CEREBRAS_API_KEY) {
     available.push(new CerebrasProvider({
@@ -120,6 +131,14 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
       accountId: env.CLOUDFLARE_ACCOUNT_ID,
       apiToken: env.CLOUDFLARE_API_TOKEN,
       model: env.CLOUDFLARE_MODEL ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    }));
+  }
+  // γ.4 — Mistral entra após Cloudflare. Cobre cenário em que CF retorna
+  // empty response (Llama 3.3 70B as vezes vaza ""). Rede final pré-degraded.
+  if (env.MISTRAL_API_KEY) {
+    available.push(new MistralProvider({
+      apiKey: env.MISTRAL_API_KEY,
+      model: env.MISTRAL_MODEL ?? 'mistral-small-latest',
     }));
   }
   if (env.ANTHROPIC_API_KEY) {
