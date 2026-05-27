@@ -82,7 +82,7 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-28 (Mobile Polish 4/4 COMPLETO — JSgame mobile-NATIVO)
+> Última atualização: 2026-05-27 (POLISH-0 Telemetria Honesta — 2 commits, gap 14% investigado)
 
 ### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 877→939 tests
 - γ.1 Dado 3D + som 3-camadas + haptic + combate (`14c19a8`)
@@ -107,12 +107,26 @@ git log --oneline | head -10
 - MP4 Sheet+Wizard+Profile+Lobby+Finais — vitals 3-col, attrs 3-col, sheet skills 1-col, profile sticky tabs, toques transversais (`d3304f5`)
 - Veja `HANDOFF_2026-05-28_mobile-polish-done.md` pra detalhes
 
+### POLISH-0 "Telemetria Honesta" — 2 commits, 1111→1125 tests (+14)
+- 204d27d: fix telemetria honesta (trackFirstNarrationIfNeeded no joinCampaign + 2 novos eventos)
+- fea7d85: race coop fix + endpoint /api/dm/session-debug + telemetria pré-sessão
+- **Achado central**: time_to_first_narration p50=52s em prod ERA composto (cold open + leitura + LLM), não real. Cold open inicial JÁ é instantâneo (~ms).
+- **Causa #1** (gap 14%): bug original onde trackFirstNarrationIfNeeded só era chamado no takeAction. Fixado.
+- **Causa #2**: race coop — 2º player recebia broadcast mas não trackava (response=null). Fixado.
+- **Causa #3** (hipótese): sessões fantasma onde session_started emitido sem usuário interagir. Endpoint /api/dm/session-debug agora permite investigar manualmente.
+- **Endpoints novos**: GET /api/dm/session-debug?days=2&limit=30 + POST /api/metrics/track (whitelist client: home_loaded, prefab_clicked).
+- Veja `HANDOFF_2026-05-27_polish-0-telemetria.md`
+
 ### Pendente / Próximos passos
 - [x] ~~Manual Deploy no Render~~ — auto-deployed: `dep-d8b6g0tckfvc73cnmcrg` (commit `d3304f5`)
-- [ ] Validar Mobile Polish em https://jsgame-drpe.onrender.com em mobile real (após deploy completar)
+- [x] ~~Aguardar Render destravar~~ — João fez deploy manual, 3 commits anteriores agora em prod
+- [ ] **Aguardar deploy dos commits 204d27d + fea7d85** (auto-deploy do Render, ~5-10 min após push 2026-05-27)
+- [ ] **Validar funil novo em prod** — `curl /api/dm/ux-funnel?days=2` deve mostrar withFirstPlayerAction, timeToFirstDmResponseMs etc
+- [ ] **Query /api/dm/session-debug** assim que deploy subir — classifica 21 sessões por stage, confirma causa #3
+- [ ] **Aguardar 24-48h** após deploy pra baseline real do funil novo
+- [ ] **Decidir sprint POLISH α/β/γ** com base nos números reais
+- [ ] Validar Mobile Polish em https://jsgame-drpe.onrender.com em mobile real
 - [ ] Configurar `MISTRAL_API_KEY` no Render (γ.4 ativar)
-- [ ] Aguardar 24-48h após deploy pra baseline real de `/api/dm/ux-funnel`
-- [ ] **Playtest qualitativo Mobile** — validar bottom-sheets + sticky headers + hit targets em device real
 - [ ] **Sprint δ "CORAÇÃO RÁPIDO" (~10h)** — SSE streaming (só se latência for atrito real)
 - [ ] Onboarding inline tutorial primeira vez (se time_to_first_roll ainda alto)
 
@@ -143,3 +157,12 @@ git log --oneline | head -10
 - `src/server/dm/providers/mistral.ts` — provider Mistral free tier
 - `src/server/ux-funnel.ts` — computeUxFunnel agregado
 - `src/client/campaign/header-overflow-menu.ts` — popover ⋯
+
+### Arquivos-chave POLISH-0
+- `src/server/sockets/connection.ts` — trackFirstNarrationIfNeeded no joinCampaign (cobre race coop) + 3 helpers de telemetria (firstNarration, firstPlayerAction, firstDmResponse)
+- `src/server/ux-funnel.ts` — UxFunnelSummary expandido com withFirstPlayerAction, withFirstDmResponse, timeToFirstPlayerActionMs, timeToFirstDmResponseMs
+- `src/server/session-debug.ts` — NOVO — per-session debug com classifyStage (started_only/narration_only/action_no_response/engaged_no_roll/rolled/combat/unknown)
+- `src/server/routes/api.ts` — endpoints /api/dm/session-debug + POST /api/metrics/track (whitelist CLIENT_ALLOWED_KINDS)
+- `src/server/metrics.ts` — 4 novos kinds: time_to_first_player_action, time_to_first_dm_response, home_loaded, prefab_clicked
+- `src/client/api.ts` — trackClientMetric helper (fire-and-forget POST /api/metrics/track)
+- `src/client/main.ts` — emit home_loaded em renderHome() + prefab_clicked no click do prefab card
