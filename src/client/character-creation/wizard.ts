@@ -2,6 +2,7 @@
 // Cada step é um módulo que renderiza no container e chama next(state).
 
 import type { CharacterSheet, AbilityScores, RaceId, ClassId, SubclassId, SkillId, AbilityKey, PlannedLevel4Choice } from '../../shared/types';
+import { confirmDialog } from '../ui-modal';
 import type { MulticlassEntry } from '../../dnd/multiclass';
 import type { BackgroundId } from '../../dnd/backgrounds';
 import { defaultPointBuyScores, applyRacialBonuses, abilityModifier } from '../../dnd/attributes';
@@ -140,8 +141,15 @@ export class CharacterWizard {
           attrs: { type: 'button', title: 'Sorteia raça, classe, background, perícias e nome balanceados — vai direto pra revisão' },
           text: '🎲 Randomizar tudo',
           on: {
-            click: () => {
-              if (confirm('Randomizar tudo? Você vai pra revisão pra editar antes de salvar.')) {
+            click: async () => {
+              // ψ.4 — Modal custom (era confirm() nativo)
+              const ok = await confirmDialog({
+                title: '🎲 Randomizar tudo?',
+                text: 'Vou sortear raça, classe, background, perícias e nome. Você vai pra revisão pra editar antes de salvar.',
+                confirmText: 'Rolar dados',
+                cancelText: 'Cancelar',
+              });
+              if (ok) {
                 this.state = randomizeWizardState();
                 this.onStepChange?.(this.state.step);
                 this.render();

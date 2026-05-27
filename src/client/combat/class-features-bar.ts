@@ -44,14 +44,21 @@ export function renderClassFeaturesBar(myChar: CharacterSheet, socket: SocketT, 
               void import('../toast').then(({ toastWarn }) => toastWarn('Nenhum aliado vivo pra inspirar.'));
               return;
             }
-            const choice = prompt(`Inspirar quem? Digite o nome:\n${allies.map((a) => `- ${a.characterName}`).join('\n')}`);
-            if (!choice) return;
-            const target = allies.find((a) => a.characterName.toLowerCase() === choice.toLowerCase());
-            if (!target) {
-              void import('../toast').then(({ toastError }) => toastError(`Aliado "${choice}" não encontrado.`));
-              return;
-            }
-            socket.emit('useClassFeature', { feature: def.key, targetId: target.id });
+            // ψ.4 — Picker modal (era prompt() nativo type-name)
+            void import('../ui-modal').then(async ({ pickerDialog }) => {
+              const targetId = await pickerDialog<string>({
+                title: `${def.icon} ${def.label}`,
+                text: 'Quem você inspira?',
+                options: allies.map((a) => ({
+                  value: a.id,
+                  label: a.characterName,
+                  description: `HP ${a.currentHp}/${a.maxHp}`,
+                })),
+              });
+              if (targetId) {
+                socket.emit('useClassFeature', { feature: def.key, targetId });
+              }
+            });
           } else {
             socket.emit('useClassFeature', { feature: def.key });
           }

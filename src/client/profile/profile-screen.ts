@@ -158,7 +158,15 @@ export class ProfileScreen {
         text: '×',
         attrs: { title: 'Remover amigo' },
         on: { click: async () => {
-          if (!confirm(`Remover ${name}?`)) return;
+          // ψ.4 — Modal customizado (era confirm() nativo)
+          const { confirmDialog } = await import('../ui-modal');
+          const ok = await confirmDialog({
+            title: 'Remover amigo?',
+            text: `Você não verá mais ${name} entre seus aliados. Pode adicionar de novo depois.`,
+            confirmText: 'Remover',
+            cancelText: 'Manter',
+          });
+          if (!ok) return;
           try { await removeFriendship(f.userId); toastInfo(`Amigo removido: ${name}`); }
           catch (err) { toastError(`Erro: ${String(err)}`); }
           this.start();

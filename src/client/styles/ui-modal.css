@@ -1,0 +1,232 @@
+/* JSgame · ψ.4 — UI Modal helpers (confirm/input/picker).
+ * Tema dourado/sangue, mobile-safe (centered desktop, bottom-sheet mobile),
+ * usa sheet-stack-manager (z-index 9300+). */
+
+.ui-modal {
+  /* Hereda is-stacked-sheet de sheet-stack-manager.css:
+   * position: fixed; left/right/bottom: 0; max-height: 88dvh;
+   * border-radius: 16px 16px 0 0; transform: translateY(100%) → 0 anim. */
+  padding: 8px 18px 20px;
+  font-family: var(--font-body);
+}
+
+.ui-modal-handle {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(244, 208, 127, 0.4);
+  margin: 6px auto 12px;
+  flex-shrink: 0;
+}
+
+.ui-modal-title {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink-gold);
+  text-align: center;
+  margin: 4px 0 10px;
+  letter-spacing: 0.02em;
+}
+
+.ui-modal-body {
+  padding: 4px 0 12px;
+}
+
+.ui-modal-p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-warm);
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.ui-modal-p:last-of-type {
+  margin-bottom: 16px;
+}
+
+/* Input dialog */
+.ui-modal-input-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(10, 6, 8, 0.7);
+  border: 1px solid rgba(244, 208, 127, 0.35);
+  border-radius: 10px;
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  margin: 4px 0 6px;
+  resize: vertical;
+}
+
+.ui-modal-input-field:focus {
+  outline: none;
+  border-color: var(--ink-gold);
+  box-shadow: 0 0 0 3px rgba(244, 208, 127, 0.15);
+}
+
+.ui-modal-error {
+  font-size: 12px;
+  color: var(--accent-blood);
+  padding: 4px 2px;
+  min-height: 20px;
+}
+
+.ui-modal-error[hidden] {
+  display: none;
+}
+
+/* Picker dialog */
+.ui-modal-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 14px;
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+
+.ui-modal-picker-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(20, 12, 8, 0.55);
+  border: 1px solid rgba(244, 208, 127, 0.2);
+  border-radius: 10px;
+  color: var(--ink-warm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 160ms ease, border-color 200ms ease, transform 100ms ease;
+  font-family: var(--font-body);
+}
+
+.ui-modal-picker-opt:hover {
+  background: rgba(28, 18, 10, 0.7);
+  border-color: rgba(244, 208, 127, 0.4);
+}
+
+.ui-modal-picker-opt:active {
+  transform: scale(0.98);
+}
+
+.ui-modal-picker-opt.is-selected {
+  background: rgba(60, 44, 18, 0.7);
+  border-color: var(--ink-gold);
+  box-shadow: 0 0 0 1px rgba(244, 208, 127, 0.35);
+}
+
+.ui-modal-picker-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.ui-modal-picker-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ui-modal-picker-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-gold);
+}
+
+.ui-modal-picker-desc {
+  font-size: 12px;
+  color: rgba(228, 200, 150, 0.7);
+  line-height: 1.4;
+}
+
+/* Actions */
+.ui-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 10px 0 calc(8px + var(--m-safe-bottom, 0px));
+  margin-top: 4px;
+}
+
+.ui-modal-actions-single {
+  justify-content: center;
+}
+
+.ui-modal-btn {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 40px;
+  min-width: 96px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 100ms ease, box-shadow 200ms ease;
+  letter-spacing: 0.02em;
+}
+
+.ui-modal-btn:active {
+  transform: scale(0.97);
+}
+
+.ui-modal-cancel {
+  background: transparent;
+  border: 1px solid rgba(244, 208, 127, 0.3);
+  color: var(--ink-warm);
+}
+
+.ui-modal-cancel:hover {
+  background: rgba(244, 208, 127, 0.08);
+  border-color: rgba(244, 208, 127, 0.5);
+}
+
+.ui-modal-confirm-btn {
+  background: linear-gradient(180deg, rgba(244, 208, 127, 0.95) 0%, rgba(212, 168, 87, 0.95) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.75);
+  color: rgba(20, 12, 8, 0.95);
+  box-shadow: 0 4px 12px rgba(244, 208, 127, 0.2);
+}
+
+.ui-modal-confirm-btn:hover {
+  box-shadow: 0 6px 16px rgba(244, 208, 127, 0.35);
+}
+
+.ui-modal-confirm-btn.is-danger {
+  background: linear-gradient(180deg, rgba(200, 64, 50, 0.95) 0%, rgba(160, 40, 30, 0.95) 100%);
+  border-color: rgba(200, 64, 50, 0.75);
+  color: rgba(255, 240, 240, 0.95);
+  box-shadow: 0 4px 12px rgba(200, 64, 50, 0.3);
+}
+
+.ui-modal-confirm-btn.is-danger:hover {
+  box-shadow: 0 6px 16px rgba(200, 64, 50, 0.5);
+}
+
+/* Mobile portrait-narrow ajustes */
+@media (max-width: 480px) {
+  .ui-modal {
+    padding: 8px 14px 16px;
+  }
+  .ui-modal-title {
+    font-size: 17px;
+  }
+  .ui-modal-p {
+    font-size: 13px;
+  }
+  .ui-modal-actions {
+    flex-direction: column-reverse; /* Confirmar primeiro/topo no mobile */
+    gap: 8px;
+  }
+  .ui-modal-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-modal-btn,
+  .ui-modal-picker-opt {
+    transition: none;
+  }
+}

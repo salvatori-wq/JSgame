@@ -14,6 +14,7 @@ import { SKILLS } from '../../dnd/skills';
 import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
 import { el, setLastSession, clearLastSession } from '../util';
 import { getCharacter, trackClientMetric } from '../api';
+import { confirmDialog, inputDialog, pickerDialog } from '../ui-modal';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { showDiceRollOverlay } from '../dice/dice-roll-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
@@ -855,10 +856,17 @@ export class CampaignScreen {
         state: this.currentState,
         character: this.character,
         onExpand: (anchor) => this.openHeaderOverflow(anchor),
-        onExit: () => {
+        onExit: async () => {
           const inCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
           if (inCombat) {
-            const ok = confirm('Sair em combate? Teu PJ vira NPC vulnerável e o party continua sem você.');
+            // ψ.4 — Modal customizado em vez de confirm() blocking
+            const ok = await confirmDialog({
+              title: 'Sair em combate?',
+              text: 'Teu PJ vira NPC vulnerável e o party continua sem você. A morte ainda é real.',
+              confirmText: 'Abandonar',
+              cancelText: 'Continuar lutando',
+              danger: true,
+            });
             if (!ok) return;
           }
           clearLastSession();
@@ -976,8 +984,8 @@ export class CampaignScreen {
       onCustomAction: (details) => this.takeAction('explore', details),
       onCastSpell: () => this.openSpellModal(),
       onInventory: () => this.openInventory(),
-      onShortRest: () => this.openShortRestModal(),
-      onLongRest: () => this.confirmLongRest(),
+      onShortRest: () => { void this.openShortRestModal(); },
+      onLongRest: () => { void this.confirmLongRest(); },
     });
   }
 
@@ -1196,10 +1204,17 @@ export class CampaignScreen {
         class: 'wiz-back-btn',
         text: '← Sair',
         on: {
-          click: () => {
+          click: async () => {
             const inCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
             if (inCombat) {
-              const ok = confirm('Sair em combate? Teu PJ vira NPC vulnerável e o party continua sem você.');
+              // ψ.4 — Modal customizado (era confirm() nativo)
+              const ok = await confirmDialog({
+                title: 'Sair em combate?',
+                text: 'Teu PJ vira NPC vulnerável e o party continua sem você. A morte ainda é real.',
+                confirmText: 'Abandonar',
+                cancelText: 'Continuar lutando',
+                danger: true,
+              });
               if (!ok) return;
             }
             clearLastSession();
@@ -1346,7 +1361,7 @@ export class CampaignScreen {
       icon: '⚔',
       label: 'Dificuldade',
       title: 'Mudar dificuldade de combate',
-      onClick: () => this.promptDifficultyChange(),
+      onClick: () => { void this.promptDifficultyChange(); },
     });
 
     // ο.8 — UX Settings (density / font / contrast / anim)
@@ -1368,22 +1383,23 @@ export class CampaignScreen {
     openOverflowMenu(anchor, items);
   }
 
-  private promptDifficultyChange(): void {
+  private async promptDifficultyChange(): Promise<void> {
     const current = this.currentState?.combatDifficulty ?? 'auto';
-    const choices = [
-      { value: 'auto', label: '⚔ Auto (DM decide)' },
-      { value: 'easy', label: '🟢 Fácil' },
-      { value: 'medium', label: '🟡 Médio' },
-      { value: 'hard', label: '🟠 Difícil' },
-      { value: 'deadly', label: '🔴 Mortal' },
-    ];
-    const prompt_msg = `Dificuldade atual: ${current}\n\nEscolha (digite o número):\n${choices.map((c, i) => `${i + 1}. ${c.label}`).join('\n')}`;
-    const answer = prompt(prompt_msg);
-    if (!answer) return;
-    const idx = parseInt(answer.trim(), 10) - 1;
-    if (idx < 0 || idx >= choices.length) return;
-    const v = choices[idx]!.value as 'easy' | 'medium' | 'hard' | 'deadly' | 'auto';
-    this.opts.socket.emit('updateCampaignSettings', { combatDifficulty: v });
+    // ψ.4 — Picker modal customizado (era prompt() nativo blocking)
+    const result = await pickerDialog<'auto' | 'easy' | 'medium' | 'hard' | 'deadly'>({
+      title: 'Dificuldade de Combate',
+      text: 'Como o Mestre vai balancear os encontros desta crônica?',
+      initialValue: current,
+      options: [
+        { value: 'auto', icon: '⚔', label: 'Auto', description: 'Mestre decide pela cena' },
+        { value: 'easy', icon: '🟢', label: 'Fácil', description: 'Vitórias claras, dano controlado' },
+        { value: 'medium', icon: '🟡', label: 'Médio', description: 'Padrão D&D 5e — risco real' },
+        { value: 'hard', icon: '🟠', label: 'Difícil', description: 'Tem que pensar tática' },
+        { value: 'deadly', icon: '🔴', label: 'Mortal', description: 'Morte é provável — heroico ou hardcore' },
+      ],
+    });
+    if (!result) return;
+    this.opts.socket.emit('updateCampaignSettings', { combatDifficulty: result });
   }
 
   private renderPartyPanel(): HTMLElement {
@@ -1502,7 +1518,7 @@ export class CampaignScreen {
       grid.appendChild(el('button', {
         class: 'camp-action-btn',
         attrs: { type: 'button', disabled },
-        on: { click: () => this.promptAndTakeAction(a) },
+        on: { click: () => { void this.promptAndTakeAction(a); } },
       }, [
         el('span', { class: 'caa-icon', text: a.icon }),
         el('span', { class: 'caa-label', text: a.label }),
@@ -1536,7 +1552,7 @@ export class CampaignScreen {
       grid.appendChild(el('button', {
         class: 'camp-action-btn is-rest',
         attrs: { type: 'button', disabled, title: 'Descanso Curto — gasta 1+ hit dice pra curar HP' },
-        on: { click: () => this.openShortRestModal() },
+        on: { click: () => { void this.openShortRestModal(); } },
       }, [
         el('span', { class: 'caa-icon', text: '🛌' }),
         el('span', { class: 'caa-label', text: 'Curto' }),
@@ -1544,7 +1560,7 @@ export class CampaignScreen {
       grid.appendChild(el('button', {
         class: 'camp-action-btn is-rest',
         attrs: { type: 'button', disabled, title: 'Descanso Longo — HP cheio, slots resetam' },
-        on: { click: () => this.confirmLongRest() },
+        on: { click: () => { void this.confirmLongRest(); } },
       }, [
         el('span', { class: 'caa-icon', text: '🏕' }),
         el('span', { class: 'caa-label', text: 'Longo' }),
@@ -1641,11 +1657,19 @@ export class CampaignScreen {
   // sem detalhes manda action sozinha pro DM, que tem que improvisar o quê o
   // player tá fazendo — gera narrações desconexas. Agora pedimos contexto antes
   // de enviar. Player escreve "a taverna" → DM responde coerente. Cancel = nada.
-  private promptAndTakeAction(a: typeof ACTIONS[number]): void {
-    const details = window.prompt(a.promptText, '');
-    if (details === null) return; // cancel
+  private async promptAndTakeAction(a: typeof ACTIONS[number]): Promise<void> {
+    // ψ.4 — Input modal customizado (era window.prompt() blocking)
+    const details = await inputDialog({
+      title: `${a.icon} ${a.label}`,
+      text: a.promptText,
+      placeholder: a.placeholder,
+      maxLength: 280,
+      multiline: true,
+      confirmText: 'Enviar pro Mestre',
+    });
+    if (details === null) return;
     const trimmed = details.trim();
-    if (trimmed.length === 0) return; // vazio = nada
+    if (trimmed.length === 0) return;
     this.takeAction(a.id, trimmed);
   }
 
@@ -1677,22 +1701,43 @@ export class CampaignScreen {
     });
   }
 
-  private openShortRestModal(): void {
+  private async openShortRestModal(): Promise<void> {
     if (!this.character) return;
     const maxDice = this.character.hitDiceRemaining;
     if (maxDice === 0) {
       this.flashToast('Sem hit dice. Precisa de descanso longo.');
       return;
     }
-    const input = prompt(`Quantos hit dice gastar? (1-${maxDice})`, '1');
-    if (input === null) return;
-    const n = parseInt(input, 10);
+    // ψ.4 — Input modal customizado (era prompt() nativo)
+    const result = await inputDialog({
+      title: 'Descanso Curto',
+      text: `Quantos hit dice quer gastar? (1 a ${maxDice})`,
+      placeholder: '1',
+      initialValue: '1',
+      maxLength: 2,
+      validator: (v) => {
+        const n = parseInt(v, 10);
+        if (!Number.isFinite(n) || n < 1) return 'Digite um número ≥ 1';
+        if (n > maxDice) return `Máximo: ${maxDice} hit dice`;
+        return null;
+      },
+      confirmText: '🛌 Descansar',
+    });
+    if (result === null) return;
+    const n = parseInt(result, 10);
     if (!Number.isFinite(n) || n < 1) return;
     this.opts.socket.emit('shortRest', { hitDiceToSpend: Math.min(n, maxDice) });
   }
 
-  private confirmLongRest(): void {
-    if (confirm('Descanso longo (8h): HP cheio + spell slots resetam. Avança o tempo. Confirmar?')) {
+  private async confirmLongRest(): Promise<void> {
+    // ψ.4 — Modal customizado (era confirm() nativo)
+    const ok = await confirmDialog({
+      title: 'Descanso Longo (8h)',
+      text: 'HP cheio + spell slots resetam + condições leves curam. O tempo avança — pode mudar o estado do mundo.',
+      confirmText: '🏕 Descansar 8h',
+      cancelText: 'Mais tarde',
+    });
+    if (ok) {
       this.opts.socket.emit('longRest');
     }
   }

@@ -185,14 +185,21 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
                 void import('../toast').then(({ toastWarn }) => toastWarn('Nenhum aliado vivo pra ajudar.'));
                 return;
               }
-              const choice = prompt(`Ajudar quem? Digite o nome:\n${allies.map((al) => `- ${al.characterName}`).join('\n')}`);
-              if (!choice) return;
-              const target = allies.find((al) => al.characterName.toLowerCase() === choice.toLowerCase());
-              if (!target) {
-                void import('../toast').then(({ toastError }) => toastError(`Aliado "${choice}" não encontrado.`));
-                return;
-              }
-              socket.emit('combatAction', { action: 'help', targetId: target.id });
+              // ψ.4 — Picker modal (era prompt() nativo type-name)
+              void import('../ui-modal').then(async ({ pickerDialog }) => {
+                const targetId = await pickerDialog<string>({
+                  title: '🤝 Ajudar aliado',
+                  text: 'Próximo ataque dele tem vantagem',
+                  options: allies.map((al) => ({
+                    value: al.id,
+                    label: al.characterName,
+                    description: `HP ${al.currentHp}/${al.maxHp} · CA ${al.armorClass}`,
+                  })),
+                });
+                if (targetId) {
+                  socket.emit('combatAction', { action: 'help', targetId });
+                }
+              });
               return;
             }
             socket.emit('combatAction', { action: a.id });

@@ -12,6 +12,7 @@ import { LobbyScreen } from './lobby/lobby-screen';
 import { LoginScreen } from './auth/login-screen';
 import { ProfileScreen } from './profile/profile-screen';
 import { toastError, toastWarn } from './toast';
+import { confirmDialog } from './ui-modal';
 import { SheetScreen } from './sheet/sheet-screen';
 import { getMe, logout, type AuthUser } from './api';
 import { getRace } from '../dnd/races';
@@ -396,7 +397,15 @@ async function renderHome(): Promise<void> {
               on: {
                 click: async (e) => {
                   e.stopPropagation();
-                  if (confirm(`Banir ${c.characterName} do mundo? Não há retorno.`)) {
+                  // ψ.4 — Modal customizado (era confirm() nativo)
+                  const ok = await confirmDialog({
+                    title: '⚠ Banir do mundo?',
+                    text: `${c.characterName} desaparece pra sempre. Sem retorno.`,
+                    confirmText: '🗡 Banir',
+                    cancelText: 'Cancelar',
+                    danger: true,
+                  });
+                  if (ok) {
                     await deleteCharacter(c.id);
                     await refreshCharsList();
                   }
@@ -594,7 +603,15 @@ function renderCampaignCard(
       attrs: { title: 'Excluir crônica (irreversível)', type: 'button', 'aria-label': 'Excluir crônica' },
       on: {
         click: async () => {
-          if (!confirm(`Excluir "${c.name}" (sessão ${c.sessionNumber})? Memória do Mestre e highlights serão perdidos. Não tem volta.`)) return;
+          // ψ.4 — Modal customizado (era confirm() nativo)
+          const ok = await confirmDialog({
+            title: '🗑 Excluir crônica?',
+            text: `"${c.name}" (sessão ${c.sessionNumber})\n\nMemória do Mestre, highlights e progresso vão sumir. Não tem volta.`,
+            confirmText: 'Excluir pra sempre',
+            cancelText: 'Manter',
+            danger: true,
+          });
+          if (!ok) return;
           try {
             await deleteCampaignApi(c.id);
             await onDeleted();
