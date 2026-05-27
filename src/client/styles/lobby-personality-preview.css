@@ -1,0 +1,21 @@
+/* JSgame · ν.3 — Lobby personality preview blockquote. */
+
+.lpp-preview {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.55) 0%, rgba(14, 8, 6, 0.7) 100%);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.01em;
+  transition: background 240ms ease, border-color 240ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lpp-preview {
+    transition: none;
+  }
+}

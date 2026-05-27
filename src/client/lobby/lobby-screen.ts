@@ -227,6 +227,12 @@ export class LobbyScreen {
     }
     wrap.appendChild(row);
     wrap.appendChild(el('div', { class: 'lpp-desc', text: active.description }));
+    // ν.3 — Preview de narração no estilo escolhido
+    wrap.appendChild(el('blockquote', {
+      class: 'lpp-preview',
+      text: `"${active.previewExample}"`,
+      attrs: { 'aria-label': 'Exemplo de narração nesse estilo' },
+    }));
     return wrap;
   }
 

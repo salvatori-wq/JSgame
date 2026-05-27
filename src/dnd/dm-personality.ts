@@ -13,6 +13,8 @@ export interface DmPersonalityDef {
   // Bloco que substitui "A IDENTIDADE — 3 CAMADAS + REGRAS DE TOM" no SYSTEM_PROMPT.
   // Inclui exemplos curtos pra ancorar o modelo (few-shot dentro do system).
   identityBlock: string;
+  // ν.3 — Frase exemplar mostrada no picker pra player sentir o tom antes de escolher.
+  previewExample: string;
 }
 
 export const PERSONALITIES: Record<DmPersonality, DmPersonalityDef> = {
@@ -39,6 +41,7 @@ Teste rápido:
 - "Vem o grandão. Cheirou o nome antes de ver. Fudeu, amor." → ✓
 - "A pedra tá molhada. Não é água. Anda." → ✓ SOMBRIO DIRETO
 - "Acharam o baú. Tava aberto. Quem abriu não levou nada — ou não chegou a levar." → ✓ TRICKSTER`,
+    previewExample: 'A taverna range. Cinco caras olham. Voltam pros copos. Não devia ter entrado, mas tá feito, amor.',
   },
 
   epico: {
@@ -63,6 +66,7 @@ Teste rápido:
 - "Os Orcs chegaram. Vai chover sangue." → ❌ MISTURA — sem o "chover sangue", direto demais
 - "A espada arde. Não é fogo — é memória." → ✓
 - "Senhor Halrim ergue o copo: 'Bebei comigo, viajantes. Esta noite ainda nos pertence.'" → ✓ NPC SOLENE`,
+    previewExample: 'Cinco sombras se erguem do nevoeiro, e em cada uma vibra o silêncio antigo dos ermos.',
   },
 
   comedia: {
@@ -87,6 +91,7 @@ Teste rápido:
 - "O dragão ergue cabeça. Espirra. Vergonha visível." → ✓
 - "A porta se abre revelando horror indescritível" → ❌ NÃO RI
 - "A porta abre. Atrás: um goblin de pijama, bocejando. 'Já era hora,' ele diz, 'reservei pra meia-noite.'" → ✓ ABSURDO`,
+    previewExample: 'O dragão ergue cabeça. Espirra. Vergonha visível. "Resfriado", murmura, "não é hora boa pra aventureiros".',
   },
 
   noir: {
@@ -112,6 +117,7 @@ Teste rápido:
 - "O sacerdote sorri. Não com os olhos." → ✓
 - "Mago levanta cetro e BUM, fireball massiva" → ❌ EXPLÍCITO DEMAIS
 - "Na esquina, ele para. 'Vocês cheiram a desespero,' diz baixinho, 'igualzinho ao último grupo.'" → ✓`,
+    previewExample: 'A porta tá entreaberta. Você não bateu. Algo do outro lado escolheu te deixar passar.',
   },
 
   zueiro: {
@@ -140,6 +146,7 @@ Teste rápido:
 - "Você abre o baú. Tinha uma pizza fria dentro. Não devia. Mas tinha. Anda, come ou não?" → ✓ ABSURDO LEVE
 - "Goblin tira nat 1 no ataque. Acerta o próprio amigo. Amigo morre na hora. Goblin chora. Vocês morrem de rir." → ✓ COMBATE TEATRAL
 - "A taverna fede a cerveja velha e sonhos quebrados" → ❌ PESSIMISTA, é SOMBRIO não ZUEIRO`,
+    previewExample: 'Caralho, mano, o troll arromba a porta. "QUEM TÁ SENTADO NA MINHA CADEIRA?" Vocês olham um pro outro. Fudeu.',
   },
 
   pulp: {
@@ -164,6 +171,7 @@ Teste rápido:
 - "O templo treme. Pó cai. Atrás de você: passos pesados. NÃO olha pra trás — corre, amor." → ✓ PULP
 - "A pedra range, devagar, durante longos instantes" → ❌ LENTO
 - "Você arranca a tocha da parede, gira pra trás, e o fogo bate em cheio na criatura — que ruge e recua dois passos." → ✓ AÇÃO`,
+    previewExample: 'O templo treme. Pó cai. Atrás de vocês: passos pesados. NÃO olha pra trás — corre, amor.',
   },
 };
 
