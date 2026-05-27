@@ -82,6 +82,20 @@ export class Campaign {
   // anterior ainda chega da Groq). Sem isso, 2 narrações rápidas disparariam 2 sumários.
   private summarizing = false;
 
+  // ψ.2 — Chat persistente em memória (FIFO cap 50). Sobrevive reconnect via
+  // partyMessageBacklog emitido em joinCampaign. NÃO persiste no DB ainda
+  // (proposital — chat é volátil por design, só dura a sessão).
+  partyMessages: Array<{
+    id: string;
+    characterId: string;
+    speaker: string;
+    text: string;
+    timestamp: number;
+  }> = [];
+  static readonly MAX_PARTY_MESSAGES = 50;
+  // Rate limit token-bucket por player. 5 tokens cap, refill 1 token / 2s.
+  private chatBuckets = new Map<string, { tokens: number; lastRefill: number }>();
+
   constructor(dm: DMInterface, opts?: { id?: string; name?: string; memory?: MemoryStore }) {
     this.dm = dm;
     this.memory = opts?.memory;
@@ -116,6 +130,50 @@ export class Campaign {
     if (this.narrationLog.length > 0 || this.state.recentEvents.length > 0) {
       this.isStarted = true;
     }
+  }
+
+  /**
+   * ψ.2 — Append party chat message com rate limit token-bucket.
+   * Retorna { accepted, msg } — caller broadcasta apenas se accepted.
+   */
+  appendPartyMessage(input: { characterId: string; speaker: string; text: string }): {
+    accepted: boolean;
+    reason?: string;
+    msg?: { id: string; characterId: string; speaker: string; text: string; timestamp: number };
+  } {
+    const text = String(input.text ?? '').trim().slice(0, 280);
+    if (!text) return { accepted: false, reason: 'empty' };
+
+    // Token bucket: 5 cap, refill 1 token / 2000ms
+    const now = Date.now();
+    let bucket = this.chatBuckets.get(input.characterId);
+    if (!bucket) {
+      bucket = { tokens: 5, lastRefill: now };
+      this.chatBuckets.set(input.characterId, bucket);
+    }
+    const refillAmount = Math.floor((now - bucket.lastRefill) / 2000);
+    if (refillAmount > 0) {
+      bucket.tokens = Math.min(5, bucket.tokens + refillAmount);
+      bucket.lastRefill = now;
+    }
+    if (bucket.tokens <= 0) {
+      return { accepted: false, reason: 'rate_limit' };
+    }
+    bucket.tokens -= 1;
+
+    const msg = {
+      id: `pm-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      characterId: input.characterId,
+      speaker: input.speaker,
+      text,
+      timestamp: now,
+    };
+    this.partyMessages.push(msg);
+    // FIFO cap 50
+    if (this.partyMessages.length > Campaign.MAX_PARTY_MESSAGES) {
+      this.partyMessages = this.partyMessages.slice(-Campaign.MAX_PARTY_MESSAGES);
+    }
+    return { accepted: true, msg };
   }
 
   addCharacter(c: CharacterSheet): void {

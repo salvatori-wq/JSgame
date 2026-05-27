@@ -46,7 +46,7 @@ import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
-import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type PartyMessage } from './chat-sheet';
+import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
 import { createBottomTabBar, type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
 import { popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
@@ -415,6 +415,21 @@ export class CampaignScreen {
     };
     s.on('partyMessage', onPartyMessage);
     this.socketCleanups.push(() => s.off('partyMessage', onPartyMessage));
+
+    // ψ.2 — Backlog em joinCampaign (resolve reconnect = histórico vazio)
+    const onBacklog = (payload: { messages: PartyMessage[] }): void => {
+      this.partyMessages = [...payload.messages];
+    };
+    s.on('partyMessageBacklog', onBacklog);
+    this.socketCleanups.push(() => s.off('partyMessageBacklog', onBacklog));
+
+    // ψ.2 — Typing indicator de aliados
+    const onTyping = (payload: { characterId: string; speaker: string; isTyping: boolean }): void => {
+      if (this.character && payload.characterId === this.character.id) return; // skip próprio
+      setRemoteTyping(payload);
+    };
+    s.on('partyTyping', onTyping);
+    this.socketCleanups.push(() => s.off('partyTyping', onTyping));
 
     const onParty = (party: CharacterSheet[]): void => {
       this.party = party;
@@ -1098,6 +1113,8 @@ export class CampaignScreen {
       messages: this.partyMessages,
       myCharacterId: this.character.id,
       onSend: (text) => this.opts.socket.emit('chat', { text }),
+      // ψ.2 — Typing indicator emit (debounced no chat-sheet)
+      onTyping: (isTyping) => this.opts.socket.emit('chatTyping', { isTyping }),
       onClose: () => {
         if (this.currentOpenTab === 'chat') this.markTabActive(null);
       },

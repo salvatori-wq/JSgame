@@ -219,12 +219,44 @@
   min-height: 0;
 }
 
+/* ψ.2 — Empty state cinematográfico (D&D tom Sombrio+Trickster) */
 .chat-sheet .cs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   text-align: center;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.45);
-  padding: 40px 16px;
+  padding: 32px 24px;
+  margin: auto 0;
+}
+
+.cs-empty-glyph {
+  font-size: 56px;
+  line-height: 1;
+  filter: drop-shadow(0 0 16px rgba(244, 208, 127, 0.35));
+  animation: cs-empty-glyph-float 4.5s ease-in-out infinite;
+}
+
+@keyframes cs-empty-glyph-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.cs-empty-title {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-gold, var(--gold));
+  letter-spacing: 0.02em;
+}
+
+.cs-empty-sub {
   font-size: 13px;
+  font-style: italic;
+  color: rgba(228, 200, 150, 0.75);
+  line-height: 1.5;
+  max-width: 280px;
 }
 
 .cs-msg {
@@ -233,6 +265,15 @@
   gap: 8px;
   max-width: 92%;
   align-self: flex-start;
+  /* ψ.2 — Transition base (entrada anima de is-entering) */
+  transition: opacity 220ms ease, transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ψ.2 — Animação entrada: começa deslocada 12px embaixo + opacity 0,
+ * transita pra normal quando classe is-entering é removida next frame. */
+.cs-msg.is-entering {
+  opacity: 0;
+  transform: translateY(12px);
 }
 
 .cs-msg.is-me {
@@ -305,17 +346,83 @@
 .chat-sheet .cs-input {
   flex: 1 1 auto;
   min-height: 36px;
+  max-height: 76px; /* ψ.2 — Cap 3 linhas */
   padding: 8px 12px;
   background: rgba(10, 6, 8, 0.6);
   border: 1px solid rgba(244, 208, 127, 0.28);
   border-radius: 18px;
   color: var(--ink);
   font-size: 14px;
+  font-family: var(--font-body);
+  resize: none; /* ψ.2 — Auto-resize via JS */
+  line-height: 20px;
+  overflow-y: auto;
 }
 
 .chat-sheet .cs-input:focus {
   outline: none;
   border-color: var(--gold);
+}
+
+/* ψ.2 — Char counter (>70% limit) */
+.chat-sheet .cs-char-counter {
+  position: absolute;
+  bottom: calc(48px + var(--m-safe-bottom, 0px));
+  right: 56px;
+  font-size: 10px;
+  color: rgba(228, 200, 150, 0.55);
+  background: rgba(20, 12, 8, 0.85);
+  padding: 2px 6px;
+  border-radius: 8px;
+  pointer-events: none;
+  transition: color 200ms ease;
+}
+
+.chat-sheet .cs-char-counter[hidden] { display: none; }
+
+.chat-sheet .cs-char-counter.is-near-limit {
+  color: var(--accent-blood, #c84032);
+  font-weight: 700;
+}
+
+/* ψ.2 — Typing indicator (acima do footer, abaixo do messages) */
+.chat-sheet .cs-typing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(228, 200, 150, 0.65);
+  background: rgba(28, 18, 10, 0.4);
+  border-top: 1px solid rgba(244, 208, 127, 0.08);
+  flex-shrink: 0;
+  min-height: 22px;
+}
+
+.chat-sheet .cs-typing[hidden] { display: none; }
+
+.cs-typing-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.cs-typing-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-gold, var(--gold));
+  animation: cs-typing-bounce 1.2s infinite ease-in-out;
+}
+
+.cs-typing-dots span:nth-child(1) { animation-delay: 0s; }
+.cs-typing-dots span:nth-child(2) { animation-delay: 0.18s; }
+.cs-typing-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes cs-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
 }
 
 .chat-sheet .cs-send {
@@ -346,8 +453,15 @@
   .is-stacked-sheet,
   .sheet-stack-backdrop,
   .chat-pill,
-  .chat-pill.has-unread {
+  .chat-pill.has-unread,
+  .cs-msg,
+  .cs-empty-glyph,
+  .cs-typing-dots span {
     transition: none;
     animation: none;
+  }
+  .cs-msg.is-entering {
+    opacity: 1;
+    transform: none;
   }
 }

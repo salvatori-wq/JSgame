@@ -485,6 +485,8 @@ export interface ClientToServerEvents {
 
   // Meta
   chat: (payload: { text: string }) => void;
+  // ψ.2 — Typing indicator (debounced client-side; server broadcasta).
+  chatTyping: (payload: { isTyping: boolean }) => void;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -576,6 +578,22 @@ export interface ServerToClientEvents {
     speaker: string;
     text: string;
     timestamp: number;
+  }) => void;
+  // ψ.2 — Backlog enviado em joinCampaign (resolve reconnect = histórico vazio).
+  partyMessageBacklog: (payload: {
+    messages: Array<{
+      id: string;
+      characterId: string;
+      speaker: string;
+      text: string;
+      timestamp: number;
+    }>;
+  }) => void;
+  // ψ.2 — Typing indicator (debounced server-side).
+  partyTyping: (payload: {
+    characterId: string;
+    speaker: string;
+    isTyping: boolean;
   }) => void;
 }
 

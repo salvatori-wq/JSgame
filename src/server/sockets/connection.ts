@@ -136,6 +136,11 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         socket.emit('campaignState', camp.state);
         socket.emit('combatState', camp.state.combat);
         io.to(camp.state.id).emit('partyUpdate', camp.party);
+        // ψ.2 — Emite backlog de chat pro player que acabou de entrar
+        // (reconnect/rejoin não perde mais histórico).
+        if (camp.partyMessages.length > 0) {
+          socket.emit('partyMessageBacklog', { messages: camp.partyMessages });
+        }
 
         if (character.userId) {
           try {
@@ -938,23 +943,42 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
 
     socket.on('chat', ({ text }) => {
       if (!activeCampaignId || !activePlayerId) return;
-      const trimmed = String(text ?? '').trim().slice(0, 280);
-      if (!trimmed) return;
       const camp = campaigns.get(activeCampaignId);
-      const myName = camp?.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Anônimo';
+      if (!camp) return;
+      const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Anônimo';
+      // ψ.2 — Append via Campaign.appendPartyMessage com rate limit + persistência
+      const result = camp.appendPartyMessage({
+        characterId: activePlayerId,
+        speaker: myName,
+        text,
+      });
+      if (!result.accepted || !result.msg) {
+        if (result.reason === 'rate_limit') {
+          socket.emit('error', '⏳ Calma — espera um pouco antes de mandar de novo.');
+        }
+        return;
+      }
       // Legacy (narration log) — mantém compat com client antigo
       io.to(activeCampaignId).emit('dmNarration', {
-        text: trimmed,
+        text: result.msg.text,
         speaker: `💬 ${myName}`,
         mood: 'neutral',
       });
-      // ο.2 — Novo: broadcast separado pra chat-sheet
-      io.to(activeCampaignId).emit('partyMessage', {
-        id: `pm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      // Broadcast pra chat-sheet
+      io.to(activeCampaignId).emit('partyMessage', result.msg);
+    });
+
+    // ψ.2 — Typing indicator (broadcast pros aliados, não pro próprio sender).
+    socket.on('chatTyping', ({ isTyping }) => {
+      if (!activeCampaignId || !activePlayerId) return;
+      const camp = campaigns.get(activeCampaignId);
+      if (!camp) return;
+      const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Anônimo';
+      // Broadcast pros OUTROS sockets da room (exclui o próprio)
+      socket.to(activeCampaignId).emit('partyTyping', {
         characterId: activePlayerId,
         speaker: myName,
-        text: trimmed,
-        timestamp: Date.now(),
+        isTyping: !!isTyping,
       });
     });
   });
