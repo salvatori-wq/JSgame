@@ -36,6 +36,8 @@ import { applyValidatedToolToCampaign } from './dm-tool-applier.js';
 import { consumeBuffs, clearAllBuffs, tickBuffsEndOfTurn } from './buff-engine.js';
 import type { SpellId } from '../dnd/spells.js';
 import { getClass } from '../dnd/classes.js';
+import { getRace } from '../dnd/races.js';
+import { getBackground } from '../dnd/backgrounds.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
 import { rollDice } from '../dnd/dice.js';
 import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
@@ -166,6 +168,27 @@ export class Campaign {
       console.warn('[campaign] memory.search falhou:', err);
       return [];
     }
+  }
+
+  // F4 — Constrói ActiveCharacterProfile pra injetar no system prompt do DM.
+  // Pega primeira entrada de cada lista (PJs têm 1-2 traits/ideals/bonds/flaws).
+  private buildActiveProfile(playerId: string): import('./dm/prompts.js').ActiveCharacterProfile | undefined {
+    const pj = this.party.find((p) => p.id === playerId);
+    if (!pj) return undefined;
+    const race = getRace(pj.raceId);
+    const klass = getClass(pj.classId);
+    const bg = getBackground(pj.backgroundId);
+    const profile: import('./dm/prompts.js').ActiveCharacterProfile = {
+      name: pj.characterName,
+      race: race.name,
+      class: klass.name,
+      background: bg.name,
+    };
+    if (pj.personalityTraits?.[0]) profile.trait = pj.personalityTraits[0];
+    if (pj.ideals?.[0]) profile.ideal = pj.ideals[0];
+    if (pj.bonds?.[0]) profile.bond = pj.bonds[0];
+    if (pj.flaws?.[0]) profile.flaw = pj.flaws[0];
+    return profile;
   }
 
   // β.1 — Fetch top-N NPCs do roster persistente pra injetar no prompt.
@@ -334,6 +357,8 @@ export class Campaign {
         recentNarrations: this.narrationLog,
         memoryFacts,
         npcRoster,
+        // F4 — Injeta profile do PJ ativo (trait/ideal/bond/flaw)
+        activeCharacterProfile: this.buildActiveProfile(playerId),
       });
       this.applyDMResponse(response);
       this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
@@ -411,6 +436,8 @@ export class Campaign {
           nat20: !!roll.nat20,
           nat1: !!roll.nat1,
         },
+        // F4 — Profile do PJ ativo (quem rolou)
+        activeCharacterProfile: this.buildActiveProfile(playerId),
       });
       this.applyDMResponse(dmResponse);
       const inspNote = usedInspiration ? ' [com inspiração]' : '';

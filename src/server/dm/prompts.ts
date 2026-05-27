@@ -529,6 +529,20 @@ export interface NarrationContext {
     nat20: boolean;
     nat1: boolean;
   };
+  // F4 — Profile do PJ ativo (quem fez a ação). DM usa trait/ideal/bond/flaw
+  // como hooks narrativos. Quando opcional não vem, fallback comportamento atual.
+  activeCharacterProfile?: ActiveCharacterProfile;
+}
+
+export interface ActiveCharacterProfile {
+  name: string;
+  race: string;       // display name (ex: "Anão da Montanha")
+  class: string;      // display name (ex: "Guerreiro")
+  background: string; // display name (ex: "Soldado")
+  trait?: string;     // primeira personality trait do PJ
+  ideal?: string;
+  bond?: string;
+  flaw?: string;
 }
 
 export function buildNarrationPrompt(ctx: NarrationContext): string {
@@ -601,6 +615,21 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
       }).join('\n')}`
     : '';
 
+  // F4 — Profile do PJ ativo (quem fez a ação). Inject trait/ideal/bond/flaw
+  // como hooks narrativos. DM usa em situações relevantes — não força sempre.
+  const profileBlock = ctx.activeCharacterProfile
+    ? (() => {
+        const p = ctx.activeCharacterProfile!;
+        const parts: string[] = [];
+        if (p.trait) parts.push(`Trait: "${p.trait}"`);
+        if (p.ideal) parts.push(`Ideal: "${p.ideal}"`);
+        if (p.bond) parts.push(`Bond: "${p.bond}"`);
+        if (p.flaw) parts.push(`Flaw: "${p.flaw}"`);
+        if (parts.length === 0) return '';
+        return `\n## SOBRE O PJ ATIVO\n**${p.name}** — ${p.race} ${p.class} (${p.background})\n${parts.join('\n')}\n\n### COMO USAR\n- Trait: cite quando contextualmente justificado (não force)\n- Bond: dirige quests — encaixe quando puder\n- Flaw: TESTE em cenas (apresente situação que ative o medo/vício)\n- Ideal: bússola moral — dilemas que tocam`;
+      })()
+    : '';
+
   return `## CONTEXTO DA CAMPANHA
 **Campanha**: ${ctx.campaign.name}
 **Sessão**: ${ctx.campaign.sessionNumber}
@@ -609,6 +638,7 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
 
 ## A PARTY
 ${partySummary}
+${profileBlock}
 ${npcsBlock}
 ${questsBlock}
 ${difficultyBlock}

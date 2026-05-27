@@ -234,6 +234,40 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           } catch (err) {
             console.warn('[F3 callback-detect] erro:', err);
           }
+          // F4 — telemetria de uso de backstory (DM citou trait/ideal/bond/flaw?)
+          try {
+            const pj = camp.party.find((p) => p.id === activePlayerId);
+            if (pj) {
+              const { detectBackstoryUsage } = await import('../backstory-detector.js');
+              const profile = {
+                name: pj.characterName,
+                race: pj.raceId,
+                class: pj.classId,
+                background: pj.backgroundId,
+                trait: pj.personalityTraits?.[0],
+                ideal: pj.ideals?.[0],
+                bond: pj.bonds?.[0],
+                flaw: pj.flaws?.[0],
+              };
+              const usage = detectBackstoryUsage(response.narration, profile);
+              if (usage.total > 0) {
+                void trackMetricEvent({
+                  userId: sUser?.id ?? null,
+                  sessionId: camp.state.id,
+                  kind: 'dm_used_backstory' as const,
+                  payload: {
+                    trait: usage.traitMentioned,
+                    ideal: usage.idealMentioned,
+                    bond: usage.bondMentioned,
+                    flaw: usage.flawMentioned,
+                    total: usage.total,
+                  },
+                });
+              }
+            }
+          } catch (err) {
+            console.warn('[F4 backstory-detect] erro:', err);
+          }
           if (camp.lastCombatXpAwards && camp.lastCombatXpAwards.length > 0) {
             await flushPostCombatRewards(camp);
           }
