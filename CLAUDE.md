@@ -82,7 +82,27 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (MEGA SESSION — Sprints ο, η, ξ, κ, λ, θ, ι, ν entregues, 19 commits, 1179→1362 tests +183)
+> Última atualização: 2026-05-27 (Sprint π Bottom Tab Bar Uber Native entregue — 3 commits batched, 1362→1377 tests +15)
+
+### Sprint π "Bottom Tab Bar Uber Native" — 3 commits, 1362→1377 tests (+15)
+Pegada Uber/Wash Me nativa: 4 ícones secundários do header (📜🏆👥🔗) viram tab bar persistente bottom 5-slots. Chat pill ο.2 deprecated em portrait-narrow (badge mora no slot Chat). Solo: slot 4 = Share (clipboard campId). Coop: slot 4 = Chat. Slot 5 "Mais" abre overflow menu existente. Decisões D10/D11/D12 confirmadas.
+- π.1+π.2 (`c3f22e3`): bottom-tab-bar.ts NOVO + bottom-tab-bar.css NOVO + styles.css import. Renderer + handle (setUnreadCount/setActiveTab/setQuestBadge/setAchievementsBadge/setCoop/destroy). CSS dourado/sangue, active indicator superior 2px com glow, badge pulse 1.6s, scale(0.95) tap, density profile (compact 48/standard 56/comfortable 64) via body class, prefers-reduced-motion respeitado, haptic vibrate 10ms.
+- π.3+π.4 (`96d20f9`): campaign-screen.ts integração (slot .ch-slot-bottom-tabs no shell + bottomTabBar handle + currentOpenTab tracker + onBottomTabClick rotear pra modais), chat-sheet.ts onClose opcional, m-camp-dock.css .ch-slot-main-content 55vh→48vh + novo slot. Toggle tap: ativar mesma tab fecha o modal.
+- π.5+π.6 (próximo commit): bottom-tab-bar.test.ts (15 tests) + CLAUDE.md + HANDOFF.
+
+### Arquivos novos Sprint π
+- `src/client/campaign/bottom-tab-bar.ts` — renderer + state handle (BottomTabBarHandle interface)
+- `src/client/styles/bottom-tab-bar.css` — visual spec dourado/sangue + density profile + reduced-motion
+- `src/client/campaign/__tests__/bottom-tab-bar.test.ts` — 15 tests
+
+### Arquivos editados Sprint π
+- `src/client/campaign/campaign-screen.ts` — wire-up tab bar + chat absorbed
+- `src/client/campaign/chat-sheet.ts` — onClose opcional pra notificar caller
+- `src/client/styles/m-camp-dock.css` — max-height 48vh + slot bottom-tabs
+- `src/client/styles.css` — import bottom-tab-bar.css
+
+### MEGA SESSION 2026-05-27 — 8 Sprints novos entregues
+Total: **19 commits feature**, **1179 → 1362 tests (+183 net)**, zero regressão. Sprints completos ou enxutos:
 
 ### MEGA SESSION 2026-05-27 — 8 Sprints novos entregues
 Total: **19 commits feature**, **1179 → 1362 tests (+183 net)**, zero regressão. Sprints completos ou enxutos:
