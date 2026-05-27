@@ -1,0 +1,127 @@
+/* JSgame · γ.5 — Overflow menu pra header.
+   Popover compacto que aparece sob o botão "⋯" no header. Items com icon+label,
+   active state visual (ON/OFF), keyboard-accessible. */
+
+.overflow-menu {
+  background: linear-gradient(160deg, #1d1a28 0%, #14111c 100%);
+  border: 1px solid rgba(180, 150, 90, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  min-width: 180px;
+  z-index: 9700;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: omFadeIn 140ms ease-out;
+}
+
+@keyframes omFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.overflow-menu .om-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 40px;       /* γ.5 — hit target ≥38px mobile */
+  background: transparent;
+  border: none;
+  color: #e8e3cc;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 120ms ease, color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overflow-menu .om-item:hover,
+.overflow-menu .om-item:focus-visible {
+  background: rgba(180, 150, 90, 0.15);
+  color: #fff5d6;
+  outline: none;
+}
+
+.overflow-menu .om-item.is-active {
+  color: #c8d8a8;
+}
+
+.overflow-menu .om-item.is-inactive {
+  color: #908a7c;
+}
+
+.overflow-menu .om-icon {
+  font-size: 18px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.overflow-menu .om-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* Botão ⋯ no header — destacar pra ser óbvio que é menu */
+.camp-overflow-btn {
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+/* ── γ.5 — Mobile audit: hit targets ≥38px em todos botões do header ─────── */
+@media (max-width: 480px) {
+  .overflow-menu {
+    min-width: 200px;
+    padding: 8px;
+  }
+  .overflow-menu .om-item {
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+  /* Header campaign — botões secundários ganham hit target generoso */
+  .camp-header .camp-mem-btn,
+  .camp-header .camp-share-btn,
+  .camp-header .wiz-back-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+  /* Visually-hidden helper (ARIA live regions, etc) */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ── prefers-reduced-motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .overflow-menu {
+    animation: none;
+  }
+}
+
+/* Visually-hidden — sempre disponível (não só mobile) pra ARIA live regions */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

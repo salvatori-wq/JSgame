@@ -26,6 +26,7 @@ import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { openShopModal, closeShopModal } from '../shop/shop-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
+import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 import { showAchievementToast } from '../achievements-toast';
@@ -732,32 +733,7 @@ export class CampaignScreen {
     return `${p.icon} ${p.label}`;
   }
 
-  // 3B — Dropdown de dificuldade. Mudança emite updateCampaignSettings.
-  private renderDifficultyDropdown(): HTMLElement {
-    const current = this.currentState?.combatDifficulty ?? 'auto';
-    const select = document.createElement('select');
-    select.className = 'camp-difficulty-select';
-    select.title = 'Dificuldade preferida de combate (DM respeita)';
-    const opts: Array<['easy' | 'medium' | 'hard' | 'deadly' | 'auto', string]> = [
-      ['auto', '⚔ Auto'],
-      ['easy', '🟢 Fácil'],
-      ['medium', '🟡 Médio'],
-      ['hard', '🟠 Difícil'],
-      ['deadly', '🔴 Mortal'],
-    ];
-    for (const [val, label] of opts) {
-      const opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = label;
-      if (val === current) opt.selected = true;
-      select.appendChild(opt);
-    }
-    select.addEventListener('change', () => {
-      const v = select.value as 'easy' | 'medium' | 'hard' | 'deadly' | 'auto';
-      this.opts.socket.emit('updateCampaignSettings', { combatDifficulty: v });
-    });
-    return select;
-  }
+  // γ.5 — renderDifficultyDropdown deletado; difficulty agora vive no overflow menu.
 
   private renderHeader(): HTMLElement {
     const campId = this.currentState?.id;
@@ -785,77 +761,7 @@ export class CampaignScreen {
           ? el('div', { class: 'camp-personality-tag', attrs: { title: 'Estilo do Mestre' }, text: this.dmPersonalityLabel(this.currentState.dmPersonality) })
           : null,
       ].filter(Boolean) as HTMLElement[]),
-      el('button', {
-        class: 'camp-sfx-btn',
-        text: isSfxEnabled() ? '🔊' : '🔇',
-        attrs: { title: 'Liga/desliga sons' },
-        on: {
-          click: (e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            setSfxEnabled(!isSfxEnabled());
-            btn.textContent = isSfxEnabled() ? '🔊' : '🔇';
-          },
-        },
-      }),
-      el('button', {
-        class: 'camp-sfx-btn',
-        text: isAmbientEnabled() ? '🎵' : '🎶',
-        attrs: { title: 'Liga/desliga música ambiente procedural (F21)' },
-        on: {
-          click: (e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            const next = !isAmbientEnabled();
-            setAmbientEnabled(next);
-            btn.textContent = next ? '🎵' : '🎶';
-            btn.style.opacity = next ? '1' : '0.5';
-            if (next) {
-              setAmbient(this.currentState?.combat?.active ? 'combat' : 'exploration');
-            }
-          },
-          mouseover: (e) => {
-            // Refresh visual estado
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.opacity = isAmbientEnabled() ? '1' : '0.5';
-          },
-        },
-      }),
-      notifsSupported() ? el('button', {
-        class: 'camp-notif-btn',
-        text: isNotifsEnabled() ? '🔔' : '🔕',
-        attrs: { title: 'Liga/desliga notificações quando aba sem foco' },
-        on: {
-          click: async (e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            const next = !isNotifsEnabled();
-            const ok = await setNotifsEnabled(next);
-            btn.textContent = ok ? '🔔' : '🔕';
-          },
-        },
-      }) : null,
-      // C3 — Voice TTS toggle (só aparece se browser suporta)
-      isVoiceTtsSupported() ? el('button', {
-        class: 'camp-sfx-btn',
-        text: isVoiceTtsEnabled() ? '🗣' : '🤐',
-        attrs: { title: 'Liga/desliga voz lendo narrações do Mestre' },
-        on: {
-          click: (e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            const next = !isVoiceTtsEnabled();
-            setVoiceTtsEnabled(next);
-            btn.textContent = next ? '🗣' : '🤐';
-          },
-        },
-      }) : null,
-      campId ? el('button', {
-        class: 'camp-mem-btn',
-        text: '🧠',
-        attrs: { title: 'Memória do Mestre (RAG)' },
-        on: {
-          click: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
-        },
-      }) : null,
-      // 3B — Dropdown de dificuldade de combate (DM respeita)
-      this.renderDifficultyDropdown(),
+      // γ.5 — Primários visíveis: Quest, Achievements, NPCs, Share + Overflow.
       // F18 — quest log
       el('button', {
         class: 'camp-mem-btn',
@@ -888,7 +794,7 @@ export class CampaignScreen {
       }) : null,
       campId ? el('button', {
         class: 'camp-share-btn',
-        text: '🔗 Compartilhar',
+        text: '🔗',
         attrs: { title: 'Copiar ID da crônica pra share com aliado' },
         on: {
           click: async () => {
@@ -901,7 +807,110 @@ export class CampaignScreen {
           },
         },
       }) : null,
+      // γ.5 — Overflow menu (⋯) com configurações secundárias
+      el('button', {
+        class: 'camp-mem-btn camp-overflow-btn',
+        text: '⋯',
+        attrs: { title: 'Mais opções (sons, notificações, dificuldade)', 'aria-label': 'Mais opções', 'aria-haspopup': 'menu' },
+        on: {
+          click: (e) => this.openHeaderOverflow(e.currentTarget as HTMLElement),
+        },
+      }),
     ].filter(Boolean) as HTMLElement[]);
+  }
+
+  /** γ.5 — Abre overflow menu com configurações secundárias. */
+  private openHeaderOverflow(anchor: HTMLElement): void {
+    const campId = this.currentState?.id;
+    const items: OverflowMenuItem[] = [
+      {
+        icon: isSfxEnabled() ? '🔊' : '🔇',
+        label: `Sons ${isSfxEnabled() ? 'ON' : 'OFF'}`,
+        title: 'Liga/desliga efeitos sonoros',
+        active: isSfxEnabled(),
+        onClick: () => {
+          setSfxEnabled(!isSfxEnabled());
+          this.render();
+        },
+      },
+      {
+        icon: isAmbientEnabled() ? '🎵' : '🎶',
+        label: `Música ${isAmbientEnabled() ? 'ON' : 'OFF'}`,
+        title: 'Liga/desliga música ambiente procedural',
+        active: isAmbientEnabled(),
+        onClick: () => {
+          const next = !isAmbientEnabled();
+          setAmbientEnabled(next);
+          if (next) {
+            setAmbient(this.currentState?.combat?.active ? 'combat' : 'exploration');
+          }
+          this.render();
+        },
+      },
+    ];
+
+    if (notifsSupported()) {
+      items.push({
+        icon: isNotifsEnabled() ? '🔔' : '🔕',
+        label: `Notif ${isNotifsEnabled() ? 'ON' : 'OFF'}`,
+        title: 'Notificações quando aba sem foco',
+        active: isNotifsEnabled(),
+        onClick: async () => {
+          await setNotifsEnabled(!isNotifsEnabled());
+          this.render();
+        },
+      });
+    }
+
+    if (isVoiceTtsSupported()) {
+      items.push({
+        icon: isVoiceTtsEnabled() ? '🗣' : '🤐',
+        label: `Voz ${isVoiceTtsEnabled() ? 'ON' : 'OFF'}`,
+        title: 'Voz lendo narrações do Mestre',
+        active: isVoiceTtsEnabled(),
+        onClick: () => {
+          setVoiceTtsEnabled(!isVoiceTtsEnabled());
+          this.render();
+        },
+      });
+    }
+
+    if (campId) {
+      items.push({
+        icon: '🧠',
+        label: 'Memória',
+        title: 'Memória do Mestre (RAG)',
+        onClick: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
+      });
+    }
+
+    // 3B — Dificuldade — abre dropdown nativo via prompt simples
+    items.push({
+      icon: '⚔',
+      label: 'Dificuldade',
+      title: 'Mudar dificuldade de combate',
+      onClick: () => this.promptDifficultyChange(),
+    });
+
+    openOverflowMenu(anchor, items);
+  }
+
+  private promptDifficultyChange(): void {
+    const current = this.currentState?.combatDifficulty ?? 'auto';
+    const choices = [
+      { value: 'auto', label: '⚔ Auto (DM decide)' },
+      { value: 'easy', label: '🟢 Fácil' },
+      { value: 'medium', label: '🟡 Médio' },
+      { value: 'hard', label: '🟠 Difícil' },
+      { value: 'deadly', label: '🔴 Mortal' },
+    ];
+    const prompt_msg = `Dificuldade atual: ${current}\n\nEscolha (digite o número):\n${choices.map((c, i) => `${i + 1}. ${c.label}`).join('\n')}`;
+    const answer = prompt(prompt_msg);
+    if (!answer) return;
+    const idx = parseInt(answer.trim(), 10) - 1;
+    if (idx < 0 || idx >= choices.length) return;
+    const v = choices[idx]!.value as 'easy' | 'medium' | 'hard' | 'deadly' | 'auto';
+    this.opts.socket.emit('updateCampaignSettings', { combatDifficulty: v });
   }
 
   private renderPartyPanel(): HTMLElement {
