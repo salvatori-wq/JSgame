@@ -482,6 +482,8 @@ export interface NarrationContext {
   // Facts da memória persistente (RAG via FTS5) — top-K relevantes ao contexto atual.
   // Mestre usa pra manter consistência cross-session (NPCs, locais, promessas).
   memoryFacts?: MemoryFact[];
+  // β.1 — Top-N NPCs do roster persistente. Injetados pra DM lembrar tom/relacionamento.
+  npcRoster?: import('../../shared/types.js').NpcMemory[];
   // Skill check resolvido (informar resultado ao DM pra narrar consequência)
   skillCheckResolution?: {
     playerName: string;
@@ -531,9 +533,23 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     ? `\n## RESULTADO DO SKILL CHECK\n${ctx.skillCheckResolution.playerName} rolou **${ctx.skillCheckResolution.roll} + ${ctx.skillCheckResolution.modifier} = ${ctx.skillCheckResolution.total}** vs DC ${ctx.skillCheckResolution.dc}\n${ctx.skillCheckResolution.nat20 ? '✨ NAT 20 (crítico espetacular)' : ctx.skillCheckResolution.nat1 ? '💀 NAT 1 (falha catastrófica)' : ctx.skillCheckResolution.success ? '✓ Sucesso' : '✗ Falhou'}\n→ NARRE a consequência. Se nat 20, vai além (info bônus). Se nat 1, complica (não só falha — algo pior).`
     : '';
 
-  const npcsBlock = ctx.campaign.npcsMet.length > 0
-    ? `\n## NPCs JÁ APARECIDOS (use-os, NÃO invente novos)\n${ctx.campaign.npcsMet.map((n) => `- ${n.name} (${n.archetype}, ${n.attitude}) — última vez: ${n.lastSeen}`).join('\n')}`
-    : '';
+  // β.1 — Prioriza NPCs do roster persistente (com contadores, relacionamento, notas).
+  // Fallback pra npcsMet (in-memory) se roster vazio. Limita a top-5 pra economizar tokens.
+  const npcsBlock = (() => {
+    const roster = ctx.npcRoster ?? [];
+    if (roster.length > 0) {
+      const rel = (n: number): string => n > 0 ? `+${n}` : String(n);
+      const lines = roster.slice(0, 5).map((n) => {
+        const notes = n.notes ? ` · ${n.notes}` : '';
+        return `- ${n.name} (${n.archetype}, ${n.attitude}, rel ${rel(n.relationship)}, ${n.interactionCount}× em "${n.lastLocation}")${notes}`;
+      }).join('\n');
+      return `\n## NPCs CONHECIDOS (use nomes, tiques, relacionamento — NÃO invente novos se já existe)\n${lines}`;
+    }
+    if (ctx.campaign.npcsMet.length > 0) {
+      return `\n## NPCs JÁ APARECIDOS (use-os, NÃO invente novos)\n${ctx.campaign.npcsMet.map((n) => `- ${n.name} (${n.archetype}, ${n.attitude}) — última vez: ${n.lastSeen}`).join('\n')}`;
+    }
+    return '';
+  })();
 
   // 3B — Player choice de dificuldade. DM respeita ao chamar start_combat_balanced.
   const difficulty = ctx.campaign.combatDifficulty ?? 'auto';

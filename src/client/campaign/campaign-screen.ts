@@ -21,6 +21,7 @@ import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-
 import { openMemoryModal } from './memory-modal';
 import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
+import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
@@ -121,6 +122,7 @@ export class CampaignScreen {
     closeInventoryModal();
     closeQuestLog();
     closeAchievementsModal();
+    closeNpcRosterModal();
     if (this.narrationLog) {
       this.narrationLog.destroy();
       this.narrationLog = null;
@@ -843,6 +845,15 @@ export class CampaignScreen {
           click: () => openAchievementsModal({ onClose: () => { /* nothing */ } }),
         },
       }),
+      // β.1 — NPC roster modal
+      campId ? el('button', {
+        class: 'camp-mem-btn',
+        text: '👥',
+        attrs: { title: 'NPCs conhecidos' },
+        on: {
+          click: () => openNpcRosterModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
+        },
+      }) : null,
       campId ? el('button', {
         class: 'camp-share-btn',
         text: '🔗 Compartilhar',

@@ -408,6 +408,18 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     }
   });
 
+  // β.1 — NPC roster por campaign (lista todos NPCs persistidos com contadores)
+  app.get('/api/campaigns/:id/npcs', async (req, res) => {
+    try {
+      const { listNpcs } = await import('../npc-roster.js');
+      const npcs = await listNpcs(req.params.id);
+      res.json({ npcs });
+    } catch (err) {
+      console.error('[api] campaigns/:id/npcs:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   app.get('/api/highlights', async (req, res) => {
     const user = (req as ExpressReqWithUser).user;
     if (!user) { res.json({ highlights: [] }); return; }

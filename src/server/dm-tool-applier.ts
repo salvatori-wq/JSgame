@@ -176,6 +176,21 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         existing.attitude = tool.attitude;
         existing.lastSeen = camp.state.currentLocation;
       }
+      // β.1 — UPSERT no NPC roster persistente. Fire-and-forget, não bloqueia ação.
+      void (async () => {
+        try {
+          const { upsertNpc } = await import('./npc-roster.js');
+          await upsertNpc({
+            campaignId: camp.state.id,
+            name: tool.name,
+            archetype: tool.archetype,
+            attitude: tool.attitude,
+            currentLocation: camp.state.currentLocation,
+          });
+        } catch (err) {
+          console.warn('[campaign] upsertNpc falhou:', err);
+        }
+      })();
       break;
     }
 

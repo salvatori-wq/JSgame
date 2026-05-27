@@ -157,6 +157,18 @@ export class Campaign {
     }
   }
 
+  // β.1 — Fetch top-N NPCs do roster persistente pra injetar no prompt.
+  // Fire-and-forget seguro: erro = retorna [] (DM cai no fallback npcsMet).
+  private async retrieveNpcRoster(limit = 5): Promise<import('../shared/types.js').NpcMemory[]> {
+    try {
+      const { topRecentNpcs } = await import('./npc-roster.js');
+      return await topRecentNpcs(this.state.id, limit);
+    } catch (err) {
+      console.warn('[campaign] retrieveNpcRoster falhou:', err);
+      return [];
+    }
+  }
+
   // Helper que extrai foco de uma chamada narrate() pra retrieval. Usa ação do
   // player se houver; senão usa skillCheck; senão usa local atual.
   // Retorna { text, playerId? } pra retrieveMemory aplicar PJ-aware boost.
@@ -216,12 +228,16 @@ export class Campaign {
         })();
 
         const narrateTask: Promise<DMResponse> = (async () => {
-          const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
+          const [memoryFacts, npcRoster] = await Promise.all([
+            this.retrieveMemory(focus.text, focus.playerId),
+            this.retrieveNpcRoster(),
+          ]);
           return this.dm.narrate({
             campaign: this.state,
             party: this.party,
             recentNarrations: this.narrationLog,
             memoryFacts,
+            npcRoster,
           });
         })();
 
@@ -241,13 +257,17 @@ export class Campaign {
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
     return this.enqueue(async () => {
       const focus = this.buildMemoryFocus({ playerAction: { playerId, action: String(action), details } });
-      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
+      const [memoryFacts, npcRoster] = await Promise.all([
+        this.retrieveMemory(focus.text, focus.playerId),
+        this.retrieveNpcRoster(),
+      ]);
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         playerAction: { playerId, action: String(action), details },
         recentNarrations: this.narrationLog,
         memoryFacts,
+        npcRoster,
       });
       this.applyDMResponse(response);
       this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
@@ -304,12 +324,16 @@ export class Campaign {
       const focus = this.buildMemoryFocus({
         skillCheckResolution: { playerId, skill: skill.name, playerName: player.characterName },
       });
-      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
+      const [memoryFacts, npcRoster] = await Promise.all([
+        this.retrieveMemory(focus.text, focus.playerId),
+        this.retrieveNpcRoster(),
+      ]);
       const dmResponse = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         recentNarrations: this.narrationLog,
         memoryFacts,
+        npcRoster,
         skillCheckResolution: {
           playerName: player.characterName,
           skill: skill.name,
@@ -635,12 +659,16 @@ export class Campaign {
           action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido',
         },
       });
-      const memoryFacts = await this.retrieveMemory(focus.text, focus.playerId);
+      const [memoryFacts, npcRoster] = await Promise.all([
+        this.retrieveMemory(focus.text, focus.playerId),
+        this.retrieveNpcRoster(),
+      ]);
       const response = await this.dm.narrate({
         campaign: this.state,
         party: this.party,
         recentNarrations: this.narrationLog,
         memoryFacts,
+        npcRoster,
         playerAction: {
           playerId: this.party[0]?.id ?? 'system',
           action: outcome === 'victory' ? 'combate-vencido' : 'combate-perdido',

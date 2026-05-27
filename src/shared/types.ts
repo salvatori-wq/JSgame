@@ -187,6 +187,26 @@ export interface InventoryItem {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// β.1 — NPC Roster Persistente. Diferente de CampaignState.npcsMet (lista
+// volátil em-memória), NpcMemory é persistido em DB e carrega contadores,
+// notas, relacionamento. DM lê top-N recentes pra "mundo lembra de você".
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface NpcMemory {
+  id: string;              // slug do nome + local de primeiro encontro
+  campaignId: string;
+  name: string;
+  archetype: string;
+  attitude: 'amigavel' | 'neutro' | 'hostil' | 'misterioso';
+  firstMet: number;
+  lastSeen: number;
+  lastLocation: string;
+  interactionCount: number;
+  notes: string;          // "morto", "deve favor", "traiu party", livre-form
+  relationship: number;   // -10 (inimigo) ↔ +10 (aliado próximo). 0 = neutro.
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // Quest — F18. Missões com objetivos, dadas/atualizadas/completadas por DM tools.
 // Persiste em CampaignState.quests. RAG indexa como kind=promise importance=1.7.
 // ════════════════════════════════════════════════════════════════════════════

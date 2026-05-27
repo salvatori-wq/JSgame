@@ -209,6 +209,22 @@ export async function initPersistence(): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_metrics_kind ON metrics_events(kind, created_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_metrics_user ON metrics_events(user_id, created_at DESC)`,
+    // β.1 — NPC roster persistente por campaign (memória de NPCs entre sessões)
+    `CREATE TABLE IF NOT EXISTS npc_roster (
+      campaign_id        TEXT NOT NULL,
+      id                 TEXT NOT NULL,
+      name               TEXT NOT NULL,
+      archetype          TEXT NOT NULL,
+      attitude           TEXT NOT NULL,
+      first_met          INTEGER NOT NULL,
+      last_seen          INTEGER NOT NULL,
+      last_location      TEXT NOT NULL,
+      interaction_count  INTEGER NOT NULL DEFAULT 1,
+      notes              TEXT NOT NULL DEFAULT '',
+      relationship       INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (campaign_id, id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_npc_roster_camp ON npc_roster(campaign_id, last_seen DESC)`,
   ], 'write');
 
   // Migration leve: adiciona user_id na tabela characters se não existe.
@@ -404,5 +420,6 @@ export async function deleteCampaign(id: string): Promise<void> {
   await client.execute({ sql: 'DELETE FROM memory_facts_fts WHERE campaign_id = ?', args: [id] });
   await client.execute({ sql: 'DELETE FROM memory_facts WHERE campaign_id = ?', args: [id] });
   await client.execute({ sql: 'DELETE FROM highlights WHERE campaign_id = ?', args: [id] });
+  await client.execute({ sql: 'DELETE FROM npc_roster WHERE campaign_id = ?', args: [id] }); // β.1
   await client.execute({ sql: 'DELETE FROM campaigns WHERE id = ?', args: [id] });
 }
