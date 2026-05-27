@@ -14,6 +14,7 @@
 
 import { el, escapeHtml, renderNarrationText } from '../util';
 import { isVoiceTtsEnabled, speak as ttsSpeak } from '../voice-tts';
+import { pickRandomTip, getThinkingPhase } from './thinking-tips';
 
 export interface NarrationEntry {
   id: string;
@@ -225,13 +226,15 @@ export class NarrationLog {
     if (this.thinkingEl) {
       this.thinkingState = state;
       const txt = this.thinkingEl.querySelector('.cn-thinking-text');
-      if (txt) txt.textContent = `Mestre escrevendo… (${state.playerName} → ${state.action})`;
+      if (txt) txt.textContent = getThinkingPhase(0, state.playerName, state.action);
       return;
     }
 
     this.removeEmptyState();
     this.removeChipsEl(); // α.1 — pensando = chips sumindo enquanto DM gera nova cena
     this.thinkingState = state;
+    // POLISH α.6 — dica rotativa abaixo do texto principal
+    const initialTip = pickRandomTip();
     const thinkingEl = el('div', { class: 'camp-narr-entry is-thinking' }, [
       el('div', { class: 'cn-thinking-row' }, [
         el('span', { class: 'cn-thinking-dots' }, [
@@ -239,20 +242,32 @@ export class NarrationLog {
           el('span', { class: 'cn-dot' }),
           el('span', { class: 'cn-dot' }),
         ]),
-        el('span', { class: 'cn-thinking-text', text: `Mestre escrevendo… (${state.playerName} → ${state.action})` }),
+        el('span', { class: 'cn-thinking-text', text: getThinkingPhase(0, state.playerName, state.action) }),
         el('span', { class: 'cn-thinking-elapsed', text: '0s' }),
       ]),
+      el('div', { class: 'cn-thinking-tip', text: `💡 ${initialTip}` }),
     ]);
     this.thinkingEl = thinkingEl;
     this.entriesEl.appendChild(thinkingEl);
 
     // Tick contador. Usa state.startedAt pra ser preciso mesmo se aba ficou em background.
+    // POLISH α.6 — também atualiza texto principal (escala fases) e troca dica a cada 5s.
     if (this.thinkingTimer) clearInterval(this.thinkingTimer);
+    let lastTipChangeAt = Date.now();
     this.thinkingTimer = setInterval(() => {
       if (!this.thinkingEl || !this.thinkingState) return;
       const elapsed = Math.floor((Date.now() - this.thinkingState.startedAt) / 1000);
       const elapsedEl = this.thinkingEl.querySelector('.cn-thinking-elapsed');
       if (elapsedEl) elapsedEl.textContent = `${elapsed}s`;
+      // Atualiza texto principal (3 fases: <8s normal / <18s demorando / <30s trocando / 30+ lenta)
+      const txt = this.thinkingEl.querySelector('.cn-thinking-text');
+      if (txt) txt.textContent = getThinkingPhase(elapsed, this.thinkingState.playerName, this.thinkingState.action);
+      // Troca dica a cada 5s pra player não cansar
+      if (Date.now() - lastTipChangeAt >= 5000) {
+        lastTipChangeAt = Date.now();
+        const tipEl = this.thinkingEl.querySelector('.cn-thinking-tip');
+        if (tipEl) tipEl.textContent = `💡 ${pickRandomTip()}`;
+      }
     }, 1000);
 
     this.afterAppend(thinkingEl);

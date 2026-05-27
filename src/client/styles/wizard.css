@@ -21,6 +21,26 @@
 
 .wiz-cancel { align-self: flex-start; }
 
+/* POLISH α.3 — Botão randomizar tudo no header do wizard */
+.wiz-randomize { align-self: flex-end; margin-top: -28px; }
+.wiz-randomize-btn {
+  padding: 6px 14px;
+  min-height: 36px;
+  background: linear-gradient(180deg, rgba(80, 60, 30, 0.7), rgba(50, 36, 18, 0.7));
+  border: 1px solid var(--accent-rune);
+  border-radius: var(--r-full);
+  color: var(--ink-gold);
+  font-family: var(--font-heading);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: box-shadow 180ms ease, background 180ms ease;
+}
+.wiz-randomize-btn:hover {
+  background: linear-gradient(180deg, rgba(100, 78, 36, 0.85), rgba(60, 44, 22, 0.85));
+  box-shadow: 0 0 12px rgba(212, 168, 87, 0.5);
+}
+
 .wiz-back-btn {
   background: none;
   border: none;

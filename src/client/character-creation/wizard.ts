@@ -21,6 +21,7 @@ import { renderFeatStep } from './step-feat';
 import { renderReviewStep } from './step-review';
 import { renderLivePreview } from './live-preview';
 import { clearCompareTray } from './compare-modal';
+import { randomizeWizardState } from './randomize';
 
 export type WizardStep = 'race' | 'class' | 'subclass' | 'abilities' | 'background' | 'level4' | 'review';
 
@@ -124,6 +125,24 @@ export class CharacterWizard {
         }),
       ]),
       el('h1', { class: 'wiz-title', text: 'Criação de Personagem' }),
+      // POLISH α.3 — Botão Randomizar: cria PJ válido balanceado em 1 click,
+      // pula direto pra step Review. Player pode editar antes de salvar.
+      el('div', { class: 'wiz-randomize' }, [
+        el('button', {
+          class: 'wiz-randomize-btn',
+          attrs: { type: 'button', title: 'Sorteia raça, classe, background, perícias e nome balanceados — vai direto pra revisão' },
+          text: '🎲 Randomizar tudo',
+          on: {
+            click: () => {
+              if (confirm('Randomizar tudo? Você vai pra revisão pra editar antes de salvar.')) {
+                this.state = randomizeWizardState();
+                this.onStepChange?.(this.state.step);
+                this.render();
+              }
+            },
+          },
+        }),
+      ]),
       el('nav', { class: 'wiz-progress', attrs: { 'aria-label': 'Progresso' } }, [
         ...STEP_ORDER.map((s, i) => {
           const isCurrent = i === currentIdx;

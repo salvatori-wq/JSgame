@@ -141,6 +141,39 @@ button:disabled,
   }
 }
 
+/* POLISH α.2 — Reforço sutil do CTA "JOGAR" nos prefab cards.
+ * Glow estático dourado pra dizer "esse é o caminho rápido". Hover intensifica. */
+.home-prefab-cta {
+  box-shadow: 0 0 6px rgba(244, 208, 127, 0.3);
+  transition: box-shadow 200ms ease-out, background 200ms ease-out;
+}
+.home-prefab-card:hover .home-prefab-cta {
+  box-shadow: 0 0 14px rgba(244, 208, 127, 0.7);
+}
+
+/* POLISH α.6 — Dica rotativa no thinking indicator. Suave abaixo do texto
+ * principal; pisca discretamente quando troca pra player notar sem distrair. */
+.cn-thinking-tip {
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: var(--fs-xs);
+  font-style: italic;
+  color: var(--ink-mute);
+  opacity: 0.85;
+  border-left: 2px solid rgba(244, 208, 127, 0.25);
+  transition: opacity 300ms ease-out;
+  animation: tip-fade-in 400ms ease-out;
+}
+
+@keyframes tip-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-thinking-tip { animation: none; }
+}
+
 /* Focus visible — acessibilidade keyboard nav (ε prévia, sem overhead) */
 button:focus-visible,
 [role="button"]:focus-visible,

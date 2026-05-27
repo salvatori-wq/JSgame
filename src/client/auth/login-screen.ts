@@ -70,8 +70,24 @@ export class LoginScreen {
 
   private renderForm(): HTMLElement {
     const card = el('section', { class: 'login-card' });
-    card.appendChild(el('h2', { class: 'login-h2', text: 'Entrar' }));
-    card.appendChild(el('p', { class: 'login-intro', text: 'Coloca teu email — mandamos um link mágico pra entrar. Sem senha.' }));
+
+    // POLISH α.1 — "Jogar sem cadastro" agora vem PRIMEIRO, dominante.
+    // Antes ficava embaixo do form de email — player que não quer cadastro
+    // achava o jogo "trancado". Reorganização inverte a hierarquia:
+    // primeiro o caminho rápido (anônimo), depois o caminho persistente (email).
+    card.appendChild(el('h2', { class: 'login-h2', text: '⚔ Jogar agora' }));
+    card.appendChild(el('p', { class: 'login-intro', text: 'Sem cadastro, sem email, sem espera. Cria PJ, joga, salva no navegador.' }));
+
+    card.appendChild(el('button', {
+      class: 'login-anon-btn cta-glow',
+      text: '🎮 Jogar sem cadastro',
+      attrs: { type: 'button', title: 'PJs salvos só localmente neste navegador' },
+      on: { click: () => this.opts.onContinueAnonymous() },
+    }));
+
+    card.appendChild(el('div', { class: 'login-sep', text: '— ou crie conta pra salvar entre dispositivos —' }));
+
+    card.appendChild(el('h3', { class: 'login-h3', text: '✉ Entrar via email (magic link)' }));
 
     if (this.lastError) {
       card.appendChild(el('div', { class: 'login-error', text: this.lastError }));
@@ -96,22 +112,10 @@ export class LoginScreen {
 
     card.appendChild(el('button', {
       class: 'login-submit-btn',
-      text: '⚔ Enviar link',
+      text: '⚔ Enviar link mágico',
       attrs: { type: 'button' },
       on: { click: () => void this.submit() },
     }));
-
-    card.appendChild(el('div', { class: 'login-sep', text: '— OU —' }));
-
-    card.appendChild(el('button', {
-      class: 'login-anon-btn',
-      text: '👤 Continuar anônimo',
-      attrs: { type: 'button', title: 'PJs salvos só localmente, sem cross-device' },
-      on: { click: () => this.opts.onContinueAnonymous() },
-    }));
-
-    // Focus input
-    setTimeout(() => input.focus(), 0);
 
     return card;
   }
