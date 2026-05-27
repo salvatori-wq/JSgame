@@ -46,6 +46,7 @@ import { renderActionDockTopics } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type PartyMessage } from './chat-sheet';
+import { createBottomTabBar, type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
 import { popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
 import { openUxSettingsModal } from '../ux-settings-modal';
@@ -90,6 +91,7 @@ export class CampaignScreen {
     pendingCheck: HTMLElement;
     mainContent: HTMLElement;
     chatBar: HTMLElement;
+    bottomTabs: HTMLElement;
   } | null = null;
   // Auto-retry tracking: última ação enviada + se já retrou nesse ciclo.
   private lastAction: { action: string; details?: string } | null = null;
@@ -114,6 +116,9 @@ export class CampaignScreen {
   private chatPill: ChatPillHandle | null = null;
   private partyMessages: PartyMessage[] = [];
   private unreadChatCount = 0;
+  // π.1 — Bottom Tab Bar (mobile portrait-narrow). Persistente entre renders.
+  private bottomTabBar: BottomTabBarHandle | null = null;
+  private currentOpenTab: BottomTabId | null = null;
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -149,6 +154,12 @@ export class CampaignScreen {
       this.chatPill.destroy();
       this.chatPill = null;
     }
+    // π.1 — Limpa Bottom Tab Bar
+    if (this.bottomTabBar) {
+      this.bottomTabBar.destroy();
+      this.bottomTabBar = null;
+    }
+    this.currentOpenTab = null;
     closeChatSheet();
     popAllSheets();
     this.partyMessages = [];
@@ -395,6 +406,8 @@ export class CampaignScreen {
         // Não conta próprias msgs como unread
         this.unreadChatCount += 1;
         this.chatPill?.setUnreadCount(this.unreadChatCount);
+        // π.1 — Em portrait-narrow, badge mora no tab bar (chat absorvido).
+        this.bottomTabBar?.setUnreadCount(this.unreadChatCount);
       }
     };
     s.on('partyMessage', onPartyMessage);
@@ -701,6 +714,7 @@ export class CampaignScreen {
     this.updatePendingCheck();
     this.updateMainContent();
     this.updateChatBar();
+    this.updateBottomTabBar();
     this.updateSuggestedChips();
   }
 
@@ -739,6 +753,8 @@ export class CampaignScreen {
     const pendingCheck = el('div', { class: 'ch-slot ch-slot-pending-check' });
     const mainContent = el('div', { class: 'ch-slot ch-slot-main-content' });
     const chatBar = el('div', { class: 'ch-slot ch-slot-chat-bar' });
+    // π.1 — Slot pra Bottom Tab Bar (visível só em portrait-narrow via CSS).
+    const bottomTabs = el('div', { class: 'ch-slot ch-slot-bottom-tabs' });
 
     root.appendChild(header);
     root.appendChild(party);
@@ -747,6 +763,7 @@ export class CampaignScreen {
     root.appendChild(pendingCheck);
     root.appendChild(mainContent);
     root.appendChild(chatBar);
+    root.appendChild(bottomTabs);
 
     // Inicializa o NarrationLog persistente — sobrevive entre renders.
     this.narrationLog = new NarrationLog();
@@ -754,7 +771,7 @@ export class CampaignScreen {
 
     this.container.appendChild(root);
     this.shellEl = root;
-    this.slots = { header, party, deathBanner, narrationHost, pendingCheck, mainContent, chatBar };
+    this.slots = { header, party, deathBanner, narrationHost, pendingCheck, mainContent, chatBar, bottomTabs };
   }
 
   private ensureNarrationLog(): void {
@@ -905,10 +922,20 @@ export class CampaignScreen {
 
   private updateChatBar(): void {
     if (!this.slots) return;
+    const isNarrow = document.body.classList.contains('is-portrait-narrow');
     if (this.party.length > 1) {
       // ο.2 — Coop ativo: chat-bar inline some, pill flutuante toma lugar
       this.replaceSlot(this.slots.chatBar, null);
-      this.ensureChatPill();
+      // π.3 — Em portrait-narrow, chat é absorvido pelo Bottom Tab Bar (slot Chat).
+      // Em desktop, mantém pill flutuante (sem tab bar visível).
+      if (isNarrow) {
+        if (this.chatPill) {
+          this.chatPill.destroy();
+          this.chatPill = null;
+        }
+      } else {
+        this.ensureChatPill();
+      }
     } else {
       this.replaceSlot(this.slots.chatBar, null);
       if (this.chatPill) {
@@ -916,6 +943,108 @@ export class CampaignScreen {
         this.chatPill = null;
       }
       closeChatSheet();
+    }
+  }
+
+  /** π.1 — Cria/atualiza Bottom Tab Bar conforme viewport + coop state. */
+  private updateBottomTabBar(): void {
+    if (!this.slots) return;
+    const isNarrow = document.body.classList.contains('is-portrait-narrow');
+    if (!isNarrow) {
+      // Desktop: destrói tab bar se existir (orientationchange)
+      if (this.bottomTabBar) {
+        this.bottomTabBar.destroy();
+        this.bottomTabBar = null;
+      }
+      this.replaceSlot(this.slots.bottomTabs, null);
+      return;
+    }
+    const isCoop = this.party.length > 1;
+    if (!this.bottomTabBar) {
+      this.bottomTabBar = createBottomTabBar({
+        isCoop,
+        unreadChatCount: this.unreadChatCount,
+        onTabClick: (tab, anchor) => this.onBottomTabClick(tab, anchor),
+      });
+      this.slots.bottomTabs.appendChild(this.bottomTabBar.element);
+    } else {
+      this.bottomTabBar.setCoop(isCoop);
+    }
+    // Sync badges com state atual
+    const activeQuests = this.currentState?.quests?.filter((q) => q.status === 'active').length ?? 0;
+    this.bottomTabBar.setQuestBadge(activeQuests);
+    this.bottomTabBar.setUnreadCount(this.unreadChatCount);
+  }
+
+  /** π.1 — Click handler — abre modal/sheet correspondente e marca tab ativa. */
+  private onBottomTabClick(tab: BottomTabId, anchor: HTMLElement): void {
+    const campId = this.currentState?.id;
+    // Toggle: tap em tab já ativa fecha o modal
+    if (this.currentOpenTab === tab) {
+      this.closeCurrentTabModal(tab);
+      return;
+    }
+    switch (tab) {
+      case 'quests':
+        this.markTabActive('quests');
+        openQuestLog({
+          quests: this.currentState?.quests ?? [],
+          onClose: () => this.markTabActive(null),
+        });
+        break;
+      case 'achievements':
+        this.markTabActive('achievements');
+        openAchievementsModal({ onClose: () => this.markTabActive(null) });
+        break;
+      case 'npcs':
+        if (!campId) return;
+        this.markTabActive('npcs');
+        openNpcRosterModal({ campaignId: campId, onClose: () => this.markTabActive(null) });
+        break;
+      case 'chat':
+        this.markTabActive('chat');
+        this.openPartyChat();
+        // Sync: closeChatSheet em outros lugares também precisa limpar — caller marca via close
+        break;
+      case 'share':
+        if (!campId) return;
+        void this.shareCampaignId(campId);
+        break;
+      case 'more':
+        this.markTabActive('more');
+        this.openHeaderOverflow(anchor);
+        // overflow menu fecha via document click — limpa active state em delay
+        setTimeout(() => {
+          if (this.currentOpenTab === 'more') this.markTabActive(null);
+        }, 100);
+        break;
+    }
+  }
+
+  private markTabActive(tab: BottomTabId | null): void {
+    this.currentOpenTab = tab;
+    this.bottomTabBar?.setActiveTab(tab);
+  }
+
+  private closeCurrentTabModal(tab: BottomTabId): void {
+    switch (tab) {
+      case 'quests': closeQuestLog(); break;
+      case 'achievements': closeAchievementsModal(); break;
+      case 'npcs': closeNpcRosterModal(); break;
+      case 'chat': closeChatSheet(); break;
+      case 'more':
+        // overflow menu fecha sozinho via doc click — apenas limpa estado
+        break;
+    }
+    this.markTabActive(null);
+  }
+
+  private async shareCampaignId(campId: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(campId);
+      this.flashToast('ID copiado! Cole no Home → Joinar.');
+    } catch {
+      prompt('Copie o ID:', campId);
     }
   }
 
@@ -932,16 +1061,22 @@ export class CampaignScreen {
     if (!this.character) return;
     if (isChatSheetOpen()) {
       closeChatSheet();
+      // π.1 — limpa active state quando chat fecha por toggle
+      if (this.currentOpenTab === 'chat') this.markTabActive(null);
       return;
     }
     // Zera unread ao abrir
     this.unreadChatCount = 0;
     this.chatPill?.setUnreadCount(0);
+    this.bottomTabBar?.setUnreadCount(0);
     openChatSheet({
       party: this.party,
       messages: this.partyMessages,
       myCharacterId: this.character.id,
       onSend: (text) => this.opts.socket.emit('chat', { text }),
+      onClose: () => {
+        if (this.currentOpenTab === 'chat') this.markTabActive(null);
+      },
     });
   }
 

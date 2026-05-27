@@ -22,6 +22,8 @@ export interface ChatSheetContext {
   myCharacterId: string;
   onSend: (text: string) => void;
   onReact?: (messageId: string, emoji: string) => void;
+  /** π.1 — caller é notificado quando sheet fecha (sync active tab). */
+  onClose?: () => void;
 }
 
 const SHEET_ID = 'party-chat';
@@ -96,6 +98,7 @@ export function openChatSheet(ctx: ChatSheetContext): void {
   root.appendChild(el('footer', { class: 'cs-footer' }, [input, sendBtn]));
 
   currentSheetEl = root;
+  const externalOnClose = ctx.onClose;
   pushSheet({
     id: SHEET_ID,
     element: root,
@@ -105,6 +108,9 @@ export function openChatSheet(ctx: ChatSheetContext): void {
       currentInput = null;
       currentTitleEl = null;
       currentCtx = null;
+      if (externalOnClose) {
+        try { externalOnClose(); } catch (err) { console.warn('[chat-sheet] onClose external failed:', err); }
+      }
     },
   });
 

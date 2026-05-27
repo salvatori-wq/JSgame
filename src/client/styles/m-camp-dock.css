@@ -84,19 +84,30 @@ body.is-portrait-narrow .ch-slot-pending-check {
   border-top: 1px solid rgba(244, 208, 127, 0.15);
 }
 
-/* MAIN CONTENT (ações/combat) — DOCK fixed bottom acima do chat */
+/* MAIN CONTENT (ações/combat) — DOCK fixed bottom acima do chat + tab bar (π.4) */
 body.is-portrait-narrow .ch-slot-main-content:empty {
   display: none;
 }
 body.is-portrait-narrow .ch-slot-main-content {
   flex-shrink: 0;
-  /* Max 55vh — se combat-screen for grande, scroll interno cuida */
-  max-height: 55vh;
+  /* π.4 — Max 48vh (era 55vh) — abre 56px pro Bottom Tab Bar abaixo.
+   * Se combat-screen for grande, scroll interno cuida. */
+  max-height: 48vh;
   overflow-y: auto;
   background: linear-gradient(180deg, rgba(20, 12, 8, 0.96) 0%, rgba(10, 6, 8, 0.99) 100%);
   border-top: 2px solid rgba(244, 208, 127, 0.35);
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
   padding: 8px var(--m-padding-screen);
+}
+
+/* π.4 — Bottom Tab Bar slot — sempre no fim do flex, abaixo de chat-bar (que
+ * em portrait-narrow agora some por causa do chat-pill/tab bar absorption).
+ * Em coop+desktop o chat-bar continua via .camp-chat-bar fora deste slot. */
+body.is-portrait-narrow .ch-slot-bottom-tabs:empty {
+  display: none;
+}
+body.is-portrait-narrow .ch-slot-bottom-tabs {
+  flex-shrink: 0;
 }
 
 /* CHAT BAR — sticky bottom, sempre visível */
