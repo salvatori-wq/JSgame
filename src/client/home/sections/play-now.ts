@@ -1,0 +1,106 @@
+// JSgame · Ω.2 — Play Now (3 PJs prontos + link wizard discreto).
+// 3 cards grandes: tap → cria PJ instantâneo + entra em cold-open.
+// Link "Criar PJ do zero" abaixo, discreto (descobrabilidade sem poluição).
+
+import { el, getOwnerName } from '../../util';
+import { toastError } from '../../toast';
+import { trackClientMetric } from '../../api';
+import { focusOwnerInput } from './identity-bar';
+
+export interface PrefabCard {
+  id: 'borin' | 'lyra' | 'sina';
+  icon: string;
+  label: string;
+  archetype: string;
+  teaser: string;
+}
+
+export const PREFAB_CARDS: readonly PrefabCard[] = [
+  { id: 'borin', icon: '🪨', label: 'Borin Forjarocha', archetype: 'Tank · Bate forte',         teaser: 'Veterano anão. Bate forte, segura porrada.' },
+  { id: 'lyra',  icon: '🌟', label: 'Lyra Estrelaluz', archetype: 'Caster · Magia',              teaser: 'Arquivista alta-elfa. Magia e segredos.' },
+  { id: 'sina',  icon: '🗡', label: 'Sina Tribuna',    archetype: 'Skirmisher · Rápida',         teaser: 'Trapaceira halfling. Ataque preciso.' },
+] as const;
+
+export interface PlayNowOpts {
+  identityBar: HTMLElement;
+  onChronicleStart: (characterId: string) => void;
+  onWizardClick: () => void;
+}
+
+export function renderPlayNow(opts: PlayNowOpts): HTMLElement {
+  const section = el('section', { class: 'home-playnow', attrs: { 'aria-label': 'Jogar já com PJs prontos' } });
+  section.appendChild(el('div', { class: 'home-section-header' }, [
+    el('span', { class: 'home-section-eyebrow', text: '⚔ JOGAR JÁ' }),
+    el('span', { class: 'home-section-hint', text: 'PJs prontos, cena com tensão, em 10s' }),
+  ]));
+
+  const grid = el('div', { class: 'home-playnow-grid' });
+  for (const card of PREFAB_CARDS) {
+    grid.appendChild(renderPrefabCard(card, opts));
+  }
+  section.appendChild(grid);
+
+  // Link discreto pro wizard (D3 — power user descobre mas não polui home)
+  section.appendChild(el('button', {
+    class: 'home-wizard-link',
+    text: '✎ Criar PJ do zero (Wizard avançado)',
+    attrs: { type: 'button' },
+    on: {
+      click: () => {
+        if (!getOwnerName().trim()) {
+          focusOwnerInput(opts.identityBar);
+          return;
+        }
+        opts.onWizardClick();
+      },
+    },
+  }));
+
+  return section;
+}
+
+function renderPrefabCard(card: PrefabCard, opts: PlayNowOpts): HTMLElement {
+  const btn = el('button', {
+    class: 'home-prefab-card',
+    attrs: { type: 'button', 'data-prefab': card.id, title: `Jogar como ${card.label} agora` },
+    on: {
+      click: async () => {
+        const owner = getOwnerName().trim();
+        if (!owner) {
+          focusOwnerInput(opts.identityBar);
+          return;
+        }
+        trackClientMetric('prefab_clicked', { prefab_id: card.id });
+        btn.setAttribute('disabled', '');
+        btn.classList.add('is-loading');
+        try {
+          const res = await fetch('/api/characters/prefab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prefabId: card.id, ownerName: owner }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.ok || !data.sheet?.id) {
+            toastError(data?.error ?? 'falha ao criar prefab');
+            btn.removeAttribute('disabled');
+            btn.classList.remove('is-loading');
+            return;
+          }
+          opts.onChronicleStart(data.sheet.id);
+        } catch (err) {
+          toastError(`erro: ${String(err)}`);
+          btn.removeAttribute('disabled');
+          btn.classList.remove('is-loading');
+        }
+      },
+    },
+  }, [
+    el('div', { class: 'home-prefab-icon', text: card.icon }),
+    el('div', { class: 'home-prefab-label', text: card.label }),
+    el('div', { class: 'home-prefab-archetype', text: card.archetype }),
+    el('div', { class: 'home-prefab-teaser', text: card.teaser }),
+    el('div', { class: 'home-prefab-cta', text: '▶ JOGAR' }),
+  ]);
+  return btn;
+}
