@@ -380,6 +380,18 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'grant_inspiration',
+    description: 'Concede 1 INSPIRAÇÃO ao player por bom roleplay (PHB pág 125). Use PARCIMÔNIA — MÁX 1 por sessão por player. Razões válidas: solução criativa, ato corajoso, fala marcante, abraçou trait/bond/flaw do PJ. NÃO dê de graça. Player gasta antes de rolar pra ganhar advantage. Max 3 acumuladas.',
+    schema: {
+      type: 'object',
+      properties: {
+        playerId: { type: 'string', description: 'ID do player ("active" pro que tomou ação)' },
+        reason: { type: 'string', description: 'Por que recebeu (1 frase). Aparece no toast. Ex: "interpretou perfeitamente o medo do PJ"' },
+      },
+      required: ['playerId', 'reason'],
+    },
+  },
+  {
     name: 'suggest_actions',
     description: 'Sugere 2-4 ações contextuais à cena atual como chips clicáveis pro player. SEMPRE chame após narrar cena nova OU resolver skill check OU mudar de local. Player precisa ver opções concretas — sem isso, ele clica "Explorar" genérico e o jogo fica desconexo.',
     schema: {

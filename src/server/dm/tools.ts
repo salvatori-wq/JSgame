@@ -33,7 +33,9 @@ export type ValidatedTool =
   // 2A — DM declara que inimigo conjurou magia (abre janela de Counterspell pros casters)
   | { kind: 'enemy_casts_spell'; sourceName: string; spellName: string; spellLevel: number; targetIds?: string[]; visible: boolean }
   // α.1 — Suggested actions chips (2-4 ações contextuais clicáveis abaixo da narração)
-  | { kind: 'suggest_actions'; actions: import('../../shared/types.js').SuggestedAction[] };
+  | { kind: 'suggest_actions'; actions: import('../../shared/types.js').SuggestedAction[] }
+  // α.3 — Concede 1 inspiração ao player (PHB pág 125)
+  | { kind: 'grant_inspiration'; playerId: string; reason: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -252,6 +254,13 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         ? input.targetIds.map((t) => String(t).slice(0, 60)).filter(Boolean).slice(0, 6)
         : undefined;
       return { kind: 'enemy_casts_spell', sourceName, spellName, spellLevel, targetIds, visible };
+    }
+
+    case 'grant_inspiration': {
+      const playerId = String(input.playerId ?? 'active');
+      const reason = String(input.reason ?? 'bom roleplay').slice(0, 200);
+      if (!playerId) return null;
+      return { kind: 'grant_inspiration', playerId, reason };
     }
 
     case 'suggest_actions': {

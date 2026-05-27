@@ -256,7 +256,8 @@ export class Campaign {
   }
 
   // Resolve skill check pendente. Verifica owner: só playerId === pendingCheck.playerId.
-  async resolveSkillCheck(playerId: string): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; dmResponse: DMResponse } | null> {
+  // α.3 — useInspiration opcional: gasta 1 inspiração pra forçar advantage no roll.
+  async resolveSkillCheck(playerId: string, opts: { useInspiration?: boolean } = {}): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean; dmResponse: DMResponse } | null> {
     return this.enqueue(async () => {
       const check = this.state.pendingCheck;
       if (!check) return null;
@@ -275,9 +276,22 @@ export class Campaign {
       const pb = proficiencyBonus(player.level);
       const totalMod = modifier + (proficient ? pb : 0);
 
+      // α.3 — Inspiração: gasta 1 pra advantage. Server valida que tem ≥1.
+      let usedInspiration = false;
+      const hasInspiration = (player.inspirations ?? 0) > 0;
+      const wantsInspiration = opts.useInspiration === true && hasInspiration;
+      if (wantsInspiration) {
+        player.inspirations = Math.max(0, (player.inspirations ?? 0) - 1);
+        usedInspiration = true;
+      }
+
       // A2 — Buff engine: Guidance dá +1d4 em skill check (consumido após uso)
       const buffs = consumeBuffs(player, 'skill-check');
-      const roll = rollD20({ modifier: totalMod + buffs.flatBonus + buffs.diceBonus, advantage: buffs.advantage, disadvantage: buffs.disadvantage });
+      const roll = rollD20({
+        modifier: totalMod + buffs.flatBonus + buffs.diceBonus,
+        advantage: buffs.advantage || usedInspiration,
+        disadvantage: buffs.disadvantage,
+      });
       const success = roll.total >= check.dc;
       // F17: credita skill_check event
       this.pushAchievementEvent(player.id, {
@@ -309,9 +323,10 @@ export class Campaign {
         },
       });
       this.applyDMResponse(dmResponse);
-      this.pushRecentEvent(`${player.characterName} rolou ${skill.name} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${check.dc}): ${success ? 'sucesso' : 'falhou'}`);
+      const inspNote = usedInspiration ? ' [com inspiração]' : '';
+      this.pushRecentEvent(`${player.characterName} rolou ${skill.name} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${check.dc})${inspNote}: ${success ? 'sucesso' : 'falhou'}`);
 
-      return { roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1, dmResponse };
+      return { roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1, usedInspiration, dmResponse };
     });
   }
 

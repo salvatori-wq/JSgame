@@ -13,13 +13,14 @@ export interface PendingCheck {
   dc: number;
   reason: string;
   bonus: number;          // pre-calculado pelo cliente (PJ ability mod + prof?)
+  inspirations?: number;  // α.3 — quantas inspirações o PJ tem disponível (display + botão)
 }
 
 let currentEl: HTMLDivElement | null = null;
 
 export function showPendingSkillCheck(
   check: PendingCheck,
-  onRoll: () => void,
+  onRoll: (opts: { useInspiration: boolean }) => void,
 ): void {
   closeSkillCheck();
   const skill = SKILLS[check.skill];
@@ -40,22 +41,36 @@ export function showPendingSkillCheck(
   `;
 
   let rolled = false;
+  const rollAndDisable = (useInspiration: boolean): void => {
+    if (rolled) return;
+    rolled = true;
+    rollBtn.setAttribute('disabled', '');
+    rollBtn.textContent = 'Rolando…';
+    rollBtn.classList.add('is-rolling');
+    if (inspBtn) inspBtn.setAttribute('disabled', '');
+    onRoll({ useInspiration });
+  };
+
   const rollBtn = el('button', {
     class: 'sc-roll-btn',
     text: '🎲 Rolar d20',
     attrs: { type: 'button' },
-    on: {
-      click: () => {
-        if (rolled) return;
-        rolled = true;
-        rollBtn.setAttribute('disabled', '');
-        rollBtn.textContent = 'Rolando…';
-        rollBtn.classList.add('is-rolling');
-        onRoll();
-      },
-    },
+    on: { click: () => rollAndDisable(false) },
   }) as HTMLButtonElement;
   stage.appendChild(rollBtn);
+
+  // α.3 — Inspiração: botão extra "🌟 Usar Inspiração + Rolar" se PJ tem ≥1
+  let inspBtn: HTMLButtonElement | null = null;
+  const insp = check.inspirations ?? 0;
+  if (insp > 0) {
+    inspBtn = el('button', {
+      class: 'sc-roll-btn sc-roll-inspiration',
+      text: `🌟 Usar Inspiração (${insp}) — Rolar com Advantage`,
+      attrs: { type: 'button', title: 'Gasta 1 inspiração pra rolar 2d20 e pegar o maior' },
+      on: { click: () => rollAndDisable(true) },
+    }) as HTMLButtonElement;
+    stage.appendChild(inspBtn);
+  }
 
   overlay.appendChild(stage);
   (document.getElementById('app') ?? document.body).appendChild(overlay);

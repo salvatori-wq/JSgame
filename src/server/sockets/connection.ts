@@ -175,7 +175,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
     });
 
     // ── requestSkillCheck: player rola d20 (server roleia, DM narra) ──
-    socket.on('requestSkillCheck', async (_payload) => {
+    socket.on('requestSkillCheck', async (payload) => {
       try {
         if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
         const camp = campaigns.get(activeCampaignId);
@@ -185,7 +185,8 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (pending.playerId !== activePlayerId) { return; }
 
         await withThinkingBroadcast(camp, activePlayerId, `rolar ${pending.skill}`, async () => {
-          const result = await camp.resolveSkillCheck(activePlayerId!);
+          const useInspiration = !!(payload as { useInspiration?: boolean })?.useInspiration;
+          const result = await camp.resolveSkillCheck(activePlayerId!, { useInspiration });
           if (!result) return;
 
           io.to(camp.state.id).emit('diceRollResult', {
@@ -195,8 +196,9 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           });
           const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
           const verdict = result.nat20 ? 'NAT20 CRIT' : result.nat1 ? 'NAT1 FALHA' : (result.success ? 'SUCESSO' : 'FALHOU');
+          const inspNote = result.usedInspiration ? ' ✨' : '';
           io.to(camp.state.id).emit('dmNarration', {
-            text: `${pending.skill} (DC ${pending.dc}): rolou ${result.roll.total} → ${verdict}`,
+            text: `${pending.skill} (DC ${pending.dc}): rolou ${result.roll.total} → ${verdict}${inspNote}`,
             speaker: `🎲 ${myName}`,
             mood: result.success ? 'trickster' : 'sombrio',
           });

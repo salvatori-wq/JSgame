@@ -365,6 +365,24 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'grant_inspiration': {
+      // α.3 — Concede 1 inspiração ao player. Clamp max 3 (PHB).
+      const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const p = camp.party.find((x) => x.id === resolvedId);
+      if (p) {
+        const cur = p.inspirations ?? 0;
+        p.inspirations = Math.min(3, cur + 1);
+        camp.pushRecentEvent(`✨ ${p.characterName} ganhou inspiração: ${tool.reason}`);
+        camp.indexFact({
+          kind: 'event',
+          text: `${p.characterName} ganhou inspiração por: ${tool.reason}`,
+          tags: `inspiracao roleplay ${p.characterName.toLowerCase()}`,
+          importance: 1.4,
+        });
+      }
+      break;
+    }
+
     case 'complete_quest': {
       const quest = camp.state.quests?.find((q) => q.id === tool.questId);
       if (!quest || quest.status !== 'active') break;

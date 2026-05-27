@@ -482,9 +482,13 @@ export class CampaignScreen {
       dc: pending.dc,
       reason: pending.reason,
       bonus,
+      inspirations: this.character.inspirations ?? 0,
     };
-    showPendingSkillCheck(this.skillCheckOverlay, () => {
-      this.opts.socket.emit('requestSkillCheck', { skill: pending.skill });
+    showPendingSkillCheck(this.skillCheckOverlay, (opts) => {
+      this.opts.socket.emit('requestSkillCheck', {
+        skill: pending.skill,
+        useInspiration: opts.useInspiration,
+      });
     });
   }
 
@@ -919,6 +923,14 @@ export class CampaignScreen {
         // 1B — Rage badge (F23): flag combat-local serializada via combatFlags event.
         (this.combatFlags[p.id] && this.combatFlags[p.id]!.includes('rage'))
           ? el('div', { class: 'cp-pj-rage', text: '🔥 FÚRIA' })
+          : null,
+        // α.3 — Inspiração badge (PHB pág 125): 1-3 estrelas douradas
+        (p.inspirations && p.inspirations > 0)
+          ? el('div', {
+              class: 'cp-pj-inspiration',
+              attrs: { title: `${p.inspirations} inspiração(ões) — gasta antes de rolar pra advantage` },
+              text: '🌟'.repeat(Math.min(3, p.inspirations)),
+            })
           : null,
       ].filter(Boolean) as HTMLElement[]));
     }

@@ -141,6 +141,11 @@ export interface CharacterSheet {
   // A2 — Buff engine: lista de buffs ativos (Bardic Inspiration d6, Bless d4, Guidance,
   // Shield +5 AC, etc). Decremento por turno (turnsLeft) ou por uso (charges).
   activeBuffs?: ActiveBuff[];
+
+  // α.3 — Inspirações DnD (PHB pág 125). DM concede por bom roleplay via
+  // grant_inspiration tool; player gasta antes de rolar pra ganhar advantage.
+  // Default 0, max 3 (clamp server-side). Não persiste em hard drop, mas serializa.
+  inspirations?: number;
 }
 
 // A2 — Buff engine
@@ -337,7 +342,8 @@ export interface ClientToServerEvents {
 
   // Exploration
   takeAction: (payload: { action: ExplorationAction; details?: string }) => void;
-  requestSkillCheck: (payload: { skill: SkillId; dc?: number }) => void;
+  // α.3 — useInspiration: gasta 1 inspiration pra advantage no roll (PHB pág 125)
+  requestSkillCheck: (payload: { skill: SkillId; dc?: number; useInspiration?: boolean }) => void;
   // F27 — Saving throw genérico (FOR/DES/CON/INT/SAB/CAR vs DC).
   resolveSavingThrow: () => void;
 
