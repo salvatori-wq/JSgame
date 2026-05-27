@@ -27,6 +27,7 @@ import { openShopModal, closeShopModal } from '../shop/shop-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled, playEnemyKill } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
+import type { AmbientMood } from '../audio';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 import { showAchievementToast } from '../achievements-toast';
@@ -272,8 +273,16 @@ export class CampaignScreen {
       } else {
         closeShopModal();
       }
-      // F21: ambient mood baseado em state.mode
-      setAmbient(state.combat?.active ? 'combat' : 'exploration');
+      // Trilha medieval — mood inteligente. Detecta transição combat→exploration
+      // com boss morto pra disparar fanfare 'victory' (one-shot, volta a calm em 4.5s).
+      const wasInCombat = !!this.currentState?.combat?.active;
+      const isInCombat = !!state.combat?.active;
+      const wasFightingBoss = !!this.currentState?.combat?.enemies?.some((e) => e.isBoss);
+      if (wasInCombat && !isInCombat && wasFightingBoss) {
+        setAmbient('victory');
+      } else {
+        setAmbient(this.pickAmbientMood(state, this.character));
+      }
       this.render();
     };
     s.on('campaignState', onState);
@@ -540,6 +549,31 @@ export class CampaignScreen {
         useInspiration: opts.useInspiration,
       });
     });
+  }
+
+  /** Trilha medieval — escolhe mood baseado em estado completo do jogo.
+   *  Ordem de prioridade: shop → combat-boss → combat → danger → rest → exploration. */
+  private pickAmbientMood(state: CampaignState, character: CharacterSheet | null): AmbientMood {
+    // Shop aberto > tudo
+    if (state.openShop) return 'shop';
+
+    // Combat ativo: detecta boss
+    if (state.combat?.active) {
+      const hasBoss = state.combat.enemies?.some((e) => e.isBoss && e.currentHp > 0);
+      return hasBoss ? 'combat-boss' : 'combat-skirmish';
+    }
+
+    // Fora de combate: HP crítico do PJ → danger
+    if (character && character.maxHp > 0) {
+      const hpPct = character.currentHp / character.maxHp;
+      if (character.currentHp > 0 && hpPct < 0.25) return 'danger-low-hp';
+    }
+
+    // Mode rest do servidor
+    if (state.mode === 'rest') return 'rest';
+
+    // Default exploração — calm sempre (tension fica pra trigger explícito futuro)
+    return 'exploration-calm';
   }
 
   // Chat refactor: render incremental.
@@ -857,8 +891,8 @@ export class CampaignScreen {
         onClick: () => {
           const next = !isAmbientEnabled();
           setAmbientEnabled(next);
-          if (next) {
-            setAmbient(this.currentState?.combat?.active ? 'combat' : 'exploration');
+          if (next && this.currentState) {
+            setAmbient(this.pickAmbientMood(this.currentState, this.character));
           }
           this.render();
         },

@@ -54,6 +54,10 @@ export function setSfxEnabled(v: boolean): void {
   catch { /* private mode → ignore */ }
 }
 
+/** Audio: shared context getter pra ambient.ts (mesma AudioContext, mesmo masterGain). */
+export function _getAudioCtx(): AudioContext | null { return ensureCtx(); }
+export function _getMasterGain(): GainNode | null { return masterGain; }
+
 // ════════════════════════════════════════════════════════════════════════════
 // Helpers — todos chamam ensureCtx() e early-return se SFX off.
 // ════════════════════════════════════════════════════════════════════════════
@@ -275,103 +279,13 @@ export function playComboCrit(): void {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// F21 — Ambient music procedural. Pad sustained em loop, varia por mood.
-// "exploration" = pad grave longo + flauta esparsa.
-// "combat" = bass pulsante + dissonância sub.
-// "silence" = stop.
-// Mobile-friendly: pad é apenas 2 osciladores sustentados, gain baixo (0.05).
+// F21 + Trilha Medieval — Ambient music procedural.
+// Movido pra src/client/audio/ambient.ts.
+// Re-exporta API pra retrocompat (callers em campaign-screen importam daqui).
 // ════════════════════════════════════════════════════════════════════════════
-
-type AmbientMood = 'exploration' | 'combat' | 'silence';
-let ambientNodes: Array<OscillatorNode | GainNode | AudioBufferSourceNode> = [];
-let currentMood: AmbientMood = 'silence';
-
-const STORAGE_KEY_AMBIENT = 'jsgame.ambient.enabled';
-let ambientEnabled = (() => {
-  try { return localStorage.getItem(STORAGE_KEY_AMBIENT) === '1'; } // default OFF (intrusivo)
-  catch { return false; }
-})();
-
-export function isAmbientEnabled(): boolean { return ambientEnabled; }
-export function setAmbientEnabled(v: boolean): void {
-  ambientEnabled = v;
-  try { localStorage.setItem(STORAGE_KEY_AMBIENT, v ? '1' : '0'); }
-  catch { /* private mode */ }
-  if (!v) setAmbient('silence');
-}
-
-export function setAmbient(mood: AmbientMood): void {
-  if (currentMood === mood) return;
-  stopAmbient();
-  currentMood = mood;
-  if (!ambientEnabled) return;
-  if (mood === 'silence') return;
-  const c = ensureCtx();
-  if (!c || !masterGain) return;
-
-  const ambGain = c.createGain();
-  ambGain.gain.value = 0.0;
-  ambGain.gain.linearRampToValueAtTime(0.05, c.currentTime + 1.5); // fade-in 1.5s
-  ambGain.connect(masterGain);
-  ambientNodes.push(ambGain);
-
-  if (mood === 'exploration') {
-    // Pad em Am (A=110, C=130.81, E=164.81)
-    const notes = [110, 130.81, 164.81];
-    for (const f of notes) {
-      const osc = c.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = f;
-      // LFO leve pra dar movimento (vibrato 4Hz, ±0.5Hz)
-      const lfo = c.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.value = 0.15 + Math.random() * 0.2;
-      const lfoGain = c.createGain();
-      lfoGain.gain.value = 0.5;
-      lfo.connect(lfoGain).connect(osc.frequency);
-      osc.connect(ambGain);
-      osc.start();
-      lfo.start();
-      ambientNodes.push(osc, lfo, lfoGain);
-    }
-  } else if (mood === 'combat') {
-    // Bass pulsante + dissonância (D + Eb = tritone-ish tensão)
-    const notes = [73.42, 87.31]; // D2, E2b — bem dissonante = tensão
-    for (const f of notes) {
-      const osc = c.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = f;
-      // Filtro lowpass pra suavizar serra
-      const filt = c.createBiquadFilter();
-      filt.type = 'lowpass';
-      filt.frequency.value = 300;
-      filt.Q.value = 2;
-      osc.connect(filt).connect(ambGain);
-      osc.start();
-      ambientNodes.push(osc, filt);
-    }
-  }
-}
-
-function stopAmbient(): void {
-  const c = ctx;
-  if (!c) {
-    ambientNodes = [];
-    return;
-  }
-  // Fade-out via primeiro GainNode (se houver)
-  const gain = ambientNodes.find((n) => n instanceof GainNode) as GainNode | undefined;
-  if (gain) {
-    gain.gain.cancelScheduledValues(c.currentTime);
-    gain.gain.linearRampToValueAtTime(0.0, c.currentTime + 0.5);
-  }
-  // Stop osciladores depois do fade
-  setTimeout(() => {
-    for (const n of ambientNodes) {
-      try {
-        if ('stop' in n && typeof n.stop === 'function') n.stop();
-      } catch { /* já stopado */ }
-    }
-    ambientNodes = [];
-  }, 600);
-}
+export {
+  setAmbient,
+  isAmbientEnabled,
+  setAmbientEnabled,
+  type AmbientMood,
+} from './audio/ambient';
