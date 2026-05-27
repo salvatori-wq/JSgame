@@ -20,6 +20,7 @@ import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '.
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 import { openMemoryModal } from './memory-modal';
 import { openQuestLog, closeQuestLog } from './quest-log-modal';
+import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
@@ -119,6 +120,7 @@ export class CampaignScreen {
     closeCastSpellModal();
     closeInventoryModal();
     closeQuestLog();
+    closeAchievementsModal();
     if (this.narrationLog) {
       this.narrationLog.destroy();
       this.narrationLog = null;
@@ -830,6 +832,15 @@ export class CampaignScreen {
             quests: this.currentState?.quests ?? [],
             onClose: () => { /* nothing */ },
           }),
+        },
+      }),
+      // β.2 — achievements modal
+      el('button', {
+        class: 'camp-mem-btn',
+        text: '🏆',
+        attrs: { title: 'Conquistas' },
+        on: {
+          click: () => openAchievementsModal({ onClose: () => { /* nothing */ } }),
         },
       }),
       campId ? el('button', {
