@@ -50,7 +50,7 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
   }
 
   if (spellsByLevel.size === 0) {
-    spellsList.appendChild(el('div', { class: 'cs-modal-empty', text: 'Sem magias preparadas. Faça um descanso longo pra preparar.' }));
+    spellsList.appendChild(el('div', { class: 'cs-modal-empty', text: '📜 Magias gastas. Descanso longo restaura o livro.' }));
   } else {
     const levels = [...spellsByLevel.keys()].sort();
     for (const lvl of levels) {

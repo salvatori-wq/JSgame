@@ -120,7 +120,7 @@ export class ProfileScreen {
 
     // Lista
     if (friends.length === 0) {
-      sec.appendChild(el('div', { class: 'profile-friends-empty', text: 'Nenhum amigo ainda. Convide alguém pra jogar coop.' }));
+      sec.appendChild(el('div', { class: 'profile-friends-empty', text: '👥 Sozinho na taverna. Convide alguém pra co-op.' }));
     } else {
       const list = el('div', { class: 'profile-friends-list' });
       // Pendentes recebidos primeiro (precisam ação)

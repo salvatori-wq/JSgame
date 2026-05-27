@@ -84,7 +84,7 @@ function renderInto(overlay: HTMLDivElement, opts: ShopModalOpts): void {
   const renderBuy = (): void => {
     content.innerHTML = '';
     if (opts.shop.items.length === 0) {
-      content.appendChild(el('div', { class: 'shop-empty', text: 'Sem itens à venda.' }));
+      content.appendChild(el('div', { class: 'shop-empty', text: '💰 Esse mercador ainda não tem nada que valha.' }));
       return;
     }
     const grid = el('div', { class: 'shop-grid' });
@@ -102,7 +102,7 @@ function renderInto(overlay: HTMLDivElement, opts: ShopModalOpts): void {
       && opts.character.equippedShield !== it.id,
     );
     if (sellableItems.length === 0) {
-      content.appendChild(el('div', { class: 'shop-empty', text: 'Sem itens pra vender (desequipe primeiro).' }));
+      content.appendChild(el('div', { class: 'shop-empty', text: '💰 Nada pra vender — desequipe armaduras/escudos primeiro.' }));
       return;
     }
     const grid = el('div', { class: 'shop-grid' });

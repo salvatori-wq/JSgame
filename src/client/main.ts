@@ -20,6 +20,7 @@ import { portraitFor } from '../dnd/portrait';
 import { listTombstones, getStreak, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
 import { shouldShowTour, openOnboardingTour } from './onboarding-tour';
+import { initA11yEnhancements, initEscapeKeyHandler, initGlobalErrorBoundary } from './a11y';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -45,6 +46,14 @@ if (!app) throw new Error('#app não existe no DOM');
 
 // === Audio gesture (mobile autoplay policy) — resume AudioContext em qualquer click ===
 setupAudioGesture();
+
+// === POLISH ε — Acessibilidade & Resiliência ===
+// initA11yEnhancements: MutationObserver aplica aria-label/role em todo DOM dinâmico
+// initEscapeKeyHandler: ESC fecha modais bottom-sheet sem refactor por componente
+// initGlobalErrorBoundary: window.onerror + unhandledrejection → toast user-friendly
+initA11yEnhancements();
+initEscapeKeyHandler();
+initGlobalErrorBoundary();
 
 // === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

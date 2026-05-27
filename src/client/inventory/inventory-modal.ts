@@ -45,7 +45,7 @@ export function openInventoryModal(opts: InventoryModalOpts): void {
   const listEl = el('div', { class: 'inv-modal-list' });
   listEl.appendChild(el('h4', { class: 'inv-section-title', text: 'Itens' }));
   if (character.inventory.length === 0) {
-    listEl.appendChild(el('div', { class: 'inv-empty', text: 'Inventário vazio.' }));
+    listEl.appendChild(el('div', { class: 'inv-empty', text: '🎒 Bolsa vazia. Saqueie ou compre algo decente.' }));
   } else {
     const grid = el('div', { class: 'inv-grid' });
     for (const item of character.inventory) {

@@ -251,7 +251,7 @@ export class LobbyScreen {
     if (this.mode === 'selecting') {
       // Lista PJs existentes
       if (this.chars.length === 0) {
-        section.appendChild(el('div', { class: 'lobby-empty', text: 'Você não tem PJs ainda. Crie um novo.' }));
+        section.appendChild(el('div', { class: 'lobby-empty', text: '🪶 Sem PJs disponíveis — crie um pra entrar no lobby.' }));
       } else {
         const grid = el('div', { class: 'lobby-chars-grid' });
         for (const c of this.chars) {

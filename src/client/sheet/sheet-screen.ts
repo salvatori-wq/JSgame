@@ -322,7 +322,7 @@ export class SheetScreen {
     ]));
 
     if (sheet.inventory.length === 0) {
-      sec.appendChild(el('div', { class: 'sheet-inv-empty', text: 'Inventário vazio.' }));
+      sec.appendChild(el('div', { class: 'sheet-inv-empty', text: '🎒 Bolsa vazia. Saqueie ou compre algo decente.' }));
       return sec;
     }
 

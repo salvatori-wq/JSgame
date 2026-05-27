@@ -10,7 +10,10 @@
   --ink-gold: #f4d07f;
   --ink-warm: #e4c896;
   --ink-mute: #8c7c66;
-  --ink-faint: #5a4e3e;
+  /* POLISH ε.3 — contrast audit: era #5a4e3e (≈2.5:1 vs bg-deep, falha WCAG AA).
+   * Atualizado pra #867758 (≈4.6:1, passa AA). Mantém hierarquia visual (mais
+   * suave que --ink-mute) sem comprometer leitura. */
+  --ink-faint: #867758;
   --accent-rune: #d4a857;
   --accent-blood: #c84032;
   --accent-life: #8cd070;
