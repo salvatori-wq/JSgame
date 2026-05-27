@@ -257,6 +257,16 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
         if (!camp.state.combat?.active) { socket.emit('error', 'sem combate ativo'); return; }
 
+        // γ.3 — Echo SÍNCRONO antes de qualquer await. Player vê "⚔ Borin atacou"
+        // imediatamente, ANTES do resultado do roll/dano. Resolve race condition
+        // onde echo aparecia DEPOIS dos combatEvents (visual confuso).
+        const attackerName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `→ ${String(action)}${targetId ? ` (alvo ${targetId})` : ''}`,
+          speaker: `⚔ ${attackerName}`,
+          mood: 'neutral',
+        });
+
         const result = await camp.playerCombatAction(activePlayerId, action, targetId);
         if (!result) { socket.emit('error', 'ação de combate inválida'); return; }
         if (!result.ok) { socket.emit('error', result.log || 'ação rejeitada'); return; }
@@ -264,7 +274,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (result.log) {
           io.to(camp.state.id).emit('dmNarration', {
             text: result.log,
-            speaker: `⚔ ${camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro'}`,
+            speaker: `⚔ ${attackerName}`,
             mood: 'neutral',
           });
         }
