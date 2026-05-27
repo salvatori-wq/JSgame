@@ -82,24 +82,31 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-26 23:13 (Sprint γ COMPLETO — POLISH FUNDAÇÃO)
+> Última atualização: 2026-05-26 23:46 (Sprint γ + Densidade COMPLETOS)
 
-### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 939 tests
+### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 877→939 tests
 - γ.1 Dado 3D + som 3-camadas + haptic + combate (`14c19a8`)
 - γ.2 DM força mais rolls via 12 keywords (`c504a6e`)
 - γ.3 Echo player race fix (`8d6bba8`)
 - γ.4 Mistral provider 5º cascade (`950207d`)
 - γ.5 Mobile audit + header overflow 10→5 (`845af26`)
 - γ.6 Telemetria UX baseline + /api/dm/ux-funnel (`c4f43a5`)
-- Deploy disparado no Render (dep-d8b56dmgvqtc73a942og, building)
-- Veja `HANDOFF_2026-05-27_sprint-gamma-done.md` pra detalhes
+
+### Estratégia "Densidade" — 4 features profundas, 939→1007 tests
+- F1 Primeiro Minuto Magia — 3 PJs pré-fab + 13 cold opens (`e892937`)
+- F2 Crit que faz suar — combat drama visual+som+narração (`fe8d39b`)
+- F3 Mestre que Lembra — RAG contextual + callback detector (`78eb823`)
+- F4 PJ que Faz Sentido — backstory drives DM (`b9a6a8e`)
+- Deploy disparado (dep-d8b5lobeo5us73akf350)
+- Veja `HANDOFF_2026-05-27_densidade-done.md` pra detalhes
 
 ### Pendente / Próximos passos
 - [ ] Configurar `MISTRAL_API_KEY` no Render (γ.4 ativar)
 - [ ] Aguardar 24-48h após deploy pra baseline real de `/api/dm/ux-funnel`
-- [ ] **Sprint δ "CORAÇÃO RÁPIDO" (~10h)** — SSE streaming, cascade paralelo Tier 1, predictive chips, optimistic echo. Meta: time_to_first_token_ms 8000 → <800
-- [ ] **Sprint ε "PRIMEIRO CONTATO" (~12h)** — onboarding 3 PJs pré-fab + loot screen TCG + tutorial inline
-- [ ] **Sprint ζ "VOLTA AMANHÃ" (~10h)** — daily challenges + almas + hall of fame
+- [ ] **Playtest qualitativo** — validar F1/F2/F3/F4 em uso real antes de avançar
+- [ ] Após métricas reais, decidir: iterar prompt (se callback/backstory baixos) ou avançar
+- [ ] **Sprint δ "CORAÇÃO RÁPIDO" (~10h)** — SSE streaming (só se latência for atrito real)
+- [ ] Onboarding inline tutorial primeira vez (se time_to_first_roll ainda alto)
 
 ### Decisões importantes Sprint γ
 - happy-dom devDep adicionada pra DOM em tests do client (mais leve que jsdom)
