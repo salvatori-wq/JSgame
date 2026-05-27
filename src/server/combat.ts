@@ -18,6 +18,7 @@ import { consumeBuffs, readAcBonus } from './buff-engine.js';
 import { resetReactionsForRound } from './reaction-engine.js';
 import { enrichAttackLog, buildKoNarration } from './combat-narrator.js';
 import { getInitiativeBonus } from '../dnd/feat-effects-engine.js';
+import { attackAdvantageMode, consumePendingAdvantage, combineAdvantage } from '../dnd/condition-advantage-rules.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -342,25 +343,38 @@ export function resolvePlayerAttack(
   const pb = proficiencyBonus(attacker.level);
   const attackBonus = useMod + pb;
 
-  // Desvantagem se atacante cego/envenenado; vantagem se target caído (corpo-a-corpo)
-  const disadvantage =
-    attacker.conditions.includes('cego') ||
-    attacker.conditions.includes('envenenado') ||
-    attacker.conditions.includes('restrito');
+  // η.4 — Centralized advantage logic via condition-advantage-rules
+  let mode = attackAdvantageMode({
+    attackerConditions: attacker.conditions,
+    targetConditions: target.conditions,
+    isMelee: !opts.isRanged,
+  });
+  // Restrito também dá disadvantage no atacante (PHB)
+  if (attacker.conditions.includes('restrito')) {
+    mode = combineAdvantage(mode, 'disadvantage');
+  }
   // F24 — Help flag: aliado deu Help no PJ pra esse próximo ataque
   const wasHelped = hasCombatFlag(combat, attacker.id, 'helped-next-attack');
   if (wasHelped) clearCombatFlag(combat, attacker.id, 'helped-next-attack');
+  if (wasHelped) mode = combineAdvantage(mode, 'advantage');
   // Sprint 5 — Hidden flag: ataque com surpresa = advantage. Atacar quebra hide.
   const wasHidden = hasCombatFlag(combat, attacker.id, 'hidden');
   if (wasHidden) clearCombatFlag(combat, attacker.id, 'hidden');
+  if (wasHidden) mode = combineAdvantage(mode, 'advantage');
   // A2 — Buff engine: consome attack buffs (Bardic Insp 1d6, Bless 1d4, Faerie Fire advantage)
   const buffs = consumeBuffs(attacker, 'attack');
-  const advantage =
-    wasHelped || wasHidden || buffs.advantage ||
-    (!opts.isRanged && (target.conditions.includes('caido') || target.conditions.includes('restrito')));
+  if (buffs.advantage) mode = combineAdvantage(mode, 'advantage');
+  if (buffs.disadvantage) mode = combineAdvantage(mode, 'disadvantage');
+  // η.4 — Consume DM-declared apply_advantage pendente
+  // Note: pendingAdvantages está em CampaignState; combat receive combat ref only.
+  // Caller (campaign.ts) deve consumir antes de chamar resolvePlayerAttack — V2.
+  // Por ora, advantage/disadvantage flags vêm via mode acima.
+
+  const advantage = mode === 'advantage';
+  const disadvantage = mode === 'disadvantage';
 
   // A2 — soma buff bonuses ao attack roll
-  const attackRoll = rollD20({ modifier: attackBonus + buffs.flatBonus + buffs.diceBonus, advantage, disadvantage: disadvantage || buffs.disadvantage });
+  const attackRoll = rollD20({ modifier: attackBonus + buffs.flatBonus + buffs.diceBonus, advantage, disadvantage });
   const crit = !!attackRoll.nat20;
   const hit = crit || (!attackRoll.nat1 && attackRoll.total >= target.armorClass);
 

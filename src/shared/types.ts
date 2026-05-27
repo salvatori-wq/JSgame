@@ -322,6 +322,14 @@ export interface CampaignState {
   // β.3 — Loja aberta. DM seta via open_shop tool quando NPC mercador aparece.
   // Cliente abre modal de compra/venda. null = sem loja ativa.
   openShop?: OpenShop | null;
+  // η.4 — Pending advantages/disadvantages declarados pelo DM via apply_advantage tool.
+  // Consome no próximo roll do tipo declarado (attack/save/skill). Expira em 5 turnos.
+  pendingAdvantages?: Record<string, {
+    mode: 'advantage' | 'disadvantage';
+    targetRoll: 'next-attack' | 'next-save' | 'next-skill';
+    reason: string;
+    createdAt: number;
+  }>;
 }
 
 // β.3 — Loja/Vendor schemas.

@@ -435,10 +435,18 @@ export class Campaign {
 
       // A2 — Buff engine: Guidance dá +1d4 em skill check (consumido após uso)
       const buffs = consumeBuffs(player, 'skill-check');
+      // η.4 — DM-declared apply_advantage pendente
+      const { consumePendingAdvantage, skillCheckAdvantageMode, combineAdvantage } = await import('../dnd/condition-advantage-rules.js');
+      const dmAdv = consumePendingAdvantage(this.state, player.id, 'skill');
+      const conditionAdv = skillCheckAdvantageMode(player.conditions);
+      let advMode = combineAdvantage(dmAdv ?? 'normal', conditionAdv);
+      if (buffs.advantage) advMode = combineAdvantage(advMode, 'advantage');
+      if (buffs.disadvantage) advMode = combineAdvantage(advMode, 'disadvantage');
+      if (usedInspiration) advMode = combineAdvantage(advMode, 'advantage');
       const roll = rollD20({
         modifier: totalMod + buffs.flatBonus + buffs.diceBonus,
-        advantage: buffs.advantage || usedInspiration,
-        disadvantage: buffs.disadvantage,
+        advantage: advMode === 'advantage',
+        disadvantage: advMode === 'disadvantage',
       });
       const success = roll.total >= check.dc;
       // F17: credita skill_check event
@@ -514,7 +522,25 @@ export class Campaign {
 
       // A2 — Buff engine: Bless aplica +1d4 em saves
       const buffs = consumeBuffs(player, 'save');
-      const roll = rollD20({ modifier: totalMod + buffs.flatBonus + buffs.diceBonus, advantage: buffs.advantage, disadvantage: buffs.disadvantage });
+      // η.4 — DM-declared apply_advantage + auto-fail check
+      const { consumePendingAdvantage, isAutoFailSave, combineAdvantage } = await import('../dnd/condition-advantage-rules.js');
+      // Auto-fail STR/DEX se condição incapacitante (paralisado/atordoado/inconsciente/petrificado)
+      if (isAutoFailSave(player.conditions, save.ability)) {
+        const failRoll = rollD20({ modifier: totalMod });
+        // Força total < DC (auto-fail PHB)
+        const synthetic = { ...failRoll, total: -999 };
+        this.pushRecentEvent(`${player.characterName} falhou auto save ${save.ability.toUpperCase()} (condição incapacitante)`);
+        return { roll: synthetic, success: false, nat20: false, nat1: false };
+      }
+      const dmAdv = consumePendingAdvantage(this.state, player.id, 'save');
+      let advMode = dmAdv ?? 'normal';
+      if (buffs.advantage) advMode = combineAdvantage(advMode, 'advantage');
+      if (buffs.disadvantage) advMode = combineAdvantage(advMode, 'disadvantage');
+      const roll = rollD20({
+        modifier: totalMod + buffs.flatBonus + buffs.diceBonus,
+        advantage: advMode === 'advantage',
+        disadvantage: advMode === 'disadvantage',
+      });
       const success = roll.total >= save.dc;
       // F17: credita event genérico de skill_check (saves contam pra mesma metric)
       this.pushAchievementEvent(player.id, {

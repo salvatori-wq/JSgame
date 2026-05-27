@@ -400,6 +400,26 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'apply_advantage': {
+      // η.4 — DM declara vantagem/desvantagem no próximo roll do player matching targetRoll.
+      const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const p = camp.party.find((x) => x.id === resolvedId);
+      if (p) {
+        if (!camp.state.pendingAdvantages) camp.state.pendingAdvantages = {};
+        camp.state.pendingAdvantages[p.id] = {
+          mode: tool.mode,
+          targetRoll: tool.targetRoll,
+          reason: tool.reason,
+          createdAt: Date.now(),
+        };
+        const modeLabel = tool.mode === 'advantage' ? 'vantagem' : 'desvantagem';
+        const targetLabel = tool.targetRoll === 'next-attack' ? 'próximo ataque' :
+          tool.targetRoll === 'next-save' ? 'próximo save' : 'próximo teste';
+        camp.pushRecentEvent(`⚡ ${p.characterName} ganha ${modeLabel} no ${targetLabel}: ${tool.reason}`);
+      }
+      break;
+    }
+
     case 'grant_inspiration': {
       // α.3 — Concede 1 inspiração ao player. Clamp max 3 (PHB).
       const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;

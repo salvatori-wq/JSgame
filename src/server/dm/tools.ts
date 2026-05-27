@@ -37,7 +37,9 @@ export type ValidatedTool =
   // α.3 — Concede 1 inspiração ao player (PHB pág 125)
   | { kind: 'grant_inspiration'; playerId: string; reason: string }
   // β.3 — Abre loja/vendor pra party
-  | { kind: 'open_shop'; npcName: string; shopType: import('../../shared/types.js').ShopType; items: import('../../shared/types.js').ShopItem[]; acceptsSell: boolean };
+  | { kind: 'open_shop'; npcName: string; shopType: import('../../shared/types.js').ShopType; items: import('../../shared/types.js').ShopItem[]; acceptsSell: boolean }
+  // η.4 — Aplica vantagem ou desvantagem no PRÓXIMO roll do player (atk/save/skill)
+  | { kind: 'apply_advantage'; playerId: string; mode: 'advantage' | 'disadvantage'; targetRoll: 'next-attack' | 'next-save' | 'next-skill'; reason: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -321,6 +323,22 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         .slice(0, 4);
       if (actions.length === 0) return null;
       return { kind: 'suggest_actions', actions };
+    }
+
+    case 'apply_advantage': {
+      const playerId = String(input.playerId ?? 'active');
+      const modeRaw = String(input.mode ?? '').toLowerCase();
+      const mode: 'advantage' | 'disadvantage' | null =
+        modeRaw === 'advantage' ? 'advantage' :
+        modeRaw === 'disadvantage' ? 'disadvantage' : null;
+      const targetRaw = String(input.targetRoll ?? '').toLowerCase();
+      const target: 'next-attack' | 'next-save' | 'next-skill' | null =
+        targetRaw === 'next-attack' ? 'next-attack' :
+        targetRaw === 'next-save' ? 'next-save' :
+        targetRaw === 'next-skill' ? 'next-skill' : null;
+      if (!mode || !target || !playerId) return null;
+      const reason = String(input.reason ?? '').slice(0, 200);
+      return { kind: 'apply_advantage', playerId, mode, targetRoll: target, reason };
     }
 
     case 'start_combat_balanced': {

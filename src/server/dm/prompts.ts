@@ -689,6 +689,20 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'apply_advantage',
+    description: 'η.4 — Aplica vantagem ou desvantagem no PRÓXIMO roll do player. Use quando ficção justifica: PJ posicionado bem (cobertura, alto), magia/buff ativo, Help action de aliado, terreno favorável, condição não-automática que aplica. Server consome no próximo roll matching targetRoll.',
+    schema: {
+      type: 'object',
+      properties: {
+        playerId: { type: 'string', description: 'ID do player alvo. "active" pro que tomou ação atual.' },
+        mode: { type: 'string', enum: ['advantage', 'disadvantage'], description: 'Vantagem (rola 2d20 pega maior) ou Desvantagem (pega menor)' },
+        targetRoll: { type: 'string', enum: ['next-attack', 'next-save', 'next-skill'], description: 'Qual tipo de roll: ataque, save throw ou skill check' },
+        reason: { type: 'string', description: 'Justificativa narrativa (1 frase). Aparece pro player.' },
+      },
+      required: ['playerId', 'mode', 'targetRoll', 'reason'],
+    },
+  },
+  {
     name: 'request_saving_throw',
     description: 'Pede teste de resistência (saving throw) pra player. Use pra spells com save (Dragon Breath, Fireball), traps, hazards. Server rola d20 + ability mod + prof (se tem) vs DC.',
     schema: {
