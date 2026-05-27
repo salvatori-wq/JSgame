@@ -10,6 +10,15 @@ export interface DMResponse {
   speaker?: string;
   toolCalls: DMToolCall[];
   raw: string;
+  /** POLISH γ.4 — populado quando narração veio de fallback (LLM falhou).
+   *  Server repassa no socket emit dmNarration pra client mostrar error recovery rico. */
+  errorMeta?: {
+    providersAttempted: string[];
+    lastProvider: string;
+    errorKind: 'timeout' | 'rate_limit' | 'auth' | 'parse' | 'empty' | 'unknown';
+    errorMsg: string;
+    canRetry: boolean;
+  };
 }
 
 // Timeout 55s — cobre cascade COMPLETO: Cerebras (~3s rápido), Gemini (~5s rápido),
@@ -93,13 +102,13 @@ export class DungeonMaster {
           console.warn('[dm] retry sem tools também falhou:', err2);
           // T1 — track narration_error
           void this.trackError(context, msg.slice(0, 80));
-          return makeGracefulFallback(err2);
+          return makeGracefulFallback(err2, this.getProviderListSafe(), this.getEffectiveProviderForError());
         }
       } else {
         // Timeout ou erro fatal — devolve fallback sem quebrar o queue
         console.warn('[dm] LLM falhou/expirou após backoff:', msg.slice(0, 120));
         void this.trackError(context, msg.slice(0, 80));
-        return makeGracefulFallback(err);
+        return makeGracefulFallback(err, this.getProviderListSafe(), this.getEffectiveProviderForError());
       }
     }
     let parsed = extractJson(response.text);
@@ -125,7 +134,7 @@ export class DungeonMaster {
     // Se ainda vazio após retry, degrada graceful em vez de mandar string vazia.
     if (!narration) {
       void this.trackError(context, 'empty narration after retry');
-      return makeGracefulFallback(new Error('LLM retornou narração vazia'));
+      return makeGracefulFallback(new Error('LLM retornou narração vazia'), this.getProviderListSafe(), this.getEffectiveProviderForError());
     }
 
     // T1 — track narration_success (após validar que de fato veio conteúdo).
@@ -150,6 +159,13 @@ export class DungeonMaster {
   private getEffectiveProviderForError(): string {
     const cascade = this.provider as { lastFailedProvider?: string | null };
     return cascade.lastFailedProvider ?? this.provider.name;
+  }
+  /** POLISH γ.4 — lista nomes dos providers no cascade pra error recovery card.
+   *  CascadeProvider expõe providerNames; outros providers retornam só o próprio. */
+  private getProviderListSafe(): string[] {
+    const cascade = this.provider as { providerNames?: string[] };
+    if (Array.isArray(cascade.providerNames)) return cascade.providerNames;
+    return [this.provider.name];
   }
   private async trackSuccess(ctx: NarrationContext, retried: boolean): Promise<void> {
     try {
@@ -235,10 +251,28 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+// POLISH γ.4 — classificação de erros pro client renderizar mensagem específica
+// + decidir se vale botão "Tentar novamente". Padroniza entre providers.
+// Exportado pra tests + reuso futuro.
+export function classifyError(msg: string): 'timeout' | 'rate_limit' | 'auth' | 'parse' | 'empty' | 'unknown' {
+  if (/timeout/i.test(msg)) return 'timeout';
+  if (/429|rate.?limit|quota/i.test(msg)) return 'rate_limit';
+  if (/401|403|unauthorized|forbidden|invalid.?api.?key/i.test(msg)) return 'auth';
+  if (/parse|JSON|malformed|invalid response/i.test(msg)) return 'parse';
+  if (/empty|vazia/i.test(msg)) return 'empty';
+  return 'unknown';
+}
+
 // DMResponse fallback que mantém a campanha rodando se o LLM falhou de vez.
-function makeGracefulFallback(err: unknown): DMResponse {
+// POLISH γ.4 — agora popula errorMeta com info estruturada pro client renderizar
+// error recovery card (qual provider falhou, retry button, expandible details).
+// Exportado pra tests.
+export function makeGracefulFallback(err: unknown, providersAttempted: string[] = [], lastProvider = 'unknown'): DMResponse {
   const msg = err instanceof Error ? err.message : String(err);
-  const isTimeout = /timeout/i.test(msg);
+  const errorKind = classifyError(msg);
+  const isTimeout = errorKind === 'timeout';
+  // Auth fail NÃO se resolve com retry (key inválida) — outros sim
+  const canRetry = errorKind !== 'auth';
   return {
     narration: isTimeout
       ? 'O mundo segue, mas o Mestre tá lento — fala outra coisa, tenta de novo. Ou espera 30s.'
@@ -246,6 +280,13 @@ function makeGracefulFallback(err: unknown): DMResponse {
     speaker: 'Mestre (degradado)',
     toolCalls: [],
     raw: msg,
+    errorMeta: {
+      providersAttempted,
+      lastProvider,
+      errorKind,
+      errorMsg: msg.slice(0, 160),
+      canRetry,
+    },
   };
 }
 

@@ -75,6 +75,11 @@ export class CascadeProvider implements DMProvider {
     return this.providers[0]!;
   }
 
+  // POLISH γ.4 — lista pública pro error recovery rico (DM.getProviderListSafe).
+  get providerNames(): string[] {
+    return this.providers.map((p) => p.name);
+  }
+
   async generate(opts: {
     systemPrompt: string;
     userPrompt: string;

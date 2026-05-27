@@ -179,10 +179,13 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           await withThinkingBroadcast(camp, character.id, 'abrir cena', async () => {
             const response = await camp.startSession();
             if (response) {
+              // POLISH γ.4 — se DM degradou (errorMeta presente), mood='error'
+              // pro client renderizar error recovery card. Senão mood normal.
               io.to(camp.state.id).emit('dmNarration', {
                 text: response.narration,
                 speaker: response.speaker ?? 'Mestre',
-                mood: 'neutral',
+                mood: response.errorMeta ? 'error' : 'neutral',
+                ...(response.errorMeta ? { errorMeta: response.errorMeta } : {}),
               });
               broadcastState(camp);
               await drainAchievements(camp);
@@ -244,10 +247,12 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
 
         await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
           const response = await camp.takeAction(activePlayerId!, action, details);
+          // POLISH γ.4 — error recovery rico (errorMeta repassado quando DM degradou)
           io.to(camp.state.id).emit('dmNarration', {
             text: response.narration,
             speaker: response.speaker ?? 'Mestre',
-            mood: 'neutral',
+            mood: response.errorMeta ? 'error' : 'neutral',
+            ...(response.errorMeta ? { errorMeta: response.errorMeta } : {}),
           });
           // γ.6 — telemetria pós-narração
           trackFirstNarrationIfNeeded();

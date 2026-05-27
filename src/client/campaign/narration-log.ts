@@ -155,6 +155,122 @@ export class NarrationLog {
   }
 
   /**
+   * POLISH γ.4 — Adiciona narração degradada (DM tentou mas falhou) com error
+   * recovery card rico embutido: timeline providers tentados + retry button.
+   * Substitui appendError quando vier de erro de DM com metadata estruturada.
+   */
+  appendDegradedNarration(payload: {
+    speaker: string;
+    text: string;
+    errorMeta: {
+      providersAttempted: string[];
+      lastProvider: string;
+      errorKind: 'timeout' | 'rate_limit' | 'auth' | 'parse' | 'empty' | 'unknown';
+      errorMsg: string;
+      canRetry: boolean;
+    };
+    onRetry?: () => void;
+  }): void {
+    if (this.destroyed) return;
+    this.removeEmptyState();
+    this.removeThinkingEl();
+    this.removeChipsEl();
+
+    // Remove error card anterior se houver
+    if (this.lastErrorEntryEl) {
+      this.lastErrorEntryEl.remove();
+      this.lastErrorEntryEl = null;
+    }
+
+    const entry: NarrationEntry = {
+      id: genId(),
+      speaker: payload.speaker,
+      text: payload.text,
+      kind: 'error',
+      timestamp: Date.now(),
+    };
+    this.entries.push(entry);
+
+    const errorKindLabel: Record<string, string> = {
+      timeout: '⏱ Tempo esgotado',
+      rate_limit: '🚦 Limite de uso',
+      auth: '🔑 Falha de autenticação',
+      parse: '📝 Resposta malformada',
+      empty: '🪶 Resposta vazia',
+      unknown: '❓ Erro desconhecido',
+    };
+
+    const entryEl = el('div', { class: 'camp-narr-entry is-error is-degraded', attrs: { 'data-id': entry.id } });
+
+    // Speaker + narração degradada
+    const body = el('div', { class: 'cn-error-body' }, [
+      el('div', { class: 'cnn-speaker', text: '⚠ ' + payload.speaker }),
+      el('div', { class: 'cnn-text', text: payload.text }),
+    ]);
+    entryEl.appendChild(body);
+
+    // Provider chip resumido sempre visível
+    const summary = el('div', { class: 'cn-error-summary' }, [
+      el('span', { class: 'cn-error-kind', text: errorKindLabel[payload.errorMeta.errorKind] ?? 'Erro' }),
+      el('span', { class: 'cn-error-provider', text: `· ${payload.errorMeta.lastProvider}` }),
+    ]);
+    entryEl.appendChild(summary);
+
+    // Toggle de detalhes
+    const detailsContent = el('div', { class: 'cn-error-details', attrs: { hidden: 'true' } }, [
+      el('div', { class: 'cn-err-row' }, [
+        el('span', { class: 'cn-err-label', text: 'Providers tentados:' }),
+        el('span', { class: 'cn-err-val', text: payload.errorMeta.providersAttempted.join(' → ') || '—' }),
+      ]),
+      el('div', { class: 'cn-err-row' }, [
+        el('span', { class: 'cn-err-label', text: 'Erro técnico:' }),
+        el('code', { class: 'cn-err-msg', text: payload.errorMeta.errorMsg }),
+      ]),
+    ]);
+    const toggleBtn = el('button', {
+      class: 'cn-error-details-toggle',
+      attrs: { type: 'button', 'aria-expanded': 'false' },
+      text: '▸ Ver detalhes técnicos',
+      on: {
+        click: () => {
+          const hidden = detailsContent.hasAttribute('hidden');
+          if (hidden) {
+            detailsContent.removeAttribute('hidden');
+            toggleBtn.textContent = '▾ Ocultar detalhes';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+          } else {
+            detailsContent.setAttribute('hidden', 'true');
+            toggleBtn.textContent = '▸ Ver detalhes técnicos';
+            toggleBtn.setAttribute('aria-expanded', 'false');
+          }
+        },
+      },
+    });
+    entryEl.appendChild(toggleBtn);
+    entryEl.appendChild(detailsContent);
+
+    // Retry button (só se canRetry e callback fornecido)
+    if (payload.errorMeta.canRetry && payload.onRetry) {
+      const handler = payload.onRetry;
+      entryEl.appendChild(el('button', {
+        class: 'cn-retry-btn',
+        text: '🔁 Tentar novamente',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            entryEl.classList.add('is-retrying');
+            handler();
+          },
+        },
+      }));
+    }
+
+    this.entriesEl.appendChild(entryEl);
+    this.lastErrorEntryEl = entryEl;
+    this.afterAppend(entryEl);
+  }
+
+  /**
    * Adiciona card de erro com botão "Tentar de novo".
    * Substitui qualquer error card anterior (não acumula).
    * Se onRetry for fornecido, mostra botão actionable.

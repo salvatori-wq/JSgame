@@ -500,7 +500,20 @@ export interface ServerToClientEvents {
   // 1B — Combat-local flags (rage, action-surge, etc) por characterId. Server emit
   // junto com combatState, vai pro client renderizar badges de rage no party panel.
   combatFlags: (flags: Record<string, string[]>) => void;
-  dmNarration: (payload: { text: string; speaker?: string; mood?: 'sombrio' | 'sarcastico' | 'trickster' | 'neutral' }) => void;
+  dmNarration: (payload: {
+    text: string;
+    speaker?: string;
+    mood?: 'sombrio' | 'sarcastico' | 'trickster' | 'neutral' | 'error';
+    /** POLISH γ.4 — quando mood='error', metadata sobre o que falhou pro client
+     *  renderizar error recovery card rico (timeline providers + retry button). */
+    errorMeta?: {
+      providersAttempted: string[];   // ex: ['cerebras', 'gemini', 'groq']
+      lastProvider: string;            // ex: 'groq'
+      errorKind: 'timeout' | 'rate_limit' | 'auth' | 'parse' | 'empty' | 'unknown';
+      errorMsg: string;                // mensagem curta sanitizada
+      canRetry: boolean;               // se faz sentido tentar de novo
+    };
+  }) => void;
   diceRollResult: (payload: { source: string; roll: DiceRoll; purpose: string }) => void;
   characterUpdate: (character: CharacterSheet) => void;
   combatEvent: (event: CombatEvent) => void;

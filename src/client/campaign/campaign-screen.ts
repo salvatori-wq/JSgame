@@ -143,7 +143,19 @@ export class CampaignScreen {
     this.socketBound = true;
     const s = this.opts.socket;
 
-    const onNarration = (payload: { text: string; speaker?: string; mood?: string }): void => {
+    const onNarration = (payload: {
+      text: string;
+      speaker?: string;
+      mood?: string;
+      // POLISH γ.4 — errorMeta opcional quando DM degradou
+      errorMeta?: {
+        providersAttempted: string[];
+        lastProvider: string;
+        errorKind: 'timeout' | 'rate_limit' | 'auth' | 'parse' | 'empty' | 'unknown';
+        errorMsg: string;
+        canRetry: boolean;
+      };
+    }): void => {
       const speaker = payload.speaker ?? 'Mestre';
 
       // Suprime echo do player quando retry silent foi disparado:
@@ -206,10 +218,21 @@ export class CampaignScreen {
             details: lastAction.details,
           });
         } : undefined;
-        this.narrationLog!.appendError({
-          message: payload.text,
-          ...(retryHandler ? { onRetry: retryHandler } : {}),
-        });
+        // POLISH γ.4 — Se server enviou errorMeta estruturada, usa card rico
+        // com timeline de providers + tipo de erro + retry. Senão, fallback genérico.
+        if (payload.errorMeta) {
+          this.narrationLog!.appendDegradedNarration({
+            speaker,
+            text: payload.text,
+            errorMeta: payload.errorMeta,
+            ...(retryHandler ? { onRetry: retryHandler } : {}),
+          });
+        } else {
+          this.narrationLog!.appendError({
+            message: payload.text,
+            ...(retryHandler ? { onRetry: retryHandler } : {}),
+          });
+        }
       } else {
         this.narrationLog!.appendNarration({ speaker, text: payload.text });
         // Reset retry flag — narração válida chegou
@@ -234,6 +257,20 @@ export class CampaignScreen {
           body: `Combate em ${state.currentLocation} — joga teu turno.`,
           tag: 'turn',
         });
+      }
+
+      // POLISH γ.3 — Scene transition: location mudou → pulsa header pra
+      // sinalizar mudança de cena. Anim curta, respeita reduced-motion via CSS.
+      const oldLoc = this.currentState?.currentLocation ?? '';
+      const newLoc = state.currentLocation ?? '';
+      if (oldLoc !== newLoc && newLoc) {
+        const locEl = document.querySelector('.camp-loc');
+        if (locEl instanceof HTMLElement) {
+          locEl.classList.remove('is-scene-changed');
+          void locEl.offsetWidth; // force reflow pra reiniciar anim
+          locEl.classList.add('is-scene-changed');
+          setTimeout(() => locEl.classList.remove('is-scene-changed'), 1200);
+        }
       }
       // B2 — Tutorial first-combat: dispara só uma vez por user (localStorage flag)
       // ao detectar transição exploration → combat ativo
