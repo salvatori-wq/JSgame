@@ -34,6 +34,56 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
     console.log(`[socket] connected ${socket.id}${sUser ? ` (user=${sUser.email})` : ' (anon)'}`);
     let activeCampaignId: string | null = null;
     let activePlayerId: string | null = null;
+    // γ.6 — Telemetria UX state por socket. Marca o ts da joinCampaign pra calcular
+    // time_to_first_narration / first_roll. Marca lastActionTs pra calcular dm_silence
+    // (gap entre takeAction e dmNarration final).
+    let sessionStartTs: number | null = null;
+    let firstNarrationTracked = false;
+    let firstRollTracked = false;
+    let lastActionTs: number | null = null;
+
+    const trackFirstNarrationIfNeeded = (): void => {
+      if (firstNarrationTracked || sessionStartTs === null || !activeCampaignId) return;
+      firstNarrationTracked = true;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'time_to_first_narration',
+        payload: { latency_ms: Date.now() - sessionStartTs },
+      });
+    };
+
+    const trackFirstRollIfNeeded = (rollPayload: Record<string, unknown>): void => {
+      if (sessionStartTs === null || !activeCampaignId) return;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'roll_in_session',
+        payload: rollPayload,
+      });
+      if (firstRollTracked) return;
+      firstRollTracked = true;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'time_to_first_roll',
+        payload: { latency_ms: Date.now() - sessionStartTs },
+      });
+    };
+
+    const trackDmSilenceFromAction = (): void => {
+      if (lastActionTs === null || !activeCampaignId) return;
+      const silenceMs = Date.now() - lastActionTs;
+      lastActionTs = null;
+      // Skip very low (echo apenas, sem narração real) e very high (>3min, abandono)
+      if (silenceMs < 200 || silenceMs > 180_000) return;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'dm_silence',
+        payload: { silence_seconds: Math.round(silenceMs / 100) / 10 },
+      });
+    };
 
     socket.on('disconnect', (reason) => {
       console.log('[socket] disconnected', socket.id, reason);
@@ -92,6 +142,11 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           kind: 'session_started',
           payload: { sessionNumber: camp.state.sessionNumber, partySize: camp.party.length },
         });
+        // γ.6 — Baseline ts pra cálculo de time_to_first_narration / first_roll
+        sessionStartTs = Date.now();
+        firstNarrationTracked = false;
+        firstRollTracked = false;
+        lastActionTs = null;
 
         if (camp.getNarrationLog().length === 0 && camp.state.recentEvents.length === 0) {
           await withThinkingBroadcast(camp, character.id, 'abrir cena', async () => {
@@ -139,6 +194,8 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           speaker: `▶ ${myName}`,
           mood: 'neutral',
         });
+        // γ.6 — marca ts pra calcular dm_silence (gap até narração)
+        lastActionTs = Date.now();
 
         await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
           const response = await camp.takeAction(activePlayerId!, action, details);
@@ -147,6 +204,9 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
             speaker: response.speaker ?? 'Mestre',
             mood: 'neutral',
           });
+          // γ.6 — telemetria pós-narração
+          trackFirstNarrationIfNeeded();
+          trackDmSilenceFromAction();
           if (camp.lastCombatXpAwards && camp.lastCombatXpAwards.length > 0) {
             await flushPostCombatRewards(camp);
           }
@@ -193,6 +253,14 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
             source: activePlayerId!,
             roll: result.roll,
             purpose: 'skill-check',
+          });
+          // γ.6 — telemetria roll
+          trackFirstRollIfNeeded({
+            roll_total: result.roll.total,
+            success: result.success,
+            nat20: result.nat20,
+            nat1: result.nat1,
+            skill: pending.skill,
           });
           const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
           const verdict = result.nat20 ? 'NAT20 CRIT' : result.nat1 ? 'NAT1 FALHA' : (result.success ? 'SUCESSO' : 'FALHOU');
@@ -269,7 +337,17 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
 
         const result = await camp.playerCombatAction(activePlayerId, action, targetId);
         if (!result) { socket.emit('error', 'ação de combate inválida'); return; }
-        if (!result.ok) { socket.emit('error', result.log || 'ação rejeitada'); return; }
+        if (!result.ok) {
+          // γ.6 — telemetria de bloqueio β.4 V2 (action economy)
+          void trackMetricEvent({
+            userId: sUser?.id ?? null,
+            sessionId: activeCampaignId,
+            kind: 'combat_action_blocked',
+            payload: { reason: result.log ?? 'rejected', kind: String(action) },
+          });
+          socket.emit('error', result.log || 'ação rejeitada');
+          return;
+        }
 
         if (result.log) {
           io.to(camp.state.id).emit('dmNarration', {

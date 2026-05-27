@@ -31,6 +31,7 @@ import {
 } from '../friends.js';
 import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
 import { detectAnomalies, computeFunnel } from '../anomaly-detector.js';
+import { computeUxFunnel } from '../ux-funnel.js';
 import { getDmErrorBreakdown, getDmTimeline } from '../dm-error-breakdown.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
@@ -153,6 +154,18 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       res.json(result);
     } catch (err) {
       console.error('[api] funnel:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // γ.6 — UX baseline: latência percebida + engajamento de dado + silêncio DM
+  app.get('/api/dm/ux-funnel', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(90, Number(req.query.days) || 7));
+      const result = await computeUxFunnel(days);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] ux-funnel:', err);
       res.status(500).json({ error: String(err) });
     }
   });
