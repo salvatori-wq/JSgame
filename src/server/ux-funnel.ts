@@ -12,10 +12,18 @@ export interface UxFunnelSummary {
   sessions: {
     total: number;
     withFirstNarration: number;
+    /** POLISH-0 — sessions com ao menos uma takeAction (engajou após ver cena). */
+    withFirstPlayerAction: number;
+    /** POLISH-0 — sessions com primeira resposta DM completa (a IA respondeu uma ação). */
+    withFirstDmResponse: number;
     withFirstRoll: number;
   };
   latency: {
     timeToFirstNarrationMs: { p50: number; p90: number; p99: number; sample: number };
+    /** POLISH-0 — primeira narração → primeira ação. Mede leitura+decisão humana. */
+    timeToFirstPlayerActionMs: { p50: number; p90: number; p99: number; sample: number };
+    /** POLISH-0 — primeira ação → resposta DM. Mede latência LLM real. */
+    timeToFirstDmResponseMs: { p50: number; p90: number; p99: number; sample: number };
     timeToFirstRollMs: { p50: number; p90: number; p99: number; sample: number };
   };
   rolls: {
@@ -61,16 +69,25 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
   });
   const totalSessions = Number(sessionsRes.rows[0]?.c ?? 0);
 
-  // 2) Latency: time_to_first_narration / time_to_first_roll
+  // 2) Latency: time_to_first_narration / first_player_action / first_dm_response / first_roll
   const latencyRes = await db.execute({
     sql: `SELECT kind, payload, session_id
           FROM metrics_events
-          WHERE created_at >= ? AND kind IN ('time_to_first_narration', 'time_to_first_roll')`,
+          WHERE created_at >= ? AND kind IN (
+            'time_to_first_narration',
+            'time_to_first_player_action',
+            'time_to_first_dm_response',
+            'time_to_first_roll'
+          )`,
     args: [since],
   });
   const firstNarrationMs: number[] = [];
+  const firstPlayerActionMs: number[] = [];
+  const firstDmResponseMs: number[] = [];
   const firstRollMs: number[] = [];
   const sessionsWithFirstNarration = new Set<string>();
+  const sessionsWithFirstPlayerAction = new Set<string>();
+  const sessionsWithFirstDmResponse = new Set<string>();
   const sessionsWithFirstRoll = new Set<string>();
   for (const row of latencyRes.rows) {
     const kind = String(row.kind);
@@ -83,6 +100,12 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
       if (kind === 'time_to_first_narration') {
         firstNarrationMs.push(ms);
         if (row.session_id) sessionsWithFirstNarration.add(String(row.session_id));
+      } else if (kind === 'time_to_first_player_action') {
+        firstPlayerActionMs.push(ms);
+        if (row.session_id) sessionsWithFirstPlayerAction.add(String(row.session_id));
+      } else if (kind === 'time_to_first_dm_response') {
+        firstDmResponseMs.push(ms);
+        if (row.session_id) sessionsWithFirstDmResponse.add(String(row.session_id));
       } else if (kind === 'time_to_first_roll') {
         firstRollMs.push(ms);
         if (row.session_id) sessionsWithFirstRoll.add(String(row.session_id));
@@ -91,6 +114,8 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
   }
 
   firstNarrationMs.sort((a, b) => a - b);
+  firstPlayerActionMs.sort((a, b) => a - b);
+  firstDmResponseMs.sort((a, b) => a - b);
   firstRollMs.sort((a, b) => a - b);
 
   // 3) Rolls per session
@@ -205,6 +230,8 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
     sessions: {
       total: totalSessions,
       withFirstNarration: sessionsWithFirstNarration.size,
+      withFirstPlayerAction: sessionsWithFirstPlayerAction.size,
+      withFirstDmResponse: sessionsWithFirstDmResponse.size,
       withFirstRoll: sessionsWithFirstRoll.size,
     },
     latency: {
@@ -213,6 +240,18 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
         p90: percentile(firstNarrationMs, 0.9),
         p99: percentile(firstNarrationMs, 0.99),
         sample: firstNarrationMs.length,
+      },
+      timeToFirstPlayerActionMs: {
+        p50: percentile(firstPlayerActionMs, 0.5),
+        p90: percentile(firstPlayerActionMs, 0.9),
+        p99: percentile(firstPlayerActionMs, 0.99),
+        sample: firstPlayerActionMs.length,
+      },
+      timeToFirstDmResponseMs: {
+        p50: percentile(firstDmResponseMs, 0.5),
+        p90: percentile(firstDmResponseMs, 0.9),
+        p99: percentile(firstDmResponseMs, 0.99),
+        sample: firstDmResponseMs.length,
       },
       timeToFirstRollMs: {
         p50: percentile(firstRollMs, 0.5),

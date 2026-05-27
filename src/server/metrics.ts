@@ -21,7 +21,9 @@ export type MetricsEventKind =
   | 'friend_invited'
   | 'highlight_exported'
   // γ.6 — UX baseline metrics
-  | 'time_to_first_narration' // payload: { latency_ms } — primeira narração na sessão
+  | 'time_to_first_narration' // payload: { latency_ms } — primeira narração na sessão (joinCampaign → cold open)
+  | 'time_to_first_player_action' // payload: { latency_ms } — primeira narração → primeira ação do player (engajamento humano)
+  | 'time_to_first_dm_response'   // payload: { latency_ms } — primeira ação do player → resposta DM (latência LLM real)
   | 'time_to_first_roll'      // payload: { latency_ms } — primeiro skill check/save da sessão
   | 'roll_in_session'         // payload: { roll_total, success?, nat20?, nat1?, skill? }
   | 'dm_silence'              // payload: { silence_seconds } — gap entre player action e narration

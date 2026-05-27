@@ -25,6 +25,11 @@ describe('γ.6 — UX funnel', () => {
     expect(f).toHaveProperty('blocked');
     expect(f.latency.timeToFirstNarrationMs).toHaveProperty('p50');
     expect(f.latency.timeToFirstRollMs).toHaveProperty('p90');
+    // POLISH-0 — novos campos do funil honesto
+    expect(f.sessions).toHaveProperty('withFirstPlayerAction');
+    expect(f.sessions).toHaveProperty('withFirstDmResponse');
+    expect(f.latency.timeToFirstPlayerActionMs).toHaveProperty('p50');
+    expect(f.latency.timeToFirstDmResponseMs).toHaveProperty('p50');
   });
 
   it('time_to_first_narration latency é agregado em p50/p90/p99', async () => {
@@ -102,5 +107,53 @@ describe('γ.6 — UX funnel', () => {
     await trackMetricEvent({ sessionId: 's1', kind: 'time_to_first_narration', payload: { latency_ms: 250 } }); // duplicado
     const f = await computeUxFunnel(7);
     expect(f.sessions.withFirstNarration).toBe(2);
+  });
+
+  // POLISH-0 — funil honesto: separar narração de ação humana de resposta DM.
+
+  it('time_to_first_player_action latency é agregado em p50/p90/p99', async () => {
+    // 5 samples humanos: 1s, 3s, 8s, 15s, 30s — gente decidindo
+    const samples = [1000, 3000, 8000, 15000, 30000];
+    for (const ms of samples) {
+      await trackMetricEvent({
+        sessionId: `s-${ms}`,
+        kind: 'time_to_first_player_action',
+        payload: { latency_ms: ms },
+      });
+    }
+    const f = await computeUxFunnel(7);
+    expect(f.latency.timeToFirstPlayerActionMs.sample).toBe(5);
+    expect(f.latency.timeToFirstPlayerActionMs.p50).toBeGreaterThanOrEqual(3000);
+    expect(f.latency.timeToFirstPlayerActionMs.p50).toBeLessThanOrEqual(15000);
+  });
+
+  it('time_to_first_dm_response latency é agregado em p50/p90/p99', async () => {
+    // 5 samples LLM: 2s, 4s, 7s, 12s, 25s
+    const samples = [2000, 4000, 7000, 12000, 25000];
+    for (const ms of samples) {
+      await trackMetricEvent({
+        sessionId: `s-${ms}`,
+        kind: 'time_to_first_dm_response',
+        payload: { latency_ms: ms },
+      });
+    }
+    const f = await computeUxFunnel(7);
+    expect(f.latency.timeToFirstDmResponseMs.sample).toBe(5);
+    expect(f.latency.timeToFirstDmResponseMs.p50).toBeGreaterThanOrEqual(4000);
+    expect(f.latency.timeToFirstDmResponseMs.p50).toBeLessThanOrEqual(12000);
+  });
+
+  it('sessions.withFirstPlayerAction e withFirstDmResponse contam sessions únicas', async () => {
+    // s1 só viu narração; s2 viu narração + ação; s3 viu narração + ação + resposta DM
+    await trackMetricEvent({ sessionId: 's1', kind: 'time_to_first_narration', payload: { latency_ms: 100 } });
+    await trackMetricEvent({ sessionId: 's2', kind: 'time_to_first_narration', payload: { latency_ms: 100 } });
+    await trackMetricEvent({ sessionId: 's2', kind: 'time_to_first_player_action', payload: { latency_ms: 5000 } });
+    await trackMetricEvent({ sessionId: 's3', kind: 'time_to_first_narration', payload: { latency_ms: 100 } });
+    await trackMetricEvent({ sessionId: 's3', kind: 'time_to_first_player_action', payload: { latency_ms: 4000 } });
+    await trackMetricEvent({ sessionId: 's3', kind: 'time_to_first_dm_response', payload: { latency_ms: 8000 } });
+    const f = await computeUxFunnel(7);
+    expect(f.sessions.withFirstNarration).toBe(3);
+    expect(f.sessions.withFirstPlayerAction).toBe(2);
+    expect(f.sessions.withFirstDmResponse).toBe(1);
   });
 });

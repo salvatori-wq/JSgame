@@ -34,22 +34,49 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
     console.log(`[socket] connected ${socket.id}${sUser ? ` (user=${sUser.email})` : ' (anon)'}`);
     let activeCampaignId: string | null = null;
     let activePlayerId: string | null = null;
-    // γ.6 — Telemetria UX state por socket. Marca o ts da joinCampaign pra calcular
-    // time_to_first_narration / first_roll. Marca lastActionTs pra calcular dm_silence
-    // (gap entre takeAction e dmNarration final).
+    // γ.6 + POLISH-0 — Telemetria UX state por socket.
+    // sessionStartTs: ts do joinCampaign — base pra time_to_first_narration.
+    // firstNarrationTs: ts da primeira narração emitida — base pra time_to_first_player_action.
+    // lastActionTs: ts da última takeAction — base pra dm_silence.
     let sessionStartTs: number | null = null;
+    let firstNarrationTs: number | null = null;
     let firstNarrationTracked = false;
+    let firstPlayerActionTracked = false;
+    let firstDmResponseTracked = false;
     let firstRollTracked = false;
     let lastActionTs: number | null = null;
 
     const trackFirstNarrationIfNeeded = (): void => {
       if (firstNarrationTracked || sessionStartTs === null || !activeCampaignId) return;
       firstNarrationTracked = true;
+      firstNarrationTs = Date.now();
       void trackMetricEvent({
         userId: sUser?.id ?? null,
         sessionId: activeCampaignId,
         kind: 'time_to_first_narration',
-        payload: { latency_ms: Date.now() - sessionStartTs },
+        payload: { latency_ms: firstNarrationTs - sessionStartTs },
+      });
+    };
+
+    const trackFirstPlayerActionIfNeeded = (): void => {
+      if (firstPlayerActionTracked || firstNarrationTs === null || !activeCampaignId) return;
+      firstPlayerActionTracked = true;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'time_to_first_player_action',
+        payload: { latency_ms: Date.now() - firstNarrationTs },
+      });
+    };
+
+    const trackFirstDmResponseIfNeeded = (actionStartTs: number): void => {
+      if (firstDmResponseTracked || !activeCampaignId) return;
+      firstDmResponseTracked = true;
+      void trackMetricEvent({
+        userId: sUser?.id ?? null,
+        sessionId: activeCampaignId,
+        kind: 'time_to_first_dm_response',
+        payload: { latency_ms: Date.now() - actionStartTs },
       });
     };
 
@@ -157,6 +184,9 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
                 speaker: response.speaker ?? 'Mestre',
                 mood: 'neutral',
               });
+              // POLISH-0 — track first_narration AQUI (era trackeado só no takeAction,
+              // medindo composto inflado de ~52s; agora mede latência real do cold open).
+              trackFirstNarrationIfNeeded();
               broadcastState(camp);
               await drainAchievements(camp);
               // T1 — Track campaign_created se é o primeiro narration
@@ -172,6 +202,8 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
             const [speaker, ...rest] = entry.split(': ');
             socket.emit('dmNarration', { text: rest.join(': '), speaker: speaker ?? 'Mestre', mood: 'neutral' });
           }
+          // POLISH-0 — rejoin de sessão existente também conta como "viu narração"
+          trackFirstNarrationIfNeeded();
         }
         await saveCampaign(camp.state);
       } catch (err) {
@@ -194,8 +226,12 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           speaker: `▶ ${myName}`,
           mood: 'neutral',
         });
+        // POLISH-0 — engajamento humano: primeira narração → primeira ação
+        trackFirstPlayerActionIfNeeded();
         // γ.6 — marca ts pra calcular dm_silence (gap até narração)
         lastActionTs = Date.now();
+        // POLISH-0 — latência LLM real da primeira resposta DM
+        const actionStartTs = Date.now();
         // Mestre Experiente — telemetria ratio rolls/actions
         void trackMetricEvent({
           userId: sUser?.id ?? null,
@@ -214,6 +250,8 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           // γ.6 — telemetria pós-narração
           trackFirstNarrationIfNeeded();
           trackDmSilenceFromAction();
+          // POLISH-0 — primeira resposta DM completa (latência LLM pura)
+          trackFirstDmResponseIfNeeded(actionStartTs);
           // F3 — telemetria de callback (DM citou NPC/promise/location conhecido?)
           try {
             const { detectCallbacks } = await import('../callback-detector.js');
