@@ -82,7 +82,18 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (Sprint POLISH ψ "Sentir cada toque" entregue — 5 sub-sprints, 1396→1429 tests +33)
+> Última atualização: 2026-05-27 (Sprint ψ entregue + 2 hotfix + plano Sprint Ω profundo pronto pra executar)
+
+### ⚠️ PRÓXIMA SESSÃO — Sprint Ω (Dado + Home Tavern)
+
+João reportou após 2 hotfixes (`c433ebc`+`5f38a83`): **dado AINDA não rola** (screenshot mostra overlay skill-check "FURTIVIDADE" com `?` estático + "ROLANDO..." infinito) + **home menu confuso** ("uma confusão que só por deus").
+
+Plano detalhado em `HANDOFF_2026-05-27_sprint-omega-plano.md`. Resumo:
+- **Ω.1 Dado funcional DEFINITIVO** (~3h): UX setting "Forçar animações" override prefers-reduced-motion + rollAndReveal robustez + fallback dramático + watchdog 5s + telemetria
+- **Ω.2 Home Tavern reorganizada** (~6-8h): refactor renderHome em main.ts → componentes seccionados (hero / identity bar / continue card / play now / coop / collapsibles), inspirado em Wash Me/Spotify/Duolingo
+- **Ω.3 (opcional)** Service worker / cache bust
+
+### Sprint POLISH ψ "Sentir cada toque" — 5 sub-sprints, 1396→1429 tests (+33 net)
 
 ### Sprint POLISH ψ "Sentir cada toque" — 5 sub-sprints, 1396→1429 tests (+33 net)
 João pediu: "polish profundo — não precisa de mais funcionalidades, só que as que temos funcionem perfeitamente. Dado não cai, chat não tá legal, Mestre deve conduzir melhor". 4 auditorias paralelas identificaram 50+ issues. Plano organizado em 5 sub-sprints:
