@@ -99,4 +99,29 @@ describe('UX Prefs ο.8', () => {
     expect(localStorage.getItem('jsgame.uxPrefs')).toBeNull();
     expect(getUxPrefs()).toEqual(DEFAULT_PREFS);
   });
+
+  it('Ω.1 — forceMotion default true', () => {
+    const prefs = getUxPrefs();
+    expect(prefs.forceMotion).toBe(true);
+  });
+
+  it('Ω.1 — forceMotion ON adiciona body.force-motion', () => {
+    setUxPrefs({ forceMotion: true });
+    expect(document.body.classList.contains('force-motion')).toBe(true);
+  });
+
+  it('Ω.1 — forceMotion OFF remove body.force-motion', () => {
+    setUxPrefs({ forceMotion: true });
+    expect(document.body.classList.contains('force-motion')).toBe(true);
+    setUxPrefs({ forceMotion: false });
+    expect(document.body.classList.contains('force-motion')).toBe(false);
+  });
+
+  it('Ω.1 — forceMotion persiste em localStorage', () => {
+    setUxPrefs({ forceMotion: false });
+    const raw = localStorage.getItem('jsgame.uxPrefs');
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.forceMotion).toBe(false);
+  });
 });

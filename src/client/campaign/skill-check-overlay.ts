@@ -13,6 +13,8 @@ import { el, escapeHtml } from '../util';
 import { playDiceRolling, playDiceLand, playDiceCritTing, playDiceFumble } from '../audio';
 import { renderDie, rollAndReveal, prefersReducedMotion } from '../dice/dice-3d';
 import { hapticTap, hapticCrit, hapticFumble, hapticSuccess } from '../haptic';
+import { showToast } from '../toast';
+import { trackClientMetric } from '../api';
 
 export interface PendingCheck {
   skill: SkillId;
@@ -23,6 +25,10 @@ export interface PendingCheck {
 }
 
 let currentEl: HTMLDivElement | null = null;
+/** Ω.1 — Watchdog: se server não responder diceRollResult em 5s, mostra toast +
+ * restaura botão. Previne UI travada em "Rolando…" indefinidamente. */
+let watchdogTimer: number | null = null;
+const WATCHDOG_MS = 5000;
 
 export function showPendingSkillCheck(
   check: PendingCheck,
@@ -84,6 +90,11 @@ export function showPendingSkillCheck(
     rollBtn.classList.add('is-rolling');
     if (inspBtn) inspBtn.setAttribute('disabled', '');
     onRoll({ useInspiration });
+    // Ω.1 — Watchdog: se showSkillCheckResult não chamar em 5s, libera UI.
+    if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
+    watchdogTimer = window.setTimeout(() => {
+      handleWatchdogTimeout(rollBtn, inspBtn);
+    }, WATCHDOG_MS);
   };
 
   const rollBtn = el('button', {
@@ -118,6 +129,11 @@ export function showSkillCheckResult(
   check: PendingCheck,
   onClose: () => void,
 ): void {
+  // Ω.1 — Watchdog desarmado: server respondeu a tempo.
+  if (watchdogTimer !== null) {
+    window.clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+  }
   if (!currentEl) {
     showPendingSkillCheck(check, () => { /* noop */ });
     if (!currentEl) return;
@@ -192,8 +208,28 @@ export function showSkillCheckResult(
 }
 
 export function closeSkillCheck(): void {
+  if (watchdogTimer !== null) {
+    window.clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+  }
   currentEl?.remove();
   currentEl = null;
+}
+
+/** Ω.1 — Watchdog handler: server timeout (5s sem diceRollResult). */
+function handleWatchdogTimeout(rollBtn: HTMLButtonElement, inspBtn: HTMLButtonElement | null): void {
+  watchdogTimer = null;
+  // Restaura botão pra player tentar de novo
+  rollBtn.removeAttribute('disabled');
+  rollBtn.textContent = '🎲 Tentar novamente';
+  rollBtn.classList.remove('is-rolling');
+  if (inspBtn) inspBtn.removeAttribute('disabled');
+  try {
+    showToast({ kind: 'warn', message: 'O Mestre demorou pra responder. Tente rolar de novo.', durationMs: 5000 });
+  } catch { /* silent */ }
+  try {
+    trackClientMetric('dice_roll_timeout', { kind: 'skill-check' });
+  } catch { /* silent */ }
 }
 
 function formatMod(n: number): string {

@@ -128,7 +128,7 @@ describe('rollAndReveal', () => {
     expect(onLand).toHaveBeenCalledTimes(1);
   });
 
-  it('respeita prefers-reduced-motion (duração 200ms)', async () => {
+  it('Ω.1 — respeita prefers-reduced-motion (duração 600ms dramatic)', async () => {
     // Re-mock matchMedia pra retornar matches=true (reduced motion)
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -143,15 +143,67 @@ describe('rollAndReveal', () => {
         dispatchEvent: vi.fn(),
       })),
     });
+    // Garante que body não tem force-motion (default ON, mas em test isolado nada aplicou)
+    document.body.classList.remove('force-motion');
     const { renderDie, rollAndReveal, prefersReducedMotion } = await import('../dice-3d');
     expect(prefersReducedMotion()).toBe(true);
 
     const die = renderDie({ kind: 'd20' });
     const onDone = vi.fn();
     rollAndReveal(die, { final: 12, onDone });
-    // Default 200ms quando reduced-motion
-    vi.advanceTimersByTime(250);
+    // Ω.1 — Default 600ms em reduced (dramatic reveal, não fade invisível)
+    vi.advanceTimersByTime(700);
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('Ω.1 — body.force-motion ignora prefers-reduced-motion (anim cinematográfica)', async () => {
+    // Re-mock matchMedia pra reduce ATIVO (OS quer reduced)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    document.body.classList.add('force-motion');
+    const { prefersReducedMotion } = await import('../dice-3d');
+    expect(prefersReducedMotion()).toBe(false);
+    document.body.classList.remove('force-motion');
+  });
+
+  it('Ω.1 — telemetry hook dispara visual_started + visual_completed', async () => {
+    document.body.classList.remove('force-motion');
+    const { renderDie, rollAndReveal, setDiceTelemetryHook } = await import('../dice-3d');
+    const events: Array<{ kind: string; data?: unknown }> = [];
+    setDiceTelemetryHook((kind, data) => events.push({ kind, data }));
+    const die = renderDie({ kind: 'd20' });
+    rollAndReveal(die, { final: 17, durationMs: 200 });
+    vi.advanceTimersByTime(300);
+    const kinds = events.map((e) => e.kind);
+    expect(kinds).toContain('dice_roll_visual_started');
+    expect(kinds).toContain('dice_roll_visual_completed');
+    setDiceTelemetryHook(null);
+  });
+
+  it('Ω.1 — re-query face defensive: cria face se foi removida do DOM', async () => {
+    document.body.classList.remove('force-motion');
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    document.body.appendChild(die);
+    // Remove face manualmente — simula DOM mutado
+    die.querySelector('.die-face')?.remove();
+    const onDone = vi.fn();
+    rollAndReveal(die, { final: 14, durationMs: 200, onDone });
+    vi.advanceTimersByTime(300);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(die.getAttribute('data-value')).toBe('14');
+    expect(die.querySelector('.die-face')?.textContent).toBe('14');
   });
 });
 

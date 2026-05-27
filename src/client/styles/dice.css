@@ -315,12 +315,12 @@ body.is-portrait-narrow .sc-row {
 }
 
 /* ── Prefers reduced motion ──────────────────────────────────────────────
-   - Sem rotação 3D durante roll (só fade)
-   - Sem flash pulsante (solid color)
-   - Sem shake no fumble */
+   - Antes ψ.1: dieReducedFade 200ms invisível (player nem via dado rolar)
+   - Ω.1: dieReducedReveal 600ms com scale+bounce pra ainda ter drama mínimo
+   - body.force-motion (default ON) IGNORA media query e força anim cinematográfica */
 @media (prefers-reduced-motion: reduce) {
   .die-3d.is-rolling {
-    animation: dieReducedFade 200ms ease-out;
+    animation: dieReducedReveal 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .die-3d.is-rolling .die-shadow {
     animation: none; /* ψ.1 — sem shadow sync em reduced-motion */
@@ -345,7 +345,51 @@ body.is-portrait-narrow .sc-row {
   }
 }
 
+/* Ω.1 — Fallback dramático em reduced-motion. Scale com overshoot + opacity
+ * (em vez de fade 0.5→1 invisível). Player com reduced-motion ainda vê o dado
+ * "aparecer com peso", não fade quase imperceptível de 200ms. */
+@keyframes dieReducedReveal {
+  0%   { transform: scale(0.6);  opacity: 0; }
+  40%  { transform: scale(1.15); opacity: 1; }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 @keyframes dieReducedFade {
   0%   { opacity: 0.5; }
   100% { opacity: 1; }
+}
+
+/* ── Ω.1 — Force motion (user opted in via UX Settings) ─────────────────
+ * body.force-motion VENCE media query — !important sobrescreve qualquer reduce.
+ * Default ON: maioria dos players quer ver dado caindo independente do OS. */
+body.force-motion .die-3d.is-rolling {
+  animation: dieRolling 1800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+body.force-motion .sc-stage .die-3d.is-rolling {
+  animation: dieRolling 1500ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+body.force-motion .die-3d.is-rolling .die-shadow {
+  animation: dieShadowSync 1800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+body.force-motion .die-3d.die-crit {
+  animation: dieCritFlash 800ms ease-out !important;
+}
+body.force-motion .die-3d.die-fumble {
+  animation: dieFumbleShake 400ms ease-out !important;
+}
+body.force-motion .dice-screen-flash {
+  animation: diceFlashFade 600ms ease-out forwards !important;
+  opacity: 1 !important;
+}
+body.force-motion .dice-roll-overlay {
+  animation: doFadeIn 180ms ease-out !important;
+}
+body.force-motion .dice-roll-overlay .dro-stage {
+  padding-top: 220px !important;
+}
+@media (max-width: 480px) {
+  body.force-motion .dice-roll-overlay .dro-stage {
+    padding: 200px 22px 24px !important;
+  }
 }

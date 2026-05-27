@@ -201,6 +201,9 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     'narration_word_count',
     'auto_retry_success',
     'error_kind_seen',
+    // Ω.1 — Sprint Ω dado DEFINITIVO
+    'dice_roll_timeout',
+    'dice_roll_visual_slow',
   ]);
   app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
     const kind = String(req.body?.kind ?? '');

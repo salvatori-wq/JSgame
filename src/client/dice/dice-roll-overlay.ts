@@ -19,9 +19,15 @@ import {
   playDiceRolling, playDiceLand, playDiceCritTing, playDiceFumble,
 } from '../audio';
 import { hapticTap, hapticCrit, hapticFumble, hapticSuccess } from '../haptic';
+import { showToast } from '../toast';
+import { trackClientMetric } from '../api';
 
 let currentEl: HTMLDivElement | null = null;
 let currentTimer: number | null = null;
+/** Ω.1 — Watchdog combat: se rollAndReveal não chegar em onDone em 8s
+ * (1800ms anim + 1500ms close + buffer), fecha overlay + telemetria. */
+let watchdogTimer: number | null = null;
+const COMBAT_WATCHDOG_MS = 8000;
 
 export interface DiceRollOverlayOpts {
   kind: DieKind;
@@ -73,6 +79,22 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
   // Camada 1 (visual+som): roll start
   playDiceRolling();
   hapticTap();
+
+  // Ω.1 — Watchdog combat. Se algo travar (DOM removido, anim engasgada),
+  // garante que overlay não fica órfão na tela.
+  if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
+  watchdogTimer = window.setTimeout(() => {
+    if (currentEl) {
+      try {
+        showToast({ kind: 'warn', message: 'A rolagem demorou. Voltando ao combate.', durationMs: 3000 });
+      } catch { /* silent */ }
+      try {
+        trackClientMetric('dice_roll_timeout', { kind: 'combat' });
+      } catch { /* silent */ }
+      closeDiceRollOverlay();
+      opts.onClose?.();
+    }
+  }, COMBAT_WATCHDOG_MS);
 
   // Animação spin + reveal
   rollAndReveal(die, {
@@ -126,6 +148,10 @@ export function closeDiceRollOverlay(): void {
   if (currentTimer !== null) {
     window.clearTimeout(currentTimer);
     currentTimer = null;
+  }
+  if (watchdogTimer !== null) {
+    window.clearTimeout(watchdogTimer);
+    watchdogTimer = null;
   }
   currentEl?.remove();
   currentEl = null;

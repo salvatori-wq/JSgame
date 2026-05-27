@@ -64,10 +64,16 @@ export interface RollAndRevealOpts {
   onLand?: () => void;
   /** Callback a cada "tick" durante o spin — útil pra tocar sons em camadas. */
   onTick?: (intermediate: number) => void;
-  /** Override duração da animação (ms). Default 1800ms (ψ.1), reduced-motion = 200ms. */
+  /** Override duração da animação (ms). Default 1800ms (ψ.1), reduced-motion = 600ms (Ω.1 dramatic). */
   durationMs?: number;
   /** Max value pra mostrar números aleatórios durante o spin (depende do tipo do dado). */
   maxFace?: number;
+}
+
+/** Ω.1 — Telemetria opt-in: caller passa uma fn quando quer log. Sem default. */
+let _telemetryHook: ((kind: string, data?: Record<string, unknown>) => void) | null = null;
+export function setDiceTelemetryHook(hook: ((kind: string, data?: Record<string, unknown>) => void) | null): void {
+  _telemetryHook = hook;
 }
 
 /**
@@ -76,16 +82,18 @@ export interface RollAndRevealOpts {
  */
 export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): void {
   const reduced = prefersReducedMotion();
-  // ψ.1 — Duração default 1100ms → 1800ms (drama + drop-in + bounce settle).
-  const duration = opts.durationMs ?? (reduced ? 200 : 1800);
+  // Ω.1 — Duração default: ψ.1 1800ms drama, reduced-motion sobe pra 600ms (dramatic
+  // reveal: scale 0.6→1.15→1 + ticks de números, não fade invisível de 200ms).
+  const duration = opts.durationMs ?? (reduced ? 600 : 1800);
   const maxFace = opts.maxFace ?? maxFaceForKind(die.getAttribute('data-kind') as DieKind);
 
-  const face = die.querySelector('.die-face') as HTMLSpanElement | null;
+  // Ω.1 — Re-query defensive: caller pode ter mutado DOM entre renderDie e rollAndReveal.
+  let face = die.querySelector('.die-face') as HTMLSpanElement | null;
   if (!face) {
-    // Estrutura inválida — fallback: só seta valor final e chama onDone.
-    die.setAttribute('data-value', String(opts.final));
-    opts.onDone?.();
-    return;
+    // Estrutura inválida — fallback dramático: cria face faltante e segue normal.
+    face = el('span', { class: 'die-face', text: '?' }) as HTMLSpanElement;
+    die.appendChild(face);
+    _telemetryHook?.('dice_roll_face_missing', { kind: die.getAttribute('data-kind') });
   }
 
   // ψ.1 — Variação angular do drop (cada roll fica visualmente distinto).
@@ -94,9 +102,15 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
     die.style.setProperty('--dieTilt', `${tilt}deg`);
   }
 
-  // Adiciona classe rolling (CSS aplica keyframes)
+  // Ω.1 — Limpa state antigo antes de aplicar rolling. Re-roll consecutivo
+  // não fica preso em die-success/fail residual.
+  die.classList.remove('is-rolling', 'die-crit', 'die-fumble', 'die-success', 'die-fail');
+  // Force reflow pra browser reiniciar keyframe (caso re-roll mesmo elemento).
+  void die.offsetWidth;
   die.classList.add('is-rolling');
-  die.classList.remove('die-crit', 'die-fumble', 'die-success', 'die-fail');
+
+  _telemetryHook?.('dice_roll_visual_started', { duration, reduced, kind: die.getAttribute('data-kind') });
+  const startedAt = Date.now();
 
   // ψ.1 — onLand callback no momento de pouso (35% do duration). Caller usa pra
   // tocar playDiceLand() exatamente no impacto físico, não no fim.
@@ -107,13 +121,18 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
     opts.onLand?.();
   }, landAt);
 
-  // Em reduced-motion, pula a animação de números rolando — só fade-swap rápido.
-  const tickIntervalMs = reduced ? 0 : 55;
+  // Ω.1 — Em reduced-motion mostra ticks também (4-5 números) pra ter drama mínimo.
+  // Antes: tickInterval=0 = number swap direto (invisível). Agora: tick 120ms.
+  const tickIntervalMs = reduced ? 120 : 55;
   const spinStart = Date.now();
 
   const finish = (): void => {
     die.classList.remove('is-rolling');
-    face.textContent = String(opts.final);
+    if (face) {
+      face.textContent = String(opts.final);
+      // Ω.1 — Force browser repaint pra garantir number visível.
+      void face.offsetWidth;
+    }
     die.setAttribute('data-value', String(opts.final));
     if (opts.special) {
       die.classList.add(`die-${opts.special}`);
@@ -124,13 +143,13 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
       window.clearTimeout(landTimer);
       opts.onLand?.();
     }
+    const elapsed = Date.now() - startedAt;
+    _telemetryHook?.('dice_roll_visual_completed', { elapsed, expected: duration, kind: die.getAttribute('data-kind') });
+    if (elapsed > duration + 1500) {
+      _telemetryHook?.('dice_roll_visual_slow', { elapsed, expected: duration });
+    }
     opts.onDone?.();
   };
-
-  if (tickIntervalMs === 0) {
-    window.setTimeout(finish, duration);
-    return;
-  }
 
   const tick = window.setInterval(() => {
     const elapsed = Date.now() - spinStart;
@@ -140,7 +159,7 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
       return;
     }
     const intermediate = 1 + Math.floor(Math.random() * maxFace);
-    face.textContent = String(intermediate);
+    if (face) face.textContent = String(intermediate);
     opts.onTick?.(intermediate);
   }, tickIntervalMs);
 }
@@ -159,6 +178,14 @@ function maxFaceForKind(kind: DieKind | null): number {
 }
 
 export function prefersReducedMotion(): boolean {
+  // Ω.1 — Override: se user marcou "Forçar animações cinematográficas" em UX Settings
+  // (default ON), body.force-motion vence prefers-reduced-motion do OS. Player com
+  // Android Settings → Acessibilidade → "Remover animações" ativo vê dado completo.
+  try {
+    if (typeof document !== 'undefined' && document.body?.classList.contains('force-motion')) {
+      return false;
+    }
+  } catch { /* SSR or no body */ }
   try {
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   } catch {

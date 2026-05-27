@@ -74,7 +74,8 @@ export async function getHealth(): Promise<ApiHealth> {
 // Fire-and-forget — falhas não bloqueiam fluxo nem aparecem em log do user.
 export function trackClientMetric(
   kind: 'home_loaded' | 'prefab_clicked' | 'bottom_tab_tap' | 'duolingo_tutorial_step'
-      | 'combat_turn_duration' | 'narration_word_count' | 'auto_retry_success' | 'error_kind_seen',
+      | 'combat_turn_duration' | 'narration_word_count' | 'auto_retry_success' | 'error_kind_seen'
+      | 'dice_roll_timeout' | 'dice_roll_visual_slow',
   payload?: Record<string, unknown>,
 ): void {
   try {

@@ -110,6 +110,16 @@ export function openUxSettingsModal(): void {
     },
   ));
 
+  // Ω.1 — Override de prefers-reduced-motion do OS pro dado animar dramatic
+  body.appendChild(renderToggle(
+    '🎲 Animações cinematográficas',
+    'Mostra dado caindo, girando e batendo mesmo se o sistema tiver "remover animações" ativo',
+    prefs.forceMotion,
+    (v) => {
+      prefs = setUxPrefs({ forceMotion: v });
+    },
+  ));
+
   root.appendChild(body);
 
   pushSheet({

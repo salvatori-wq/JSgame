@@ -16,6 +16,10 @@ export interface UxPrefs {
   hitTargetBoost: boolean;
   animSpeed: AnimSpeed;
   typewriterSpeed: TypewriterSpeed;
+  /** Ω.1 — Forçar animações cinematográficas mesmo com prefers-reduced-motion: reduce.
+   * Default ON: maioria dos players quer ver dado caindo. Player com sensibilidade
+   * desativa pra respeitar OS. */
+  forceMotion: boolean;
 }
 
 export const DEFAULT_PREFS: UxPrefs = {
@@ -25,6 +29,7 @@ export const DEFAULT_PREFS: UxPrefs = {
   hitTargetBoost: false,
   animSpeed: 'normal',
   typewriterSpeed: 'normal',
+  forceMotion: true,
 };
 
 let cached: UxPrefs | null = null;
@@ -86,6 +91,11 @@ export function applyUxPrefs(prefs: UxPrefs = getUxPrefs()): void {
   document.body.classList.toggle('ux-contrast-boost', prefs.contrastBoost);
   document.body.classList.toggle('ux-density-compact', prefs.density === 'compact');
   document.body.classList.toggle('ux-density-comfortable', prefs.density === 'comfortable');
+
+  // Ω.1 — Force motion: override de prefers-reduced-motion via body class.
+  // CSS em dice.css usa body.force-motion .die-3d.is-rolling { animation: ... !important }
+  // pra ignorar media query do OS.
+  document.body.classList.toggle('force-motion', prefs.forceMotion);
 }
 
 /** Inicializa: load + apply. Chamar no boot do main.ts. */
@@ -120,6 +130,7 @@ function sanitize(patch: Partial<UxPrefs>): Partial<UxPrefs> {
   if (patch.typewriterSpeed && ['instant', 'slow', 'normal', 'fast'].includes(patch.typewriterSpeed)) {
     out.typewriterSpeed = patch.typewriterSpeed;
   }
+  if (typeof patch.forceMotion === 'boolean') out.forceMotion = patch.forceMotion;
   return out;
 }
 
