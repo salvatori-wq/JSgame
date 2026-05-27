@@ -100,6 +100,34 @@ describe('rollAndReveal', () => {
     expect(die.classList.contains('die-fumble')).toBe(true);
   });
 
+  it('ψ.1 — dispara onLand antes de onDone (35% do duration)', async () => {
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const order: string[] = [];
+    rollAndReveal(die, {
+      final: 15,
+      durationMs: 1000,
+      onLand: () => order.push('land'),
+      onDone: () => order.push('done'),
+    });
+    // Avança 400ms — onLand deve já ter disparado (em 350ms = 35% de 1000)
+    vi.advanceTimersByTime(400);
+    expect(order).toContain('land');
+    expect(order).not.toContain('done');
+    // Avança até o fim
+    vi.advanceTimersByTime(700);
+    expect(order).toEqual(['land', 'done']);
+  });
+
+  it('ψ.1 — onLand chamado apenas 1 vez mesmo se finish acionar fallback', async () => {
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const onLand = vi.fn();
+    rollAndReveal(die, { final: 10, durationMs: 500, onLand });
+    vi.advanceTimersByTime(700);
+    expect(onLand).toHaveBeenCalledTimes(1);
+  });
+
   it('respeita prefers-reduced-motion (duração 200ms)', async () => {
     // Re-mock matchMedia pra retornar matches=true (reduced motion)
     Object.defineProperty(window, 'matchMedia', {

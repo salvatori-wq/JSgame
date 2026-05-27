@@ -59,9 +59,12 @@ export interface RollAndRevealOpts {
   special?: DieSpecial;
   /** Callback quando a animação completa. */
   onDone?: () => void;
+  /** ψ.1 — Callback quando dado "pousa" (35% do duration). Usar pra audio sync
+   * (playDiceLand bate no impacto, não no fim). */
+  onLand?: () => void;
   /** Callback a cada "tick" durante o spin — útil pra tocar sons em camadas. */
   onTick?: (intermediate: number) => void;
-  /** Override duração da animação (ms). Default 1100ms, reduced-motion = 200ms. */
+  /** Override duração da animação (ms). Default 1800ms (ψ.1), reduced-motion = 200ms. */
   durationMs?: number;
   /** Max value pra mostrar números aleatórios durante o spin (depende do tipo do dado). */
   maxFace?: number;
@@ -73,7 +76,8 @@ export interface RollAndRevealOpts {
  */
 export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): void {
   const reduced = prefersReducedMotion();
-  const duration = opts.durationMs ?? (reduced ? 200 : 1100);
+  // ψ.1 — Duração default 1100ms → 1800ms (drama + drop-in + bounce settle).
+  const duration = opts.durationMs ?? (reduced ? 200 : 1800);
   const maxFace = opts.maxFace ?? maxFaceForKind(die.getAttribute('data-kind') as DieKind);
 
   const face = die.querySelector('.die-face') as HTMLSpanElement | null;
@@ -84,9 +88,24 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
     return;
   }
 
+  // ψ.1 — Variação angular do drop (cada roll fica visualmente distinto).
+  if (!reduced) {
+    const tilt = (Math.random() * 30 - 15).toFixed(1);
+    die.style.setProperty('--dieTilt', `${tilt}deg`);
+  }
+
   // Adiciona classe rolling (CSS aplica keyframes)
   die.classList.add('is-rolling');
   die.classList.remove('die-crit', 'die-fumble', 'die-success', 'die-fail');
+
+  // ψ.1 — onLand callback no momento de pouso (35% do duration). Caller usa pra
+  // tocar playDiceLand() exatamente no impacto físico, não no fim.
+  let landFired = false;
+  const landAt = reduced ? duration * 0.5 : duration * 0.35;
+  const landTimer = window.setTimeout(() => {
+    landFired = true;
+    opts.onLand?.();
+  }, landAt);
 
   // Em reduced-motion, pula a animação de números rolando — só fade-swap rápido.
   const tickIntervalMs = reduced ? 0 : 55;
@@ -98,6 +117,12 @@ export function rollAndReveal(die: HTMLDivElement, opts: RollAndRevealOpts): voi
     die.setAttribute('data-value', String(opts.final));
     if (opts.special) {
       die.classList.add(`die-${opts.special}`);
+    }
+    // Garante onLand foi disparado (race condition extrema)
+    if (!landFired) {
+      landFired = true;
+      window.clearTimeout(landTimer);
+      opts.onLand?.();
     }
     opts.onDone?.();
   };

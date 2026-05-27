@@ -78,10 +78,12 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
   rollAndReveal(die, {
     final: opts.final,
     special: opts.special,
-    onDone: () => {
-      // Camada 2: land thud
+    // ψ.1 — playDiceLand no impacto físico (35% do duration), não no fim.
+    // Som "tac" agora sincroniza com o bounce visual.
+    onLand: () => {
       playDiceLand();
-
+    },
+    onDone: () => {
       // Camada 3 (opcional): crit ting OU fumble dread
       if (opts.special === 'crit') {
         playDiceCritTing();
