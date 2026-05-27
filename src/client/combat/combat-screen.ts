@@ -266,8 +266,27 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       root.appendChild(featuresBar);
     }
   } else {
+    // POLISH δ.4 — turn indicator visual mais rico em coop.
+    // Mostra avatar do current player + "torcendo 🤞" pra fazer espera menos pesada.
     const waiting = el('div', { class: 'cb-waiting cb-tab-content cb-tab-actions' });
-    waiting.appendChild(el('div', { class: 'cb-waiting-txt', text: current ? `⏳ Aguardando ${current.name}…` : '⏳ Aguardando próximo turno' }));
+    if (current) {
+      const isEnemy = current.kind === 'enemy';
+      const isAlly = current.kind === 'player' && current.id !== myCharacterId;
+      const headerText = isEnemy
+        ? `🩸 Turno do inimigo`
+        : isAlly
+          ? `🤝 Vez de ${current.name}`
+          : `⏳ Aguardando ${current.name}…`;
+      const hint = isEnemy
+        ? 'A criatura ataca, aguenta firme.'
+        : isAlly
+          ? 'Vamos torcer 🤞 — joga do lado.'
+          : 'Próximo turno em breve.';
+      waiting.appendChild(el('div', { class: 'cb-waiting-header', text: headerText }));
+      waiting.appendChild(el('div', { class: 'cb-waiting-hint', text: hint }));
+    } else {
+      waiting.appendChild(el('div', { class: 'cb-waiting-txt', text: '⏳ Aguardando próximo turno' }));
+    }
     root.appendChild(waiting);
   }
 

@@ -21,6 +21,7 @@ import { listTombstones, getStreak, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
 import { shouldShowTour, openOnboardingTour } from './onboarding-tour';
 import { initA11yEnhancements, initEscapeKeyHandler, initGlobalErrorBoundary } from './a11y';
+import { installConnectionStatusBanner } from './connection-status';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -71,6 +72,9 @@ const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io({
 });
 socket.on('connect', () => console.log('[client] socket connected', socket.id));
 socket.on('disconnect', (reason) => console.log('[client] socket disconnected:', reason));
+
+// POLISH δ.2 — Banner sticky no topo durante reconexão + failed-state com "Tentar agora"
+installConnectionStatusBanner(socket);
 
 // A1.3 — Reconnection robustez: se socket reconecta E user está em campaign, re-emite
 // joinCampaign pra restaurar a room no server (server perde socket.join quando socket.id muda).

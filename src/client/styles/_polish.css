@@ -151,6 +151,90 @@ button:disabled,
   box-shadow: 0 0 14px rgba(244, 208, 127, 0.7);
 }
 
+/* POLISH δ.2 — Connection status banner sticky no topo */
+.jsgame-conn-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+  transition: transform 220ms ease-out, background 220ms ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.jsgame-conn-banner.is-hidden {
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+
+.jsgame-conn-banner.is-reconnecting {
+  background: linear-gradient(180deg, rgba(120, 80, 30, 0.95), rgba(80, 50, 20, 0.95));
+  color: #ffd97a;
+  border-bottom: 1px solid rgba(244, 208, 127, 0.5);
+}
+
+.jsgame-conn-banner.is-failed {
+  background: linear-gradient(180deg, rgba(160, 40, 35, 0.95), rgba(110, 25, 22, 0.95));
+  color: #ffd0c8;
+  border-bottom: 1px solid rgba(200, 64, 50, 0.6);
+}
+
+.jsgame-conn-spinner {
+  display: inline-block;
+  animation: conn-spin 1.4s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes conn-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jsgame-conn-spinner { animation: none; }
+}
+
+.jsgame-conn-retry {
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid currentColor;
+  border-radius: var(--r-full);
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.jsgame-conn-retry:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* POLISH δ.4 — Turn waiting visual mais rico em coop */
+.cb-waiting-header {
+  font-family: var(--font-heading);
+  font-size: var(--fs-md);
+  letter-spacing: 0.1em;
+  color: var(--ink-gold);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.cb-waiting-hint {
+  font-size: var(--fs-sm);
+  color: var(--ink-mute);
+  text-align: center;
+  font-style: italic;
+}
+
 /* POLISH γ.3 — Scene transition: location mudou pulsa header com glow dourado
  * + scale levemente up→down→base. Sinaliza ao player "cena nova". */
 .camp-loc.is-scene-changed {
