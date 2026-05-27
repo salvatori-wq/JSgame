@@ -107,6 +107,24 @@ git log --oneline | head -10
 - MP4 Sheet+Wizard+Profile+Lobby+Finais — vitals 3-col, attrs 3-col, sheet skills 1-col, profile sticky tabs, toques transversais (`d3304f5`)
 - Veja `HANDOFF_2026-05-28_mobile-polish-done.md` pra detalhes
 
+### POLISH ζ "Cada Pixel Conta" — 1 commit, 1125 tests (mantidos)
+- da57b28: src/client/styles/_polish.css NOVO + microinteractions/visual/transitions/copy
+- ζ.1 microinteractions (hover -1px só pointer:fine, active scale 0.97, prefers-reduced-motion)
+- ζ.2 copy review pass (4 strings home com tom sombrio-trickster)
+- ζ.3 skeleton shimmer dourado refinado
+- ζ.4 route-fade-in 200ms entre views (main.ts adiciona class no render)
+- ζ.5 tokens extras (--shadow-xs, --r-tight/soft/loose, --shadow-glow-blood/life/rune) + scrollbar custom + cta-glow utility + focus-visible
+- ζ.6 audit 5 viewports PENDENTE (preview tool screenshot travado)
+
+### POLISH ε "Acessibilidade & Resiliência" — 1 commit, 1125→1136 tests (+11)
+- 6f53f4c: src/client/a11y.ts NOVO + 7 empty states + contrast fix
+- ε.1 ESC handler global fecha 6+ modais sem refactor por componente
+- ε.2 ARIA via MutationObserver (aria-label auto baseado em title, role=dialog/status/alert)
+- ε.3 --ink-faint #5a4e3e → #867758 (passa WCAG AA contrast)
+- ε.4 7 empty states com tom temático (inventory/shop/profile/lobby/spell)
+- ε.5 Error boundary global window.onerror + unhandledrejection → toast
+- ε.6 IndexedDB resilience PENDENTE (escopo grande, baixa urgência)
+
 ### POLISH-0 "Telemetria Honesta" — 2 commits, 1111→1125 tests (+14)
 - 204d27d: fix telemetria honesta (trackFirstNarrationIfNeeded no joinCampaign + 2 novos eventos)
 - fea7d85: race coop fix + endpoint /api/dm/session-debug + telemetria pré-sessão
@@ -157,6 +175,14 @@ git log --oneline | head -10
 - `src/server/dm/providers/mistral.ts` — provider Mistral free tier
 - `src/server/ux-funnel.ts` — computeUxFunnel agregado
 - `src/client/campaign/header-overflow-menu.ts` — popover ⋯
+
+### Arquivos-chave POLISH ζ + ε
+- `src/client/styles/_polish.css` — NOVO — microinteractions globais + tokens extras + scrollbar custom + cta-glow + route-fade-in + skeleton shimmer
+- `src/client/a11y.ts` — NOVO — initA11yEnhancements (MutationObserver), initEscapeKeyHandler (ESC fecha modais), initGlobalErrorBoundary (window.onerror toast)
+- `src/client/main.ts` — wire-up de a11y init + route-fade-in class
+- `src/client/styles/_tokens.css` — --ink-faint contrast fix
+- `src/client/__tests__/a11y.test.ts` — 11 tests cobrindo enhance + handlers
+- 7 arquivos de modal/screen com empty states reescritos (inventory, shop, profile, lobby, sheet, spells)
 
 ### Arquivos-chave POLISH-0
 - `src/server/sockets/connection.ts` — trackFirstNarrationIfNeeded no joinCampaign (cobre race coop) + 3 helpers de telemetria (firstNarration, firstPlayerAction, firstDmResponse)
