@@ -1,0 +1,169 @@
+/* JSgame · ο.1 — Status Ribbon CSS (pegada Uber).
+ * Aplica SÓ em body.is-portrait-narrow. Desktop usa renderHeader full original. */
+
+body.is-portrait-narrow .status-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 8px;
+  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(10, 6, 8, 0.94) 100%);
+  border-bottom: 1px solid rgba(244, 208, 127, 0.18);
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+body.is-portrait-narrow .sr-exit {
+  flex-shrink: 0;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid rgba(244, 208, 127, 0.22);
+  border-radius: 6px;
+  color: var(--gold);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+body.is-portrait-narrow .sr-exit:active {
+  transform: scale(0.94);
+  background: rgba(244, 208, 127, 0.08);
+}
+
+body.is-portrait-narrow .sr-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  overflow: hidden;
+}
+
+body.is-portrait-narrow .sr-body:active {
+  background: rgba(244, 208, 127, 0.06);
+  border-radius: 6px;
+}
+
+body.is-portrait-narrow .sr-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+body.is-portrait-narrow .sr-glyph {
+  flex-shrink: 0;
+  font-size: 14px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+body.is-portrait-narrow .sr-mode-label {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+body.is-portrait-narrow .sr-sep {
+  flex-shrink: 0;
+  opacity: 0.4;
+  font-weight: 300;
+}
+
+body.is-portrait-narrow .sr-hp {
+  flex-shrink: 0;
+  color: var(--life, #6ec07a);
+  font-variant-numeric: tabular-nums;
+}
+
+body.is-portrait-narrow .sr-hp.is-critical {
+  color: var(--accent-blood, #c84030);
+  animation: sr-hp-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sr-hp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+body.is-portrait-narrow .sr-slots,
+body.is-portrait-narrow .sr-xp {
+  flex-shrink: 0;
+  opacity: 0.78;
+  font-variant-numeric: tabular-nums;
+}
+
+body.is-portrait-narrow .sr-turn {
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+body.is-portrait-narrow .sr-turn.is-my-turn {
+  color: var(--gold);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(244, 208, 127, 0.45);
+}
+
+body.is-portrait-narrow .sr-economy {
+  flex-shrink: 0;
+  font-family: monospace;
+  letter-spacing: 0.05em;
+  opacity: 0.82;
+}
+
+body.is-portrait-narrow .sr-attitude {
+  flex-shrink: 0;
+}
+
+body.is-portrait-narrow .sr-attitude.attitude-amigavel { color: var(--life, #6ec07a); }
+body.is-portrait-narrow .sr-attitude.attitude-hostil { color: var(--accent-blood, #c84030); }
+body.is-portrait-narrow .sr-attitude.attitude-misterioso { color: #b08acc; }
+
+body.is-portrait-narrow .sr-expand-glyph {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--gold);
+  opacity: 0.55;
+  padding: 0 4px;
+  letter-spacing: 0.15em;
+}
+
+/* Mode-specific border glow */
+body.is-portrait-narrow .status-ribbon-combat {
+  border-bottom-color: var(--accent-blood, #c84030);
+  box-shadow: 0 1px 8px rgba(200, 64, 50, 0.25);
+}
+
+body.is-portrait-narrow .status-ribbon-rest {
+  border-bottom-color: #6c8fbe;
+  background: linear-gradient(180deg, rgba(14, 16, 28, 0.94) 0%, rgba(10, 8, 12, 0.92) 100%);
+}
+
+body.is-portrait-narrow .status-ribbon-social {
+  border-bottom-color: #b08acc;
+}
+
+/* prefers-reduced-motion override */
+@media (prefers-reduced-motion: reduce) {
+  body.is-portrait-narrow .sr-hp.is-critical {
+    animation: none;
+  }
+}

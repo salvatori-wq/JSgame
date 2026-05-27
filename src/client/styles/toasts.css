@@ -1,0 +1,191 @@
+/* JSgame · ο.6 — Toast System Unificado.
+ * Container bottom-right (desktop) / bottom-center (mobile narrow).
+ * 5 kinds: error / warn / info / success / achievement (com glow shimmer).
+ * Multi-actions inline, dedup, max 3 visíveis. */
+
+.toast-container {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column-reverse; /* mais recente no topo do stack visual */
+  gap: 8px;
+  z-index: 9800;
+  pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+body.is-portrait-narrow .toast-container {
+  bottom: calc(80px + var(--m-safe-bottom, 0px)); /* acima do chat-bar/dock */
+  right: 8px;
+  left: 8px;
+  max-width: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.96) 0%, rgba(10, 6, 8, 0.98) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.22);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+  min-width: 240px;
+  max-width: 100%;
+  flex-wrap: wrap;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.toast.is-closing {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.toast.is-expandable {
+  cursor: pointer;
+}
+
+.toast.is-expandable:active {
+  transform: scale(0.98);
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.toast-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-wrap: break-word;
+}
+
+.toast-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.toast-action-btn {
+  min-height: 32px;
+  padding: 4px 10px;
+  background: rgba(244, 208, 127, 0.12);
+  border: 1px solid rgba(244, 208, 127, 0.35);
+  border-radius: 6px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, transform 100ms ease;
+}
+
+.toast-action-btn:hover {
+  background: rgba(244, 208, 127, 0.22);
+}
+
+.toast-action-btn:active {
+  transform: scale(0.96);
+}
+
+.toast-close-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast-close-btn:hover {
+  color: var(--ink);
+}
+
+/* ──────────────── Kind variations ──────────────── */
+
+.toast-error {
+  border-color: rgba(200, 64, 50, 0.55);
+  box-shadow: 0 6px 20px rgba(200, 64, 50, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.toast-error .toast-icon { color: #ff7060; }
+
+.toast-warn {
+  border-color: rgba(244, 180, 60, 0.55);
+}
+.toast-warn .toast-icon { color: #f4b43c; }
+
+.toast-info {
+  border-color: rgba(120, 180, 220, 0.45);
+}
+.toast-info .toast-icon { color: #78b4dc; }
+
+.toast-success {
+  border-color: rgba(110, 192, 122, 0.55);
+}
+.toast-success .toast-icon { color: #6ec07a; }
+
+.toast-achievement {
+  border-color: rgba(244, 208, 127, 0.85);
+  box-shadow:
+    0 6px 24px rgba(244, 208, 127, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 230, 150, 0.25);
+  background: linear-gradient(
+    180deg,
+    rgba(40, 28, 12, 0.96) 0%,
+    rgba(20, 12, 8, 0.98) 100%
+  );
+  animation: toast-achievement-shimmer 2.5s ease-in-out infinite;
+}
+
+.toast-achievement .toast-icon {
+  color: var(--gold);
+  text-shadow: 0 0 8px rgba(244, 208, 127, 0.75);
+}
+
+.toast-achievement .toast-msg {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+@keyframes toast-achievement-shimmer {
+  0%, 100% {
+    box-shadow:
+      0 6px 24px rgba(244, 208, 127, 0.35),
+      0 2px 8px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 230, 150, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 6px 28px rgba(244, 208, 127, 0.55),
+      0 2px 10px rgba(244, 208, 127, 0.25),
+      inset 0 1px 0 rgba(255, 240, 170, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.is-closing,
+  .toast-achievement {
+    transition: none;
+    animation: none;
+  }
+}

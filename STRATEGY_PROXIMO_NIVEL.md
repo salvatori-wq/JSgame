@@ -65,9 +65,109 @@
 
 ---
 
-## 3. Os 8 sprints temáticos
+## 3. Os 9 sprints temáticos
 
-Letras gregas continuação dos 6 POLISH (α/β/γ/δ/ε/ζ). Próximas: **η θ ι κ λ μ ν ξ** (eta/theta/iota/kappa/lambda/mu/nu/xi).
+Letras gregas continuação dos 6 POLISH (α/β/γ/δ/ε/ζ). Próximas: **ο η θ ι κ λ μ ν ξ** (omicron/eta/theta/iota/kappa/lambda/mu/nu/xi).
+
+> **Sprint ο vai PRIMEIRO** — interface é a alma (memória `feedback_interface_alma`). UX dinâmica pegada Uber é fundação visual que todas as mecânicas D&D vão habitar. Inverte ordem original (η D&D era #1) porque player só sente "isso é D&D real" se a tela já está viva.
+
+### Sprint ο — "Pegada Uber — Tela Viva" (~12h)
+
+**Hipótese**: tela atual tem fundação sólida (dock mobile, sticky, bottom-sheets, microinteractions ζ). Mas falta **rítmo Uber** — status sempre denso e legível, ação principal sempre 1 tap, navegação por contexto não por menu, chat perfeito, transitions cinematográficas entre modos. Cada decisão UI passa pelo crivo: "isso reduz cognitive load do player?".
+
+#### ο.1 Status Ribbon Inteligente (~1.5h)
+Header colapsa pra **ribbon de status mode-aware** — 1 linha densa de info crítica que muda forma conforme estado:
+- **Exploração**: `🌲 Caverna do Trovão · Borin 28/30 ❤ · ✦ 2/3 · 🥇 1820xp`
+- **Combate**: `⚔️ Round 3 · Sua vez · ⏱ 23s · ⚡✦↩️🚶 ··`
+- **Social** (NPC ativo): `🗣 Verena (Taverneira) · 😐 neutra · ⏳ aguardando`
+- **Pós-rest**: `🌙 Madrugada · ❤ +12 · ✦ ✦✦✦ slots`
+Tap no ribbon expande pra header completo com overflow (quests/ach/npc/share). Como Uber: "João · Camry preto · ⭐ 4.9 · 3 min" — status comprimido contextualmente. Salva 40-60px de tela permanente (mais narration visível).
+
+#### ο.2 Chat Perfeito (Coop Foco) (~2.5h)
+Chat hoje misturado no log de narração + input bar sticky bottom. Refactor pra **separação clara**:
+- **Floating chat pill** canto inferior direito (40×40px) com badge contador unread. Z-index acima de tudo, exceto modals abertos.
+- **Tap abre sheet bottom 60% tela** (slide-up 220ms), narração ainda visível em cima. Header da sheet mostra "Party Chat (3 online)".
+- **Cada mensagem**: avatar emoji raça/classe (⚔️🧝‍♀️🧙‍♂️) + nome + texto + timestamp relativo ("agora"/"2m"/"1h").
+- **Typing indicator** quando aliado escrevendo (socket event `playerTyping`): "Lyra digitando..." pequeno abaixo da última msg.
+- **Long-tap mensagem pra reagir** com 5 emojis quick-react (👍❤😂😱🎉) — server broadcast `messageReaction`.
+- **Notification badge** na pill quando msg nova chega + chat fechado.
+- **Auto-mute visual** durante pendingCheck/turn própria (pill dim 50%).
+Solo: pill esconde. Apenas coop ativa.
+
+#### ο.3 Action Dock Topicizado (~2h)
+Action grid hoje tem 8+ botões flat. Refactor pra **4 tópicos cards** + drill-down:
+- **TÓPICOS visíveis** sempre (cards 80×80px com glyph grande): `⚔️ Combate · 🔍 Explorar · 🗣 Social · ⚡ Magia` (oculta se não-caster) + slot `🎒 Inventário · 😴 Rest`.
+- **Tap em tópico** expande sub-ações no mesmo espaço dock (slide-in 200ms da direita) — ex: `🗣 Social` revela `Persuadir · Enganar · Intimidar · Atuação`.
+- **Sticky bottom row** (em combate): chip "⏱ End Turn" sempre visível bottom-right, NUNCA covered.
+- **Custom action** vira "✎ Ação livre" como 5º tópico, abre input expansível (3-line textarea com counter).
+- **Suggested chips do DM** continuam acima das tópicos (sobrepostos visualmente).
+Reduz cognitive load: player vê 4-5 cards em vez de 8-12 buttons.
+
+#### ο.4 Initiative Ribbon Uber-Style (~1.5h)
+Tracker atual horizontal scroll com cards pequenos. Refactor pra **timeline Uber-like**:
+- **Ribbon completo** acima da narration (visible só em combate): `→ Borin → 👹 Goblin → Lyra → 👹 Hobgoblin → loop`.
+- **Avatar 40px** (mobile) / 48px (desktop) + nome curto. Current pulsando dourado com glow.
+- **Connector animado** entre participantes ativo (progress fill 0→100% conforme turn pessoa rola).
+- **Tap em participante expande** mini-card: HP/AC/conditions/initiative. Tap de novo fecha.
+- **Indicação de morto/inconsciente**: avatar grayscale + skull overlay.
+- Em coop, indicador de "↓ você é o próximo" se PJ atual é aliado.
+
+#### ο.5 Bottom-Sheets Stack + Swipe Avançado (~1.5h)
+Modals já são bottom-sheet com swipe-down. Refinar:
+- **Stack** — inventory aberto + tap em item "Cast Spell" → spell-cast vira **segunda sheet por cima** (não substitui). Swipe-down volta pra inventory. Backdrop fica mais escuro a cada layer.
+- **Half/Full toggle** — swipe-up de 60% pra 100% tela. Indicador handlebar muda forma.
+- **Velocity-aware** — swipe rápido fecha mesmo se distância < 30%; swipe lento exige 50%+.
+- **Pull-to-refresh** em listas longas (achievements grid, quest log) com loader dourado.
+- **Backdrop click fecha** topmost sheet. ESC global já funciona (ε).
+- **Animação 60fps** com requestAnimationFrame + transform GPU-accel.
+
+#### ο.6 Toast/Peek System Unificado (~1.5h)
+Toasts hoje isolados (toastError, toastInfo) sem queue. Sistema unificado:
+- **Toast queue** bottom-right (1 slot principal) — `toast({ kind, text, actions?, duration? })`.
+- **Peek notifications** (3s autodismiss) pra eventos não-críticos: `+50 XP`, `Quest "Salvar a vila" aceita`, `Lyra entrou na campanha`, `Tomou Poção de Cura (+8 HP)`.
+- **Action toasts** com botão inline: `⚠️ Borin caiu` + `[💉 Curar]` `[🎲 Death Save]`.
+- **Stack max 3** visíveis simultaneamente, FIFO. Recentes empilham acima.
+- **Categorias visuais**: success (verde), info (azul), warning (amber), error (vermelho), achievement (dourado-shimmer).
+- **Tap toast pra ver detalhes** (expand pra mini-modal in-place).
+- Integra combo SFX existente (β.1).
+
+#### ο.7 Visual Rhythm + Mode Transitions (~1.5h)
+Microinteractions já existem (ζ); falta **orquestração cinematográfica**:
+- **Entrar em combate** = vinheta vermelha fade-in 400ms + dock muda cor (border-top blood) + initiative ribbon slide-up + SFX "drums of war".
+- **Sair de combate** (vitória) = vinheta dourada 800ms + XP toast cascading + level-up overlay se procede.
+- **Sair de combate** (derrota) = vinheta preta fade-in + drone som + opção "Restart from last save".
+- **Scene change** (location muda) = pulse no header + flash de location-name 1.2s (refinar γ.3).
+- **Long rest** = "dissolve to dawn" — fade tela pra dourado-pálido 1.5s, restore values com tick animation no party panel.
+- **Revive** (HP volta de 0) = vinheta cura verde 600ms + chime SFX + party member glow pulse.
+- **Tab switches em combat** com slide-X 200ms (não cut bruto).
+- **Death drama** já existe (c779ae5 vinheta vermelha + tombstone). Manter, refinar timing.
+- `prefers-reduced-motion` respeitado em TODAS (fallback instant).
+
+#### ο.8 Density Profiles + UX Settings (~1h)
+Tela hoje tem 1 tamanho fixo. Adicionar **configs de tela** no overflow menu:
+- **3 perfis densidade**: Compacto / Padrão / Confortável — affects padding/font/hit-targets globalmente.
+- **Font scale** 0.9× / 1.0× / 1.15× / 1.3× (acessibilidade) salvo localStorage `ux.fontScale`.
+- **Contraste boost** toggle — intensifica gold/blood, dim background +10%.
+- **Tap target boost** — hit targets 44 → 56px (devices com touch fino tipo Apple Pencil).
+- **Animação speed** — Slow / Normal / Fast / Instant (overrides prefers-reduced-motion override-wins).
+- **Typewriter speed** — Instant / Slow / Normal / Fast (resolve issue de leitores rápidos).
+- Tudo salva em `localStorage.uxPrefs` JSON.
+
+**Métricas-alvo**:
+- `time_to_first_action`: hoje desconhecido, meta <8s pós-narração inicial
+- `chat_open_per_coop_session`: meta >5 (com pill flutuante deve subir)
+- `topic_drill_completion_rate`: do tap em tópico até action emitted, meta >85%
+- `mode_transition_smooth_pct`: medir frame rate em combate-entry (alvo 60fps)
+
+**Commit sugestão**:
+- `feat(ui-ο.1+2): status ribbon + chat perfeito` (~4h)
+- `feat(ui-ο.3+4): action dock topicizado + initiative ribbon` (~3.5h)
+- `feat(ui-ο.5+6): sheets stack + toast system` (~3h)
+- `feat(ui-ο.7+8): transitions + density profiles` (~2.5h)
+
+Total 4 commits OU 8 separados (1 por sub-sprint).
+
+---
 
 ### Sprint η — "Mestre que Joga D&D de Verdade" (~10h)
 
@@ -286,30 +386,32 @@ Quando player B entra em sessão ativa, vê últimas 5 narrações + state compl
 ## 4. Cronograma de execução
 
 ```
-Sprint η  (Mestre joga D&D)          ~10h  →  3 commits (feats / personality / mecânica)
+Sprint ο  (Pegada Uber — Tela Viva)  ~12h  →  4 commits (status+chat / dock+initiative / sheets+toasts / transitions+density)
+Sprint η  (Mestre joga D&D)          ~13h  →  6 commits (feats engine / personality / ASI ext / advantage / prepared / saves UI)
 Sprint θ  (Inventário Vivo)          ~8h   →  3 commits (weapons / armors / magic items)
 Sprint ι  (Convida Voltar)           ~7h   →  2 commits (highlights / cemitério)
 Sprint κ  (Onboarding Mestre)        ~6h   →  2 commits (tutorial / glossário)
 Sprint λ  (Combate Cinematográfico)  ~7h   →  2 commits (action layer / spell vfx)
 Sprint μ  (Mestre Não Falha)         ~6h   →  2 commits (streaming / monitoring)
-Sprint ν  (Coop de Verdade)          ~5h   →  2 commits (presence / chat)
+Sprint ν  (Coop de Verdade)          ~5h   →  2 commits (presence / chat polish refino)
 Sprint ξ  (Pendências)               ~4h   →  1 commit batched
 
-Total: ~53h, 17 commits feature + handoffs entre
+Total: ~68h, 24 commits feature + handoffs entre
 ```
 
 Cada commit: tests novos passando, typecheck OK, push origin/main. Deploy manual Render quando necessário.
 
 ### Ordem recomendada (por ROI/dependência)
 
-1. **η** (D&D fidelidade) — base mecânica pra tudo. Sem feats/traits, mestre não tem alma.
-2. **ξ** (pendências) — limpa terreno antes de subir feature grande. Bugs P1 saem.
-3. **κ** (onboarding) — novato chegando precisa entender ANTES de mais features chegarem.
-4. **λ** (combate cinematográfico) — combate é coração mecânico, drama eleva.
-5. **θ** (inventário vivo) — loot recompensa, mas só faz sentido se combate é dramático (λ primeiro).
-6. **ι** (convida voltar) — retention só importa se experiência é boa (η/λ/θ primeiro).
-7. **μ** (mestre não falha) — qualidade LLM sustenta tudo, mas streaming é refactor — fazer quando hipótese central provada.
-8. **ν** (coop) — só se telemetria mostrar coop sendo usado.
+1. **ο** (Pegada Uber — Tela Viva) — interface é alma. UX dinâmica é fundação visual; todas as features futuras vão habitar essa tela. Sem UI viva, mecânica não brilha. **Memória `feedback_interface_alma` exige este foco**.
+2. **η** (D&D fidelidade) — base mecânica D&D real. Sem feats/traits/advantage, mestre não tem alma mecânica.
+3. **ξ** (pendências) — limpa terreno antes de feature grande. Bugs P1 saem.
+4. **κ** (onboarding) — novato chegando precisa entender ANTES de mais features chegarem.
+5. **λ** (combate cinematográfico) — combate é coração mecânico, drama eleva. ο.7 (mode transitions) já abriu caminho.
+6. **θ** (inventário vivo) — loot recompensa, mas só faz sentido se combate é dramático (λ primeiro).
+7. **ι** (convida voltar) — retention só importa se experiência é boa (ο/η/λ/θ primeiro).
+8. **μ** (mestre não falha) — qualidade LLM sustenta tudo, mas streaming é refactor — fazer quando hipótese central provada.
+9. **ν** (coop refino) — ο.2 já entrega chat perfeito; ν só refina presence + lobby preview.
 
 ---
 
@@ -327,8 +429,15 @@ Cada commit: tests novos passando, typecheck OK, push origin/main. Deploy manual
 | coop_sessions_pct | desconhecido | **>20%** |
 | magic_item_acquired_per_session | 0 | **>0.5** |
 | highlight_shared_link_clicked | n/a | **>15% das sessões** |
-| Tests totais | 1179 | **1280+** |
+| Tests totais | 1179 | **1320+** |
 | Bugs P1/P2 abertos | 4 | **0** |
+| **UX (Sprint ο)** | — | — |
+| time_to_first_action | desconhecido | **<8s pós-narração inicial** |
+| chat_opens_per_coop_session | n/a | **>5** |
+| topic_drill_completion_rate | n/a | **>85%** |
+| mode_transition_fps | n/a | **60fps** |
+| ui_density_pref_changed | n/a | **track distribution** |
+| toast_actions_clicked_pct | n/a | **>30% nos actionable** |
 
 Métricas qualitativas (validar via playtest):
 - "Esse jogo é D&D de verdade" — sim/não
@@ -363,20 +472,33 @@ Se sobrar tempo em algum sprint, prioridade é **playtest qualitativo** > adicio
 
 | Sprint | Entrega | Próximo usa |
 |---|---|---|
-| η | feats database, traits, advantage genérico | λ usa feats em combate, ι usa traits no cemitério |
+| **ο** | status ribbon, chat perfeito, dock topicizado, sheets stack, toast system, mode transitions, density profiles | η habita action dock topicizado; λ herda mode transitions; ν refina chat ο.2; toda feature futura usa toast/sheets |
+| η | feats engine, personality estruturado, advantage genérico, ASI estendido, prepared spells, saves UI | λ usa feats em combate + Action Dock ο.3 abriga novas ações; ι usa traits no cemitério |
 | ξ | bugs limpos, IndexedDB | μ usa IDB pra cache local de prompts |
-| κ | tutorial framework, glossário | toda mecânica nova vira hint contextual aqui |
-| λ | action layer unificada, spell vfx, boss multi-fase | θ usa enemy AI variada pra dropar magic items |
+| κ | tutorial framework, glossário | toda mecânica nova vira hint contextual aqui; ο.8 density profile já tem settings escopo |
+| λ | action layer unificada, spell vfx, boss multi-fase | θ usa enemy AI variada pra dropar magic items; ο.7 transitions já entrega entry/exit combat |
 | θ | weapons/armors/magic items database | ι usa magic items como highlight + cemitério "morreu portando X" |
 | ι | highlight infrastructure + share | DM usa highlight como callback ("lembra do crit?") |
 | μ | streaming + cache + auto-swap | toda narração futura é instantânea |
-| ν | presence + chat polish | coop vira default real |
+| ν | presence indicators + lobby preview | coop vira default real; chat já entregue em ο.2 |
 
-**Sem desperdício. Cada peça serve múltiplas seções.**
+**Sem desperdício. Cada peça serve múltiplas seções. Sprint ο é a fundação visual que todo o resto habita.**
 
 ---
 
 ## 8. Decisões grandes pra discutir antes
+
+### D7 — Sprint ο.2 (chat): floating pill ou inline bar atual?
+- Pill flutuante reduz fricção de abrir chat mas pode tampar UI em portrait estreito (360×640). Inline bar mantém status quo mas exige scroll pra ver narration.
+- **Recomendação**: floating pill 40×40px canto inferior-direito, **com auto-hide** se inativo >10s e narration em foco. Coop only. Solo esconde.
+
+### D8 — Sprint ο.3 (action dock): 4 tópicos ou 5-6?
+- 4 tópicos cabem perfeitamente em 360px (2x2 grid 80×80px). 5-6 exigem scroll ou diminuir tamanho.
+- **Recomendação**: **4 tópicos primários** sempre visíveis (Combate/Explorar/Social/Magia se caster) + slot "⋯ Mais" expansível pra Inventory/Rest/etc. Custom action = 5º card.
+
+### D9 — Sprint ο.5 (sheets stack): max layers?
+- Quantas sheets podem empilhar? 2 é prático (inventory → cast spell). 3+ vira labirinto.
+- **Recomendação**: **max 2 layers**. Tentar abrir 3º substitui o topmost (não empilha).
 
 ### D1 — Sprint η.1 (feats database): full PHB ou top 20?
 - PHB tem ~40 feats. Implementar todos = ~3h. Top 20 mais usados = ~1.5h.
@@ -414,14 +536,23 @@ A IA é o **coração** ❤️ · o mobile é o **corpo** 💄 · o D&D real é 
 
 ## 10. Próximo passo
 
-**Recomendação**: começar pelo **Sprint η** (Mestre joga D&D de verdade). Maior ROI conceitual — feats + traits + advantage transformam o jogo de "narrativa com dado" pra "D&D 5e real".
+**Recomendação revisada**: começar pelo **Sprint ο** (Pegada Uber — Tela Viva). Memória `feedback_interface_alma` já validou: interface é a alma. UX dinâmica é fundação visual que todas as features futuras vão habitar — sem ela, η/λ/θ não brilham.
 
-Se você concordar, na próxima sessão:
-1. Eu leio este plano + o handoff atualizado
-2. Decisões D1-D6 confirmadas em 5 min
-3. Executo η.1 (feats top 20) primeiro — ~1.5h
-4. Commit + push, decidimos seguir pra η.2 ou parar
+Sequência ideal:
+1. **Sprint ο** primeiro (~12h, 4 commits batched) — entrega tela viva, chat perfeito, dock topicizado, mode transitions, density.
+2. **Sprint η** segundo (~13h, 6 commits) — mecânica D&D real habita a tela viva de ο. Feats funcionam, advantage rola 2d20 visíveis, prepared spells via modal sheet (ο.5 stack).
+3. **Sprint ξ** depois — limpa 6 pendências antigas (IndexedDB, pre-warm, audit, bugs).
+4. Resto conforme dependências da seção 4.
 
-Pode ser também: começar por **Sprint ξ** (pendências) — limpa terreno antes de escalar. ~4h fixos. Decisão executiva sua.
+Na próxima sessão:
+1. Eu leio este plano + handoff atualizado
+2. Decisões D1-D9 confirmadas em 5 min
+3. Executo ο.1+ο.2 primeiro (status ribbon + chat perfeito, ~4h) → commit batched
+4. Você revisa visual no preview / device → ajustamos antes de seguir pra ο.3+ο.4
 
-**Cronograma realista**: 8 sprints × ~1 sessão cada = ~8 sessões. Em ~10-12 conversas, JSgame vira referência de "D&D 5e mobile com IA Mestre".
+Pode ser também:
+- Começar **direto por ο.2 (chat)** se for prioridade afirmada (~2.5h focado)
+- Começar **Sprint η** se preferir D&D mecânica primeiro (~13h)
+- Começar **Sprint ξ** (pendências) se quiser limpar antes de escalar (~4h fixos)
+
+**Cronograma realista**: 9 sprints × ~1.3 sessões cada = ~12 sessões. Em ~14-16 conversas, JSgame vira referência de "D&D 5e mobile com IA Mestre + UX viva".

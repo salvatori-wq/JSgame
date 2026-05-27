@@ -41,6 +41,7 @@ import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-t
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
+import { renderStatusRibbon } from './status-ribbon';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -100,6 +101,7 @@ export class CampaignScreen {
   private explorationTutorialFired = false;
   private socketBound = false;
   private socketCleanups: Array<() => void> = [];
+  private viewportCleanups: Array<() => void> = [];
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -111,6 +113,13 @@ export class CampaignScreen {
     this.party = [this.character];
     this.render();
     this.bindSocket();
+    // ο.1 — Re-render header em resize/orientationchange pra alternar entre
+    // ribbon (portrait-narrow) e header full (desktop) conforme viewport muda.
+    const onResize = (): void => { this.updateHeader(); };
+    window.addEventListener('resize', onResize, { passive: true });
+    window.addEventListener('orientationchange', onResize, { passive: true });
+    this.viewportCleanups.push(() => window.removeEventListener('resize', onResize));
+    this.viewportCleanups.push(() => window.removeEventListener('orientationchange', onResize));
     this.opts.socket.emit('joinCampaign', {
       ownerName: this.opts.ownerName,
       characterId: this.opts.characterId,
@@ -121,6 +130,8 @@ export class CampaignScreen {
   destroy(): void {
     for (const off of this.socketCleanups) off();
     this.socketCleanups = [];
+    for (const off of this.viewportCleanups) off();
+    this.viewportCleanups = [];
     closeSkillCheck();
     closeCastSpellModal();
     closeInventoryModal();
@@ -694,7 +705,27 @@ export class CampaignScreen {
 
   private updateHeader(): void {
     if (!this.slots) return;
-    this.replaceSlot(this.slots.header, this.renderHeader());
+    // ο.1 — Em portrait-narrow (mobile), substitui header completo por status ribbon
+    // mode-aware (1 linha densa, tap pra expandir). Desktop mantém header full.
+    const isNarrow = document.body.classList.contains('is-portrait-narrow');
+    if (isNarrow) {
+      this.replaceSlot(this.slots.header, renderStatusRibbon({
+        state: this.currentState,
+        character: this.character,
+        onExpand: (anchor) => this.openHeaderOverflow(anchor),
+        onExit: () => {
+          const inCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
+          if (inCombat) {
+            const ok = confirm('Sair em combate? Teu PJ vira NPC vulnerável e o party continua sem você.');
+            if (!ok) return;
+          }
+          clearLastSession();
+          this.opts.onExit();
+        },
+      }));
+    } else {
+      this.replaceSlot(this.slots.header, this.renderHeader());
+    }
   }
 
   private updatePartyPanel(): void {
