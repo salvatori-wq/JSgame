@@ -63,9 +63,33 @@ initGlobalErrorBoundary();
 initUxPrefs();
 
 // === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
+// Ω.3 — Detecção de update: se SW novo virar waiting, força skipWaiting + recarrega
+// uma vez (com guard via flag pra evitar loop infinito). Player não fica preso em
+// versão velha após deploy.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      // Update check explícito quando user volta pra tela
+      reg.update().catch(() => undefined);
+      // Listener pra SW novo entrando em waiting
+      reg.addEventListener('updatefound', () => {
+        const newSw = reg.installing;
+        if (!newSw) return;
+        newSw.addEventListener('statechange', () => {
+          if (newSw.state === 'installed' && navigator.serviceWorker.controller) {
+            // Há SW antigo controlando + novo waiting → força ativar
+            newSw.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+      // Quando controller muda (SW novo assumiu), recarrega 1x
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+    }).catch((err) => {
       console.warn('[sw] register failed:', err);
     });
   });

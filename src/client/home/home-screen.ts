@@ -50,7 +50,10 @@ export async function mountHomeScreen(opts: HomeScreenOpts): Promise<void> {
     returning: !!getLastSession(),
   });
 
-  const root = el('main', { class: 'home-screen home-tavern' });
+  // Ω.3 — Removido `home-screen` class. Antes: 'home-screen home-tavern' pegava
+  // overrides de home-core.css + responsive.css (`body.is-portrait-narrow .home-screen`
+  // force `display: block; max-width: 100%` que quebrava layout flex novo).
+  const root = el('main', { class: 'home-tavern' });
 
   // ── Health check (server + IA provider)
   const health = await getHealth().catch(() => ({ ok: false } as const));
