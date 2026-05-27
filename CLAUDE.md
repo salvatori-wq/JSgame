@@ -82,7 +82,85 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (POLISH-0 Telemetria Honesta — 2 commits, gap 14% investigado)
+> Última atualização: 2026-05-27 (MEGA SESSION — Sprints ο, η, ξ, κ, λ, θ, ι, ν entregues, 19 commits, 1179→1362 tests +183)
+
+### MEGA SESSION 2026-05-27 — 8 Sprints novos entregues
+Total: **19 commits feature**, **1179 → 1362 tests (+183 net)**, zero regressão. Sprints completos ou enxutos:
+
+#### Sprint ο "Pegada Uber — Tela Viva" (4 commits, +79 tests)
+- ο.1: Status Ribbon mode-aware (loading/exploration/combat/rest/social) `fd1d007`
+- ο.6: Toast System Unificado (5 kinds + queue max 3 + actions inline + achievement shimmer) `fd1d007`
+- ο.3: Action Dock Topicizado (4 cards drill-down + End Turn sticky) `1af8b11`
+- ο.4: Initiative Ribbon Uber-Style (timeline + connector animado + tap expand) `1af8b11`
+- ο.5: Sheet Stack Manager (max 2 layers + ESC + swipe velocity) `f5c1142`
+- ο.2: Chat Perfeito (pill flutuante + sheet 60% + avatar emoji + timestamp relativo) `f5c1142`
+- ο.7: Mode Transitions (6 vinhetas: combat-enter/victory/defeat/scene-change/long-rest/revive) `2b1850f`
+- ο.8: UX Settings (density / font scale / contrast / anim speed / typewriter) `2b1850f`
+
+#### Sprint η "Mestre Joga D&D Real" (6 commits, +86 tests)
+- η.1: Feat-effects engine (Alert/Tough/Lucky/Resilient/Observant/War Caster/etc com mecânica real) `7767702`
+- η.2: Personality estruturado PHB (13 bg × 26 strings = 338, DM lê via ActiveCharacterProfile) `2a46ec2`
+- η.3: ASI/Feat 6/8/10/12/14/16/19 + Fighter/Rogue extras (plannedAsiChoices + pendingAsiChoiceLevels) `c710f24`
+- η.4: Advantage/Disadvantage genérico (apply_advantage tool + auto-conditions + isAutoFailSave) `b80768f`
+- η.5: Prepared spells enforce + auto-fill (isPreparedCaster + getPreparedLimit PHB) `4d5e453`
+- η.6: Saving throw fórmula didática (d20 + mod + prof = vs DC com tooltips educativos) `616e438`
+
+#### Sprint ξ "Pendências" (verificado, 0 commits novos)
+- BUG-004 spell slots nv 6-9: já fix prévio
+- BUG-005 Pact magic short rest: já fix prévio
+- BUG-002 tutorial rejoin: já fix (idempotência tripla)
+- α.5 pre-warm LLM: skipped (ROI baixo)
+
+#### Sprint κ "Onboarding" (1 commit, +11 tests)
+- κ.2: Glossário D&D pt-BR (35 entries + search + categorias + acessível via "📖 Glossário" no overflow) `03f997c`
+
+#### Sprint λ "Combate Cinematográfico" (1 commit, +7 tests)
+- λ.5: Crit narrado épico (KILL_CRIT_SUFFIXES 6 templates "PARTIDO em dois", "explode em fragmentos") `bde42ce`
+- λ.2: Spell VFX por escola (CSS keyframes fire/heal/cold/arcane/divine + detector) `bde42ce`
+
+#### Sprint θ "Inventário Vivo" (0 commits novos)
+- Rarity tiers JÁ existiam em modals.css (inv-item-card.rarity-*)
+- Magic items via give_item tool com rarity
+
+#### Sprint ι "Sessão Convida Voltar" (1 commit, 0 tests novos)
+- ι.2: Preview rico no home (currentLocation + última narração 140 chars) `393715d`
+- ι.5: Badge vidas em risco (⚠ pulse vermelho quando HP baixo) `393715d`
+
+#### Sprint ν "Coop Refino" (1 commit, 0 tests novos)
+- ν.3: Lobby personality picker com previewExample (frase exemplar no estilo) `a47ed2c`
+- ν.2 chat polish: já entregue em ο.2
+- ν.4 coop sync: server já manda state completo em joinCampaign
+
+### Arquivos novos da MEGA SESSION
+**Sprint ο:**
+- `src/client/campaign/status-ribbon.ts` + CSS
+- `src/client/toast.ts` (estendido) + `src/client/styles/toasts.css`
+- `src/client/campaign/action-dock-topics.ts` + CSS
+- `src/client/combat/initiative-ribbon.ts` + CSS
+- `src/client/sheet-stack-manager.ts`
+- `src/client/campaign/chat-pill.ts` + `chat-sheet.ts` + CSS
+- `src/client/mode-transitions.ts` + CSS
+- `src/client/ux-prefs.ts` + `ux-settings-modal.ts` + CSS
+
+**Sprint η:**
+- `src/dnd/feat-effects-engine.ts` (movido de server/ pra dnd/)
+- `src/dnd/personality-tables.ts` (338 strings PHB)
+- `src/client/character-creation/step-personality.ts` + CSS
+- `src/dnd/condition-advantage-rules.ts`
+- `src/dnd/prepared-casters.ts`
+- `src/client/campaign/saving-throw-overlay.ts` + CSS
+
+**Sprint κ/λ/ι/ν:**
+- `src/dnd/glossary.ts` (35 entries D&D pt-BR) + `glossary-modal.ts` + CSS
+- `src/client/campaign/spell-vfx-detector.ts` + CSS
+- `src/client/styles/home-camp-card-enriched.css`
+- `src/client/styles/lobby-personality-preview.css`
+
+### Sprint μ "Mestre Não Falha" — DEFERIDO
+- μ.1 streaming SSE: refactor pesado DMProvider abstraction. Bloqueado até playtest provar necessidade real.
+- μ.2 cache prompts: requer setup Anthropic prefix caching (zero-budget memória já fala).
+- μ.3 auto-swap provider health: cascade já tem fallback decente.
+Pode reabrir em sessão futura quando time-to-first-char for atrito provado.
 
 ### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 877→939 tests
 - γ.1 Dado 3D + som 3-camadas + haptic + combate (`14c19a8`)
