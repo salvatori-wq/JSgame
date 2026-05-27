@@ -551,11 +551,12 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     ? `\n## NARRAÇÕES RECENTES (mais nova primeiro)\n${ctx.recentNarrations.slice(-5).reverse().map((n, i) => `${i + 1}. ${n}`).join('\n')}`
     : '';
 
-  // Memória persistente — fatos relevantes recuperados via FTS5/BM25 do banco.
-  // Mestre DEVE usar pra continuidade (não inventar NPC novo se já existe, lembrar
-  // promessas feitas, manter tom de NPCs). Limita a 6 facts pra não inflar tokens.
+  // Memória persistente — fatos relevantes recuperados via FTS5/BM25 + slots
+  // forçados (NPC com relationship, promessa ativa, location recente).
+  // F3 — REGRA DE CALLBACK obrigatória: DM cita nome de NPC quando contexto
+  // permite, lembra de promessa não cumprida, descreve mudança no local.
   const memoryBlock = ctx.memoryFacts && ctx.memoryFacts.length > 0
-    ? `\n## MEMÓRIA DE CAMPANHA (use pra consistência — NÃO contradiga)\n${ctx.memoryFacts.slice(0, 6).map((f) => `- [${f.kind}${f.sessionN > 1 ? ` · S${f.sessionN}` : ''}] ${f.text}`).join('\n')}`
+    ? `\n## MEMÓRIA DE CAMPANHA (use pra consistência — NÃO contradiga)\n${ctx.memoryFacts.slice(0, 8).map((f) => `- [${f.kind}${f.sessionN > 1 ? ` · S${f.sessionN}` : ''}] ${f.text}`).join('\n')}\n\n### REGRA DE CALLBACK (CRÍTICA)\nQuando há NPC, promessa ou local na MEMÓRIA acima:\n1. CITE o nome do NPC pelo menos uma vez se contextualmente relevante\n2. Se há promessa ativa, faça referência ("você prometeu...")\n3. Se PJ revisita local conhecido, descreva o que MUDOU desde a última visita\n4. NUNCA narre como primeiro encontro com NPC já conhecido`
     : '';
 
   const actionBlock = ctx.playerAction

@@ -198,6 +198,79 @@ export class MemoryStore {
   }
 
   /**
+   * F3 — Contextual memory: força slots de NPC com relationship, promessa
+   * ativa e location recente. Garante callbacks naturais na narração — o LLM
+   * sempre vê pelo menos 1 NPC conhecido + 1 quest aberta + 1 local visitado
+   * quando existem, somado ao top-N da query.
+   *
+   * Dedup por id — fact que aparece no search NÃO duplica nos slots forçados.
+   */
+  async contextualSearch(
+    campaignId: string,
+    queryText: string,
+    opts: SearchOptions & {
+      forceNpcSlot?: boolean;
+      forcePromiseSlot?: boolean;
+      forceLocationSlot?: boolean;
+    } = {},
+  ): Promise<MemoryFact[]> {
+    const base = await this.search(campaignId, queryText, opts);
+    const seenIds = new Set(base.map((f) => f.id));
+    const extras: MemoryFact[] = [];
+
+    if (opts.forceNpcSlot) {
+      // NPC com tags contendo "relationship" (positiva ou negativa)
+      const npc = await this.client.execute({
+        sql: `SELECT id, campaign_id, kind, text, tags, importance, session_n, created_at
+              FROM memory_facts
+              WHERE campaign_id = ? AND kind = 'npc' AND tags LIKE '%relationship%'
+              ORDER BY importance DESC, created_at DESC
+              LIMIT 3`,
+        args: [campaignId],
+      });
+      for (const row of npc.rows) {
+        const f = rowToFact(row);
+        if (!seenIds.has(f.id)) { extras.push(f); seenIds.add(f.id); break; }
+      }
+    }
+
+    if (opts.forcePromiseSlot) {
+      // Promessa ativa (kind=promise, tags NÃO contém 'completed')
+      const promise = await this.client.execute({
+        sql: `SELECT id, campaign_id, kind, text, tags, importance, session_n, created_at
+              FROM memory_facts
+              WHERE campaign_id = ? AND kind = 'promise'
+                AND (tags NOT LIKE '%completed%' OR tags IS NULL)
+              ORDER BY created_at DESC
+              LIMIT 3`,
+        args: [campaignId],
+      });
+      for (const row of promise.rows) {
+        const f = rowToFact(row);
+        if (!seenIds.has(f.id)) { extras.push(f); seenIds.add(f.id); break; }
+      }
+    }
+
+    if (opts.forceLocationSlot) {
+      // Local recente (mais recente por created_at)
+      const loc = await this.client.execute({
+        sql: `SELECT id, campaign_id, kind, text, tags, importance, session_n, created_at
+              FROM memory_facts
+              WHERE campaign_id = ? AND kind = 'location'
+              ORDER BY created_at DESC
+              LIMIT 3`,
+        args: [campaignId],
+      });
+      for (const row of loc.rows) {
+        const f = rowToFact(row);
+        if (!seenIds.has(f.id)) { extras.push(f); seenIds.add(f.id); break; }
+      }
+    }
+
+    return [...base, ...extras];
+  }
+
+  /**
    * Conta facts da campanha (debug + UI futura "memória do Mestre").
    */
   async count(campaignId: string): Promise<number> {

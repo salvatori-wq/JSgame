@@ -25,7 +25,10 @@ export type MetricsEventKind =
   | 'time_to_first_roll'      // payload: { latency_ms } — primeiro skill check/save da sessão
   | 'roll_in_session'         // payload: { roll_total, success?, nat20?, nat1? }
   | 'dm_silence'              // payload: { silence_seconds } — gap entre player action e narration
-  | 'combat_action_blocked';  // payload: { reason, kind } — β.4 V2 economy block
+  | 'combat_action_blocked'   // payload: { reason, kind } — β.4 V2 economy block
+  // F3/F4 — Densidade metrics
+  | 'dm_callback_used'        // payload: { npc_count, quest_count, location_count, total }
+  | 'dm_used_backstory';      // payload: { trait, ideal, bond, flaw } booleans
 
 export interface MetricsEvent {
   id: string;

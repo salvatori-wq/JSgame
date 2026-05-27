@@ -207,6 +207,33 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           // γ.6 — telemetria pós-narração
           trackFirstNarrationIfNeeded();
           trackDmSilenceFromAction();
+          // F3 — telemetria de callback (DM citou NPC/promise/location conhecido?)
+          try {
+            const { detectCallbacks } = await import('../callback-detector.js');
+            const { topRecentNpcs } = await import('../npc-roster.js');
+            const roster = await topRecentNpcs(camp.state.id, 8).catch(() => []);
+            const callbacks = detectCallbacks(
+              response.narration,
+              roster,
+              camp.state.quests ?? [],
+              [camp.state.currentLocation, ...(camp.state.recentEvents.slice(-3))].filter(Boolean),
+            );
+            if (callbacks.total > 0) {
+              void trackMetricEvent({
+                userId: sUser?.id ?? null,
+                sessionId: camp.state.id,
+                kind: 'dm_callback_used' as const,
+                payload: {
+                  npc_count: callbacks.npcCallbacks.length,
+                  quest_count: callbacks.questCallbacks.length,
+                  location_count: callbacks.locationCallbacks.length,
+                  total: callbacks.total,
+                },
+              });
+            }
+          } catch (err) {
+            console.warn('[F3 callback-detect] erro:', err);
+          }
           if (camp.lastCombatXpAwards && camp.lastCombatXpAwards.length > 0) {
             await flushPostCombatRewards(camp);
           }

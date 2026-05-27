@@ -153,7 +153,15 @@ export class Campaign {
       const focusNames = focusPlayerId
         ? [this.party.find((p) => p.id === focusPlayerId)?.characterName].filter(Boolean) as string[]
         : this.party.map((p) => p.characterName);
-      return await this.memory.search(this.state.id, query, { limit: MEMORY_TOPK, focusNames });
+      // F3 — Contextual memory: força slots NPC/promise/location. Garante callbacks
+      // naturais (DM cita NPC conhecido + lembra de promessa + descreve local revisto).
+      return await this.memory.contextualSearch(this.state.id, query, {
+        limit: MEMORY_TOPK,
+        focusNames,
+        forceNpcSlot: true,
+        forcePromiseSlot: true,
+        forceLocationSlot: true,
+      });
     } catch (err) {
       console.warn('[campaign] memory.search falhou:', err);
       return [];
