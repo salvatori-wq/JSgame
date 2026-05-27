@@ -82,7 +82,7 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-26 23:46 (Sprint γ + Densidade COMPLETOS)
+> Última atualização: 2026-05-28 (Mobile Polish 4/4 COMPLETO — JSgame mobile-NATIVO)
 
 ### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 877→939 tests
 - γ.1 Dado 3D + som 3-camadas + haptic + combate (`14c19a8`)
@@ -100,20 +100,40 @@ git log --oneline | head -10
 - Deploy disparado (dep-d8b5lobeo5us73akf350)
 - Veja `HANDOFF_2026-05-27_densidade-done.md` pra detalhes
 
+### Mobile Polish — 4 sessões temáticas, 1007→1059 tests (+52)
+- MP1 Fundação Mobile — tokens --m-* + helpers .m-stack/.m-row/.m-modal + swipe-down (`8df4cb6`)
+- MP2 Combat & Header — header 2-row mobile, narration flex:1, initiative fade, enemy 1-col, action 2-col (`baa24d7`)
+- MP3 7 Modais Bottom-Sheet — inv/shop/cs/mem/ach/npc/qlm com header sticky + body scroll + swipe-down (`c857880`)
+- MP4 Sheet+Wizard+Profile+Lobby+Finais — vitals 3-col, attrs 3-col, sheet skills 1-col, profile sticky tabs, toques transversais (`d3304f5`)
+- Veja `HANDOFF_2026-05-28_mobile-polish-done.md` pra detalhes
+
 ### Pendente / Próximos passos
+- [x] ~~Manual Deploy no Render~~ — auto-deployed: `dep-d8b6g0tckfvc73cnmcrg` (commit `d3304f5`)
+- [ ] Validar Mobile Polish em https://jsgame-drpe.onrender.com em mobile real (após deploy completar)
 - [ ] Configurar `MISTRAL_API_KEY` no Render (γ.4 ativar)
 - [ ] Aguardar 24-48h após deploy pra baseline real de `/api/dm/ux-funnel`
-- [ ] **Playtest qualitativo** — validar F1/F2/F3/F4 em uso real antes de avançar
-- [ ] Após métricas reais, decidir: iterar prompt (se callback/backstory baixos) ou avançar
+- [ ] **Playtest qualitativo Mobile** — validar bottom-sheets + sticky headers + hit targets em device real
 - [ ] **Sprint δ "CORAÇÃO RÁPIDO" (~10h)** — SSE streaming (só se latência for atrito real)
 - [ ] Onboarding inline tutorial primeira vez (se time_to_first_roll ainda alto)
 
-### Decisões importantes Sprint γ
-- happy-dom devDep adicionada pra DOM em tests do client (mais leve que jsdom)
-- Difficulty dropdown movido do header pro overflow menu (prompt numerado)
-- Dummy DM response em γ.2 quando server detecta skill check (sem chamar LLM)
-- Mistral entra após Cloudflare no cascade (4 anteriores mais rápidos)
-- prefers-reduced-motion universal em dice.css + overflow-menu.css
+### Decisões importantes Mobile Polish
+- `--m-*` tokens (11) ficam em _tokens.css, override de --gap-loose via body.is-portrait-narrow
+- `.m-modal` pattern aplicado VIA CSS selectors compostos em 7 modais (zero refactor DOM)
+- `attachSwipeDown` é novo (com velocity check), `onSwipeDown` legacy mantido — usar attach* em código novo
+- Pattern visual bottom-sheet: animation 220ms cubic-bezier slide-up + handlebar opcional
+- prefers-reduced-motion respeitado em TODAS animações novas (modal slide, etc)
+- Hit target ≥40px (m-hit) ou ≥44px (m-hit-cta) enforced em todos botões mobile
+- CSS-only para 95% das mudanças — apenas 2 mudanças DOM: wrapper .camp-header-chips +
+  onSwipeDown adicionado no quest-log-modal
+
+### Arquivos-chave Mobile Polish
+- `src/client/styles/_tokens.css` — 11 tokens --m-* + override gap-loose mobile
+- `src/client/styles/m-layout.css` — helpers .m-stack/.m-row/.m-hit*, pattern .m-modal,
+  bottom-sheet aplicado a 7 modais, toques finais transversais (tap-highlight, scroll-padding)
+- `src/client/m-swipe-down.ts` — attachSwipeDown helper (velocity + handlebar)
+- `src/client/__tests__/m-swipe-down.test.ts` — 7 tests (threshold, velocity, etc)
+- `src/client/__tests__/mobile-polish-css.test.ts` — 45 CSS snapshot tests
+- `HANDOFF_2026-05-28_mobile-polish-done.md` — handoff atual
 
 ### Arquivos-chave Sprint γ
 - `src/client/dice/dice-3d.ts` — Dado reusável 3D-ish CSS
@@ -123,4 +143,3 @@ git log --oneline | head -10
 - `src/server/dm/providers/mistral.ts` — provider Mistral free tier
 - `src/server/ux-funnel.ts` — computeUxFunnel agregado
 - `src/client/campaign/header-overflow-menu.ts` — popover ⋯
-- `HANDOFF_2026-05-27_sprint-gamma-done.md` — handoff atual
