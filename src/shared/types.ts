@@ -164,6 +164,8 @@ export type BuffEffect =
   | { kind: 'advantage' }                                // Faerie Fire dá vantagem
   | { kind: 'disadvantage' };                            // raro mas pra simetria
 
+export type ItemRarity = 'comum' | 'incomum' | 'raro' | 'muito-raro' | 'lendario';
+
 export interface InventoryItem {
   id: string;       // weapon/armor/item id
   name: string;
@@ -171,6 +173,12 @@ export interface InventoryItem {
   quantity: number;
   weight?: number;
   description?: string;
+  // α.2 — Raridade (PHB/DMG). DM declara via give_item; server default 'comum'.
+  // Drive CSS visual (glow + cores DnD oficiais) + animação loot-burst no append.
+  rarity?: ItemRarity;
+  // α.2 — Marker pra UI: item recém-recebido (animação loot-burst só uma vez).
+  // Server seta ao criar via give_item; client limpa ao primeiro render.
+  isNew?: boolean;
 }
 
 // ════════════════════════════════════════════════════════════════════════════

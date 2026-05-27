@@ -17,6 +17,9 @@ export interface InventoryModalOpts {
 }
 
 let currentEl: HTMLDivElement | null = null;
+// α.2 — IDs de items já mostrados nesta sessão de cliente. Evita re-disparar
+// loot-burst toda vez que o modal abrir. In-memory; reset em F5.
+const seenItemIds = new Set<string>();
 
 export function openInventoryModal(opts: InventoryModalOpts): void {
   closeInventoryModal();
@@ -128,13 +131,54 @@ function renderItemCard(item: InventoryItem, character: CharacterSheet, socket: 
     character.equippedArmor === item.id ||
     character.equippedShield === item.id;
 
-  const card = el('div', { class: `inv-item-card inv-type-${item.type} ${isEquipped ? 'is-equipped' : ''}` }, [
-    el('div', { class: 'inv-item-name', text: item.name }),
-    el('div', { class: 'inv-item-meta', text: `${item.type} · ${item.quantity}${item.quantity > 1 ? 'x' : ''}` }),
+  // α.2 — Raridade visual (CSS classes rarity-comum/incomum/raro/muito-raro/lendario)
+  const rarity = item.rarity ?? 'comum';
+  // Loot-burst só dispara na PRIMEIRA renderização desse item no cliente,
+  // independente de re-abrir o modal. Server seta isNew quando cria; client
+  // gateia via seenItemIds in-memory.
+  const isFresh = item.isNew && !seenItemIds.has(item.id);
+  const newClass = isFresh ? 'is-new' : '';
+  if (isFresh) seenItemIds.add(item.id);
+
+  const meta = rarityMetaLabel(rarity);
+  const card = el('div', {
+    class: `inv-item-card inv-type-${item.type} rarity-${rarity} ${isEquipped ? 'is-equipped' : ''} ${newClass}`,
+  }, [
+    el('div', { class: 'inv-item-row' }, [
+      el('span', { class: 'inv-item-icon', text: iconFor(item.type) }),
+      el('div', { class: 'inv-item-name', text: item.name }),
+    ]),
+    el('div', { class: 'inv-item-meta', text: `${meta} · ${item.type} · ${item.quantity}${item.quantity > 1 ? 'x' : ''}` }),
     item.description ? el('div', { class: 'inv-item-desc', text: item.description }) : null,
     renderActions(item, isEquipped, socket),
   ].filter(Boolean) as HTMLElement[]);
   return card;
+}
+
+// α.2 — Mapping rarity → label PT-BR pra meta
+function rarityMetaLabel(r: NonNullable<InventoryItem['rarity']>): string {
+  switch (r) {
+    case 'incomum': return 'Incomum';
+    case 'raro': return 'Raro';
+    case 'muito-raro': return 'Muito Raro';
+    case 'lendario': return 'Lendário';
+    case 'comum':
+    default: return 'Comum';
+  }
+}
+
+// α.2 — Mapping type → emoji pra visual rápido
+function iconFor(type: InventoryItem['type']): string {
+  switch (type) {
+    case 'arma': return '⚔';
+    case 'armadura': return '🛡';
+    case 'escudo': return '🛡';
+    case 'consumivel': return '🧪';
+    case 'tesouro': return '💰';
+    case 'ferramenta': return '🔧';
+    case 'misc':
+    default: return '📦';
+  }
 }
 
 function renderActions(item: InventoryItem, isEquipped: boolean, socket: SocketT): HTMLElement {

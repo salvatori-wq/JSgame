@@ -188,6 +188,8 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           type: tool.type,
           quantity: tool.quantity,
           description: tool.description,
+          rarity: tool.rarity,
+          isNew: true,
         });
         camp.pushRecentEvent(`${p.characterName} recebeu ${tool.itemName} × ${tool.quantity}`);
         camp.indexFact({

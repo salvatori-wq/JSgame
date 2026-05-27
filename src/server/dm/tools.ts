@@ -17,7 +17,7 @@ export type ValidatedTool =
   | { kind: 'end_combat_with_outcome'; outcome: 'victory' | 'defeat' | 'fled'; reason: string }
   | { kind: 'apply_exhaustion'; targetId: string; levels: number; reason: string }
   | { kind: 'npc_speaks'; name: string; archetype: string; attitude: 'amigavel' | 'neutro' | 'hostil' | 'misterioso' }
-  | { kind: 'give_item'; playerId: string; itemName: string; type: 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc'; quantity: number; description: string }
+  | { kind: 'give_item'; playerId: string; itemName: string; type: 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc'; quantity: number; description: string; rarity: import('../../shared/types.js').ItemRarity }
   | { kind: 'advance_time'; amount: string; reason: string }
   | { kind: 'describe_scene'; location: string; description: string }
   // F18 — Quest tracking
@@ -40,6 +40,7 @@ const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
 const VALID_ABILITIES = new Set(['for', 'des', 'con', 'int', 'sab', 'car']);
 const VALID_NPC_ATTITUDES = new Set(['amigavel', 'neutro', 'hostil', 'misterioso']);
 const VALID_ITEM_TYPES = new Set(['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc']);
+const VALID_ITEM_RARITIES = new Set(['comum', 'incomum', 'raro', 'muito-raro', 'lendario']);
 const VALID_OUTCOMES = new Set(['victory', 'defeat', 'fled']);
 const VALID_SUGGESTED_ACTIONS = new Set(['explore', 'investigate', 'talk', 'sneak', 'attack', 'cast-spell', 'use-item', 'rest-short', 'rest-long', 'travel', 'custom']);
 const DICE_NOTATION_RE = /^\d+d(4|6|8|10|12|20|100)([+-]\d+)?$/i;
@@ -156,7 +157,10 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         : 'misc';
       const quantity = clamp(Number(input.quantity) || 1, 1, 99);
       const description = String(input.description ?? '').slice(0, 200);
-      return { kind: 'give_item', playerId, itemName, type, quantity, description };
+      const rawRarity = String(input.rarity ?? 'comum').toLowerCase();
+      const rarity = (VALID_ITEM_RARITIES.has(rawRarity) ? rawRarity : 'comum') as
+        import('../../shared/types.js').ItemRarity;
+      return { kind: 'give_item', playerId, itemName, type, quantity, description, rarity };
     }
 
     case 'advance_time': {

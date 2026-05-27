@@ -86,8 +86,8 @@ Player "tento convencer o guarda":
 \`\`\`
 
 Player "abro o baú" (passou check):
-+ tool give_item (playerId: "active", itemName: "Espada Curta Élfica", type: "arma", quantity: 1, description: "Lâmina fria com runas pulsantes")
-+ tool give_item (playerId: "active", itemName: "Peças de Ouro", type: "tesouro", quantity: 47)
++ tool give_item (playerId: "active", itemName: "Espada Curta Élfica", type: "arma", quantity: 1, rarity: "raro", description: "Lâmina fria com runas pulsantes")
++ tool give_item (playerId: "active", itemName: "Peças de Ouro", type: "tesouro", quantity: 47, rarity: "comum")
 \`\`\`json
 {
   "narration": "Baú range. Dentro: uma espada curta de runas vivas e 47 peças de ouro. Não é riqueza — é convite.",
@@ -96,8 +96,8 @@ Player "abro o baú" (passou check):
 \`\`\`
 
 Player "saqueio o orc morto":
-+ tool give_item (playerId: "active", itemName: "Machado Dentado", type: "arma", quantity: 1)
-+ tool give_item (playerId: "active", itemName: "Poção de Cura", type: "consumivel", quantity: 1, description: "Vermelha, cheira a ferro")
++ tool give_item (playerId: "active", itemName: "Machado Dentado", type: "arma", quantity: 1, rarity: "comum")
++ tool give_item (playerId: "active", itemName: "Poção de Cura", type: "consumivel", quantity: 1, rarity: "incomum", description: "Vermelha, cheira a ferro")
 \`\`\`json
 {
   "narration": "O orc largou um machado dentado e uma poção vermelha enrolada no cinto. Pegou tudo.",
@@ -267,7 +267,7 @@ export const DM_TOOLS: DMToolDef[] = [
   },
   {
     name: 'give_item',
-    description: 'Dá item ao player. Tipo: arma/armadura/escudo/consumivel/tesouro/ferramenta/misc.',
+    description: 'Dá item ao player. Tipo: arma/armadura/escudo/consumivel/tesouro/ferramenta/misc. SEMPRE inclua rarity quando o item for diferenciado — drives feedback visual (glow azul/roxo/laranja) que recompensa o player.',
     schema: {
       type: 'object',
       properties: {
@@ -276,6 +276,11 @@ export const DM_TOOLS: DMToolDef[] = [
         type: { type: 'string', enum: ['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc'] },
         quantity: { type: 'number', description: 'Default 1' },
         description: { type: 'string' },
+        rarity: {
+          type: 'string',
+          enum: ['comum', 'incomum', 'raro', 'muito-raro', 'lendario'],
+          description: 'Raridade DnD oficial. Defaults pra "comum" se omitir. Use INCOMUM pra magic items menores (poção cura, +1 weapon), RARO pra +2/spell-tier, MUITO-RARO pra artefatos significativos, LENDARIO pra game-changer (DMG pág 135).',
+        },
       },
       required: ['playerId', 'itemName', 'type'],
     },

@@ -401,6 +401,65 @@
 .inv-item-card.inv-type-consumivel { border-color: rgba(180, 100, 200, 0.3); }
 .inv-item-card.inv-type-arma { border-color: rgba(200, 80, 60, 0.3); }
 .inv-item-card.inv-type-armadura { border-color: rgba(80, 130, 180, 0.3); }
+
+/* α.2 — Item rarity (5 tiers DnD oficiais — DMG pág 135).
+   Rarity overrides type border-color (priority visual). */
+.inv-item-card.rarity-comum {
+  border-color: rgba(168, 168, 168, 0.5);
+}
+.inv-item-card.rarity-incomum {
+  border-color: #1eff00;
+  box-shadow: 0 0 6px rgba(30, 255, 0, 0.25);
+}
+.inv-item-card.rarity-incomum .inv-item-name { color: #c4ff9c; }
+.inv-item-card.rarity-raro {
+  border-color: #0070dd;
+  box-shadow: 0 0 10px rgba(0, 112, 221, 0.4);
+}
+.inv-item-card.rarity-raro .inv-item-name { color: #6cb4f4; }
+.inv-item-card.rarity-muito-raro {
+  border-color: #a335ee;
+  box-shadow: 0 0 12px rgba(163, 53, 238, 0.5);
+}
+.inv-item-card.rarity-muito-raro .inv-item-name { color: #cf94f0; }
+.inv-item-card.rarity-lendario {
+  border-color: #ff8000;
+  background: linear-gradient(135deg, rgba(50, 22, 8, 0.7), rgba(80, 38, 10, 0.7));
+  animation: rarity-lendario-pulse 2.8s ease-in-out infinite;
+}
+.inv-item-card.rarity-lendario .inv-item-name {
+  color: #ffb868;
+  text-shadow: 0 0 4px rgba(255, 128, 0, 0.4);
+}
+@keyframes rarity-lendario-pulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 128, 0, 0.4); }
+  50%      { box-shadow: 0 0 22px rgba(255, 128, 0, 0.7); }
+}
+
+/* Loot-burst animation: novo item aparece com rotate+scale. Só uma vez (via classe is-new). */
+.inv-item-card.is-new {
+  animation: loot-burst 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.inv-item-card.rarity-lendario.is-new {
+  animation: loot-burst 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards,
+             rarity-lendario-pulse 2.8s ease-in-out infinite 0.6s;
+}
+@keyframes loot-burst {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-10deg); }
+  60%  { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* Row interna (ícone + nome) */
+.inv-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inv-item-icon {
+  font-size: 16px;
+  line-height: 1;
+}
 .inv-item-name {
   font-family: var(--font-heading);
   font-size: 13px;
