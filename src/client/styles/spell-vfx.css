@@ -1,0 +1,60 @@
+/* JSgame · λ.2 — Spell Visual Effects.
+ * CSS-only keyframes ativados via .has-spell-vfx-{school} no narration entry.
+ * Server NÃO precisa marcar — cliente parseia narração e adiciona class.
+ * V1: 5 escolas com efeitos visuais distintos. */
+
+/* Wrapper opcional pra qualquer narração de magia. Pulsa cor por escola. */
+.has-spell-vfx-fire {
+  animation: spell-vfx-fire 1.2s ease-out;
+}
+
+.has-spell-vfx-heal {
+  animation: spell-vfx-heal 1.2s ease-out;
+}
+
+.has-spell-vfx-cold {
+  animation: spell-vfx-cold 1.2s ease-out;
+}
+
+.has-spell-vfx-arcane {
+  animation: spell-vfx-arcane 1.2s ease-out;
+}
+
+.has-spell-vfx-divine {
+  animation: spell-vfx-divine 1.2s ease-out;
+}
+
+@keyframes spell-vfx-fire {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 16px rgba(255, 100, 30, 0.55), inset 0 0 8px rgba(255, 130, 60, 0.3); }
+}
+
+@keyframes spell-vfx-heal {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 16px rgba(110, 200, 120, 0.5), inset 0 0 8px rgba(140, 220, 150, 0.3); }
+}
+
+@keyframes spell-vfx-cold {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 16px rgba(120, 200, 240, 0.55), inset 0 0 8px rgba(150, 220, 255, 0.3); }
+}
+
+@keyframes spell-vfx-arcane {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 16px rgba(180, 140, 244, 0.55), inset 0 0 8px rgba(200, 160, 255, 0.3); }
+}
+
+@keyframes spell-vfx-divine {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 16px rgba(244, 208, 127, 0.7), inset 0 0 8px rgba(255, 230, 150, 0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .has-spell-vfx-fire,
+  .has-spell-vfx-heal,
+  .has-spell-vfx-cold,
+  .has-spell-vfx-arcane,
+  .has-spell-vfx-divine {
+    animation: none;
+  }
+}

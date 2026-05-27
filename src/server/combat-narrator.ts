@@ -31,6 +31,16 @@ const KILL_SUFFIXES = [
   '{target} é arremessado pra trás e não move mais.',
 ];
 
+// λ.5 — Crit + Kill = drama maxed. Verbos mais visuais pra momento épico.
+const KILL_CRIT_SUFFIXES = [
+  '{target} é PARTIDO em dois — o golpe rasgou pele e osso.',
+  '{target} engole o último arquejo enquanto desaba — uma morte de história.',
+  '{target} é arremessado num arco — bate na parede com som que ecoa.',
+  '{target} cai numa poça do próprio sangue. A cena fica gravada.',
+  '{target} morre antes do som chegar — o ataque foi cirúrgico.',
+  '{target} explode em fragmentos — o golpe foi excessivo, e bonito.',
+];
+
 function pick<T>(arr: readonly T[], seed?: number): T {
   if (seed !== undefined) {
     return arr[seed % arr.length]!;
@@ -66,7 +76,9 @@ export function enrichAttackLog(opts: AttackLogOpts): string {
   const base = `${attackerName} ${verbDisplay} ${targetName} (${rollTag}; ${damage} dmg)`;
 
   if (killed) {
-    const killTemplate = pick(KILL_SUFFIXES, opts.seed);
+    // λ.5 — Crit + kill usa templates mais épicos
+    const templates = crit ? KILL_CRIT_SUFFIXES : KILL_SUFFIXES;
+    const killTemplate = pick(templates, opts.seed);
     const kill = killTemplate.replace('{target}', targetName);
     return `${base} — ${kill}`;
   }
