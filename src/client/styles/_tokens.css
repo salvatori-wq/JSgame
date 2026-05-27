@@ -68,6 +68,24 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
   --shadow-glow-gold: 0 0 12px rgba(240, 192, 80, 0.4);
+
+  /* MP1 — Mobile spacing tokens (overrideáveis em portrait-narrow body) */
+  --m-padding-screen: 12px;
+  --m-padding-card: 12px;
+  --m-padding-modal: 14px;
+  --m-gap-tight: 6px;
+  --m-gap-base: 10px;
+  --m-gap-loose: 14px;
+  --m-hit-min: 40px;
+  --m-hit-comfortable: 44px;
+  --m-modal-max-h: 90dvh;
+  --m-modal-radius: 12px;
+  --m-text-min: 12px;
+}
+
+/* MP1 — Em portrait narrow, gap-loose vira padding-screen pra ritmo consistente */
+body.is-portrait-narrow {
+  --gap-loose: var(--m-padding-screen);
 }
 
 * {
