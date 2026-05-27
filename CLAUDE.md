@@ -82,32 +82,38 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-26 (fim sessão deploy + plano playtest)
+> Última atualização: 2026-05-26 23:13 (Sprint γ COMPLETO — POLISH FUNDAÇÃO)
 
-### Concluído nesta sessão
-- 12 commits novos (S2 + A3 + A4 + A5 + M1-4 + B6 + B7 + T1) — 469→533 tests verdes (+64)
-- Deploy prod live (`git push origin main` + manual deploy via Chrome MCP)
-- Gemini Flash ativo (env var configurada via Render dashboard, DM_PROVIDER removido pra auto-detect priorizar Gemini)
-- `/api/health` retorna: `hasGemini:true, activeProvider:DungeonMaster, dmProvider:auto`
-- Plano profundo de playtest documentado em `PLAYTEST_PLAN.md`
+### Sprint γ "POLISH FUNDAÇÃO" — 6 commits, 939 tests
+- γ.1 Dado 3D + som 3-camadas + haptic + combate (`14c19a8`)
+- γ.2 DM força mais rolls via 12 keywords (`c504a6e`)
+- γ.3 Echo player race fix (`8d6bba8`)
+- γ.4 Mistral provider 5º cascade (`950207d`)
+- γ.5 Mobile audit + header overflow 10→5 (`845af26`)
+- γ.6 Telemetria UX baseline + /api/dm/ux-funnel (`c4f43a5`)
+- Deploy disparado no Render (dep-d8b56dmgvqtc73a942og, building)
+- Veja `HANDOFF_2026-05-27_sprint-gamma-done.md` pra detalhes
 
 ### Pendente / Próximos passos
-- [ ] **Executar playtest seguindo `PLAYTEST_PLAN.md`** — 12 features novas precisam validação end-to-end (counterspell, dodge, auto-recap, friend invites, tutorial, etc)
-- [ ] Configurar `BREVO_API_KEY` no Render (atualmente friend invites vão em dev-log)
-- [ ] TODOs técnicos do handoff: split `connection.ts` (648 LOC), split `campaign.ts` (932 LOC), hook telemetria em mais pontos, pact magic warlock, spell slots nv 6-9
+- [ ] Configurar `MISTRAL_API_KEY` no Render (γ.4 ativar)
+- [ ] Aguardar 24-48h após deploy pra baseline real de `/api/dm/ux-funnel`
+- [ ] **Sprint δ "CORAÇÃO RÁPIDO" (~10h)** — SSE streaming, cascade paralelo Tier 1, predictive chips, optimistic echo. Meta: time_to_first_token_ms 8000 → <800
+- [ ] **Sprint ε "PRIMEIRO CONTATO" (~12h)** — onboarding 3 PJs pré-fab + loot screen TCG + tutorial inline
+- [ ] **Sprint ζ "VOLTA AMANHÃ" (~10h)** — daily challenges + almas + hall of fame
 
-### Decisões importantes desta sessão
-- DM_PROVIDER deletado do env: factory.ts auto-detect prioriza Gemini > Anthropic > Groq por qualidade
-- vitest.config.ts criado com `singleFork:true` pra evitar SQLITE_BUSY entre test files
-- Counterspell mecânico: dm-tool-applier bloqueia apply_damage/apply_condition quando pendingEnemySpell.cancelled
-- Dodge: combat-flag `dodging` impõe disadvantage; limpa no INÍCIO do próximo turno (PHB pág 192)
+### Decisões importantes Sprint γ
+- happy-dom devDep adicionada pra DOM em tests do client (mais leve que jsdom)
+- Difficulty dropdown movido do header pro overflow menu (prompt numerado)
+- Dummy DM response em γ.2 quando server detecta skill check (sem chamar LLM)
+- Mistral entra após Cloudflare no cascade (4 anteriores mais rápidos)
+- prefers-reduced-motion universal em dice.css + overflow-menu.css
 
-### Arquivos-chave criados nesta sessão
-- `src/server/friends.ts` — friend graph + invite por email
-- `src/server/metrics.ts` — telemetria DAU/WAU/error rate
-- `src/server/campaign-handlers/{item,rest}-handler.ts` — split de campaign.ts
-- `src/dnd/consumables.ts` — catálogo poções id-based
-- `src/client/toast.ts` — toast UI genérico
-- `src/client/campaign/exploration-tutorial.ts` — tutorial 6 cards
-- `PLAYTEST_PLAN.md` — protocolo de playtest + bug-fix eficiente
-- `HANDOFF_2026-05-26_playtest-pronto.md` — handoff abertura próxima sessão
+### Arquivos-chave Sprint γ
+- `src/client/dice/dice-3d.ts` — Dado reusável 3D-ish CSS
+- `src/client/dice/dice-roll-overlay.ts` — modal genérico de roll
+- `src/client/haptic.ts` — navigator.vibrate wrapper
+- `src/server/skill-check-detector.ts` — 12 keyword patterns
+- `src/server/dm/providers/mistral.ts` — provider Mistral free tier
+- `src/server/ux-funnel.ts` — computeUxFunnel agregado
+- `src/client/campaign/header-overflow-menu.ts` — popover ⋯
+- `HANDOFF_2026-05-27_sprint-gamma-done.md` — handoff atual

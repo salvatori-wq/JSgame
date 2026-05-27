@@ -1,5 +1,7 @@
 # JSgame · Handoff — Strategy "Liso & Gostoso" pronta pra execução
 
+> **ATUALIZAÇÃO 2026-05-26 23:13** — Sprint γ COMPLETA. Veja `HANDOFF_2026-05-27_sprint-gamma-done.md` pra estado atual. Esse arquivo permanece como histórico do estado pré-γ.
+
 ## 1. Estado atual
 
 **2026-05-27.** Working tree limpo. **877 tests verde** (1 skipped). β.4 V2 (action economy mecânico) mergeado em main. Plano detalhado de 4 sprints temáticos (γδεζ) commitado em `STRATEGY_LISO_VICIANTE.md`. Próxima sessão entra com contexto vazio — só precisa ler o doc e escolher por onde começar.
