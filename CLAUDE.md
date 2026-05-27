@@ -125,6 +125,26 @@ git log --oneline | head -10
 - ε.5 Error boundary global window.onerror + unhandledrejection → toast
 - ε.6 IndexedDB resilience PENDENTE (escopo grande, baixa urgência)
 
+### POLISH β "Combate sem Atrito" — 1 commit, 1136→1143 tests (+7)
+- 8205cbb: combat-polish.css + condition-icons.ts NOVOS
+- β.2 damage numbers polish (drop-shadow, crit glow pulsante)
+- β.3 HP transitions narrativas (death cross ✕ overlay, stagger pulse <25%, damage tick)
+- β.4 15 PHB condition icons + tooltip mecânico (💀 inconsciente, 🧪 envenenado, etc)
+- β.5 initiative refino (current scale + drop-shadow, border colorida por kind)
+- β.6 combat log colorido por tipo (player dourado, enemy vermelho, crit amarelo, etc)
+- β.7 end-turn chip pulsa quando todos slots gastos
+- β.1 action layer unification PENDENTE (refactor maior, audit visual)
+
+### POLISH α "Primeira Impressão" — 2 commits, 1143→1165 tests (+22)
+- 28c86ab: login fallback + cta-glow prefab + randomize wizard + thinking rico
+- adeb270: tutorial inline 1ª vez no skill check overlay
+- α.1 "🎮 Jogar sem cadastro" agora dominante no login (cta-glow pulsa, email vira secundário)
+- α.2 home prefab CTA "▶ JOGAR" com glow dourado estático sutil
+- α.3 wizard "🎲 Randomizar tudo" — randomizeWizardState NOVO (24 names, 12 surnames, point buy random)
+- α.4 tutorial inline overlay 1ª vez (localStorage flag, hint d20+DC+nat20)
+- α.6 thinking indicator rico — 12 dicas rotativas + 4 fases por tempo (escrever/demorando/trocando/lenta)
+- α.5 pre-warm LLM PENDENTE (decisão: ROI marginal vs Sprint γ que vai mexer no DM mesmo)
+
 ### POLISH-0 "Telemetria Honesta" — 2 commits, 1111→1125 tests (+14)
 - 204d27d: fix telemetria honesta (trackFirstNarrationIfNeeded no joinCampaign + 2 novos eventos)
 - fea7d85: race coop fix + endpoint /api/dm/session-debug + telemetria pré-sessão
