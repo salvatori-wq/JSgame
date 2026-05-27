@@ -14,6 +14,8 @@ export interface ColdOpen {
   narration: string;
   speaker: string;     // "Mestre"
   mood: 'sombrio' | 'sarcastico' | 'trickster' | 'neutral';
+  /** Location curta pra setar state.currentLocation (impede arrastar de volta pra "taverna"). */
+  locationLabel: string;
   pendingCheck: {
     skill: SkillId;
     dc: number;
@@ -22,12 +24,15 @@ export interface ColdOpen {
 }
 
 // Cada template tem {name} placeholder pro nome do PJ.
+// locationLabel: substitui o default "Início — taverna" no state pra que LLM
+// subsequente nunca arraste de volta. Locations VARIADAS por design.
 const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template: string }> = {
   soldado: {
     template:
       'Chuva fina. {name} marcha por um caminho que conhece de outra vida. À frente, três figuras encapuzadas barram a estrada. Mãos próximas das armas. Silêncio incomum — nenhum pássaro canta. Algo está errado antes mesmo do primeiro golpe.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Estrada sob chuva fina',
     pendingCheck: { skill: 'percepcao', dc: 12, reason: 'Notar a emboscada antes que ataquem' },
   },
   charlatao: {
@@ -35,6 +40,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'O brutamonte com cicatriz no olho avança devagar. "Você roubou meu pai", ele rosna. {name} sequer reconhece o homem — mas o tom diz que isso não importa. Ele está atrás de você há semanas. A multidão se abriu. Ninguém vai ajudar.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Praça do mercado, círculo de gente em volta',
     pendingCheck: { skill: 'enganacao', dc: 14, reason: 'Convencer que ele se enganou de pessoa' },
   },
   sabio: {
@@ -42,6 +48,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'Cela fria. Cheiro de mofo. A porta range, e o carcereiro joga um pergaminho aos pés de {name}. Está escrito em fenício antigo — runas que sangram nas pontas. "Lê", ele diz. "Se ler certo, talvez saia daqui."',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Cela úmida da fortaleza',
     pendingCheck: { skill: 'arcanismo', dc: 13, reason: 'Decifrar o pergaminho rúnico' },
   },
   acolito: {
@@ -49,6 +56,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'O abade do templo de {name} está morto — pescoço quebrado, mão estendida pra cruz. {name} foi a última pessoa a vê-lo vivo. Agora os outros irmãos cercam {name} em semicírculo, expressões frias. "Conte exatamente o que aconteceu", o mais velho ordena.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Nave do templo de pedra fria',
     pendingCheck: { skill: 'persuasao', dc: 13, reason: 'Defender-se da suspeita dos irmãos' },
   },
   artesao: {
@@ -56,6 +64,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'A oficina de {name} foi queimada esta noite. Cinzas ainda quentes. No meio dos escombros, um caco de cerâmica com brasão familiar — o brasão da casa Marfim. Vingança ou justiça? Os dedos de {name} tremem ao recolher o caco. As pegadas dos incendiários ainda estão visíveis na lama.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Oficina incendiada, cinzas quentes',
     pendingCheck: { skill: 'investigacao', dc: 12, reason: 'Achar pistas além do caco' },
   },
   artista: {
@@ -63,6 +72,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'O nobre Lorde Vexar está em pé, dedo em riste. A multidão silencia. A performance de {name} ofendeu — e a guarda já se aproxima. {name} tem segundos antes que sejam algemados. Talvez ainda dê pra recuperar o público — ou seria melhor correr.',
     speaker: 'Mestre',
     mood: 'sarcastico',
+    locationLabel: 'Salão do nobre, fim da performance',
     pendingCheck: { skill: 'atuacao', dc: 14, reason: 'Reverter a multidão antes da prisão' },
   },
   criminoso: {
@@ -70,6 +80,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'A patrulha alcançou {name} no beco sem saída. Quatro guardas. Trinta segundos antes de cercarem. {name} conhece estes telhados — pulou-os crianças atrás. Mas a perna ainda dói do último trabalho, e a noite mascara mal demais.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Beco sem saída, telhados acima',
     pendingCheck: { skill: 'furtividade', dc: 13, reason: 'Sumir antes que cerquem' },
   },
   eremita: {
@@ -77,6 +88,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'Após dez anos no eremitério da montanha, {name} desce pela primeira vez. A vila ao pé deveria estar viva — chaminés fumegando, crianças nos campos. Está vazia. Cadáveres recentes. Algo grande passou — e talvez ainda esteja por perto.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Vila ao pé da montanha, vazia e morta',
     pendingCheck: { skill: 'sobrevivencia', dc: 13, reason: 'Rastrear o que matou os aldeões' },
   },
   forasteiro: {
@@ -84,6 +96,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'A floresta se abre numa clareira queimada. No centro, um símbolo gigante esculpido no chão — círculos concêntricos com runas que {name} nunca viu, mas reconhece de instinto. Algo respira no centro da clareira. Algo que não deveria existir.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Clareira queimada com símbolo no chão',
     pendingCheck: { skill: 'natureza', dc: 13, reason: 'Identificar o que produziu o símbolo' },
   },
   'herois-do-povo': {
@@ -91,6 +104,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'A vila chamou {name}. O moinho de farinha está sangrando — literalmente. Líquido vermelho escorre pelas tábuas do segundo andar. Aldeões estão de mãos juntas na porta, esperando que {name} entre e resolva. Ninguém mais teve coragem.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Porta do moinho da vila, multidão atrás',
     pendingCheck: { skill: 'investigacao', dc: 12, reason: 'Descobrir o que está sangrando' },
   },
   marinheiro: {
@@ -98,6 +112,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'A vela mestra rasgou. O céu virou breu. Capitão grita: "ANCORA OU CORRE?" — e a tripulação olha pra {name}, esperando decisão. A tempestade vai engolir o navio em minutos. O leme está duro, a corrente puxa pra recife.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Convés do navio na tempestade',
     pendingCheck: { skill: 'atletismo', dc: 12, reason: 'Manobrar o leme contra a corrente' },
   },
   nobre: {
@@ -105,6 +120,7 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'O baile virou banho de sangue. O anfitrião — Lorde Castelar — caiu de costas, garganta aberta. {name} está em pé sobre ele, coberto do sangue. A faca caiu ao lado. A guarda vem aí, e nenhum dos nobres presentes está disposto a defender {name}.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Salão do baile, anfitrião morto no chão',
     pendingCheck: { skill: 'persuasao', dc: 14, reason: 'Convencer alguém da inocência' },
   },
   orfao: {
@@ -112,9 +128,33 @@ const COLD_OPENS: Record<BackgroundId, Omit<ColdOpen, 'narration'> & { template:
       'O homem errado. {name} percebeu tarde demais. A bolsa que roubou estava marcada, e ele seguiu {name} pelo beco até o fim. A adaga dele brilha sob a lanterna. Tem cicatrizes demais pra ser amador. As saídas: telhado acima, esgoto abaixo, ou enfrentar.',
     speaker: 'Mestre',
     mood: 'sombrio',
+    locationLabel: 'Beco escuro, lanterna ao fundo',
     pendingCheck: { skill: 'furtividade', dc: 13, reason: 'Escapar antes que ele alcance' },
   },
 };
+
+// Locations alternativas pra sessões coop / sessão 2+ / quando cold open não dispara.
+// Server escolhe random — LLM vê a label e improvisa a cena. NUNCA "taverna".
+const FALLBACK_LOCATIONS = [
+  'Estrada de terra ao entardecer',
+  'Entrada de ruína antiga, vento gélido',
+  'Mercado fechando, lampiões acesos',
+  'Borda de floresta sombria',
+  'Ponte de pedra sobre rio negro',
+  'Vila destruída, casas queimadas',
+  'Cripta com sarcófagos abertos',
+  'Templo abandonado, símbolos quebrados',
+  'Acampamento à beira-fogueira',
+  'Mina invadida, escoras quebradas',
+  'Píer enevoado, navio atracado',
+  'Praça de cidade, multidão tensa',
+] as const;
+
+/** Sorteia uma location alternativa quando cold open não se aplica. */
+export function pickFallbackLocation(seed = Date.now()): string {
+  const idx = Math.abs(seed | 0) % FALLBACK_LOCATIONS.length;
+  return FALLBACK_LOCATIONS[idx]!;
+}
 
 /**
  * Retorna um cold open completo pra começar a sessão.
@@ -131,6 +171,7 @@ export function getColdOpen(
       narration: `${characterName} desperta. O dia mal começou e algo já não parece certo. O ar tem um cheiro que não deveria estar aí. Algo vai acontecer.`,
       speaker: 'Mestre',
       mood: 'sombrio',
+      locationLabel: pickFallbackLocation(),
       pendingCheck: { skill: 'percepcao', dc: 12, reason: 'Notar o que está errado' },
     };
   }
@@ -138,6 +179,7 @@ export function getColdOpen(
     narration: template.template.replace(/\{name\}/g, characterName),
     speaker: template.speaker,
     mood: template.mood,
+    locationLabel: template.locationLabel,
     pendingCheck: { ...template.pendingCheck },
   };
 }

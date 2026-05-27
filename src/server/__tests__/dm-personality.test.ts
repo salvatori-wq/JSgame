@@ -78,7 +78,7 @@ describe('1C — DM Personality presets', () => {
     expect(SYSTEM_PROMPT).toBe(getSystemPrompt('sombrio'));
   });
 
-  it('todos prompts mantêm regras D&D base (tools, DC table, decision tree)', () => {
+  it('todos prompts mantêm regras D&D base (tools, DC table, decision tree, momentum)', () => {
     for (const p of ALL_PERSONALITIES) {
       const prompt = getSystemPrompt(p.id);
       expect(prompt).toContain('request_skill_check');
@@ -87,6 +87,10 @@ describe('1C — DM Personality presets', () => {
       expect(prompt).toContain('TABELA DE DCs');
       expect(prompt).toContain('DECISION TREE');
       expect(prompt).toContain('FAIL FORWARD');
+      // Cenas com peso v3: narrative momentum
+      expect(prompt).toContain('NARRATIVE MOMENTUM');
+      expect(prompt).toContain('MAS / PORTANTO');
+      expect(prompt).toContain('HARD MOVES');
     }
   });
 });

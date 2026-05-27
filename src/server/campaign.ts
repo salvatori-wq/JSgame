@@ -44,7 +44,7 @@ import { rollDice } from '../dnd/dice.js';
 import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
 import { handleShortRest, handleLongRest, handleRollDeathSave } from './campaign-handlers/rest-handler.js';
 import { detectImpliedSkillCheck } from './skill-check-detector.js';
-import { getColdOpen } from './cold-opens.js';
+import { getColdOpen, pickFallbackLocation } from './cold-opens.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
@@ -90,7 +90,10 @@ export class Campaign {
       name: opts?.name ?? 'Crônica Sem Nome',
       mode: 'exploration',
       partyCharacterIds: [],
-      currentLocation: 'Início — taverna sem nome',
+      // Cenas com peso — default vazio. cold-open seta location real,
+      // ou pickFallbackLocation() escolhe variada em coop/sessão 2+.
+      // NUNCA "taverna" hardcoded (LLM seguia o cliché).
+      currentLocation: '',
       currentSceneDescription: '',
       worldFlags: {},
       npcsMet: [],
@@ -246,6 +249,9 @@ export class Campaign {
           const pj = this.party[0]!;
           const cold = getColdOpen(pj.backgroundId, pj.characterName);
           this.state.currentSceneDescription = cold.narration;
+          // Cenas com peso — seta currentLocation real do cold open pra que
+          // narrações subsequentes do LLM NÃO arrastem de volta pra "taverna".
+          this.state.currentLocation = cold.locationLabel;
           this.state.pendingCheck = {
             skill: cold.pendingCheck.skill,
             dc: cold.pendingCheck.dc,
@@ -261,6 +267,12 @@ export class Campaign {
             toolCalls: [],
             raw: '',
           };
+        }
+
+        // Coop ou sessão 2+ sem cold open: seta location variada
+        // pra LLM não improvisar "taverna" default. Server escolhe random.
+        if (!this.state.currentLocation || this.state.currentLocation.trim().length === 0) {
+          this.state.currentLocation = pickFallbackLocation();
         }
 
         // A3 — Auto-recap pra sessão N > 1. QW-4: paraleliza recap + narração
@@ -1019,9 +1031,13 @@ export class Campaign {
     }
 
     // Fallback: se o DM não chamou suggest_actions, derivamos chips contextuais
-    // de state (combat enemies, exploration genéricos). Player NUNCA fica sem opções.
+    // de state (combat enemies, exploration smart com NPCs/landmarks da última
+    // narração). Player NUNCA fica sem opções E os chips são da cena específica.
     if (this.state.suggestedActions.length === 0) {
-      this.state.suggestedActions = generateFallbackChips(this.state);
+      const lastNarration = response.narration && response.narration.trim().length > 0
+        ? response.narration
+        : this.narrationLog[this.narrationLog.length - 1];
+      this.state.suggestedActions = generateFallbackChips(this.state, lastNarration);
     }
 
     this.state.lastPlayedAt = Date.now();

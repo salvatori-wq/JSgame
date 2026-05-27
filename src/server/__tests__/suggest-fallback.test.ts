@@ -59,7 +59,9 @@ describe('generateFallbackChips', () => {
     const state = makeState();
     const chips = generateFallbackChips(state);
     expect(chips.length).toBe(4);
-    expect(chips.map((c) => c.action).sort()).toEqual(['explore', 'explore', 'investigate', 'talk']);
+    // Set genéricos novo (smart fallback): Observar/Seguir/Investigar/Sneak
+    const actions = chips.map((c) => c.action).sort();
+    expect(actions).toEqual(['explore', 'explore', 'investigate', 'sneak']);
     // Cada chip tem label + details preenchidos
     for (const c of chips) {
       expect(c.label.length).toBeGreaterThan(0);
@@ -160,6 +162,47 @@ describe('generateFallbackChips', () => {
     const chips = generateFallbackChips(state);
     expect(chips.length).toBeGreaterThanOrEqual(1);
     expect(chips.some((c) => c.label.includes('Esquivar'))).toBe(true);
+  });
+
+  describe('Cenas com peso — smart contextual chips (parsing narração)', () => {
+    it('exploration com narração extrai NPC → chip "Falar com [npc]"', () => {
+      const state = makeState();
+      const narration = 'O guarda na porta acena pra você. O taverneiro afasta os copos.';
+      const chips = generateFallbackChips(state, narration);
+      const labels = chips.map((c) => c.label.toLowerCase()).join(' | ');
+      expect(labels).toMatch(/falar com.*(guarda|taverneiro)/);
+    });
+
+    it('exploration com narração extrai landmark → chip "Investigar [landmark]"', () => {
+      const state = makeState();
+      const narration = 'No baú dourado, um pergaminho selado. A porta secreta atrás.';
+      const chips = generateFallbackChips(state, narration);
+      const labels = chips.map((c) => c.label.toLowerCase()).join(' | ');
+      expect(labels).toMatch(/investigar (bau|porta|pergaminho)/);
+    });
+
+    it('exploration completa com genéricos se narração não tem entidades', () => {
+      const state = makeState();
+      const chips = generateFallbackChips(state, 'Vento. Frio. Nada se mexe.');
+      expect(chips.length).toBe(4);
+      expect(chips.some((c) => c.label === 'Observar arredores')).toBe(true);
+    });
+
+    it('exploration sem narração mantém comportamento antigo (4 genéricos)', () => {
+      const state = makeState();
+      const chips = generateFallbackChips(state); // undefined lastNarration
+      expect(chips.length).toBe(4);
+    });
+
+    it('mistura: NPC + landmark + 2 genéricos = 4 chips totais', () => {
+      const state = makeState();
+      const narration = 'O guarda observa. Uma porta atrás dele.';
+      const chips = generateFallbackChips(state, narration);
+      expect(chips.length).toBe(4);
+      const labels = chips.map((c) => c.label).join(' | ');
+      expect(labels).toContain('guarda');
+      expect(labels).toContain('porta');
+    });
   });
 
   it('cap em 4 chips no máximo (UI não explode)', () => {

@@ -1,7 +1,7 @@
 // F1 — Tests pros cold opens background-aware.
 
 import { describe, it, expect } from 'vitest';
-import { getColdOpen, listCoveredBackgrounds } from '../cold-opens';
+import { getColdOpen, listCoveredBackgrounds, pickFallbackLocation } from '../cold-opens';
 import type { BackgroundId } from '../../shared/types';
 
 describe('cold opens', () => {
@@ -94,5 +94,45 @@ describe('cold opens', () => {
     const co = getColdOpen('marinheiro', 'X');
     expect(co.pendingCheck.reason.charAt(0).toLowerCase()).not.toBe(co.pendingCheck.reason.charAt(0));
     // Começa com letra maiúscula (humano-readable)
+  });
+
+  describe('Cenas com peso — locationLabel + fallback', () => {
+    it('cada cold open tem locationLabel não-vazio (anti-arrastar pra taverna)', () => {
+      const backgrounds: BackgroundId[] = [
+        'soldado', 'sabio', 'charlatao', 'criminoso',
+        'acolito', 'artesao', 'artista', 'eremita',
+        'forasteiro', 'herois-do-povo', 'marinheiro', 'nobre', 'orfao',
+      ];
+      for (const b of backgrounds) {
+        const co = getColdOpen(b, 'Test');
+        expect(co.locationLabel.length).toBeGreaterThan(5);
+        // Nunca contém "taverna" — esse era o bug
+        expect(co.locationLabel.toLowerCase()).not.toContain('taverna');
+      }
+    });
+
+    it('locationLabel é descritivo (não só categoria)', () => {
+      const co = getColdOpen('soldado', 'X');
+      expect(co.locationLabel.toLowerCase()).toMatch(/estrada|chuva|caminho/);
+    });
+
+    it('pickFallbackLocation retorna location válida', () => {
+      const loc = pickFallbackLocation(123);
+      expect(loc.length).toBeGreaterThan(10);
+      expect(loc.toLowerCase()).not.toContain('taverna');
+    });
+
+    it('pickFallbackLocation determinístico por seed', () => {
+      const l1 = pickFallbackLocation(42);
+      const l2 = pickFallbackLocation(42);
+      expect(l1).toBe(l2);
+    });
+
+    it('pickFallbackLocation dá variedade entre seeds', () => {
+      const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+      const locs = new Set(seeds.map((s) => pickFallbackLocation(s)));
+      // Espera pelo menos 5 diferentes em 12 seeds
+      expect(locs.size).toBeGreaterThanOrEqual(5);
+    });
   });
 });
