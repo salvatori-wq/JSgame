@@ -1,0 +1,129 @@
+/* JSgame · ο.7 — Mode Transition Vignettes.
+ * Camada fixa fullscreen z-9700, sob toasts (9800) mas acima de quase tudo.
+ * pointer-events:none sempre — vinheta é puramente visual. */
+
+.mode-transition-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9700;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.mode-transition-vignette.is-active {
+  opacity: 1;
+}
+
+/* ──────────────── Combat Enter — vinheta vermelha pulsante ──────────────── */
+
+.mode-transition-vignette.is-combat-enter {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(200, 64, 50, 0.55) 100%
+  );
+  animation: vignette-combat-enter 600ms ease-out;
+}
+
+@keyframes vignette-combat-enter {
+  0%   { opacity: 0; transform: scale(1.05); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* ──────────────── Combat Victory — vinheta dourada radiating ──────────────── */
+
+.mode-transition-vignette.is-combat-victory {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(244, 208, 127, 0.35) 0%,
+    transparent 50%,
+    rgba(244, 180, 60, 0.4) 100%
+  );
+  animation: vignette-combat-victory 1000ms ease-out;
+}
+
+@keyframes vignette-combat-victory {
+  0%   { opacity: 0; transform: scale(0.9); }
+  25%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* ──────────────── Combat Defeat — vinheta preta drone ──────────────── */
+
+.mode-transition-vignette.is-combat-defeat {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+  animation: vignette-combat-defeat 1500ms ease-out;
+}
+
+@keyframes vignette-combat-defeat {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; }
+  100% { opacity: 0.65; }
+}
+
+/* ──────────────── Scene Change — flash sutil ──────────────── */
+
+.mode-transition-vignette.is-scene-change {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(244, 208, 127, 0.18) 0%,
+    transparent 70%
+  );
+  animation: vignette-scene-change 1200ms ease-out;
+}
+
+@keyframes vignette-scene-change {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ──────────────── Long Rest — dissolve to dawn ──────────────── */
+
+.mode-transition-vignette.is-long-rest {
+  background: linear-gradient(
+    180deg,
+    rgba(244, 208, 127, 0.4) 0%,
+    rgba(244, 180, 60, 0.25) 50%,
+    rgba(20, 12, 8, 0.15) 100%
+  );
+  animation: vignette-long-rest 1800ms ease-in-out;
+}
+
+@keyframes vignette-long-rest {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ──────────────── Revive — vinheta cura verde ──────────────── */
+
+.mode-transition-vignette.is-revive {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(110, 192, 122, 0.4) 0%,
+    transparent 60%
+  );
+  animation: vignette-revive 800ms ease-out;
+}
+
+@keyframes vignette-revive {
+  0%   { opacity: 0; transform: scale(0.9); }
+  30%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-transition-vignette,
+  .mode-transition-vignette.is-active {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}

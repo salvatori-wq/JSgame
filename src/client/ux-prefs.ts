@@ -1,0 +1,129 @@
+// JSgame · ο.8 — UX Preferences (density, font scale, contrast, hit targets, anim speed).
+// Persiste em localStorage. Aplica via CSS vars no documentElement.
+// initUxPrefs() chamado no boot pra aplicar prefs salvas antes de qualquer render.
+
+const STORAGE_KEY = 'jsgame.uxPrefs';
+
+export type Density = 'compact' | 'standard' | 'comfortable';
+export type FontScale = 0.9 | 1.0 | 1.15 | 1.3;
+export type AnimSpeed = 'slow' | 'normal' | 'fast' | 'instant';
+export type TypewriterSpeed = 'instant' | 'slow' | 'normal' | 'fast';
+
+export interface UxPrefs {
+  density: Density;
+  fontScale: FontScale;
+  contrastBoost: boolean;
+  hitTargetBoost: boolean;
+  animSpeed: AnimSpeed;
+  typewriterSpeed: TypewriterSpeed;
+}
+
+export const DEFAULT_PREFS: UxPrefs = {
+  density: 'standard',
+  fontScale: 1.0,
+  contrastBoost: false,
+  hitTargetBoost: false,
+  animSpeed: 'normal',
+  typewriterSpeed: 'normal',
+};
+
+let cached: UxPrefs | null = null;
+
+export function getUxPrefs(): UxPrefs {
+  if (cached) return cached;
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<UxPrefs>;
+      cached = { ...DEFAULT_PREFS, ...sanitize(parsed) };
+      return cached;
+    }
+  } catch (err) {
+    console.warn('[ux-prefs] load failed:', err);
+  }
+  cached = { ...DEFAULT_PREFS };
+  return cached;
+}
+
+export function setUxPrefs(patch: Partial<UxPrefs>): UxPrefs {
+  const current = getUxPrefs();
+  cached = { ...current, ...sanitize(patch) };
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+    }
+  } catch (err) {
+    console.warn('[ux-prefs] save failed:', err);
+  }
+  applyUxPrefs(cached);
+  return cached;
+}
+
+export function applyUxPrefs(prefs: UxPrefs = getUxPrefs()): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+
+  // Font scale
+  root.style.setProperty('--ux-font-scale', String(prefs.fontScale));
+
+  // Density → padding multiplier
+  const densityMul = prefs.density === 'compact' ? 0.75
+    : prefs.density === 'comfortable' ? 1.25
+    : 1.0;
+  root.style.setProperty('--ux-density-pad', String(densityMul));
+
+  // Hit target boost
+  root.style.setProperty('--ux-hit-min', prefs.hitTargetBoost ? '56px' : '44px');
+
+  // Anim speed multiplier (multiplica todas durações respeitando reduced-motion)
+  const animMul = prefs.animSpeed === 'instant' ? 0
+    : prefs.animSpeed === 'fast' ? 0.6
+    : prefs.animSpeed === 'slow' ? 1.6
+    : 1.0;
+  root.style.setProperty('--ux-anim-multiplier', String(animMul));
+
+  // Contrast boost — adiciona classe
+  document.body.classList.toggle('ux-contrast-boost', prefs.contrastBoost);
+  document.body.classList.toggle('ux-density-compact', prefs.density === 'compact');
+  document.body.classList.toggle('ux-density-comfortable', prefs.density === 'comfortable');
+}
+
+/** Inicializa: load + apply. Chamar no boot do main.ts. */
+export function initUxPrefs(): void {
+  applyUxPrefs(getUxPrefs());
+}
+
+/** Reset pra defaults. */
+export function resetUxPrefs(): void {
+  cached = null;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch { /* ignore */ }
+  applyUxPrefs(DEFAULT_PREFS);
+}
+
+function sanitize(patch: Partial<UxPrefs>): Partial<UxPrefs> {
+  const out: Partial<UxPrefs> = {};
+  if (patch.density && ['compact', 'standard', 'comfortable'].includes(patch.density)) {
+    out.density = patch.density;
+  }
+  if (typeof patch.fontScale === 'number' && [0.9, 1.0, 1.15, 1.3].includes(patch.fontScale)) {
+    out.fontScale = patch.fontScale as FontScale;
+  }
+  if (typeof patch.contrastBoost === 'boolean') out.contrastBoost = patch.contrastBoost;
+  if (typeof patch.hitTargetBoost === 'boolean') out.hitTargetBoost = patch.hitTargetBoost;
+  if (patch.animSpeed && ['slow', 'normal', 'fast', 'instant'].includes(patch.animSpeed)) {
+    out.animSpeed = patch.animSpeed;
+  }
+  if (patch.typewriterSpeed && ['instant', 'slow', 'normal', 'fast'].includes(patch.typewriterSpeed)) {
+    out.typewriterSpeed = patch.typewriterSpeed;
+  }
+  return out;
+}
+
+/** Reset cache pra tests. */
+export function _resetCacheForTest(): void {
+  cached = null;
+}

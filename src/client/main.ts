@@ -22,6 +22,7 @@ import { setupAudioGesture } from './audio';
 import { shouldShowTour, openOnboardingTour } from './onboarding-tour';
 import { initA11yEnhancements, initEscapeKeyHandler, initGlobalErrorBoundary } from './a11y';
 import { installConnectionStatusBanner } from './connection-status';
+import { initUxPrefs } from './ux-prefs';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -55,6 +56,9 @@ setupAudioGesture();
 initA11yEnhancements();
 initEscapeKeyHandler();
 initGlobalErrorBoundary();
+
+// ο.8 — UX Preferences: load + apply ANTES de qualquer render pra evitar FOUC.
+initUxPrefs();
 
 // === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

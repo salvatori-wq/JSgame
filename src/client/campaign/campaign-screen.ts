@@ -46,6 +46,8 @@ import { renderActionDockTopics } from './action-dock-topics';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type PartyMessage } from './chat-sheet';
 import { popAll as popAllSheets } from '../sheet-stack-manager';
+import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
+import { openUxSettingsModal } from '../ux-settings-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -149,6 +151,7 @@ export class CampaignScreen {
     popAllSheets();
     this.partyMessages = [];
     this.unreadChatCount = 0;
+    clearTransitions();
     closeSkillCheck();
     closeCastSpellModal();
     closeInventoryModal();
@@ -343,6 +346,34 @@ export class CampaignScreen {
       const wasInCombat = !!this.currentState?.combat?.active;
       const isInCombat = !!state.combat?.active;
       const wasFightingBoss = !!this.currentState?.combat?.enemies?.some((e) => e.isBoss);
+      // ο.7 — Mode transitions cinematográficas
+      if (!wasInCombat && isInCombat) {
+        transitionToCombat();
+      } else if (wasInCombat && !isInCombat) {
+        // Detecta vitória (todos enemies derrotados) vs derrota (PJ caiu/fugiu)
+        const lastCombat = this.currentState?.combat;
+        const allEnemiesDead = lastCombat?.enemies.every((e) => e.currentHp <= 0) ?? false;
+        if (allEnemiesDead) {
+          transitionCombatVictory();
+        } else {
+          transitionCombatDefeat();
+        }
+      }
+      // Scene change detection (location mudou e não foi combat trigger)
+      if (this.currentState && state.currentLocation && this.currentState.currentLocation !== state.currentLocation && !isInCombat) {
+        transitionSceneChange();
+      }
+      // Long rest detection (mode rest)
+      if (this.currentState?.mode !== 'rest' && state.mode === 'rest') {
+        transitionLongRest();
+      }
+      // Revive detection (PJ tinha HP 0 e agora tem >0)
+      const prevMe = this.currentState ? this.party.find((p) => p.id === this.opts.characterId) : null;
+      const currMe = this.party.find((p) => p.id === this.opts.characterId);
+      if (prevMe && currMe && prevMe.currentHp <= 0 && currMe.currentHp > 0) {
+        transitionRevive();
+      }
+
       if (wasInCombat && !isInCombat && wasFightingBoss) {
         setAmbient('victory');
       } else {
@@ -1104,6 +1135,14 @@ export class CampaignScreen {
       label: 'Dificuldade',
       title: 'Mudar dificuldade de combate',
       onClick: () => this.promptDifficultyChange(),
+    });
+
+    // ο.8 — UX Settings (density / font / contrast / anim)
+    items.push({
+      icon: '🎨',
+      label: 'Tela',
+      title: 'Densidade, fonte, contraste, animações',
+      onClick: () => openUxSettingsModal(),
     });
 
     openOverflowMenu(anchor, items);
