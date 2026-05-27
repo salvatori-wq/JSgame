@@ -133,14 +133,13 @@ export function onSwipeDown(
 
   // ψ.2-fix — Bug "modal não scrolla": se touch começou dentro de área
   // scrollável, deixa o browser scrollar nativo (não captura swipe-down).
+  // v2: aceita SEM exigir scrollHeight>clientHeight (fixa caso empty state).
   const isInsideScrollableWithRoom = (target: EventTarget | null): boolean => {
     let node: Node | null = target as Node | null;
     while (node && node !== el && node instanceof HTMLElement) {
       const cs = getComputedStyle(node);
       const canScrollY = cs.overflowY === 'auto' || cs.overflowY === 'scroll';
-      if (canScrollY && node.scrollHeight > node.clientHeight) {
-        return true;
-      }
+      if (canScrollY) return true;
       node = node.parentNode;
     }
     return false;

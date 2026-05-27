@@ -212,6 +212,12 @@
 .chat-sheet .cs-messages {
   flex: 1 1 auto;
   overflow-y: auto;
+  /* ψ.2-fix — iOS Safari/PWA: sem isso scroll fica "achatado" ou não funciona.
+   * Padrão usado em campaign-core.css linha 151 (.camp-narrative). */
+  -webkit-overflow-scrolling: touch;
+  /* ψ.2-fix — Sem contain, scroll bubbla pro body → pull-to-refresh em Chrome
+   * mobile + rubber-band bounce em iOS. Player percebe como "não scrolla". */
+  overscroll-behavior: contain;
   padding: 8px 14px;
   display: flex;
   flex-direction: column;

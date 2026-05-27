@@ -623,6 +623,9 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), inset 0 0 24px rgba(120, 80, 30, 0.15);
   min-width: 320px;
   max-width: min(560px, 92vw);
+  /* ψ.1-fix — Garante que o drop-in do dado (-60px) NÃO seja cortado por
+   * algum ancestor com overflow:hidden (camp-screen em mobile, etc). */
+  overflow: visible;
 }
 
 .sc-label {

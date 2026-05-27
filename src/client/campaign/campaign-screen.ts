@@ -569,6 +569,45 @@ export class CampaignScreen {
           this.skillCheckOverlay = null;
           this.render();
         });
+        return;
+      }
+      // ψ-fix: Saving throw + Death save mostram dado animado (drama D&D real).
+      // Antes apareciam só como texto na narração — player rolava e não via NADA.
+      if (payload.purpose === 'saving-throw' && payload.source === this.opts.characterId) {
+        const pendingSave = this.currentState?.pendingSave;
+        const dc = pendingSave?.dc ?? 0;
+        const success = payload.roll.total >= dc;
+        const special: 'crit' | 'fumble' | 'success' | 'fail' =
+          payload.roll.nat20 ? 'crit'
+          : payload.roll.nat1 ? 'fumble'
+          : success ? 'success' : 'fail';
+        showDiceRollOverlay({
+          kind: 'd20',
+          label: 'SAVE',
+          preview: pendingSave ? `${pendingSave.ability.toUpperCase()} vs DC ${pendingSave.dc}` : 'Save',
+          final: payload.roll.rolls[0] ?? payload.roll.total,
+          special,
+          verdictText: payload.roll.nat20 ? 'NAT 20 — Crítico!' : payload.roll.nat1 ? 'NAT 1 — Falha Crítica' : success ? 'Sucesso' : 'Falhou',
+          showAfterMs: 1800,
+        });
+        return;
+      }
+      if (payload.purpose === 'death-save' && payload.source === this.opts.characterId) {
+        const success = payload.roll.total >= 10;
+        const special: 'crit' | 'fumble' | 'success' | 'fail' =
+          payload.roll.nat20 ? 'crit'
+          : payload.roll.nat1 ? 'fumble'
+          : success ? 'success' : 'fail';
+        showDiceRollOverlay({
+          kind: 'd20',
+          label: 'DEATH SAVE',
+          preview: 'd20 vs DC 10',
+          final: payload.roll.rolls[0] ?? payload.roll.total,
+          special,
+          verdictText: payload.roll.nat20 ? 'NAT 20 — Volta da Morte!' : payload.roll.nat1 ? 'NAT 1 — 2 falhas' : success ? '✓ Sucesso' : '✗ Falha',
+          showAfterMs: 2200,
+        });
+        return;
       }
     };
     s.on('diceRollResult', onDice);

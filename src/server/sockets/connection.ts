@@ -788,6 +788,23 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           }
         }
 
+        // ψ-fix: emite diceRollResult ANTES da narração pra cliente mostrar
+        // dado animado (drop-in + spin + verdict). Antes era só texto.
+        const rollTotal = r.rollTotal ?? 10;
+        io.to(camp.state.id).emit('diceRollResult', {
+          source: activePlayerId,
+          roll: {
+            notation: '1d20',
+            kind: 20,
+            count: 1,
+            total: rollTotal,
+            rolls: [rollTotal],
+            nat20: !!r.nat20,
+            nat1: !!r.nat1,
+            modifier: 0,
+          },
+          purpose: 'death-save',
+        });
         const msg = r.nat20
           ? `${playerName} rolou NAT 20 — recupera 1 HP!`
           : r.died
