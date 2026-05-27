@@ -110,6 +110,11 @@ async function render(): Promise<void> {
   }
 
   app!.innerHTML = '';
+  // POLISH ζ.4 — fade-in suave entre rotas (CSS class removida e re-aplicada
+  // pra force reflow). prefers-reduced-motion respeitado via CSS.
+  app!.classList.remove('route-fade-in');
+  void app!.offsetWidth; // force reflow
+  app!.classList.add('route-fade-in');
 
   switch (currentView.kind) {
     case 'home':
@@ -292,7 +297,7 @@ async function renderHome(): Promise<void> {
     const o = getOwnerName().trim();
     charsList.innerHTML = '';
     if (!o) {
-      charsList.appendChild(el('div', { class: 'home-empty', text: 'Digite seu nome pra ver seus personagens.' }));
+      charsList.appendChild(el('div', { class: 'home-empty', text: '🪶 Diga seu nome de jogador — o cemitério e os PJs te aguardam.' }));
       return;
     }
     // F34 — skeleton placeholder enquanto fetch carrega
@@ -303,7 +308,7 @@ async function renderHome(): Promise<void> {
       const chars = await listCharacters(o);
       charsList.innerHTML = '';
       if (chars.length === 0) {
-        charsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhum personagem ainda. Crie o primeiro!' }));
+        charsList.appendChild(el('div', { class: 'home-empty', text: '🏚 Câmaras vazias. Forje o primeiro PJ — o mundo aguarda.' }));
         selectedCharId = null;
         return;
       }
@@ -367,7 +372,7 @@ async function renderHome(): Promise<void> {
               on: {
                 click: async (e) => {
                   e.stopPropagation();
-                  if (confirm(`Apagar ${c.characterName} permanentemente?`)) {
+                  if (confirm(`Banir ${c.characterName} do mundo? Não há retorno.`)) {
                     await deleteCharacter(c.id);
                     await refreshCharsList();
                   }
@@ -441,7 +446,7 @@ async function renderHome(): Promise<void> {
       const camps = await listCampaigns();
       campsList.innerHTML = '';
       if (camps.length === 0) {
-        campsList.appendChild(el('div', { class: 'home-empty', text: 'Nenhuma crônica em andamento ainda.' }));
+        campsList.appendChild(el('div', { class: 'home-empty', text: '🕯 Nenhuma crônica viva no momento. Comece uma — a IA tece o resto.' }));
         return;
       }
       for (const c of camps.slice(0, 8)) {

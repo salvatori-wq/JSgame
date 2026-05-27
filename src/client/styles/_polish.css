@@ -1,0 +1,214 @@
+/* JSgame · POLISH ζ "Cada Pixel Conta"
+ *
+ * Microinteractions universais + polish visual final aplicados via seletores
+ * globais. Carregado APÓS todos outros CSS, então sobrescreve onde necessário.
+ *
+ * Princípios:
+ * - Hover só em devices que suportam (não-touch). Toque já tem :active.
+ * - Active state com scale(0.97) feedback tátil sem custo de re-layout.
+ * - prefers-reduced-motion respeitado — sem transform/transition.
+ * - Sombras e radius usam tokens existentes (--shadow-* / --r-*).
+ */
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* ζ.1 — Microinteractions universais em todos botões                       */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Base transition em todos botões — affordance imediata sem custo */
+button,
+[role="button"],
+.btn,
+input[type="button"],
+input[type="submit"] {
+  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 180ms ease-out,
+              filter 180ms ease-out;
+  will-change: transform;
+}
+
+/* Hover só em devices com pointer fino (não toque) — evita stuck-hover no mobile */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover,
+  [role="button"]:not([aria-disabled="true"]):hover,
+  .btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+  }
+}
+
+/* Active state — feedback tátil em qualquer device. Scale leve não causa reflow. */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+.btn:not(:disabled):active {
+  transform: scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* Disabled — não-interactive feedback */
+button:disabled,
+[role="button"][aria-disabled="true"],
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* prefers-reduced-motion — desabilita transform/transition */
+@media (prefers-reduced-motion: reduce) {
+  button,
+  [role="button"],
+  .btn {
+    transition: filter 100ms ease-out;
+    transform: none !important;
+  }
+  button:hover,
+  [role="button"]:hover,
+  .btn:hover {
+    transform: none !important;
+  }
+  button:active,
+  [role="button"]:active,
+  .btn:active {
+    transform: none !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* ζ.5 — Polish visual final                                                */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Tokens adicionais — complementam os de _tokens.css sem sobrescrever */
+:root {
+  /* Sombras extras pro sistema 3-tier (small/medium/large/glow) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-glow-blood: 0 0 12px rgba(200, 64, 50, 0.45);
+  --shadow-glow-life: 0 0 12px rgba(140, 208, 112, 0.4);
+  --shadow-glow-rune: 0 0 18px rgba(212, 168, 87, 0.5);
+
+  /* Radius extras pra cobrir 3 tiers semanticos (tight/soft/loose) */
+  --r-tight: 4px;
+  --r-soft: 6px;
+  --r-loose: 12px;
+}
+
+/* Scrollbar customizada — sutil dourado, mantém densidade gótica */
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-faint) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--ink-faint);
+    border-radius: var(--r-full);
+    transition: background 180ms ease-out;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-rune);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* CTA glow — classe utilitária pra realçar botões de ação principal.
+ * Uso: <button class="cta-glow">JOGAR JÁ</button>. Aplica sombra dourada
+ * pulsante sutil. */
+.cta-glow {
+  box-shadow: var(--shadow-glow-gold);
+  animation: cta-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: var(--shadow-glow-gold); }
+  50%      { box-shadow: 0 0 18px rgba(240, 192, 80, 0.65); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow {
+    animation: none;
+  }
+}
+
+/* Focus visible — acessibilidade keyboard nav (ε prévia, sem overhead) */
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-rune);
+  outline-offset: 2px;
+  border-radius: var(--r-tight);
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* ζ.4 — Transition entre rotas                                             */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Fade-in suave quando #app reabre — aplicado via JS no router.
+ * Animação curta o suficiente pra não atrapalhar fluxo, longa o suficiente
+ * pra cérebro perceber transição (vs piscar). */
+#app.route-fade-in > * {
+  animation: route-fade-in 200ms ease-out;
+}
+
+@keyframes route-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app.route-fade-in > * {
+    animation: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* ζ.3 — Loading states (skeleton refinado)                                 */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Skeleton existente em vários componentes (.skeleton.skeleton-card etc).
+ * Adicionar shimmer dourado consistente caso ainda não tenha. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-stone);
+  border-radius: var(--r-soft);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(244, 208, 127, 0.06),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+    opacity: 0.3;
+  }
+}
