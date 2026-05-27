@@ -774,52 +774,55 @@ export class CampaignScreen {
           ? el('div', { class: 'camp-personality-tag', attrs: { title: 'Estilo do Mestre' }, text: this.dmPersonalityLabel(this.currentState.dmPersonality) })
           : null,
       ].filter(Boolean) as HTMLElement[]),
-      // γ.5 — Primários visíveis: Quest, Achievements, NPCs, Share + Overflow.
-      // F18 — quest log
-      el('button', {
-        class: 'camp-mem-btn',
-        text: '📜',
-        attrs: { title: 'Quest Log (missões ativas)' },
-        on: {
-          click: () => openQuestLog({
-            quests: this.currentState?.quests ?? [],
-            onClose: () => { /* nothing */ },
-          }),
-        },
-      }),
-      // β.2 — achievements modal
-      el('button', {
-        class: 'camp-mem-btn',
-        text: '🏆',
-        attrs: { title: 'Conquistas' },
-        on: {
-          click: () => openAchievementsModal({ onClose: () => { /* nothing */ } }),
-        },
-      }),
-      // β.1 — NPC roster modal
-      campId ? el('button', {
-        class: 'camp-mem-btn',
-        text: '👥',
-        attrs: { title: 'NPCs conhecidos' },
-        on: {
-          click: () => openNpcRosterModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
-        },
-      }) : null,
-      campId ? el('button', {
-        class: 'camp-share-btn',
-        text: '🔗',
-        attrs: { title: 'Copiar ID da crônica pra share com aliado' },
-        on: {
-          click: async () => {
-            try {
-              await navigator.clipboard.writeText(campId);
-              this.flashToast('ID copiado! Cole no Home → Joinar.');
-            } catch {
-              prompt('Copie o ID:', campId);
-            }
+      // MP2 — Chips secundários agrupados pra layout 2-row em mobile.
+      // Desktop: display:contents (transparente). Mobile: row 2 scroll-x.
+      el('div', { class: 'camp-header-chips' }, [
+        // F18 — quest log
+        el('button', {
+          class: 'camp-mem-btn',
+          text: '📜',
+          attrs: { title: 'Quest Log (missões ativas)' },
+          on: {
+            click: () => openQuestLog({
+              quests: this.currentState?.quests ?? [],
+              onClose: () => { /* nothing */ },
+            }),
           },
-        },
-      }) : null,
+        }),
+        // β.2 — achievements modal
+        el('button', {
+          class: 'camp-mem-btn',
+          text: '🏆',
+          attrs: { title: 'Conquistas' },
+          on: {
+            click: () => openAchievementsModal({ onClose: () => { /* nothing */ } }),
+          },
+        }),
+        // β.1 — NPC roster modal
+        campId ? el('button', {
+          class: 'camp-mem-btn',
+          text: '👥',
+          attrs: { title: 'NPCs conhecidos' },
+          on: {
+            click: () => openNpcRosterModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
+          },
+        }) : null,
+        campId ? el('button', {
+          class: 'camp-share-btn',
+          text: '🔗',
+          attrs: { title: 'Copiar ID da crônica pra share com aliado' },
+          on: {
+            click: async () => {
+              try {
+                await navigator.clipboard.writeText(campId);
+                this.flashToast('ID copiado! Cole no Home → Joinar.');
+              } catch {
+                prompt('Copie o ID:', campId);
+              }
+            },
+          },
+        }) : null,
+      ].filter(Boolean) as HTMLElement[]),
       // γ.5 — Overflow menu (⋯) com configurações secundárias
       el('button', {
         class: 'camp-mem-btn camp-overflow-btn',

@@ -792,27 +792,98 @@
   50%      { opacity: 1.0; transform: scale(1.2); }
 }
 
-/* Mobile */
+/* MP2 — Wrapper de chips secundários. Desktop: contents (sem efeito layout).
+   Mobile: row 2 scroll-x. */
+.camp-header-chips { display: contents; }
+
+/* Mobile — Header vira 2 rows. Row 1: Sair · Título · ⋯. Row 2: chips scroll-x. */
 body.is-portrait-narrow .camp-header {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "back  title   menu"
+    "chips chips   chips";
+  row-gap: 8px;
+  padding: 8px var(--m-padding-screen, 12px);
 }
+body.is-portrait-narrow .camp-header > .wiz-back-btn { grid-area: back; }
+body.is-portrait-narrow .camp-header > .camp-title   { grid-area: title; min-width: 0; }
+body.is-portrait-narrow .camp-header > .camp-overflow-btn { grid-area: menu; }
+body.is-portrait-narrow .camp-header > .camp-header-chips {
+  grid-area: chips;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+body.is-portrait-narrow .camp-header > .camp-header-chips::-webkit-scrollbar { display: none; }
+body.is-portrait-narrow .camp-header-chips > button {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  min-height: var(--m-hit-min, 40px);
+  min-width: var(--m-hit-min, 40px);
+}
+/* Título com ellipsis pra nunca truncar layout */
+body.is-portrait-narrow .camp-title h2 {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.is-portrait-narrow .camp-loc {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* HP do PJ vira inline com nome */
 body.is-portrait-narrow .camp-hp {
   grid-column: 1 / -1;
   text-align: left;
   flex-direction: row;
   justify-content: space-between;
 }
+
+/* MP2 — Narration cresce com viewport (não fixa 55vh) */
+body.is-portrait-narrow .camp-narration {
+  max-height: none;
+  min-height: 200px;
+}
+
 body.is-portrait-narrow .camp-actions-grid {
   grid-template-columns: repeat(2, 1fr);
 }
+body.is-portrait-narrow .camp-action-btn {
+  min-height: var(--m-hit-comfortable, 44px);
+}
+
+/* MP2 — Skill-check overlay com m-stack vertical, dado proeminente */
 body.is-portrait-narrow .sc-stage {
   min-width: 280px;
   padding: 20px 18px;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
+body.is-portrait-narrow .sc-row {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 body.is-portrait-narrow .sc-die {
   width: 72px;
   height: 72px;
   font-size: 30px;
+}
+body.is-portrait-narrow .sc-roll-btn {
+  min-height: var(--m-hit-comfortable, 44px);
+  width: 100%;
+  max-width: 280px;
 }
 
 /* FIX coop-3 — Chat bar player→party (só aparece se party.length > 1) */
