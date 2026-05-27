@@ -1,0 +1,223 @@
+/* JSgame · POLISH β "Combate sem Atrito" — overrides + adições */
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.3 — HP transitions narrativas                                           */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Death cross overlay — quando enemy zera HP, mostra X grande sobre o card.
+ * Substitui o filter:grayscale silencioso por feedback visual contundente. */
+.cb-enemy-card.is-dead {
+  position: relative;
+}
+.cb-enemy-card.is-dead::before {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 64px;
+  color: rgba(255, 80, 60, 0.55);
+  text-shadow: 0 0 16px rgba(180, 30, 30, 0.7);
+  pointer-events: none;
+  z-index: 2;
+  animation: death-cross-in 480ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes death-cross-in {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-12deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-enemy-card.is-dead::before { animation: none; }
+}
+
+/* Stagger pulse — HP <25% (.is-low já existe via JS) pulsa pra mostrar
+ * "alvo quase morto, FINALIZE". Adiciona urgência visual sem custo de re-layout. */
+.cb-enemy-hp-fill.is-low {
+  animation: hp-stagger-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes hp-stagger-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(180, 30, 30, 0.5); }
+  50%      { box-shadow: 0 0 12px rgba(255, 60, 50, 0.95), 0 0 4px rgba(255, 100, 80, 0.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-enemy-hp-fill.is-low { animation: none; }
+}
+
+/* Damage tick — quando HP diminui, anima brevemente um delta visível.
+ * Usa border-right pulsante no fill em transição (1 ciclo curto). */
+.cb-enemy-hp-fill {
+  position: relative;
+}
+.cb-enemy-hp-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ff6040;
+  opacity: 0;
+  box-shadow: 0 0 8px #ff6040;
+}
+.cb-enemy-hp-bar.is-flashing .cb-enemy-hp-fill::after {
+  animation: hp-damage-tick 700ms ease-out forwards;
+}
+
+@keyframes hp-damage-tick {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.4 — Condition pills com ícones (refinamento visual)                     */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Icon ganha mais espaço de respiração; tap target maior em mobile */
+.cb-cond-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  min-height: 22px;
+  cursor: help;  /* indica que tem tooltip */
+}
+
+/* Tap on mobile: visual feedback sutil (active state) */
+.cb-cond-pill:active {
+  filter: brightness(1.15);
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.5 — Initiative tracker — refino hover/current                           */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+.cb-init-row {
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Avatar dentro do init-row ganha border colorida quando is-current */
+.cb-init-row.is-current .cb-init-avatar,
+.cb-init-row.is-current .cb-init-kind {
+  filter: drop-shadow(0 0 6px var(--ink-gold));
+  transform: scale(1.08);
+  transition: transform 200ms ease-out;
+}
+
+/* Player rows (cb-player) ganham subtle accent gold; enemy rows ganham subtle red */
+.cb-init-row.cb-player {
+  border-left: 2px solid rgba(244, 208, 127, 0.25);
+}
+.cb-init-row.cb-enemy {
+  border-left: 2px solid rgba(180, 60, 50, 0.35);
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.6 — Combat log colorido por tipo                                        */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+.cb-log-crit {
+  color: #ffd060;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+}
+.cb-log-miss {
+  color: #a09080;
+  font-style: italic;
+}
+.cb-log-player {
+  color: #f4d07f;  /* dourado — ação do PJ */
+}
+.cb-log-enemy {
+  color: #ff9070;  /* vermelho-laranja — ação do inimigo */
+}
+.cb-log-skill {
+  color: #80c0e0;  /* ciano — skill check */
+}
+.cb-log-death {
+  color: #d04040;
+  font-weight: 700;
+  text-shadow: 0 0 4px rgba(180, 30, 30, 0.5);
+}
+.cb-log-neutral {
+  color: var(--ink-warm);
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.7 — Encerrar turno chip                                                 */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+.cb-end-turn-chip {
+  display: block;
+  margin: 12px auto 0;
+  padding: 10px 20px;
+  min-height: 40px;
+  background: linear-gradient(180deg, rgba(60, 50, 30, 0.85), rgba(40, 32, 18, 0.85));
+  border: 1px solid var(--ink-gold);
+  border-radius: var(--r-full);
+  color: var(--ink-gold);
+  font-family: var(--font-heading);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+}
+
+.cb-end-turn-chip:hover {
+  background: linear-gradient(180deg, rgba(80, 64, 40, 0.95), rgba(50, 40, 22, 0.95));
+  box-shadow: 0 0 12px rgba(244, 208, 127, 0.5);
+}
+
+.cb-end-turn-chip.is-pulsing {
+  animation: end-turn-pulse 1.6s ease-in-out infinite;
+  border-width: 2px;
+  background: linear-gradient(180deg, rgba(100, 80, 40, 0.95), rgba(60, 48, 24, 0.95));
+  color: #fff5d6;
+}
+
+@keyframes end-turn-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(244, 208, 127, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(244, 208, 127, 0.85),
+                0 0 28px rgba(244, 208, 127, 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-end-turn-chip.is-pulsing { animation: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/* β.2 — Damage numbers paleta unificada (refinos)                           */
+/* ════════════════════════════════════════════════════════════════════════ */
+
+/* Damage number ganha contraste melhor — preto mais forte atrás pra
+ * legibilidade sobre qualquer fundo (combate pode ser em cena escura) */
+.fn-pop {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+}
+
+/* Crit já tem efeito forte; adicionar leve glow pulsante pra peso */
+.fn-crit {
+  animation-name: fn-rise-crit, fn-crit-glow;
+  animation-duration: 1.5s, 1.5s;
+  animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55), ease-in-out;
+}
+
+@keyframes fn-crit-glow {
+  0%, 100% { filter: brightness(1); }
+  40%      { filter: brightness(1.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fn-crit { animation-name: fn-rise-crit; }
+}

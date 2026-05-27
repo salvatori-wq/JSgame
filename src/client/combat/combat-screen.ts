@@ -11,6 +11,7 @@ import { el, escapeHtml } from '../util';
 import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { portraitFor } from '../../dnd/portrait';
 import { renderClassFeaturesBar } from './class-features-bar';
+import { getConditionIcon, getConditionDescription } from './condition-icons';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -239,6 +240,22 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       ]));
     }
     bar.appendChild(grid);
+
+    // POLISH β.7 — Encerrar turno chip. Aparece quando action principal já
+    // foi gasta (player provavelmente não tem mais o que fazer útil). Pulsa
+    // visualmente quando TODOS slots (action + bonus) estão vazios — sinal
+    // óbvio que turno deveria acabar.
+    if (ec && !ec.action) {
+      const allUsed = !ec.action && !ec.bonusAction;
+      bar.appendChild(el('button', {
+        class: `cb-end-turn-chip ${allUsed ? 'is-pulsing' : ''}`,
+        attrs: { type: 'button', title: 'Encerra seu turno (passa pra próximo na initiative)' },
+        text: allUsed ? '✓ Encerrar turno (tudo gasto)' : '✓ Encerrar turno',
+        on: {
+          click: () => socket.emit('endTurn'),
+        },
+      }));
+    }
     root.appendChild(bar);
 
     // F23 — Class Features Big 7 bar (rage/surge/etc) — só se classe tem
@@ -260,12 +277,29 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     logEl.appendChild(el('div', { class: 'cb-log-title', text: '📜 Log de combate' }));
     const items = [...combat.log.slice(-6), ...combatLog.slice(-4)];
     for (const ln of items.slice(-10)) {
-      logEl.appendChild(el('div', { class: 'cb-log-line', text: ln }));
+      // POLISH β.6 — Classifica linha pra colorir (player/enemy/crit/miss/skill)
+      const kind = classifyLogLine(ln);
+      logEl.appendChild(el('div', { class: `cb-log-line cb-log-${kind}`, text: ln }));
     }
     root.appendChild(logEl);
   }
 
   container.appendChild(root);
+}
+
+// POLISH β.6 — classifica linha de combat log por tipo pra colorir.
+// Heurístico baseado em keywords. Default 'neutral' (cinza).
+function classifyLogLine(line: string): 'crit' | 'miss' | 'player' | 'enemy' | 'skill' | 'death' | 'neutral' {
+  const l = line.toLowerCase();
+  if (l.includes('crit') || l.includes('crítico')) return 'crit';
+  if (l.includes('errou') || l.includes('miss') || l.includes('falhou')) return 'miss';
+  if (l.includes('morreu') || l.includes('caiu') || l.includes('inconsciente')) return 'death';
+  if (l.includes('teste de') || l.includes('check') || l.includes('rolou ') || l.includes('save')) return 'skill';
+  // Inicia com ▶ ou tem "você" / nome do PJ → player. Heurístico fraco mas útil.
+  if (line.startsWith('▶') || l.includes('você') || l.includes('seu ')) return 'player';
+  // "inimigo X atacou", "goblin", "orc" etc → enemy
+  if (l.includes('atacou') || l.includes('ataca ') || l.includes('inimigo')) return 'enemy';
+  return 'neutral';
 }
 
 // 1B — coloring de condition por severidade pra UI imediata.
@@ -297,7 +331,13 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
   if (en.conditions.length > 0) {
     const condRow = el('div', { class: 'cb-enemy-cond' });
     for (const c of en.conditions) {
-      condRow.appendChild(el('span', { class: `cb-cond-pill cb-cond-${conditionSeverity(c)}`, text: c }));
+      // POLISH β.4 — pill agora tem icon visual + tooltip com descrição mecânica
+      const desc = getConditionDescription(c);
+      condRow.appendChild(el('span', {
+        class: `cb-cond-pill cb-cond-${conditionSeverity(c)}`,
+        text: `${getConditionIcon(c)} ${c}`,
+        attrs: desc ? { title: desc } : {},
+      }));
     }
     card.appendChild(condRow);
   }
