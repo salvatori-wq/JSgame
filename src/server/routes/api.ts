@@ -194,6 +194,8 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     'prefab_clicked',
     // π — Sprint π Bottom Tab Bar — qual slot é mais usado em mobile
     'bottom_tab_tap',
+    // κ.1 — Sprint κ.1 Tutorial Duolingo — taxa de conclusão por step
+    'duolingo_tutorial_step',
   ]);
   app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
     const kind = String(req.body?.kind ?? '');

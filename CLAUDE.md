@@ -82,7 +82,23 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (Sprint π Bottom Tab Bar Uber Native entregue — 3 commits batched, 1362→1377 tests +15)
+> Última atualização: 2026-05-27 (Sprint π refino + Sprint κ.1 Tutorial Duolingo — 5 commits, 1362→1396 tests +34)
+
+### Sprint κ.1 "Tutorial Duolingo guiado" — entregue (próximo commit, +15 tests)
+Pegada Duolingo: spotlight visual em cada componente da tela (narration / action dock / party / tab bar) com tooltip flutuante dourado apontando + 6 steps narrativos. Dispara na PRIMEIRA SESSÃO (sessionNumber=1) após primeira narração chegar. Dismissable a qualquer momento (botão "Pular ✕" + tecla Escape). Não conflita com exploration-tutorial — duolingo prevalece em coexistência.
+- duolingo-tutorial.ts NOVO — overlay manager, 6 steps (welcome → narration → actions → party → tab bar → fim), spotlight box-shadow hole effect, tooltip auto-position (top/bottom/center), keyboard nav (ArrowRight/Left/Esc), localStorage `jsgame.tutorial.duolingo.v1`
+- duolingo-tutorial.css NOVO — visual spec dourado/sangue, glyph 36px com drop-shadow gold, progress chip rounded, skip discreto, botões: Voltar/Próximo/Bora jogar (verde no final)
+- Telemetria por step via `duolingo_tutorial_step` (whitelist server + tipo MetricsEventKind): {step, total, viewed?, completed?, skipped?}
+- 15 tests: render, navigation forward/back, last step, skip, done, keyboard nav, idempotent, close-without-mark, spotlight fallback. Mock window.localStorage via vi.stubGlobal pra isolar de outros tests no singleFork
+- Wire em campaign-screen `maybeFireExplorationTutorial` — duolingo prioridade na 1ª sessão
+
+### Sprint π refino — chat fix + ícones + slide + pop-in + métrica (`256ca9a`)
+João reportou em mobile: "tela principal não está descendo o chat, ícones razoavelmente bons, dá pra melhor". Sequência de fixes:
+- **BUG chat**: empty state colapsava chat-sheet em 34.7% viewport (257px de 740). Min-height 60dvh força presença dominante.
+- **Ícones lapidados**: 📜→🗺 (mapa), 🏆→🏆 (label "Glórias"), 🔗→🤝 (Convite), ⚙→⋯ (consistente overflow). Glyph 22px (era 20). "⋯" boost 28px pra casar com emojis. Labels UPPERCASE + letter-spacing.
+- **Slide active indicator**: .btb-active-indicator único movido via JS (translateX + width) em vez de pseudo-element. Cubic-bezier smooth 220ms entre tabs.
+- **Badge pop-in**: keyframe scale 0.6→1.35→1 em 280ms quando count incrementa. Decrement NÃO dispara (sem pop fake).
+- **Métrica bottom_tab_tap**: trackClientMetric em onBottomTabClick + whitelist server + tipo. +4 tests novos (indicator visible/hide, pop em increment, sem pop em decrement).
 
 ### Sprint π "Bottom Tab Bar Uber Native" — 3 commits, 1362→1377 tests (+15)
 Pegada Uber/Wash Me nativa: 4 ícones secundários do header (📜🏆👥🔗) viram tab bar persistente bottom 5-slots. Chat pill ο.2 deprecated em portrait-narrow (badge mora no slot Chat). Solo: slot 4 = Share (clipboard campId). Coop: slot 4 = Chat. Slot 5 "Mais" abre overflow menu existente. Decisões D10/D11/D12 confirmadas.

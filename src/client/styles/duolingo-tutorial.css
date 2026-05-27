@@ -1,0 +1,234 @@
+/* JSgame · κ.1 — Tutorial Duolingo-style.
+ * Overlay full-viewport com backdrop dim + hole (spotlight) sobre componente
+ * destacado + tooltip flutuante apontando.
+ *
+ * Visual: dourado/sangue do tema, tooltip card com glyph grande no topo,
+ * progress chip dourado, skip button discreto canto sup-direito. */
+
+.dt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000; /* acima de tudo, incluindo sheets stack (9300) */
+  pointer-events: none;
+}
+
+.dt-overlay > * {
+  pointer-events: auto;
+}
+
+/* Backdrop dim — opacity sólida full viewport */
+.dt-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  transition: opacity 240ms ease;
+}
+
+/* Spotlight — "hole" no backdrop via box-shadow gigante */
+.dt-spotlight {
+  position: absolute;
+  border-radius: 10px;
+  pointer-events: none;
+  /* Hole effect: shadow inflado pra fora cobre tudo, dentro fica transparente */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78), 0 0 0 2px rgba(244, 208, 127, 0.8) inset, 0 0 24px rgba(244, 208, 127, 0.45);
+  background: transparent;
+  opacity: 0;
+  transition: opacity 220ms ease, top 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              left 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              width 280ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              height 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.dt-spotlight.is-visible {
+  opacity: 1;
+}
+
+/* Quando spotlight ativo, backdrop fica transparente (spotlight cobre tudo via shadow) */
+.dt-overlay:has(.dt-spotlight.is-visible) .dt-backdrop {
+  opacity: 0;
+}
+
+/* Tooltip flutuante */
+.dt-tooltip {
+  position: absolute;
+  width: min(340px, 92vw);
+  background: linear-gradient(180deg, rgba(28, 18, 10, 0.99) 0%, rgba(14, 8, 6, 0.99) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.45);
+  border-radius: 14px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.75), 0 0 24px rgba(244, 208, 127, 0.18);
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  transform: translateX(-50%);
+  /* z acima do spotlight (que está em backdrop) */
+  z-index: 1;
+  animation: dt-tooltip-enter 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.dt-tooltip.is-center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes dt-tooltip-enter {
+  0% { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.dt-tooltip.is-center {
+  animation: dt-tooltip-enter-center 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes dt-tooltip-enter-center {
+  0% { opacity: 0; transform: translate(-50%, -45%); }
+  100% { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.dt-tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dt-progress {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--ink-gold);
+  background: rgba(244, 208, 127, 0.1);
+  border: 1px solid rgba(244, 208, 127, 0.3);
+  padding: 3px 9px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.dt-skip {
+  background: transparent;
+  border: 0;
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.dt-skip:hover {
+  color: var(--ink-warm);
+  background: rgba(244, 208, 127, 0.08);
+}
+
+.dt-tooltip-glyph {
+  text-align: center;
+  font-size: 36px;
+  line-height: 1;
+  margin: 4px 0 8px;
+  filter: drop-shadow(0 0 12px rgba(244, 208, 127, 0.35));
+}
+
+.dt-tooltip-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ink-gold);
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.dt-tooltip-text {
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--ink-warm);
+  margin: 0 0 14px;
+}
+
+.dt-tooltip-nav {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.dt-nav-btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 100ms ease, background 160ms ease, box-shadow 200ms ease;
+  min-height: 36px;
+  letter-spacing: 0.02em;
+}
+
+.dt-nav-btn:active {
+  transform: scale(0.97);
+}
+
+.dt-back {
+  background: transparent;
+  border: 1px solid rgba(244, 208, 127, 0.3);
+  color: var(--ink-warm);
+}
+
+.dt-back:hover {
+  background: rgba(244, 208, 127, 0.08);
+  border-color: rgba(244, 208, 127, 0.5);
+}
+
+.dt-next,
+.dt-done {
+  background: linear-gradient(180deg, rgba(244, 208, 127, 0.95) 0%, rgba(212, 168, 87, 0.95) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.75);
+  color: rgba(20, 12, 8, 0.95);
+  box-shadow: 0 4px 14px rgba(244, 208, 127, 0.25);
+}
+
+.dt-next:hover,
+.dt-done:hover {
+  box-shadow: 0 6px 18px rgba(244, 208, 127, 0.4);
+}
+
+.dt-done {
+  background: linear-gradient(180deg, rgba(140, 208, 112, 0.92) 0%, rgba(80, 160, 70, 0.95) 100%);
+  border-color: rgba(140, 208, 112, 0.65);
+  color: rgba(20, 12, 8, 0.95);
+}
+
+/* Mobile portrait-narrow ajustes */
+@media (max-width: 480px) {
+  .dt-tooltip {
+    width: calc(100vw - 24px);
+    padding: 12px 14px 10px;
+  }
+  .dt-tooltip-glyph {
+    font-size: 32px;
+  }
+  .dt-tooltip-title {
+    font-size: 16px;
+  }
+  .dt-tooltip-text {
+    font-size: 13px;
+  }
+}
+
+/* Reduced motion: sem animação */
+@media (prefers-reduced-motion: reduce) {
+  .dt-tooltip,
+  .dt-tooltip.is-center {
+    animation: none;
+  }
+  .dt-spotlight {
+    transition: opacity 100ms ease;
+  }
+  .dt-nav-btn:active {
+    transform: none;
+  }
+}

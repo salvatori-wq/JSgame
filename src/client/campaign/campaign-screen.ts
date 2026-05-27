@@ -39,6 +39,7 @@ import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/
 import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
+import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial } from './duolingo-tutorial';
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
@@ -160,6 +161,8 @@ export class CampaignScreen {
       this.bottomTabBar = null;
     }
     this.currentOpenTab = null;
+    // κ.1 — Fecha tutorial Duolingo se aberto
+    closeDuolingoTutorial();
     closeChatSheet();
     popAllSheets();
     this.partyMessages = [];
@@ -624,12 +627,31 @@ export class CampaignScreen {
   // BUG-002 fix: tenta disparar tutorial em qualquer momento (state ou narration).
   // Função pura `shouldTriggerExplorationTutorial` faz o decision-making; método aqui
   // só compõe o input e dispara o setTimeout idempotente.
+  //
+  // κ.1 — Antes do exploration-tutorial (cards passivos), dispara Duolingo
+  // tutorial guiado (spotlight nos componentes) SE primeira sessão e nunca viu.
+  // Os dois NÃO conflitam: Duolingo aparece imediatamente; exploration só se
+  // Duolingo skipado/done.
   private maybeFireExplorationTutorial(): void {
     const state = this.currentState;
     if (!state) return;
+    const narrationsArrived = (this.narrationLog?.getEntries().length ?? 0) > 0;
+
+    // κ.1 — Duolingo guiado tem prioridade na 1ª sessão
+    if (
+      state.sessionNumber === 1
+      && narrationsArrived
+      && !this.explorationTutorialFired
+      && shouldShowDuolingoTutorial()
+    ) {
+      this.explorationTutorialFired = true;
+      setTimeout(() => openDuolingoTutorial(), 1200);
+      return;
+    }
+
     const trigger = shouldTriggerExplorationTutorial({
       sessionNumber: state.sessionNumber,
-      narrationsArrived: (this.narrationLog?.getEntries().length ?? 0) > 0,
+      narrationsArrived,
       alreadyFiredThisSession: this.explorationTutorialFired,
       tutorialNotDoneYet: shouldShowExplorationTutorial(),
     });

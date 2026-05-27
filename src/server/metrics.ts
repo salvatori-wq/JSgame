@@ -36,7 +36,9 @@ export type MetricsEventKind =
   | 'home_loaded'             // payload: { has_anon, has_user, returning } — homepage renderizada
   | 'prefab_clicked'          // payload: { prefab_id } — click em prefab card
   // π — Sprint π Bottom Tab Bar — distribuição de uso por slot
-  | 'bottom_tab_tap';         // payload: { tab: 'quests'|'achievements'|'npcs'|'chat'|'share'|'more' }
+  | 'bottom_tab_tap'          // payload: { tab: 'quests'|'achievements'|'npcs'|'chat'|'share'|'more' }
+  // κ.1 — Sprint κ.1 Tutorial Duolingo — taxa de conclusão por step
+  | 'duolingo_tutorial_step'; // payload: { step, total, viewed?, completed?, skipped? }
 
 export interface MetricsEvent {
   id: string;
