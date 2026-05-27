@@ -82,16 +82,63 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (Sprint ψ entregue + 2 hotfix + plano Sprint Ω profundo pronto pra executar)
+> Última atualização: 2026-05-27 (Sprint Ω entregue — 3 commits, 1431→1455 tests +24)
 
-### ⚠️ PRÓXIMA SESSÃO — Sprint Ω (Dado + Home Tavern)
+### Sprint Ω "Polimento Definitivo" — entregue (3 commits, +24 tests)
 
-João reportou após 2 hotfixes (`c433ebc`+`5f38a83`): **dado AINDA não rola** (screenshot mostra overlay skill-check "FURTIVIDADE" com `?` estático + "ROLANDO..." infinito) + **home menu confuso** ("uma confusão que só por deus").
+João reportou após 2 hotfixes: **dado AINDA não rola** + **home menu confuso**. Plano profundo entregue.
 
-Plano detalhado em `HANDOFF_2026-05-27_sprint-omega-plano.md`. Resumo:
-- **Ω.1 Dado funcional DEFINITIVO** (~3h): UX setting "Forçar animações" override prefers-reduced-motion + rollAndReveal robustez + fallback dramático + watchdog 5s + telemetria
-- **Ω.2 Home Tavern reorganizada** (~6-8h): refactor renderHome em main.ts → componentes seccionados (hero / identity bar / continue card / play now / coop / collapsibles), inspirado em Wash Me/Spotify/Duolingo
-- **Ω.3 (opcional)** Service worker / cache bust
+#### Ω.1 Dado DEFINITIVO (`37876d0`) — força anim mesmo com OS reduce ativo
+- **UX pref `forceMotion: boolean`** default ON com body.force-motion class
+- **dice.css overrides com `!important`** ignoram @media (prefers-reduced-motion: reduce)
+- `prefersReducedMotion()` em dice-3d.ts checa body.force-motion antes do matchMedia
+- Toggle "🎲 Animações cinematográficas" em UX Settings Modal
+- **rollAndReveal robustez**: re-query face defensive, force reflow antes is-rolling,
+  void offsetWidth pra repaint, telemetry hook opcional (started/completed/slow)
+- **Fallback dramático em reduced**: dieReducedReveal scale 0.6→1.15→1 em **600ms**
+  (era fade 200ms invisível) + ticks de números durante o spin
+- **Watchdog 5s** skill-check-overlay: server timeout → toast "Mestre demorou" +
+  botão "Tentar novamente" + telemetry dice_roll_timeout
+- **Watchdog 8s** dice-roll-overlay (combat) — overlay nunca fica órfão
+- 2 metric kinds novos: `dice_roll_timeout`, `dice_roll_visual_slow`
+- +7 tests (forceMotion default/toggle/persist + telemetry + face re-query + body override)
+
+#### Ω.2 Home Tavern (`1c9bb5b` + `0e8c08d`) — renderHome 250L → 9 sections
+Pegada Wash Me/Spotify/Duolingo/D&D Beyond. Hierarquia nova:
+- **Hero compacto 56px** (logo + tagline + 2 chips status)
+- **Identity bar sticky 40px** (avatar + owner-input + streak + login/sair)
+- **Continue Card destaque #1** quando há lastSession (preview ι.2 + risco + CTA pulse)
+- **Play Now** (3 prefabs grid + link discreto wizard)
+- **Coop** (2 botões grandes 50/50 + advanced toggle joinar crônica)
+- **Collapsibles** persistidos localStorage: Meus PJs (open default) / Crônicas / Cemitério
+- **Footer minimal** (Tela / Glossário / Perfil)
+
+Decisões D1-D3 confirmadas no código:
+- D1 forceMotion default ON ✅
+- D2 Continue Card #1 quando há lastSession (sem → Play Now é #1) ✅
+- D3 Wizard como link discreto abaixo dos prefabs (não card grande) ✅
+
+main.ts: `renderHome` virou 1 chamada `mountHomeScreen(...)`. -513 linhas inline.
+Playtest local confirmou estrutura completa montando + body.force-motion ativo.
+
+### Arquivos novos Sprint Ω
+**Ω.1:**
+- (editado) `src/client/ux-prefs.ts` — campo forceMotion + apply body.force-motion
+- (editado) `src/client/ux-settings-modal.ts` — toggle "🎲 Animações cinematográficas"
+- (editado) `src/client/dice/dice-3d.ts` — robustez + telemetry hook + force-motion check
+- (editado) `src/client/styles/dice.css` — !important overrides + dieReducedReveal 600ms
+- (editado) `src/client/campaign/skill-check-overlay.ts` — watchdog 5s
+- (editado) `src/client/dice/dice-roll-overlay.ts` — watchdog 8s combat
+- (editado) `src/server/metrics.ts` + `src/server/routes/api.ts` — 2 metric kinds novos
+
+**Ω.2:**
+- `src/client/home/home-screen.ts` NOVO — orquestrador mountHomeScreen
+- `src/client/home/sections/*.ts` NOVOS — hero / identity-bar / continue-card /
+  play-now / coop / collapsible / my-characters / my-chronicles / graveyard / footer
+- `src/client/styles/home-tavern.css` NOVO
+- `src/client/home/__tests__/{collapsible,identity-bar,continue-card}.test.ts` NOVOS (+17)
+- (editado) `src/client/main.ts` — renderHome legacy removido (-513 linhas)
+- (editado) `src/client/styles.css` — import home-tavern.css
 
 ### Sprint POLISH ψ "Sentir cada toque" — 5 sub-sprints, 1396→1429 tests (+33 net)
 
