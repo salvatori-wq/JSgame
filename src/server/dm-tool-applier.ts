@@ -380,6 +380,26 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'open_shop': {
+      // β.3 — Salva loja ativa em state. Cliente abre modal automaticamente.
+      camp.state.openShop = {
+        id: `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        npcName: tool.npcName,
+        shopType: tool.shopType,
+        items: tool.items,
+        acceptsSell: tool.acceptsSell,
+        openedAt: Date.now(),
+      };
+      camp.pushRecentEvent(`🏪 ${tool.npcName} abriu loja (${tool.shopType}): ${tool.items.length} itens`);
+      camp.indexFact({
+        kind: 'event',
+        text: `${tool.npcName} ofereceu loja (${tool.shopType}) com ${tool.items.length} itens.`,
+        tags: `loja vendor mercador ${tool.npcName.toLowerCase()}`,
+        importance: 1.2,
+      });
+      break;
+    }
+
     case 'grant_inspiration': {
       // α.3 — Concede 1 inspiração ao player. Clamp max 3 (PHB).
       const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;

@@ -35,7 +35,9 @@ export type ValidatedTool =
   // α.1 — Suggested actions chips (2-4 ações contextuais clicáveis abaixo da narração)
   | { kind: 'suggest_actions'; actions: import('../../shared/types.js').SuggestedAction[] }
   // α.3 — Concede 1 inspiração ao player (PHB pág 125)
-  | { kind: 'grant_inspiration'; playerId: string; reason: string };
+  | { kind: 'grant_inspiration'; playerId: string; reason: string }
+  // β.3 — Abre loja/vendor pra party
+  | { kind: 'open_shop'; npcName: string; shopType: import('../../shared/types.js').ShopType; items: import('../../shared/types.js').ShopItem[]; acceptsSell: boolean };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -43,6 +45,7 @@ const VALID_ABILITIES = new Set(['for', 'des', 'con', 'int', 'sab', 'car']);
 const VALID_NPC_ATTITUDES = new Set(['amigavel', 'neutro', 'hostil', 'misterioso']);
 const VALID_ITEM_TYPES = new Set(['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc']);
 const VALID_ITEM_RARITIES = new Set(['comum', 'incomum', 'raro', 'muito-raro', 'lendario']);
+const VALID_SHOP_TYPES = new Set(['arms', 'alchemy', 'general', 'magic']);
 const VALID_OUTCOMES = new Set(['victory', 'defeat', 'fled']);
 const VALID_SUGGESTED_ACTIONS = new Set(['explore', 'investigate', 'talk', 'sneak', 'attack', 'cast-spell', 'use-item', 'rest-short', 'rest-long', 'travel', 'custom']);
 const DICE_NOTATION_RE = /^\d+d(4|6|8|10|12|20|100)([+-]\d+)?$/i;
@@ -254,6 +257,43 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         ? input.targetIds.map((t) => String(t).slice(0, 60)).filter(Boolean).slice(0, 6)
         : undefined;
       return { kind: 'enemy_casts_spell', sourceName, spellName, spellLevel, targetIds, visible };
+    }
+
+    case 'open_shop': {
+      const npcName = String(input.npcName ?? '').slice(0, 60).trim();
+      if (!npcName) return null;
+      const rawShopType = String(input.shopType ?? 'general').toLowerCase();
+      const shopType = (VALID_SHOP_TYPES.has(rawShopType) ? rawShopType : 'general') as
+        import('../../shared/types.js').ShopType;
+      const rawItems = Array.isArray(input.items) ? input.items : [];
+      const items = rawItems
+        .filter((it: unknown): it is Record<string, unknown> => typeof it === 'object' && it !== null)
+        .map((it, idx) => {
+          const name = String(it.name ?? '').slice(0, 60).trim();
+          const priceGold = clamp(Math.floor(Number(it.priceGold) || 0), 0, 1_000_000);
+          if (!name || priceGold < 0) return null;
+          const type = VALID_ITEM_TYPES.has(String(it.type ?? '').toLowerCase())
+            ? (String(it.type).toLowerCase() as 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc')
+            : 'misc';
+          const rawRarity = String(it.rarity ?? 'comum').toLowerCase();
+          const rarity = (VALID_ITEM_RARITIES.has(rawRarity) ? rawRarity : 'comum') as
+            import('../../shared/types.js').ItemRarity;
+          const description = it.description ? String(it.description).slice(0, 200) : undefined;
+          const stock = it.stock !== undefined && it.stock !== null
+            ? clamp(Math.floor(Number(it.stock) || 0), 0, 999)
+            : undefined;
+          return {
+            id: `shop-it-${Date.now()}-${idx}`,
+            name, type, rarity, priceGold,
+            ...(description ? { description } : {}),
+            ...(stock !== undefined ? { stock } : {}),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null)
+        .slice(0, 12);
+      if (items.length === 0) return null;
+      const acceptsSell = input.acceptsSell === undefined ? true : !!input.acceptsSell;
+      return { kind: 'open_shop', npcName, shopType, items, acceptsSell };
     }
 
     case 'grant_inspiration': {

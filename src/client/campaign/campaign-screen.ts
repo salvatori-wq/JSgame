@@ -22,6 +22,7 @@ import { openMemoryModal } from './memory-modal';
 import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
+import { openShopModal, closeShopModal } from '../shop/shop-modal';
 import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { enqueueLevelUp } from '../level-up-overlay';
@@ -123,6 +124,7 @@ export class CampaignScreen {
     closeQuestLog();
     closeAchievementsModal();
     closeNpcRosterModal();
+    closeShopModal();
     if (this.narrationLog) {
       this.narrationLog.destroy();
       this.narrationLog = null;
@@ -256,6 +258,17 @@ export class CampaignScreen {
         });
       } else {
         closeCounterspellPrompt();
+      }
+      // β.3 — Vendor/Shop: abre modal automaticamente quando DM declara open_shop
+      if (state.openShop && this.character) {
+        openShopModal({
+          shop: state.openShop,
+          character: this.character,
+          socket: this.opts.socket,
+          onClose: () => { /* state cleanup via socket closeShop event */ },
+        });
+      } else {
+        closeShopModal();
       }
       // F21: ambient mood baseado em state.mode
       setAmbient(state.combat?.active ? 'combat' : 'exploration');

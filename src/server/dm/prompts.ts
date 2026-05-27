@@ -380,6 +380,39 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'open_shop',
+    description: 'Abre uma loja/vendor pra party. Use quando NPC mercador é introduzido e quer vender — sempre PASSE itens concretos com preços PHB (espada longa 15po, armadura de couro 10po, poção cura 50po, escudo 10po, etc). Cliente abre modal de compra/venda — ou seja, NÃO substitui give_item normal. Use SÓ pra mercadores explícitos ("a feiticeira tem uma vitrine"). Server gera IDs estáveis pros items.',
+    schema: {
+      type: 'object',
+      properties: {
+        npcName: { type: 'string', description: 'Nome do mercador NPC (ex: "Brogundo")' },
+        shopType: {
+          type: 'string',
+          enum: ['arms', 'alchemy', 'general', 'magic'],
+          description: 'Tipo: arms=armas/armaduras, alchemy=poções, general=tudo um pouco, magic=itens mágicos raros',
+        },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Nome do item' },
+              type: { type: 'string', enum: ['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc'] },
+              rarity: { type: 'string', enum: ['comum', 'incomum', 'raro', 'muito-raro', 'lendario'] },
+              priceGold: { type: 'number', description: 'Preço em peças de ouro. Use PHB: poções 50po, espadas 10-50po, armaduras 10-1500po conforme tier' },
+              description: { type: 'string', description: 'Descrição curta' },
+              stock: { type: 'number', description: 'Estoque (omita pra ilimitado)' },
+            },
+            required: ['name', 'type', 'priceGold'],
+          },
+          description: '2-12 items. Variedade > quantidade.',
+        },
+        acceptsSell: { type: 'boolean', description: 'Aceita comprar items do party? Default true.' },
+      },
+      required: ['npcName', 'shopType', 'items'],
+    },
+  },
+  {
     name: 'grant_inspiration',
     description: 'Concede 1 INSPIRAÇÃO ao player por bom roleplay (PHB pág 125). Use PARCIMÔNIA — MÁX 1 por sessão por player. Razões válidas: solução criativa, ato corajoso, fala marcante, abraçou trait/bond/flaw do PJ. NÃO dê de graça. Player gasta antes de rolar pra ganhar advantage. Max 3 acumuladas.',
     schema: {

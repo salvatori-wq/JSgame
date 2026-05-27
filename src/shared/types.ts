@@ -297,6 +297,32 @@ export interface CampaignState {
   // Player clica → vira `takeAction(action, details)`. Reseta a cada nova narração.
   // Server clamp em 4 itens. Runtime — não persiste entre sessões.
   suggestedActions?: SuggestedAction[];
+  // β.3 — Loja aberta. DM seta via open_shop tool quando NPC mercador aparece.
+  // Cliente abre modal de compra/venda. null = sem loja ativa.
+  openShop?: OpenShop | null;
+}
+
+// β.3 — Loja/Vendor schemas.
+export type ShopType = 'arms' | 'alchemy' | 'general' | 'magic';
+
+export interface ShopItem {
+  // ID gerado pelo server (stable durante a session da loja). Cliente usa pra buyItem.
+  id: string;
+  name: string;
+  type: 'arma' | 'armadura' | 'escudo' | 'consumivel' | 'tesouro' | 'ferramenta' | 'misc';
+  rarity?: ItemRarity;
+  priceGold: number;
+  description?: string;
+  stock?: number;     // null/undefined = ilimitado
+}
+
+export interface OpenShop {
+  id: string;             // uuid da sessão da loja (pra dedup race)
+  npcName: string;
+  shopType: ShopType;
+  items: ShopItem[];
+  acceptsSell: boolean;   // se true, party pode vender items (50% do priceGold default)
+  openedAt: number;
 }
 
 // α.1 — Ação sugerida pelo DM (chip clicável abaixo da narração).
@@ -383,6 +409,11 @@ export interface ClientToServerEvents {
   useItem: (payload: { itemId: string }) => void;
   equipItem: (payload: { itemId: string; slot: 'weapon' | 'armor' | 'shield' }) => void;
   unequipItem: (payload: { slot: 'weapon' | 'armor' | 'shield'; itemId?: string }) => void;
+
+  // β.3 — Vendor/Shop. Player compra (gold→item) ou vende (item→50% gold).
+  buyShopItem: (payload: { shopId: string; itemId: string }) => void;
+  sellShopItem: (payload: { shopId: string; inventoryItemId: string }) => void;
+  closeShop: () => void;
 
   // Lobby pre-game (jogadores se reúnem antes de criar campanha)
   createLobby: (payload: { ownerName: string }) => void;

@@ -459,6 +459,63 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
       }
     });
 
+    // β.3 — Vendor/Shop handlers
+    socket.on('buyShopItem', async ({ shopId, itemId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const { handleBuyShopItem } = await import('../campaign-handlers/shop-handler.js');
+        const r = await handleBuyShopItem(camp, activePlayerId, shopId, itemId);
+        if (!r.ok) { socket.emit('error', r.reason ?? 'compra falhou'); return; }
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `🛒 Comprou ${r.itemName} (${Math.abs(r.goldDelta ?? 0)}po)`,
+          speaker: 'Sistema',
+          mood: 'neutral',
+        });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        io.to(camp.state.id).emit('campaignState', camp.state);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] buyShopItem error:', err);
+        socket.emit('error', `buyShopItem falhou: ${String(err)}`);
+      }
+    });
+
+    socket.on('sellShopItem', async ({ shopId, inventoryItemId }) => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const { handleSellShopItem } = await import('../campaign-handlers/shop-handler.js');
+        const r = await handleSellShopItem(camp, activePlayerId, shopId, inventoryItemId);
+        if (!r.ok) { socket.emit('error', r.reason ?? 'venda falhou'); return; }
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `💰 Vendeu ${r.itemName} (+${r.goldDelta ?? 0}po)`,
+          speaker: 'Sistema',
+          mood: 'neutral',
+        });
+        io.to(camp.state.id).emit('partyUpdate', camp.party);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] sellShopItem error:', err);
+        socket.emit('error', `sellShopItem falhou: ${String(err)}`);
+      }
+    });
+
+    socket.on('closeShop', async () => {
+      try {
+        if (!activeCampaignId) { return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { return; }
+        camp.state.openShop = null;
+        io.to(camp.state.id).emit('campaignState', camp.state);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] closeShop error:', err);
+      }
+    });
+
     socket.on('shortRest', async ({ hitDiceToSpend }) => {
       try {
         if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
