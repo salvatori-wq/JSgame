@@ -1,0 +1,249 @@
+/* JSgame · γ.1 — Dado 3D-ish reusável.
+   Componente Dado renderizado via dice-3d.ts. Visual com sombra projetada,
+   rotação 3D combinada, e flash/shake em crit/fumble. Mobile-friendly,
+   ≥38px hit target em qualquer kind. Respeita prefers-reduced-motion. */
+
+.die-3d {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2a3142 0%, #1a1f2e 100%);
+  border: 2px solid #4a5573;
+  color: #f1e3b6;
+  font-weight: 800;
+  font-size: 26px;
+  font-family: 'Cinzel', serif, system-ui;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.55);
+  transform-style: preserve-3d;
+  perspective: 320px;
+  will-change: transform, box-shadow;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.die-3d .die-face {
+  position: relative;
+  z-index: 2;
+  line-height: 1;
+}
+
+.die-3d .die-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 70%;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 75%);
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Kinds — pequenas variações visuais por dado */
+.die-3d.die-d4   { background: linear-gradient(135deg, #2c2a42 0%, #1a182e 100%); }
+.die-3d.die-d6   { background: linear-gradient(135deg, #2a3142 0%, #1a1f2e 100%); }
+.die-3d.die-d8   { background: linear-gradient(135deg, #2a4232 0%, #1a2e1f 100%); }
+.die-3d.die-d10  { background: linear-gradient(135deg, #3d2a42 0%, #2a1a2e 100%); }
+.die-3d.die-d12  { background: linear-gradient(135deg, #2a3d42 0%, #1a2a2e 100%); }
+.die-3d.die-d20  { background: linear-gradient(135deg, #2a3142 0%, #1a1f2e 100%); }
+.die-3d.die-d100 { background: linear-gradient(135deg, #423d2a 0%, #2e2a1a 100%); }
+
+/* Rolling animation — rotação combinada XYZ pra dar "vida" de dado físico */
+@keyframes dieRolling {
+  0% {
+    transform: rotateX(0) rotateY(0) rotateZ(0);
+  }
+  50% {
+    transform: rotateX(540deg) rotateY(720deg) rotateZ(180deg);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(0);
+  }
+}
+
+.die-3d.is-rolling {
+  animation: dieRolling 1100ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Glow sutil durante o roll */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+    0 6px 18px rgba(160, 130, 60, 0.35),
+    0 0 14px rgba(220, 180, 100, 0.25);
+}
+
+/* Crit (nat 20) — flash dourado pulsante */
+@keyframes dieCritFlash {
+  0%   { box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 0 0 rgba(255, 215, 0, 0); }
+  25%  { box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 30px 4px rgba(255, 215, 0, 0.9); }
+  50%  { box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 18px 2px rgba(255, 215, 0, 0.5); }
+  75%  { box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 32px 4px rgba(255, 215, 0, 0.9); }
+  100% { box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 18px 2px rgba(255, 215, 0, 0.4); }
+}
+
+.die-3d.die-crit {
+  border-color: gold;
+  color: #ffefa6;
+  background: linear-gradient(135deg, #4a3a18 0%, #2e1f0a 100%) !important;
+  animation: dieCritFlash 800ms ease-out;
+}
+
+/* Fumble (nat 1) — shake + tint vermelho */
+@keyframes dieFumbleShake {
+  0%,100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-3px) rotate(-2deg); }
+  40% { transform: translateX(3px) rotate(2deg); }
+  60% { transform: translateX(-2px) rotate(-1deg); }
+  80% { transform: translateX(2px) rotate(1deg); }
+}
+
+.die-3d.die-fumble {
+  border-color: #b04848;
+  color: #ffc1c1;
+  background: linear-gradient(135deg, #4a1818 0%, #2e0a0a 100%) !important;
+  animation: dieFumbleShake 400ms ease-out;
+  filter: hue-rotate(-10deg) saturate(1.2);
+}
+
+/* Success normal — tint verde sutil */
+.die-3d.die-success {
+  border-color: #5ab070;
+  color: #d4f0d8;
+  background: linear-gradient(135deg, #1a3a25 0%, #0e2417 100%) !important;
+}
+
+/* Fail normal — tint cinza/escuro */
+.die-3d.die-fail {
+  border-color: #6a6e7a;
+  color: #c0c4d0;
+  background: linear-gradient(135deg, #25282f 0%, #16181d 100%) !important;
+  opacity: 0.88;
+}
+
+/* ── Screen flash (crit em combate) ────────────────────────────────────── */
+.dice-screen-flash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.18) 0%, rgba(255, 215, 0, 0) 70%);
+  pointer-events: none;
+  z-index: 9990;
+  animation: diceFlashFade 600ms ease-out forwards;
+}
+
+@keyframes diceFlashFade {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Dice overlay genérico (combat attack roll, etc) ───────────────────── */
+.dice-roll-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9500;
+  backdrop-filter: blur(3px);
+  animation: doFadeIn 180ms ease-out;
+}
+
+@keyframes doFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dice-roll-overlay .dro-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 32px;
+  background: linear-gradient(160deg, rgba(35, 30, 50, 0.95) 0%, rgba(20, 18, 30, 0.95) 100%);
+  border: 1px solid rgba(180, 150, 90, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  min-width: 260px;
+  max-width: 90vw;
+}
+
+.dice-roll-overlay .dro-label {
+  font-family: 'Cinzel', serif, system-ui;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #c3b58c;
+  opacity: 0.85;
+}
+
+.dice-roll-overlay .dro-preview {
+  font-size: 14px;
+  color: #d8d4c4;
+  opacity: 0.75;
+}
+
+.dice-roll-overlay .dro-verdict {
+  font-family: 'Cinzel', serif, system-ui;
+  font-size: 15px;
+  color: #e8e3cc;
+  text-align: center;
+  min-height: 1.2em;
+}
+
+.dice-roll-overlay .dro-verdict.is-crit  { color: gold; text-shadow: 0 0 8px rgba(255,215,0,0.5); }
+.dice-roll-overlay .dro-verdict.is-fumble { color: #ff8a8a; }
+.dice-roll-overlay .dro-verdict.is-success { color: #8de89b; }
+.dice-roll-overlay .dro-verdict.is-fail   { color: #c0c4d0; }
+
+/* Mobile — dado maior em telas pequenas pra hit target */
+@media (max-width: 480px) {
+  .die-3d {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+  .dice-roll-overlay .dro-stage {
+    padding: 20px 22px;
+    gap: 12px;
+  }
+}
+
+/* ── Prefers reduced motion ──────────────────────────────────────────────
+   - Sem rotação 3D durante roll (só fade)
+   - Sem flash pulsante (solid color)
+   - Sem shake no fumble */
+@media (prefers-reduced-motion: reduce) {
+  .die-3d.is-rolling {
+    animation: dieReducedFade 200ms ease-out;
+  }
+  .die-3d.die-crit {
+    animation: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.55), 0 0 18px 2px rgba(255, 215, 0, 0.6);
+  }
+  .die-3d.die-fumble {
+    animation: none;
+  }
+  .dice-screen-flash {
+    animation: none;
+    opacity: 0;
+  }
+  .dice-roll-overlay {
+    animation: none;
+  }
+}
+
+@keyframes dieReducedFade {
+  0%   { opacity: 0.5; }
+  100% { opacity: 1; }
+}

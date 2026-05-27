@@ -15,6 +15,7 @@ import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
 import { el, setLastSession, clearLastSession } from '../util';
 import { getCharacter } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
+import { showDiceRollOverlay } from '../dice/dice-roll-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
@@ -308,6 +309,24 @@ export class CampaignScreen {
       }
       // SFX baseado no tipo do evento
       const myId = this.character?.id;
+
+      // γ.1 — Attack roll: abre overlay do dado SE foi o player que atacou
+      // (não mostra pro ataque de inimigo — só dano final aparece pro player).
+      if (ev.type === 'attack-roll' && ev.sourceId === myId && typeof ev.value === 'number') {
+        const special = ev.crit ? 'crit' : ev.nat1 ? 'fumble' : null;
+        showDiceRollOverlay({
+          kind: 'd20',
+          label: 'ATAQUE',
+          preview: ev.preview,
+          final: ev.value,
+          special,
+          verdictText: ev.crit ? 'CRÍTICO!' : ev.nat1 ? 'FALHA CRÍTICA' : `Resultado ${ev.value}`,
+          showAfterMs: 1200,
+        });
+        // Não return — outros eventos (damage, miss) chegam logo após e atualizam UI.
+        return;
+      }
+
       switch (ev.type) {
         case 'damage':
           // F21: se foi crit, notifyCrit detecta combo (2+ seguidos = som épico)

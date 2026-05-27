@@ -139,6 +139,45 @@ export function playD20(): void {
   tone({ freq: 900, freqEnd: 400, duration: 0.08, type: 'square', gain: 0.25, delay: 0.15 });
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// γ.1 — Dice 3-camadas: rolling loop + land thud + crit ting.
+// Caller (dice-roll-overlay.ts) orquestra ordem: rolling no spin → land no
+// reveal → crit ting se nat20. Cada som é procedural curto, soma de poucas
+// camadas — bate em mobile sem warm-up.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Dice rolling — tap-tap-tap acelerando por ~600ms. Loop sutil de bursts
+ *  bandpass que imitam o tilintar do dado batendo em superfície. */
+export function playDiceRolling(): void {
+  // 3 bursts iniciais espaçados 80ms
+  for (let i = 0; i < 3; i++) {
+    noise({ duration: 0.04, gain: 0.22, bandpass: { freq: 2400, q: 4 }, delay: i * 0.08 });
+  }
+  // Aceleração nos últimos 200ms — bursts mais densos
+  for (let i = 0; i < 5; i++) {
+    noise({ duration: 0.03, gain: 0.18, bandpass: { freq: 2800, q: 5 }, delay: 0.4 + i * 0.04 });
+  }
+}
+
+/** Dice land — thud baixo quando o dado para (180Hz sawtooth + noise). */
+export function playDiceLand(): void {
+  tone({ freq: 180, freqEnd: 60, duration: 0.18, type: 'sawtooth', gain: 0.45 });
+  noise({ duration: 0.05, gain: 0.2, bandpass: { freq: 400, q: 1.5 } });
+}
+
+/** Dice crit ting — chime ascendente triplo (separado de playCrit que é combat-only). */
+export function playDiceCritTing(): void {
+  tone({ freq: 880, duration: 0.12, type: 'triangle', gain: 0.4 });
+  tone({ freq: 1320, duration: 0.14, type: 'triangle', gain: 0.4, delay: 0.08 });
+  tone({ freq: 1760, duration: 0.18, type: 'triangle', gain: 0.4, delay: 0.16 });
+}
+
+/** Dice nat1 thunk — bass dread descendente, indica fumble. */
+export function playDiceFumble(): void {
+  tone({ freq: 80, freqEnd: 30, duration: 0.4, type: 'sine', gain: 0.5 });
+  noise({ duration: 0.15, gain: 0.3, bandpass: { freq: 200, q: 1 } });
+}
+
 /** Hit de combate — golpe baixo, slap curto. */
 export function playHit(): void {
   tone({ freq: 180, freqEnd: 60, duration: 0.15, type: 'sawtooth', gain: 0.5 });

@@ -1,0 +1,173 @@
+// γ.1 — Tests pras helpers do componente Dado.
+// renderDie é DOM-puro, rollAndReveal usa fake timers.
+// @vitest-environment happy-dom
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Antes de importar dice-3d, garantir que matchMedia exista no jsdom.
+// jsdom não implementa por default — stub mínimo retornando matches=false.
+beforeEach(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+});
+
+describe('renderDie', () => {
+  it('cria um element com data-kind e data-value corretos', async () => {
+    const { renderDie } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: 18 });
+    expect(die.getAttribute('data-kind')).toBe('d20');
+    expect(die.getAttribute('data-value')).toBe('18');
+    expect(die.classList.contains('die-3d')).toBe(true);
+    expect(die.classList.contains('die-d20')).toBe(true);
+  });
+
+  it('aplica special class quando passado', async () => {
+    const { renderDie } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: 20, special: 'crit' });
+    expect(die.classList.contains('die-crit')).toBe(true);
+  });
+
+  it('mostra "?" quando value não fornecido', async () => {
+    const { renderDie } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const face = die.querySelector('.die-face');
+    expect(face?.textContent).toBe('?');
+  });
+
+  it('adiciona aria-label legível pra screen reader', async () => {
+    const { renderDie } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: 15 });
+    expect(die.getAttribute('aria-label')).toContain('D20');
+    expect(die.getAttribute('aria-label')).toContain('15');
+  });
+
+  it('inclui die-shadow pseudo-element pra profundidade', async () => {
+    const { renderDie } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd6', value: 4 });
+    expect(die.querySelector('.die-shadow')).not.toBeNull();
+  });
+});
+
+describe('rollAndReveal', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('seta valor final após duration e chama onDone', async () => {
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    document.body.appendChild(die);
+    const onDone = vi.fn();
+    rollAndReveal(die, { final: 17, special: 'success', onDone, durationMs: 500 });
+
+    expect(die.classList.contains('is-rolling')).toBe(true);
+
+    vi.advanceTimersByTime(600);
+
+    expect(die.classList.contains('is-rolling')).toBe(false);
+    expect(die.getAttribute('data-value')).toBe('17');
+    expect(die.classList.contains('die-success')).toBe(true);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('aplica classe crit no special=crit', async () => {
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    rollAndReveal(die, { final: 20, special: 'crit', durationMs: 300 });
+    vi.advanceTimersByTime(400);
+    expect(die.classList.contains('die-crit')).toBe(true);
+  });
+
+  it('aplica classe fumble no special=fumble', async () => {
+    const { renderDie, rollAndReveal } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    rollAndReveal(die, { final: 1, special: 'fumble', durationMs: 300 });
+    vi.advanceTimersByTime(400);
+    expect(die.classList.contains('die-fumble')).toBe(true);
+  });
+
+  it('respeita prefers-reduced-motion (duração 200ms)', async () => {
+    // Re-mock matchMedia pra retornar matches=true (reduced motion)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    const { renderDie, rollAndReveal, prefersReducedMotion } = await import('../dice-3d');
+    expect(prefersReducedMotion()).toBe(true);
+
+    const die = renderDie({ kind: 'd20' });
+    const onDone = vi.fn();
+    rollAndReveal(die, { final: 12, onDone });
+    // Default 200ms quando reduced-motion
+    vi.advanceTimersByTime(250);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('haptic wrapper', () => {
+  it('degrade gracefully sem navigator.vibrate', async () => {
+    // Sobrescreve vibrate por função que joga erro (simula browser sem suporte
+    // ou permissão negada). Haptic wrapper deve capturar e silenciar.
+    const nav = navigator as Navigator & { vibrate?: unknown };
+    const orig = nav.vibrate;
+    nav.vibrate = () => { throw new Error('vibrate not supported'); };
+    try {
+      const { hapticTap, hapticCrit, hapticFumble, hapticSuccess } = await import('../../haptic');
+      expect(() => hapticTap()).not.toThrow();
+      expect(() => hapticCrit()).not.toThrow();
+      expect(() => hapticFumble()).not.toThrow();
+      expect(() => hapticSuccess()).not.toThrow();
+    } finally {
+      if (orig !== undefined) {
+        nav.vibrate = orig;
+      }
+    }
+  });
+
+  it('chama navigator.vibrate quando disponível', async () => {
+    const spy = vi.fn();
+    (navigator as Navigator & { vibrate?: unknown }).vibrate = spy;
+    // Reset cache do módulo pra pegar enabled fresh
+    vi.resetModules();
+    const { hapticTap, hapticCrit } = await import('../../haptic');
+    hapticTap();
+    expect(spy).toHaveBeenCalledWith(20);
+    hapticCrit();
+    expect(spy).toHaveBeenLastCalledWith([80, 40, 80, 40, 80]);
+  });
+
+  it('respeita setHapticEnabled(false) e silencia vibrate', async () => {
+    const spy = vi.fn();
+    (navigator as Navigator & { vibrate?: unknown }).vibrate = spy;
+    vi.resetModules();
+    const { hapticTap, setHapticEnabled } = await import('../../haptic');
+    setHapticEnabled(false);
+    spy.mockClear();
+    hapticTap();
+    expect(spy).not.toHaveBeenCalled();
+    setHapticEnabled(true); // restaura pra outros tests
+  });
+});

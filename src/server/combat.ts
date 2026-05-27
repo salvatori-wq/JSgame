@@ -365,6 +365,19 @@ export function resolvePlayerAttack(
   let enemyKilled = false;
   let log: string;
 
+  // γ.1 — Emit attack-roll event ANTES de damage/miss. Cliente dispara overlay
+  // do dado animado pra revelar o roll antes de mostrar dano. Player vê o
+  // d20 pintando crit/fumble em tempo real.
+  events.push({
+    type: 'attack-roll',
+    sourceId: attacker.id,
+    targetId: target.id,
+    value: attackRoll.total,
+    crit,
+    nat1: !!attackRoll.nat1,
+    preview: `d20${attackBonus >= 0 ? '+' : ''}${attackBonus} vs CA ${target.armorClass}`,
+  });
+
   if (hit) {
     const diceStr = opts.damageDice ?? '1d8';
     const parsed = parseDiceNotation(diceStr) ?? { count: 1, kind: 8 as const, modifier: 0 };
@@ -509,6 +522,19 @@ export function resolveEnemyTurn(
   let damageRoll: DiceRoll | null = null;
   let playerDowned = false;
   let log: string;
+
+  // γ.1 — Attack-roll event antes de damage/miss (enemy attacks). Cliente
+  // NÃO abre overlay pra ataques do inimigo (player só vê dano), mas o
+  // evento entra no combat log + telemetria.
+  events.push({
+    type: 'attack-roll',
+    sourceId: enemy.id,
+    targetId: target.id,
+    value: attackRoll.total,
+    crit,
+    nat1: !!attackRoll.nat1,
+    preview: `d20+${enemy.attackBonus} vs CA ${effectiveAc}`,
+  });
 
   if (hit) {
     const parsed = parseDiceNotation(enemy.damageDice) ?? { count: 1, kind: 6 as const, modifier: 0 };

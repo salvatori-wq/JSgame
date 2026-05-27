@@ -538,11 +538,16 @@ export type CombatActionKind =
   | 'use-item' | 'shove' | 'grapple' | 'two-weapon';
 
 export interface CombatEvent {
-  type: 'damage' | 'heal' | 'condition-applied' | 'condition-removed' | 'spell-cast' | 'death' | 'attack-miss';
+  type: 'damage' | 'heal' | 'condition-applied' | 'condition-removed' | 'spell-cast' | 'death' | 'attack-miss' | 'attack-roll';
   sourceId?: string;
   targetId?: string;
   value?: number;
   conditionId?: ConditionId;
   text?: string;
   crit?: boolean;  // F21 — sinaliza ao cliente pra disparar combo SFX em crits consecutivos
+  // γ.1 — Attack roll metadata: emitido ANTES de damage/attack-miss pra cliente
+  // disparar overlay do dado. value = roll total (d20+bonus), crit/nat1 flags.
+  nat1?: boolean;
+  // γ.1 — Texto curto pra preview no overlay (ex: "d20+5 vs CA 13").
+  preview?: string;
 }
