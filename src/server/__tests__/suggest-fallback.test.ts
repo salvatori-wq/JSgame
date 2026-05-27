@@ -80,14 +80,15 @@ describe('generateFallbackChips', () => {
       combat: {
         active: true,
         round: 1,
-        turnOrder: ['e1', 'e2', 'e3'],
-        currentTurnIdx: 0,
+        initiativeOrder: [],
+        currentTurnIndex: 0,
+        log: [],
         enemies: [
           makeEnemy({ id: 'e1', name: 'Goblin Sarnento' }),
           makeEnemy({ id: 'e2', name: 'Orc Veterano', currentHp: 25 }),
           makeEnemy({ id: 'e3', name: 'Kobold Sneak', currentHp: 4 }),
         ],
-        events: [],
+
       },
     } as Partial<CampaignState>);
     const chips = generateFallbackChips(state);
@@ -105,13 +106,14 @@ describe('generateFallbackChips', () => {
       combat: {
         active: true,
         round: 2,
-        turnOrder: ['boss', 'minion'],
-        currentTurnIdx: 0,
+        initiativeOrder: [],
+        currentTurnIndex: 0,
+        log: [],
         enemies: [
           makeEnemy({ id: 'minion', name: 'Esqueleto', currentHp: 6 }),
           makeEnemy({ id: 'boss', name: 'Lich Soberano', currentHp: 80, isBoss: true }),
         ],
-        events: [],
+
       },
     } as Partial<CampaignState>);
     const chips = generateFallbackChips(state);
@@ -127,13 +129,14 @@ describe('generateFallbackChips', () => {
       combat: {
         active: true,
         round: 1,
-        turnOrder: ['e1', 'e2'],
-        currentTurnIdx: 0,
+        initiativeOrder: [],
+        currentTurnIndex: 0,
+        log: [],
         enemies: [
           makeEnemy({ id: 'e1', name: 'Vivo', currentHp: 5 }),
           makeEnemy({ id: 'e2', name: 'Morto', currentHp: 0 }),
         ],
-        events: [],
+
       },
     } as Partial<CampaignState>);
     const chips = generateFallbackChips(state);
@@ -148,10 +151,10 @@ describe('generateFallbackChips', () => {
       combat: {
         active: true,
         round: 5,
-        turnOrder: [],
-        currentTurnIdx: 0,
+        initiativeOrder: [],
+        currentTurnIndex: 0,
         enemies: [makeEnemy({ id: 'e1', currentHp: 0 })],
-        events: [],
+        log: [],
       },
     } as Partial<CampaignState>);
     const chips = generateFallbackChips(state);
@@ -165,10 +168,10 @@ describe('generateFallbackChips', () => {
       combat: {
         active: true,
         round: 1,
-        turnOrder: [],
-        currentTurnIdx: 0,
+        initiativeOrder: [],
+        currentTurnIndex: 0,
         enemies: Array.from({ length: 10 }, (_, i) => makeEnemy({ id: `e${i}`, name: `Inimigo${i}` })),
-        events: [],
+        log: [],
       },
     } as Partial<CampaignState>);
     const chips = generateFallbackChips(state);

@@ -22,6 +22,14 @@ export interface UxFunnelSummary {
     avgPerSession: number;
     medianPerSession: number;
     maxInSession: number;
+    /** Mestre Experiente — % de actions de player que resultaram em roll.
+     *  Alvo: >40%. Abaixo = DM narrando demais sem pedir dado. */
+    rollsPerActionRatio: number;
+    /** Mestre Experiente — média de skills DIFERENTES usadas por sessão.
+     *  Alvo: >5. Baixo = DM repetindo Percepção/Investigação/Persuasão. */
+    avgDistinctSkillsPerSession: number;
+    /** Top-3 skills mais usadas globalmente (debug pra ver desbalanço). */
+    topSkills: Array<{ skill: string; count: number }>;
   };
   silence: {
     avgSecondsPerSession: number;
@@ -105,6 +113,48 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
     : 0;
   const maxRolls = rollsPerSession.length > 0 ? rollsPerSession[rollsPerSession.length - 1]! : 0;
 
+  // 3b) Mestre Experiente — actions taken (pra ratio rolls/actions)
+  const actionsRes = await db.execute({
+    sql: `SELECT COUNT(*) AS c
+          FROM metrics_events
+          WHERE created_at >= ? AND kind = 'action_taken'`,
+    args: [since],
+  });
+  const totalActions = Number(actionsRes.rows[0]?.c ?? 0);
+  const rollsPerActionRatio = totalActions > 0 ? Math.round((totalRolls / totalActions) * 1000) / 1000 : 0;
+
+  // 3c) Mestre Experiente — skill variety (distinct skills per session + global top)
+  const skillsRes = await db.execute({
+    sql: `SELECT session_id, payload
+          FROM metrics_events
+          WHERE created_at >= ? AND kind = 'roll_in_session' AND session_id IS NOT NULL`,
+    args: [since],
+  });
+  const distinctSkillsBySession = new Map<string, Set<string>>();
+  const globalSkillCount = new Map<string, number>();
+  for (const row of skillsRes.rows) {
+    const sid = String(row.session_id ?? '');
+    const payloadStr = row.payload != null ? String(row.payload) : null;
+    if (!payloadStr) continue;
+    try {
+      const p = JSON.parse(payloadStr) as { skill?: string };
+      if (typeof p.skill !== 'string' || p.skill.length === 0) continue;
+      const set = distinctSkillsBySession.get(sid) ?? new Set<string>();
+      set.add(p.skill);
+      distinctSkillsBySession.set(sid, set);
+      globalSkillCount.set(p.skill, (globalSkillCount.get(p.skill) ?? 0) + 1);
+    } catch { /* ignore */ }
+  }
+  let totalDistinct = 0;
+  for (const set of distinctSkillsBySession.values()) totalDistinct += set.size;
+  const avgDistinctSkillsPerSession = distinctSkillsBySession.size > 0
+    ? Math.round((totalDistinct / distinctSkillsBySession.size) * 10) / 10
+    : 0;
+  const topSkills = Array.from(globalSkillCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([skill, count]) => ({ skill, count }));
+
   // 4) DM silence — média de silence_seconds por sessão
   const silenceRes = await db.execute({
     sql: `SELECT session_id, payload
@@ -175,6 +225,9 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
       avgPerSession: Math.round(avgRolls * 100) / 100,
       medianPerSession: medianRolls,
       maxInSession: maxRolls,
+      rollsPerActionRatio,
+      avgDistinctSkillsPerSession,
+      topSkills,
     },
     silence: {
       avgSecondsPerSession: Math.round(avgSilenceSeconds * 10) / 10,

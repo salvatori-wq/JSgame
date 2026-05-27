@@ -78,12 +78,15 @@ describe('1C — DM Personality presets', () => {
     expect(SYSTEM_PROMPT).toBe(getSystemPrompt('sombrio'));
   });
 
-  it('todos prompts mantêm regras D&D base (tools, DC table)', () => {
+  it('todos prompts mantêm regras D&D base (tools, DC table, decision tree)', () => {
     for (const p of ALL_PERSONALITIES) {
       const prompt = getSystemPrompt(p.id);
       expect(prompt).toContain('request_skill_check');
       expect(prompt).toContain('start_combat');
-      expect(prompt).toContain('DCs padrão');
+      // Mestre Experiente v2: nova fraseologia da DC table
+      expect(prompt).toContain('TABELA DE DCs');
+      expect(prompt).toContain('DECISION TREE');
+      expect(prompt).toContain('FAIL FORWARD');
     }
   });
 });

@@ -196,6 +196,13 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         });
         // γ.6 — marca ts pra calcular dm_silence (gap até narração)
         lastActionTs = Date.now();
+        // Mestre Experiente — telemetria ratio rolls/actions
+        void trackMetricEvent({
+          userId: sUser?.id ?? null,
+          sessionId: activeCampaignId,
+          kind: 'action_taken',
+          payload: { action: String(action), has_details: !!details },
+        });
 
         await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
           const response = await camp.takeAction(activePlayerId!, action, details);

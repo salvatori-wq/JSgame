@@ -1,15 +1,94 @@
-// γ.2 — Tests do detector de skill check implícito.
+// γ.2 + Mestre Experiente — Tests do detector de skill check implícito.
+// Cobre 18 patterns (8 mentais + 4 físicas + 4 sociais) + negação + edge cases.
 
 import { describe, it, expect } from 'vitest';
 import { detectImpliedSkillCheck } from '../skill-check-detector.js';
 
+describe('Mestre Experiente — patterns novos (18 perícias completas)', () => {
+  it('identificar magia / runa → arcanismo DC 14', () => {
+    expect(detectImpliedSkillCheck('explore', 'Identificar a runa no portal'))
+      .toMatchObject({ skill: 'arcanismo' });
+    expect(detectImpliedSkillCheck('explore', 'Sentir aura mágica do altar'))
+      .toMatchObject({ skill: 'arcanismo' });
+  });
+
+  it('símbolo divino / morto-vivo → religiao DC 13', () => {
+    expect(detectImpliedSkillCheck('explore', 'Reconhecer o símbolo na parede'))
+      .toMatchObject({ skill: 'religiao' });
+    expect(detectImpliedSkillCheck('explore', 'Identificar tipo de morto-vivo'))
+      .toMatchObject({ skill: 'religiao' });
+    expect(detectImpliedSkillCheck('talk', 'Orar pela proteção'))
+      .toMatchObject({ skill: 'religiao' });
+  });
+
+  it('planta / animal / clima → natureza DC 13', () => {
+    expect(detectImpliedSkillCheck('explore', 'Identificar a planta venenosa'))
+      .toMatchObject({ skill: 'natureza' });
+    expect(detectImpliedSkillCheck('explore', 'Prever clima da noite'))
+      .toMatchObject({ skill: 'natureza' });
+  });
+
+  it('diagnóstico / cadáver → medicina DC 13', () => {
+    expect(detectImpliedSkillCheck('explore', 'Examinar o cadáver pra entender a causa'))
+      .toMatchObject({ skill: 'medicina' });
+    expect(detectImpliedSkillCheck('talk', 'Diagnosticar a doença do mendigo'))
+      .toMatchObject({ skill: 'medicina' });
+    expect(detectImpliedSkillCheck('explore', 'Estabilizar o aliado caído'))
+      .toMatchObject({ skill: 'medicina' });
+  });
+
+  it('rastrear / forragear → sobrevivencia DC 13', () => {
+    expect(detectImpliedSkillCheck('explore', 'Rastrear o orc até a caverna'))
+      .toMatchObject({ skill: 'sobrevivencia' });
+    expect(detectImpliedSkillCheck('explore', 'Achar abrigo seguro'))
+      .toMatchObject({ skill: 'sobrevivencia' });
+  });
+
+  it('cavalgar / acalmar besta → adestrar-animais DC 12', () => {
+    expect(detectImpliedSkillCheck('explore', 'Acalmar o cavalo assustado'))
+      .toMatchObject({ skill: 'adestrar-animais' });
+    expect(detectImpliedSkillCheck('travel', 'Cavalgar até a fronteira'))
+      .toBeNull(); // travel action é excluída
+  });
+
+  it('cantar / tocar / atuar → atuacao DC 13', () => {
+    expect(detectImpliedSkillCheck('talk', 'Cantar uma música pra distrair'))
+      .toMatchObject({ skill: 'atuacao' });
+    expect(detectImpliedSkillCheck('talk', 'Tocar o alaúde na taverna'))
+      .toMatchObject({ skill: 'atuacao' });
+  });
+
+  it('ler intenção / duvido → intuicao DC 13', () => {
+    expect(detectImpliedSkillCheck('talk', 'Sinto que ele esconde algo'))
+      .toMatchObject({ skill: 'intuicao' });
+    expect(detectImpliedSkillCheck('talk', 'Verifico se ele mente'))
+      .toMatchObject({ skill: 'intuicao' });
+  });
+
+  it('arrombar / picklock → prestidigitacao DC 14', () => {
+    expect(detectImpliedSkillCheck('explore', 'Arrombar a fechadura do cofre'))
+      .toMatchObject({ skill: 'prestidigitacao' });
+    expect(detectImpliedSkillCheck('explore', 'Escapar de amarras'))
+      .toMatchObject({ skill: 'prestidigitacao' });
+  });
+
+  it('negação universal: "não vou cantar" → null', () => {
+    expect(detectImpliedSkillCheck('talk', 'Não vou cantar agora')).toBeNull();
+    expect(detectImpliedSkillCheck('explore', 'Desisto de identificar a planta')).toBeNull();
+  });
+});
+
 describe('detectImpliedSkillCheck', () => {
   describe('keywords positivas', () => {
-    it('investigar / examinar → investigacao DC 12', () => {
+    it('investigar / procurar → investigacao DC 12', () => {
       expect(detectImpliedSkillCheck('explore', 'Investigar a parede atrás do trono'))
         .toMatchObject({ skill: 'investigacao', dc: 12 });
-      expect(detectImpliedSkillCheck('explore', 'Examinar o corpo'))
+      expect(detectImpliedSkillCheck('explore', 'Procurar pistas no chão'))
         .toMatchObject({ skill: 'investigacao' });
+      // "Examinar o corpo" agora vai pra medicina (semanticamente correto:
+      // examinar corpo = diagnóstico/causa de morte, não investigação genérica)
+      expect(detectImpliedSkillCheck('explore', 'Examinar o corpo'))
+        .toMatchObject({ skill: 'medicina' });
     });
 
     it('persuadir / convencer → persuasao DC 13', () => {

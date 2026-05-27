@@ -362,6 +362,27 @@ export class Campaign {
         activeCharacterProfile: this.buildActiveProfile(playerId),
       });
       this.applyDMResponse(response);
+      // Mestre Experiente — Post-DM auto-inject de skill check.
+      // Se o DM narrou MAS esqueceu de chamar request_skill_check, server detecta
+      // pela ação+details e força pendingCheck. Player NUNCA fica sem rolar quando
+      // a ação implica incerteza+consequência. Combat-aware (skip).
+      const dmAlreadyAskedRoll = this.state.pendingCheck !== null && this.state.pendingCheck !== undefined;
+      const stillInCombat = this.state.combat?.active === true;
+      if (!dmAlreadyAskedRoll && !stillInCombat) {
+        const implied = detectImpliedSkillCheck(String(action), details);
+        if (implied) {
+          const skillDef = getSkill(implied.skill);
+          this.state.pendingCheck = {
+            skill: implied.skill,
+            dc: implied.dc,
+            reason: implied.reason,
+            playerId,
+          };
+          // Adiciona dica na narração pra player ver o "porquê" do roll
+          // sem destruir o que o DM já escreveu.
+          response.narration = `${response.narration.trim()}\n\n_${skillDef.name} DC ${implied.dc} — ${implied.reason.toLowerCase()}._`;
+        }
+      }
       this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
       return response;
     });

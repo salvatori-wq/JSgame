@@ -23,9 +23,10 @@ export type MetricsEventKind =
   // γ.6 — UX baseline metrics
   | 'time_to_first_narration' // payload: { latency_ms } — primeira narração na sessão
   | 'time_to_first_roll'      // payload: { latency_ms } — primeiro skill check/save da sessão
-  | 'roll_in_session'         // payload: { roll_total, success?, nat20?, nat1? }
+  | 'roll_in_session'         // payload: { roll_total, success?, nat20?, nat1?, skill? }
   | 'dm_silence'              // payload: { silence_seconds } — gap entre player action e narration
   | 'combat_action_blocked'   // payload: { reason, kind } — β.4 V2 economy block
+  | 'action_taken'            // payload: { action, has_details } — toda takeAction (pra ratio rolls/actions)
   // F3/F4 — Densidade metrics
   | 'dm_callback_used'        // payload: { npc_count, quest_count, location_count, total }
   | 'dm_used_backstory';      // payload: { trait, ideal, bond, flaw } booleans
