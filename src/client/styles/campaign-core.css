@@ -358,6 +358,17 @@
   border-left: 3px solid rgba(200, 70, 70, 0.85);
   border-radius: 0 4px 4px 0;
   animation: narr-fade-in 0.4s ease-out;
+  transition: opacity 320ms ease;
+}
+/* ψ.5 — Stale: erro anterior fica dim quando novo aparece. Player vê
+ * sequência de erros mas o atual é destaque visual. */
+.camp-narr-entry.is-error.is-stale {
+  opacity: 0.5;
+  background: rgba(85, 30, 30, 0.18);
+  border-left-color: rgba(200, 70, 70, 0.45);
+}
+.camp-narr-entry.is-error.is-stale .cn-retry-btn {
+  display: none;
 }
 .camp-narr-entry.is-error .cnn-speaker {
   color: rgba(220, 110, 110, 1);

@@ -49,12 +49,24 @@ interface SubAction {
  * Renderiza o dock topicizado mode-aware. Retorna container com 4-5 cards de tópicos
  * + drill-down quando algum tópico está aberto.
  */
+// ψ.5 — Estado externo do action dock — sobrevive a re-mounts (cada render()
+// do campaign-screen cria novo closure de renderActionDockTopics, perdendo
+// state local). Mantém customDetails + currentTopic preservados.
+const dockState = {
+  customDetails: '',
+  currentTopic: null as TopicId | null,
+};
+
+/** ψ.5 — Reset state externo (limpa quando sair da campanha). */
+export function resetActionDockState(): void {
+  dockState.customDetails = '';
+  dockState.currentTopic = null;
+}
+
 export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
   const root = el('section', { class: 'action-dock-topics', attrs: { 'aria-label': 'Ações disponíveis' } });
 
-  // Estado local: qual tópico está aberto (null = nenhum)
-  let currentTopic: TopicId | null = null;
-  let customDetails = '';
+  // ψ.5 — Estado lê/escreve do module-level pra preservar entre re-mounts
 
   const topics: TopicDef[] = ctx.isCombat ? combatTopics(ctx) : explorationTopics(ctx);
 
@@ -67,13 +79,13 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
 
     for (const t of topics) {
       if (!t.visible) continue;
-      const isActive = currentTopic === t.id;
+      const isActive = dockState.currentTopic === t.id;
       cardsRow.appendChild(el('button', {
         class: `adt-card ${isActive ? 'is-active' : ''}`,
         attrs: { type: 'button', title: t.label, 'aria-pressed': String(isActive) },
         on: {
           click: () => {
-            currentTopic = isActive ? null : t.id;
+            dockState.currentTopic = isActive ? null : t.id;
             rerender();
           },
         },
@@ -83,11 +95,15 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
       ]));
     }
 
-    if (currentTopic) {
-      drillArea.appendChild(renderDrill(currentTopic, ctx, () => {
-        currentTopic = null;
-        rerender();
-      }, () => { customDetails = ''; rerender(); }, customDetails, (v) => { customDetails = v; }));
+    if (dockState.currentTopic) {
+      drillArea.appendChild(renderDrill(
+        dockState.currentTopic,
+        ctx,
+        () => { dockState.currentTopic = null; rerender(); },
+        () => { dockState.customDetails = ''; rerender(); },
+        dockState.customDetails,
+        (v) => { dockState.customDetails = v; },
+      ));
     }
 
     // Sticky End Turn em combate (sempre visível, NÃO covered por drill)

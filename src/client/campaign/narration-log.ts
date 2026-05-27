@@ -272,7 +272,7 @@ export class NarrationLog {
 
   /**
    * Adiciona card de erro com botão "Tentar de novo".
-   * Substitui qualquer error card anterior (não acumula).
+   * ψ.5 — Acumula até 3 últimos erros (dim os antigos via class .is-stale).
    * Se onRetry for fornecido, mostra botão actionable.
    */
   appendError(payload: {
@@ -284,11 +284,17 @@ export class NarrationLog {
     this.removeThinkingEl();
     this.removeChipsEl(); // α.1 — erro invalida chips da cena anterior
 
-    // Remove o error card anterior se houver
-    if (this.lastErrorEntryEl) {
-      this.lastErrorEntryEl.remove();
-      this.lastErrorEntryEl = null;
+    // ψ.5 — Marca erros anteriores como stale (dim 0.5) em vez de remover.
+    // Player ganha contexto debug se DM falhar várias vezes em sequência.
+    const previousErrors = this.element.querySelectorAll('.camp-narr-entry.is-error:not(.is-stale)');
+    previousErrors.forEach((el) => el.classList.add('is-stale'));
+    // Mantém só os últimos 3 (FIFO).
+    const allErrors = this.element.querySelectorAll('.camp-narr-entry.is-error');
+    if (allErrors.length >= 3) {
+      // Remove o mais antigo
+      allErrors[0]?.remove();
     }
+    this.lastErrorEntryEl = null;
 
     const entry: NarrationEntry = {
       id: genId(),

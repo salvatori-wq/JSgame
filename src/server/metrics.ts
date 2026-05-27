@@ -38,7 +38,12 @@ export type MetricsEventKind =
   // π — Sprint π Bottom Tab Bar — distribuição de uso por slot
   | 'bottom_tab_tap'          // payload: { tab: 'quests'|'achievements'|'npcs'|'chat'|'share'|'more' }
   // κ.1 — Sprint κ.1 Tutorial Duolingo — taxa de conclusão por step
-  | 'duolingo_tutorial_step'; // payload: { step, total, viewed?, completed?, skipped? }
+  | 'duolingo_tutorial_step'  // payload: { step, total, viewed?, completed?, skipped? }
+  // ψ.5 — Sprint ψ.5 polish — métricas-chave faltantes
+  | 'combat_turn_duration'    // payload: { duration_ms } — do start turn player até endTurn
+  | 'narration_word_count'    // payload: { words, kind } — tamanho das narrações
+  | 'auto_retry_success'      // payload: { attempt_n, success } — retry silencioso resolveu?
+  | 'error_kind_seen';        // payload: { kind: 'timeout'|'rate_limit'|'auth'|'parse'|'empty'|'unknown' }
 
 export interface MetricsEvent {
   id: string;

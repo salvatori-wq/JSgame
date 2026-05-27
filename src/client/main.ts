@@ -268,13 +268,20 @@ async function renderHome(): Promise<void> {
     ]));
   }
 
+  // ψ.5 — Debounce 200ms pra não chamar refreshCharsList a cada keystroke.
+  // Antes: digitar "João" disparava 4 API calls em mobile, ficava gago.
+  let ownerInputDebounce: number | null = null;
   const ownerInput = el('input', {
     class: 'home-owner-input',
     attrs: { type: 'text', placeholder: 'Seu nome de jogador', maxlength: '32', value: owner },
     on: {
-      input: async (e) => {
-        setOwnerName((e.target as HTMLInputElement).value);
-        await refreshCharsList();
+      input: (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        setOwnerName(value);
+        if (ownerInputDebounce !== null) clearTimeout(ownerInputDebounce);
+        ownerInputDebounce = window.setTimeout(() => {
+          void refreshCharsList();
+        }, 200);
       },
     },
   }) as HTMLInputElement;

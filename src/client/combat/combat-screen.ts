@@ -70,13 +70,23 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   root.appendChild(tabStrip);
 
   // Swipe handlers (mobile)
+  // ψ.5 — Guard: só dispara se gesto for predominantemente horizontal
+  // (dx > 2*dy). Antes triggava com scroll vertical leve, atrapalhando.
   let touchStartX = 0;
+  let touchStartY = 0;
   root.addEventListener('touchstart', (e: TouchEvent) => {
     touchStartX = e.touches[0]?.clientX ?? 0;
+    touchStartY = e.touches[0]?.clientY ?? 0;
   }, { passive: true });
   root.addEventListener('touchend', (e: TouchEvent) => {
-    const dx = (e.changedTouches[0]?.clientX ?? 0) - touchStartX;
+    const endX = e.changedTouches[0]?.clientX ?? 0;
+    const endY = e.changedTouches[0]?.clientY ?? 0;
+    const dx = endX - touchStartX;
+    const dy = endY - touchStartY;
     if (Math.abs(dx) < 60) return;
+    // ψ.5 — Só conta como swipe horizontal se dx for 2× maior que dy.
+    // Mata false-positive quando player rola log vertical.
+    if (Math.abs(dx) < Math.abs(dy) * 2) return;
     const tabs: CombatTab[] = ['enemies', 'actions', 'log'];
     const idx = tabs.indexOf(getActiveTab());
     if (dx > 0 && idx > 0) setActiveTab(tabs[idx - 1]!);

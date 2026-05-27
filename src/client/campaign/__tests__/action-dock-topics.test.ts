@@ -2,7 +2,7 @@
 // ο.3 — Tests do Action Dock Topicizado.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderActionDockTopics } from '../action-dock-topics';
+import { renderActionDockTopics, resetActionDockState } from '../action-dock-topics';
 
 function baseCtx(overrides: Record<string, any> = {}) {
   return {
@@ -25,6 +25,9 @@ function baseCtx(overrides: Record<string, any> = {}) {
 describe('renderActionDockTopics — exploration', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    // ψ.5 — Reset state externo (preserva customDetails entre re-mounts no jogo,
+    // mas em tests deve começar limpo a cada describe block)
+    resetActionDockState();
   });
 
   it('renderiza 4-5 topic cards', () => {
@@ -100,6 +103,9 @@ describe('renderActionDockTopics — exploration', () => {
 describe('renderActionDockTopics — combat', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    // ψ.5 — Reset state externo (preserva customDetails entre re-mounts no jogo,
+    // mas em tests deve começar limpo a cada describe block)
+    resetActionDockState();
   });
 
   it('End Turn sticky aparece em combat + isMyTurn', () => {
@@ -135,6 +141,9 @@ describe('renderActionDockTopics — combat', () => {
 describe('renderActionDockTopics — custom action', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    // ψ.5 — Reset state externo (preserva customDetails entre re-mounts no jogo,
+    // mas em tests deve começar limpo a cada describe block)
+    resetActionDockState();
   });
 
   it('topic "Livre" abre textarea + send button', () => {
@@ -161,5 +170,46 @@ describe('renderActionDockTopics — custom action', () => {
     const sendBtn = el.querySelector('.adt-custom-send') as HTMLButtonElement;
     sendBtn.click();
     expect(received).toBe('abro o baú devagar');
+  });
+
+  it('ψ.5 — customDetails preservado entre re-mounts (mesma sessão)', () => {
+    // 1º mount: abre custom, digita texto
+    const el1 = renderActionDockTopics(baseCtx());
+    document.body.appendChild(el1);
+    const livre = Array.from(el1.querySelectorAll('.adt-card'))
+      .find((c) => c.textContent?.includes('Livre')) as HTMLButtonElement;
+    livre.click();
+    const textarea1 = el1.querySelector('.adt-custom-textarea') as HTMLTextAreaElement;
+    textarea1.value = 'tento subir na árvore';
+    textarea1.dispatchEvent(new Event('input'));
+
+    // Simula re-mount (campaign-screen render() recria componente).
+    // O state externo já tem currentTopic='custom' + customDetails='...'
+    // então o novo mount JÁ renderiza drill com textarea preenchida.
+    document.body.innerHTML = '';
+    const el2 = renderActionDockTopics(baseCtx());
+    document.body.appendChild(el2);
+    // NÃO clicar livre — drill já tá aberto via state externo preservado
+    const textarea2 = el2.querySelector('.adt-custom-textarea') as HTMLTextAreaElement;
+    expect(textarea2).toBeTruthy();
+    expect(textarea2.value).toBe('tento subir na árvore'); // preserved!
+  });
+
+  it('ψ.5 — resetActionDockState limpa customDetails', () => {
+    const el1 = renderActionDockTopics(baseCtx());
+    document.body.appendChild(el1);
+    (Array.from(el1.querySelectorAll('.adt-card')).find((c) => c.textContent?.includes('Livre')) as HTMLButtonElement).click();
+    const textarea = el1.querySelector('.adt-custom-textarea') as HTMLTextAreaElement;
+    textarea.value = 'algo';
+    textarea.dispatchEvent(new Event('input'));
+
+    resetActionDockState();
+
+    document.body.innerHTML = '';
+    const el2 = renderActionDockTopics(baseCtx());
+    document.body.appendChild(el2);
+    (Array.from(el2.querySelectorAll('.adt-card')).find((c) => c.textContent?.includes('Livre')) as HTMLButtonElement).click();
+    const textarea2 = el2.querySelector('.adt-custom-textarea') as HTMLTextAreaElement;
+    expect(textarea2.value).toBe(''); // limpou
   });
 });

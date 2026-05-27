@@ -196,6 +196,11 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     'bottom_tab_tap',
     // κ.1 — Sprint κ.1 Tutorial Duolingo — taxa de conclusão por step
     'duolingo_tutorial_step',
+    // ψ.5 — Sprint ψ polish — métricas novas
+    'combat_turn_duration',
+    'narration_word_count',
+    'auto_retry_success',
+    'error_kind_seen',
   ]);
   app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
     const kind = String(req.body?.kind ?? '');

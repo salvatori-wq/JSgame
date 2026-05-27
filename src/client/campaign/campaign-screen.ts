@@ -43,7 +43,7 @@ import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
-import { renderActionDockTopics } from './action-dock-topics';
+import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
@@ -120,6 +120,8 @@ export class CampaignScreen {
   // π.1 — Bottom Tab Bar (mobile portrait-narrow). Persistente entre renders.
   private bottomTabBar: BottomTabBarHandle | null = null;
   private currentOpenTab: BottomTabId | null = null;
+  // ψ.5 — Combat turn duration tracking (start ts quando vira meu turno)
+  private myTurnStartedAt = 0;
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -163,6 +165,8 @@ export class CampaignScreen {
     this.currentOpenTab = null;
     // κ.1 — Fecha tutorial Duolingo se aberto
     closeDuolingoTutorial();
+    // ψ.5 — Reset state externo do action dock (customDetails + currentTopic)
+    resetActionDockState();
     closeChatSheet();
     popAllSheets();
     this.partyMessages = [];
@@ -274,14 +278,24 @@ export class CampaignScreen {
             errorMeta: payload.errorMeta,
             ...(retryHandler ? { onRetry: retryHandler } : {}),
           });
+          // ψ.5 — Telemetria distribution kinds de erro
+          trackClientMetric('error_kind_seen', { kind: payload.errorMeta.errorKind });
         } else {
           this.narrationLog!.appendError({
             message: payload.text,
             ...(retryHandler ? { onRetry: retryHandler } : {}),
           });
+          trackClientMetric('error_kind_seen', { kind: 'unknown' });
         }
       } else {
         this.narrationLog!.appendNarration({ speaker, text: payload.text });
+        // ψ.5 — Narration word count + auto_retry_success
+        const words = payload.text.split(/\s+/).filter((w) => w.length > 0).length;
+        trackClientMetric('narration_word_count', { words, kind: 'normal' });
+        if (this.autoRetriedThisCycle) {
+          // Retry silent funcionou — narração válida chegou após retry
+          trackClientMetric('auto_retry_success', { attempt_n: 1, success: true });
+        }
         // Reset retry flag — narração válida chegou
         this.autoRetriedThisCycle = false;
       }
@@ -304,6 +318,16 @@ export class CampaignScreen {
           body: `Combate em ${state.currentLocation} — joga teu turno.`,
           tag: 'turn',
         });
+        // ψ.5 — Start timer pra combat_turn_duration
+        this.myTurnStartedAt = Date.now();
+      }
+      if (wasMyTurn && !isMyTurnNow && this.myTurnStartedAt > 0) {
+        // ψ.5 — End timer + track
+        const duration_ms = Date.now() - this.myTurnStartedAt;
+        if (duration_ms > 0 && duration_ms < 600_000) { // sanity 0-10min
+          trackClientMetric('combat_turn_duration', { duration_ms });
+        }
+        this.myTurnStartedAt = 0;
       }
 
       // POLISH γ.3 — Scene transition: location mudou → pulsa header pra

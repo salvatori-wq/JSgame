@@ -3,22 +3,15 @@
 // Coverage: append OK, rate limit token-bucket, refill por tempo, FIFO cap 50,
 // empty text rejeitado.
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Campaign } from '../campaign.js';
-import type { DMInterface, DMResponse } from '../dm/dm.js';
-import type { NarrationContext } from '../dm/prompts.js';
-
-class StubDM implements DMInterface {
-  async narrate(_ctx: NarrationContext): Promise<DMResponse> {
-    return { narration: 'stub', speaker: 'Mestre', toolCalls: [], raw: '' };
-  }
-}
+import { FallbackDM } from '../dm/dm.js';
 
 describe('Campaign.appendPartyMessage', () => {
   let camp: Campaign;
 
   beforeEach(() => {
-    camp = new Campaign(new StubDM());
+    camp = new Campaign(new FallbackDM());
   });
 
   it('aceita primeira mensagem e armazena com id+timestamp', () => {
