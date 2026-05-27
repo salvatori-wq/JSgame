@@ -16,6 +16,7 @@ import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
 import { consumeBuffs, readAcBonus } from './buff-engine.js';
 import { resetReactionsForRound } from './reaction-engine.js';
+import { enrichAttackLog, buildKoNarration } from './combat-narrator.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -426,7 +427,15 @@ export function resolvePlayerAttack(
         text: `${target.name} cai.`,
       });
     }
-    log = `${attacker.characterName} → ${target.name}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${totalDamage} dmg${enemyKilled ? ' · MORTO' : ''}`;
+    // F2 — narração enrichada com variação de verbos
+    log = enrichAttackLog({
+      attackerName: attacker.characterName,
+      targetName: target.name,
+      attackRoll: attackRoll.total,
+      targetAc: target.armorClass,
+      hit: true, crit, nat1: false,
+      damage: totalDamage, killed: enemyKilled,
+    });
   } else {
     events.push({
       type: 'attack-miss',
@@ -434,7 +443,14 @@ export function resolvePlayerAttack(
       targetId: target.id,
       text: `${attacker.characterName} erra ${target.name}`,
     });
-    log = `${attacker.characterName} → ${target.name}: ${attackRoll.total} vs CA ${target.armorClass} · ${attackRoll.nat1 ? 'FALHA CRÍTICA' : 'MISS'}`;
+    log = enrichAttackLog({
+      attackerName: attacker.characterName,
+      targetName: target.name,
+      attackRoll: attackRoll.total,
+      targetAc: target.armorClass,
+      hit: false, crit: false, nat1: !!attackRoll.nat1,
+      damage: 0, killed: false,
+    });
   }
 
   combat.log.push(log);
@@ -580,14 +596,23 @@ export function resolveEnemyTurn(
       text: `${enemy.name} ${crit ? 'CRITA' : 'acerta'} ${target.characterName}: ${finalDmg} de dano${finalDmg !== damageRoll.total ? ' (½ fúria)' : ''}`,
     });
     if (playerDowned) {
+      // F2 — narração KO dramática server-side (sem LLM call)
       events.push({
         type: 'condition-applied',
         targetId: target.id,
         conditionId: 'inconsciente',
-        text: `${target.characterName} caiu inconsciente.`,
+        text: buildKoNarration(target.characterName),
       });
     }
-    log = `${enemy.name} → ${target.characterName}: ${attackRoll.total} vs CA ${target.armorClass} · ${crit ? 'CRIT' : 'HIT'} · ${finalDmg} dmg${playerDowned ? ' · INCONSCIENTE' : ''}`;
+    // F2 — narração enrichada com verbos variados (enemy attacks)
+    log = enrichAttackLog({
+      attackerName: enemy.name,
+      targetName: target.characterName,
+      attackRoll: attackRoll.total,
+      targetAc: target.armorClass,
+      hit: true, crit, nat1: false,
+      damage: finalDmg, killed: playerDowned,
+    });
   } else {
     events.push({
       type: 'attack-miss',
@@ -595,7 +620,14 @@ export function resolveEnemyTurn(
       targetId: target.id,
       text: `${enemy.name} erra ${target.characterName}`,
     });
-    log = `${enemy.name} → ${target.characterName}: ${attackRoll.total} vs CA ${target.armorClass} · ${attackRoll.nat1 ? 'FALHA CRÍTICA' : 'MISS'}`;
+    log = enrichAttackLog({
+      attackerName: enemy.name,
+      targetName: target.characterName,
+      attackRoll: attackRoll.total,
+      targetAc: target.armorClass,
+      hit: false, crit: false, nat1: !!attackRoll.nat1,
+      damage: 0, killed: false,
+    });
   }
 
   combat.log.push(log);

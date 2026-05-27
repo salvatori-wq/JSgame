@@ -178,6 +178,16 @@ export function playDiceFumble(): void {
   noise({ duration: 0.15, gain: 0.3, bandpass: { freq: 200, q: 1 } });
 }
 
+/** F2 — Kill satisfying: sawtooth descending + noise burst + chime descendente.
+ *  Distinto de playDamage. Dispara em death events de inimigos. */
+export function playEnemyKill(): void {
+  tone({ freq: 220, freqEnd: 60, duration: 0.4, type: 'sawtooth', gain: 0.6 });
+  noise({ duration: 0.3, gain: 0.3, bandpass: { freq: 800, q: 1.5 } });
+  // Chime descendente final pra fechar com peso
+  tone({ freq: 660, duration: 0.18, type: 'triangle', gain: 0.35, delay: 0.25 });
+  tone({ freq: 440, duration: 0.22, type: 'triangle', gain: 0.35, delay: 0.35 });
+}
+
 /** Hit de combate — golpe baixo, slap curto. */
 export function playHit(): void {
   tone({ freq: 180, freqEnd: 60, duration: 0.15, type: 'sawtooth', gain: 0.5 });

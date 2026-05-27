@@ -430,7 +430,17 @@
 }
 .fn-damage { color: #ff7860; }
 .fn-heal   { color: #80e090; font-size: 22px; }
-.fn-crit   { color: #ffd060; font-size: 30px; text-transform: uppercase; }
+.fn-crit   {
+  color: gold;
+  font-size: 48px;
+  text-transform: uppercase;
+  text-shadow:
+    0 2px 6px rgba(0,0,0,0.85),
+    0 0 16px rgba(255, 215, 0, 0.9),
+    0 0 28px rgba(255, 215, 0, 0.5);
+  /* F2 — crit usa easing bouncy + duração maior pra dar peso */
+  animation: fn-rise-crit 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
 .fn-miss   { color: #a09080; font-size: 18px; font-style: italic; }
 
 @keyframes fn-rise {
@@ -438,6 +448,75 @@
   15%  { transform: translate(-50%, -85%) scale(1.15); opacity: 1; }
   60%  { transform: translate(-50%, -130%) scale(1); opacity: 1; }
   100% { transform: translate(-50%, -200%) scale(0.9); opacity: 0; }
+}
+
+/* F2 — Crit float com peso: bigger, slower fade, bouncy entrance */
+@keyframes fn-rise-crit {
+  0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  20%  { transform: translate(-50%, -75%) scale(1.4); opacity: 1; }
+  50%  { transform: translate(-50%, -110%) scale(1.2); opacity: 1; }
+  85%  { transform: translate(-50%, -180%) scale(1.1); opacity: 1; }
+  100% { transform: translate(-50%, -230%) scale(0.95); opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   F2 — Crit que faz suar: shake on hit + critical HP pulse + dying anim
+   ════════════════════════════════════════════════════════════════════════ */
+
+@keyframes hitShake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+.cb-enemy-card.is-hit { animation: hitShake 300ms ease-out; }
+.cp-pj.is-hit         { animation: hitShake 300ms ease-out; }
+
+@keyframes criticalPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 80, 80, 0); }
+  50%      { opacity: 0.75; box-shadow: 0 0 10px 2px rgba(255, 80, 80, 0.55); }
+}
+
+.cb-enemy-hp-fill.is-low,
+.cp-pj-hp-fill.is-low {
+  animation: criticalPulse 1.5s ease-in-out infinite;
+}
+
+/* Enemy dying — fade + descend + grayscale over 800ms */
+@keyframes enemyDying {
+  0%   { opacity: 1;   transform: translateY(0);   filter: grayscale(0); }
+  100% { opacity: 0.3; transform: translateY(20px); filter: grayscale(1); }
+}
+
+.cb-enemy-card.is-dying {
+  animation: enemyDying 800ms ease-in forwards;
+  pointer-events: none;
+}
+
+/* Crit kill ganha flash dourado por ~400ms ao mesmo tempo */
+.cb-enemy-card.is-dying.is-crit-kill {
+  box-shadow: 0 0 30px 6px rgba(255, 215, 0, 0.6);
+}
+
+/* Reduced motion — desliga shake e pulse */
+@media (prefers-reduced-motion: reduce) {
+  .cb-enemy-card.is-hit,
+  .cp-pj.is-hit {
+    animation: none;
+  }
+  .cb-enemy-hp-fill.is-low,
+  .cp-pj-hp-fill.is-low {
+    animation: none;
+    box-shadow: 0 0 8px 1px rgba(255, 80, 80, 0.4);
+  }
+  .cb-enemy-card.is-dying {
+    animation: none;
+    opacity: 0.3;
+    filter: grayscale(1);
+  }
+  .fn-pop, .fn-crit {
+    animation-duration: 400ms;
+  }
 }
 
 /* F23 — Class features bar (Big 7) */

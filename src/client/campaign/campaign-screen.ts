@@ -24,7 +24,7 @@ import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { openShopModal, closeShopModal } from '../shop/shop-modal';
-import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled } from '../audio';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled, playEnemyKill } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
 import { enqueueLevelUp } from '../level-up-overlay';
@@ -350,21 +350,34 @@ export class CampaignScreen {
           playNpcSpeaks(); // chime suave de alerta — reusa SFX
           break;
         case 'death':
-          playDamage();
+          // F2 — kill satisfying se for inimigo morrendo; player KO mantém playDamage
+          if (ev.targetId && ev.targetId !== myId) {
+            playEnemyKill();
+          } else {
+            playDamage();
+          }
           break;
       }
-      // F34 — Floating numbers + HP flash. Antes do render pra agarrar
-      // o elemento alvo ainda renderizado com o HP "atual" pré-flash.
+      // F34 + F2 — Floating numbers + HP flash + hit shake + dying anim.
       if (ev.targetId) {
         const targetEl = findCombatTarget(ev.targetId);
         if (targetEl) {
           if (ev.type === 'damage' && typeof ev.value === 'number') {
             spawnFloating(targetEl, { value: ev.value, kind: ev.crit ? 'crit' : 'damage' });
             flashHpBar(targetEl);
+            // F2 — hit shake (300ms). Re-disparável via reflow.
+            targetEl.classList.remove('is-hit');
+            void targetEl.offsetWidth;
+            targetEl.classList.add('is-hit');
+            window.setTimeout(() => targetEl.classList.remove('is-hit'), 350);
           } else if (ev.type === 'heal' && typeof ev.value === 'number') {
             spawnFloating(targetEl, { value: ev.value, kind: 'heal' });
           } else if (ev.type === 'attack-miss') {
             spawnFloating(targetEl, { value: 0, kind: 'miss' });
+          } else if (ev.type === 'death') {
+            // F2 — dying animation (800ms). Render normal vai aplicar is-dead depois.
+            targetEl.classList.add('is-dying');
+            if (ev.crit) targetEl.classList.add('is-crit-kill');
           }
         }
       }
