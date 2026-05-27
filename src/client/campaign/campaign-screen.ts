@@ -752,6 +752,15 @@ export class CampaignScreen {
   private updateMainContent(): void {
     if (!this.slots) return;
     const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
+    // FIX mobile dock: marca .camp-screen com class is-in-combat pra dock destacar borda vermelha
+    this.shellEl?.classList.toggle('is-in-combat', !!isCombat);
+    // FIX morte invisível: marca body com is-player-down quando PJ HP <= 0
+    document.body.classList.toggle('is-player-down', !!this.character && this.character.currentHp <= 0);
+    // FIX morte definitiva: 3 falhas no death save → tombstone overlay
+    document.body.classList.toggle(
+      'is-player-dead',
+      !!this.character && this.character.currentHp <= 0 && (this.character.deathSaveFailures ?? 0) >= 3,
+    );
     if (isCombat && this.currentState?.combat && this.character) {
       const combatWrap = el('div');
       renderCombatScreen(combatWrap, {

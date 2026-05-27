@@ -1,0 +1,195 @@
+/* JSgame · Mobile Camp Dock — pegada "Uber" pra portrait-narrow.
+ *
+ * Antes: tudo empilhado vertical, player precisava scrollar até o fim pra
+ * achar chat ou actions. Em combate, problema crítico — chat ficava embaixo
+ * de combat-screen (que é grande).
+ *
+ * Agora:
+ *   ┌────────────────────────┐
+ *   │  HEADER (sticky top)   │  ← navegação + location
+ *   ├────────────────────────┤
+ *   │  PARTY (compact)       │  ← HP/conditions resumo
+ *   ├────────────────────────┤
+ *   │  DEATH BANNER (sticky) │  ← só quando HP=0
+ *   ├────────────────────────┤
+ *   │                        │
+ *   │  NARRATION (scroll)    │  ← cresce, scroll interno
+ *   │                        │
+ *   ├────────────────────────┤
+ *   │  ACTIONS (sticky dock) │  ← combat-screen OU action-bar
+ *   ├────────────────────────┤
+ *   │  CHAT (sticky bottom)  │  ← input + send sempre acessível
+ *   └────────────────────────┘
+ *
+ * Toda mudança dentro de body.is-portrait-narrow pra não quebrar desktop. */
+
+body.is-portrait-narrow .camp-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  margin: 0;
+  max-width: 100%;
+}
+
+/* HEADER — sticky top, fundo opaco pra não vazar narration */
+body.is-portrait-narrow .ch-slot-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(10, 6, 8, 0.94) 100%);
+  border-bottom: 1px solid rgba(244, 208, 127, 0.15);
+  padding: 0;
+}
+
+/* PARTY — compacto + scroll-x se múltiplos PJs (coop) */
+body.is-portrait-narrow .ch-slot-party {
+  flex-shrink: 0;
+  max-height: 22vh;
+  overflow-y: auto;
+  padding: 6px var(--m-padding-screen);
+  background: rgba(20, 12, 8, 0.45);
+}
+
+/* DEATH BANNER — sticky logo abaixo do header, drama máximo */
+body.is-portrait-narrow .ch-slot-death-banner {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 11;
+}
+
+/* NARRATION HOST — grow + scroll interno (KEY DA DOCK STYLE!) */
+body.is-portrait-narrow .ch-narration-host {
+  flex: 1 1 auto;
+  min-height: 0;  /* essential pra flex child scroll funcionar */
+  overflow-y: auto;
+  padding: 8px var(--m-padding-screen);
+  /* Scroll-padding bottom pra última narração não ficar tampada pela dock */
+  scroll-padding-bottom: 24px;
+}
+
+/* PENDING CHECK — sticky no fim da narration (acima da dock) */
+body.is-portrait-narrow .ch-slot-pending-check:empty {
+  display: none;
+}
+body.is-portrait-narrow .ch-slot-pending-check {
+  flex-shrink: 0;
+  background: var(--bg-deep);
+  padding: 4px var(--m-padding-screen);
+  border-top: 1px solid rgba(244, 208, 127, 0.15);
+}
+
+/* MAIN CONTENT (ações/combat) — DOCK fixed bottom acima do chat */
+body.is-portrait-narrow .ch-slot-main-content:empty {
+  display: none;
+}
+body.is-portrait-narrow .ch-slot-main-content {
+  flex-shrink: 0;
+  /* Max 55vh — se combat-screen for grande, scroll interno cuida */
+  max-height: 55vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.96) 0%, rgba(10, 6, 8, 0.99) 100%);
+  border-top: 2px solid rgba(244, 208, 127, 0.35);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.7);
+  padding: 8px var(--m-padding-screen);
+}
+
+/* CHAT BAR — sticky bottom, sempre visível */
+body.is-portrait-narrow .ch-slot-chat-bar:empty {
+  display: none;
+}
+body.is-portrait-narrow .ch-slot-chat-bar {
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.95) 0%, var(--bg-deep) 100%);
+  border-top: 1px solid rgba(244, 208, 127, 0.18);
+  padding: 6px var(--m-padding-screen) calc(6px + var(--m-safe-bottom, 0px));
+}
+
+/* Override do margin-top padrão do chat-bar (não precisa em dock layout) */
+body.is-portrait-narrow .camp-chat-bar {
+  margin-top: 0;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+body.is-portrait-narrow .camp-chat-input {
+  min-height: var(--m-hit-min);
+  font-size: 14px;
+}
+
+body.is-portrait-narrow .camp-chat-send {
+  min-height: var(--m-hit-min);
+  padding: 8px 14px;
+}
+
+/* AJUSTE COMBAT-SCREEN dentro do dock — não duplicar padding */
+body.is-portrait-narrow .ch-slot-main-content .combat-screen {
+  margin-top: 0;
+  padding: 6px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Combat actions sempre full-width na dock */
+body.is-portrait-narrow .ch-slot-main-content .cb-actions {
+  padding: 8px;
+}
+
+/* Camp actions (exploration) — full-width na dock */
+body.is-portrait-narrow .ch-slot-main-content .camp-actions {
+  padding: 4px 0;
+}
+
+body.is-portrait-narrow .ch-slot-main-content .camp-actions-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+/* Header em mobile mais compacto */
+body.is-portrait-narrow .camp-header {
+  padding: 6px var(--m-padding-screen);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+body.is-portrait-narrow .camp-title h2 {
+  font-size: var(--fs-md);
+  margin: 0;
+}
+
+body.is-portrait-narrow .camp-loc {
+  font-size: var(--fs-xs);
+}
+
+/* Initiative tracker em combat — não scroll-snap em mobile (atrapalha) */
+body.is-portrait-narrow .cb-initiative {
+  scroll-snap-type: none;
+  padding: 6px;
+}
+
+body.is-portrait-narrow .cb-init-row {
+  min-width: 60px;
+  padding: 4px 6px 2px;
+}
+
+body.is-portrait-narrow .cb-init-avatar,
+body.is-portrait-narrow .cb-init-kind {
+  width: 26px;
+  height: 26px;
+  font-size: 18px;
+}
+
+/* Mensagem clara quando combate ativo: dock highlighted */
+body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
+  border-top-color: var(--accent-blood);
+  box-shadow: 0 -8px 24px rgba(200, 64, 50, 0.35);
+}
