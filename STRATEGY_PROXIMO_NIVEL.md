@@ -65,11 +65,72 @@
 
 ---
 
-## 3. Os 9 sprints temáticos
+## 3. Os 10 sprints temáticos
 
-Letras gregas continuação dos 6 POLISH (α/β/γ/δ/ε/ζ). Próximas: **ο η θ ι κ λ μ ν ξ** (omicron/eta/theta/iota/kappa/lambda/mu/nu/xi).
+Letras gregas continuação dos 6 POLISH (α/β/γ/δ/ε/ζ). Próximas: **ο η θ ι κ λ μ ν ξ π** (omicron/eta/theta/iota/kappa/lambda/mu/nu/xi/pi).
 
 > **Sprint ο vai PRIMEIRO** — interface é a alma (memória `feedback_interface_alma`). UX dinâmica pegada Uber é fundação visual que todas as mecânicas D&D vão habitar. Inverte ordem original (η D&D era #1) porque player só sente "isso é D&D real" se a tela já está viva.
+>
+> **Sprint π** adicionado pós-playtest da MEGA SESSION (2026-05-27) — pegada Uber/Wash Me valida bottom tab bar persistente. Continuação natural de ο.
+
+### Sprint π — "Bottom Tab Bar Uber Native" (~6h)
+
+**Hipótese**: pegada Uber/Wash Me exige bottom tab bar persistente com 4-5 ferramentas primárias. Os ícones secundários do header (📜🏆👥🔗) viram tab bar fixa inferior. Player não precisa lembrar que existe overflow ⋯ — vê tudo 1 tap. Chat pill ο.2 some, vira tab Chat permanente com mesmo badge. Action Dock ο.3 fica intocado.
+
+#### π.1 Bottom Tab Bar component (~2h)
+- `src/client/campaign/bottom-tab-bar.ts` NOVO — renderer + state handle
+- 5 slots padrão: Quests (📜) / Conquistas (🏆) / NPCs (👥) / Chat (💬, coop) ou Share (🔗, solo) / Mais (⚙ → overflow menu)
+- Active state: indicador dourado superior + label colored
+- Badge unread vermelho no Chat (substitui chat-pill badge)
+- Tap em "Mais" abre overflow menu existente (sons/música/glossário/tela/dificuldade)
+- Active state sync via callback (campaign-screen rastreia qual modal está aberto)
+- Tests: render 5 tabs / active toggle / badge / coop vs solo / click handlers (~10 tests)
+
+#### π.2 Refactor header limpo (~1h)
+- Remove botões 📜🏆👥🔗 do `renderHeader` em mobile portrait-narrow
+- Status Ribbon (ο.1) já é minimalista — sem mudança
+- Desktop mantém header full com botões inline (sem regression)
+- Header passa de ~60-80px → ~36px firme. Mais narration visível.
+
+#### π.3 Chat absorvido pelo tab bar (~1h)
+- `chat-pill.ts` marca @deprecated, removido em portrait-narrow
+- `ensureChatPill` → `ensureChatTab` em campaign-screen
+- Tap no slot Chat dispara `openPartyChat()` (mesma lógica atual)
+- Solo (party.length===1): slot Chat oculto, vira Share (clipboard copy do campId)
+- Badge unread agora no tab bar slot (não em pill)
+
+#### π.4 Layout dock ajustes (~1h)
+- `m-camp-dock.css` adiciona slot `.ch-slot-bottom-tabs` no fim do flex
+- Max-height de `.ch-slot-main-content` ajusta 55vh → 48vh pra dar espaço pros 56px
+- Variável CSS `--btb-height: 56px` pra cálculos consistentes
+- chat-bar legacy continua existindo no DOM mas oculto em portrait-narrow (desktop ainda usa)
+
+#### π.5 Visual polish + integration (~30min)
+- Active indicator slide 200ms transform:translateX entre tabs
+- Density profile (ο.8) muda altura: compact=48px / standard=56px / comfortable=64px
+- prefers-reduced-motion: indicator instant (sem slide)
+- Touch feedback scale(0.95) 100ms ao tap
+- Haptic vibrate 10ms no tap (mobile com suporte)
+
+#### π.6 Tests + documentação (~30min)
+- `bottom-tab-bar.test.ts`: ~12 tests cobrindo render, active state, badges, coop vs solo, click callbacks
+- Integration: campaign-screen mobile mostra tab bar, desktop não
+
+**Métricas-alvo**:
+- `bottom_tab_tap_distribution`: medir qual tab é mais usada (informa próximas iterações)
+- `chat_open_via_tab_pct`: deve substituir 100% do chat-pill flow
+- `time_to_open_modal`: deve cair (1 tap fixo vs scroll up + tap)
+
+**Commit sugestão**: `feat(ui-π): bottom tab bar uber native — quests/achievements/npcs/chat/mais`
+
+Total: ~6h, 4 commits separados (1 por sub-sprint maior) ou 1 commit batched.
+
+**Decisões D10-D12**:
+- **D10**: Chat pill ο.2 — remover imediatamente ou coexistir 1 sprint? **Remover imediatamente**.
+- **D11**: Slot "Mais" — abre overflow menu completo ou settings direto? **Overflow menu** (não fragmenta).
+- **D12**: Solo mode slot 4 — vira Share ou esconde (4 slots)? **Vira Share** (5 slots fixo é visualmente mais bonito).
+
+---
 
 ### Sprint ο — "Pegada Uber — Tela Viva" (~12h)
 
