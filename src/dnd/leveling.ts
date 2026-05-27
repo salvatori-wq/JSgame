@@ -226,10 +226,18 @@ function applyPlannedLevel4Choice(sheet: CharacterSheet): void {
       sheet.abilityScoresBase[plusOne] = Math.min(20, sheet.abilityScoresBase[plusOne] + 1);
     }
   } else if (choice.kind === 'feat') {
-    // Feat: armazena apenas como flag em worldFlags-equivalent não existe pro sheet.
-    // Fallback simples: anexa em backstory pra registrar até feature de feats existir.
-    // (F11 já planejou — feature isolada aqui só pra não quebrar wizard).
-    sheet.backstory = (sheet.backstory ? sheet.backstory + '\n' : '') + `[Feat nv 4: ${choice.featId}]`;
+    // η.1 — Feat aplica mecânica real via feat-effects-engine.
+    // Import dinâmico pra evitar ciclo (server-only module ref em arquivo dnd/).
+    // Em ambiente onde server-side não está disponível (test puro do dnd),
+    // o try/catch protege. Em runtime do server, sempre roda.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const engine = require('../server/feat-effects-engine.js') as typeof import('../server/feat-effects-engine.js');
+      engine.applyFeatEffects(sheet, choice.featId, choice.resilientAbility);
+    } catch {
+      // Fallback: anexa marker no backstory (será migrado on-load depois)
+      sheet.backstory = (sheet.backstory ? sheet.backstory + '\n' : '') + `[Feat nv 4: ${choice.featId}]`;
+    }
   }
 
   // Limpa pra evitar re-aplicar em level-ups futuros

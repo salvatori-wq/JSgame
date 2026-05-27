@@ -17,6 +17,7 @@ import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/da
 import { consumeBuffs, readAcBonus } from './buff-engine.js';
 import { resetReactionsForRound } from './reaction-engine.js';
 import { enrichAttackLog, buildKoNarration } from './combat-narrator.js';
+import { getInitiativeBonus } from './feat-effects-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 
@@ -77,7 +78,9 @@ export function startCombat(input: StartCombatInput): CombatState {
   const initiativeOrder: CombatState['initiativeOrder'] = [];
   for (const p of input.party) {
     const dexMod = abilityModifier(p.abilityScores.des);
-    const roll = rollD20({ modifier: dexMod });
+    // η.1 — Alert feat adiciona +5 initiative (PHB pág 165)
+    const featBonus = getInitiativeBonus(p);
+    const roll = rollD20({ modifier: dexMod + featBonus });
     initiativeOrder.push({
       id: p.id,
       kind: 'player',

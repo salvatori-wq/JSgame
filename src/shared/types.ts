@@ -20,9 +20,12 @@ export type { SubclassId } from '../dnd/subclasses';
 export type { FeatId } from '../dnd/feats';
 
 // Escolha pré-planejada de ASI ou Feat — aplica quando PJ atinge nv 4.
+// η.1 — Feats com sub-escolha:
+//   Resilient → ability key adicional
+//   (Magic Initiate: V2 — V1 ainda não suporta seleção fina)
 export type PlannedLevel4Choice =
   | { kind: 'asi'; plusTwo: AbilityKey; plusOne: AbilityKey }
-  | { kind: 'feat'; featId: FeatId };
+  | { kind: 'feat'; featId: FeatId; resilientAbility?: AbilityKey };
 
 // ════════════════════════════════════════════════════════════════════════════
 // CharacterSheet — ficha de personagem completa D&D 5e.
@@ -146,6 +149,15 @@ export interface CharacterSheet {
   // grant_inspiration tool; player gasta antes de rolar pra ganhar advantage.
   // Default 0, max 3 (clamp server-side). Não persiste em hard drop, mas serializa.
   inspirations?: number;
+
+  // η.1 — Feats owned (lista PHB cap 6). Cada feat aplica mecânica via
+  // feat-effects-engine.ts. Inicialmente vazio; populado em level-up via
+  // plannedLevel4Choice/plannedAsiChoices ou applyFeatEffects manual.
+  featsOwned?: FeatId[];
+  // η.1 — Lucky points (feat Lucky): 3 pontos / long rest, gasta pra reroll d20.
+  // PHB pág 167. Server consome via socket event; cliente decide gastar antes do roll.
+  luckyPointsRemaining?: number;
+  luckyPointsMax?: number;
 }
 
 // A2 — Buff engine
