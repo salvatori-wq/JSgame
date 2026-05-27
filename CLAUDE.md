@@ -135,6 +135,20 @@ git log --oneline | head -10
 - β.7 end-turn chip pulsa quando todos slots gastos
 - β.1 action layer unification PENDENTE (refactor maior, audit visual)
 
+### POLISH γ "Vida da Cena" — 1 commit, 1165→1179 tests (+14)
+- e621f27: dm.ts classifyError + makeGracefulFallback errorMeta + cascade.providerNames + dmNarration mood='error' + appendDegradedNarration cliente
+- γ.3 scene transition: .camp-loc.is-scene-changed pulsa (scale + glow) 1200ms quando currentLocation muda
+- γ.4 error recovery rico END-TO-END: server classifica erro (6 kinds), propaga lista providers tentados, client renderiza card com chip + toggle "ver detalhes técnicos" + retry button (canRetry=false pra auth)
+- γ.6 thinking tempo real JÁ feito em α.6 (4 fases + 12 dicas)
+- γ.1 SSE streaming + γ.2 pre-fetch PENDENTES (refactor server grande)
+- γ.5 auto-retry silent JÁ existia em callWithBackoff (2 tentativas 2s gap pra erros transientes)
+
+### POLISH δ "Coop Sem Drama" — 1 commit, 1179 tests (mantidos)
+- 570914c: connection-status.ts NOVO + cb-waiting visual rico
+- δ.2 reconnect banner sticky top com 3 estados (hidden/reconnecting/failed) + botão "Tentar agora" após 15s
+- δ.4 turn indicator visual: enemy "🩸" / aliado "🤝 + torcer 🤞" / aguardando "⏳"
+- δ.1 presence + δ.3 chat polish + δ.5 lobby personality preview PENDENTES (server events novos)
+
 ### POLISH α "Primeira Impressão" — 2 commits, 1143→1165 tests (+22)
 - 28c86ab: login fallback + cta-glow prefab + randomize wizard + thinking rico
 - adeb270: tutorial inline 1ª vez no skill check overlay
