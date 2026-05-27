@@ -13,7 +13,7 @@ import type {
 import { SKILLS } from '../../dnd/skills';
 import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
 import { el, setLastSession, clearLastSession } from '../util';
-import { getCharacter } from '../api';
+import { getCharacter, trackClientMetric } from '../api';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { showDiceRollOverlay } from '../dice/dice-roll-overlay';
 import { renderCombatScreen } from '../combat/combat-screen';
@@ -979,6 +979,8 @@ export class CampaignScreen {
   /** π.1 — Click handler — abre modal/sheet correspondente e marca tab ativa. */
   private onBottomTabClick(tab: BottomTabId, anchor: HTMLElement): void {
     const campId = this.currentState?.id;
+    // π — Telemetria distribution por slot (fire-and-forget).
+    trackClientMetric('bottom_tab_tap', { tab });
     // Toggle: tap em tab já ativa fecha o modal
     if (this.currentOpenTab === tab) {
       this.closeCurrentTabModal(tab);

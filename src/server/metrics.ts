@@ -34,7 +34,9 @@ export type MetricsEventKind =
   | 'dm_used_backstory'       // payload: { trait, ideal, bond, flaw } booleans
   // POLISH-0 — Client-side eventos de funil pré-sessão (POST /api/metrics/track)
   | 'home_loaded'             // payload: { has_anon, has_user, returning } — homepage renderizada
-  | 'prefab_clicked';         // payload: { prefab_id } — click em prefab card
+  | 'prefab_clicked'          // payload: { prefab_id } — click em prefab card
+  // π — Sprint π Bottom Tab Bar — distribuição de uso por slot
+  | 'bottom_tab_tap';         // payload: { tab: 'quests'|'achievements'|'npcs'|'chat'|'share'|'more' }
 
 export interface MetricsEvent {
   id: string;

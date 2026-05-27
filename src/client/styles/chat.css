@@ -161,6 +161,10 @@
 
 .chat-sheet {
   z-index: 9300;
+  /* π fix — Antes: tamanho colapsava com empty state (~257px / 34% viewport),
+   * dando sensação de "chat não desce". Agora garante 60dvh mínimo pra sheet
+   * aparecer dominante. Em coop com várias msgs, cresce até 88dvh (max). */
+  min-height: 60dvh;
 }
 
 .chat-sheet .cs-handlebar {

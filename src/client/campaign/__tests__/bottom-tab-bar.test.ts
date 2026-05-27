@@ -216,4 +216,54 @@ describe('createBottomTabBar', () => {
     expect(questsBadge.textContent).toBe('3');
     expect(achBadge.textContent).toBe('2');
   });
+
+  it('slide active indicator existe como filho do nav', () => {
+    const bar = createBottomTabBar({
+      isCoop: true,
+      unreadChatCount: 0,
+      onTabClick: () => { /* noop */ },
+    });
+    document.body.appendChild(bar.element);
+    const indicator = bar.element.querySelector('.btb-active-indicator') as HTMLElement;
+    expect(indicator).not.toBeNull();
+    expect(indicator.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('setActiveTab marca indicator visível e setActiveTab(null) esconde', () => {
+    const bar = createBottomTabBar({
+      isCoop: true,
+      unreadChatCount: 0,
+      onTabClick: () => { /* noop */ },
+    });
+    document.body.appendChild(bar.element);
+    const indicator = bar.element.querySelector('.btb-active-indicator') as HTMLElement;
+    bar.setActiveTab('npcs');
+    expect(indicator.classList.contains('is-visible')).toBe(true);
+    bar.setActiveTab(null);
+    expect(indicator.classList.contains('is-visible')).toBe(false);
+  });
+
+  it('setUnreadCount com increment dispara is-popping na badge', () => {
+    const bar = createBottomTabBar({
+      isCoop: true,
+      unreadChatCount: 2,
+      onTabClick: () => { /* noop */ },
+    });
+    document.body.appendChild(bar.element);
+    const badge = bar.element.querySelector('[data-tab="chat"] .btb-tab-badge') as HTMLElement;
+    bar.setUnreadCount(5); // increment 2→5
+    expect(badge.classList.contains('is-popping')).toBe(true);
+  });
+
+  it('setUnreadCount decrement NÃO dispara pop', () => {
+    const bar = createBottomTabBar({
+      isCoop: true,
+      unreadChatCount: 5,
+      onTabClick: () => { /* noop */ },
+    });
+    document.body.appendChild(bar.element);
+    bar.setUnreadCount(2); // decrement 5→2
+    const badge = bar.element.querySelector('[data-tab="chat"] .btb-tab-badge') as HTMLElement;
+    expect(badge.classList.contains('is-popping')).toBe(false);
+  });
 });

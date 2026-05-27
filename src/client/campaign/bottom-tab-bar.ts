@@ -39,12 +39,19 @@ interface TabDef {
   title: string;
 }
 
-const TAB_QUESTS: TabDef = { id: 'quests', glyph: '📜', label: 'Missões', title: 'Quest Log (missões ativas)' };
-const TAB_ACH: TabDef = { id: 'achievements', glyph: '🏆', label: 'Conquistas', title: 'Conquistas desbloqueadas' };
+// π refino — Ícones tunados pra clareza + D&D feel + menos "config":
+// 🗺 missões (mapa de aventura, mais visual que pergaminho)
+// 🏆 conquistas (universal)
+// 👥 NPCs (universal)
+// 💬 chat (universal)
+// 🤝 convite (aperto de mão > corrente, convite mais quente)
+// ⋯ mais (consistência com overflow menu pattern, menos "config")
+const TAB_QUESTS: TabDef = { id: 'quests', glyph: '🗺', label: 'Missões', title: 'Missões ativas e completadas' };
+const TAB_ACH: TabDef = { id: 'achievements', glyph: '🏆', label: 'Glórias', title: 'Conquistas desbloqueadas' };
 const TAB_NPCS: TabDef = { id: 'npcs', glyph: '👥', label: 'NPCs', title: 'NPCs conhecidos' };
 const TAB_CHAT: TabDef = { id: 'chat', glyph: '💬', label: 'Chat', title: 'Chat da party' };
-const TAB_SHARE: TabDef = { id: 'share', glyph: '🔗', label: 'Convidar', title: 'Copiar ID da crônica' };
-const TAB_MORE: TabDef = { id: 'more', glyph: '⚙', label: 'Mais', title: 'Mais opções (sons, glossário, tela)' };
+const TAB_SHARE: TabDef = { id: 'share', glyph: '🤝', label: 'Convite', title: 'Copiar ID da crônica pra convidar aliado' };
+const TAB_MORE: TabDef = { id: 'more', glyph: '⋯', label: 'Mais', title: 'Mais opções (sons, glossário, tela, dificuldade)' };
 
 function tabsForCoop(isCoop: boolean): TabDef[] {
   return [TAB_QUESTS, TAB_ACH, TAB_NPCS, isCoop ? TAB_CHAT : TAB_SHARE, TAB_MORE];
@@ -69,6 +76,12 @@ export function createBottomTabBar(ctx: BottomTabBarContext): BottomTabBarHandle
   let isCoop = !!ctx.isCoop;
   const tabEls = new Map<BottomTabId, HTMLButtonElement>();
   const badgeEls = new Map<BottomTabId, HTMLSpanElement>();
+
+  // π refino — Slide indicator único (substitui pseudo-element por tab).
+  const indicator = el('span', {
+    class: 'btb-active-indicator',
+    attrs: { 'aria-hidden': 'true' },
+  });
 
   function buildTab(def: TabDef): HTMLButtonElement {
     const btn = el('button', {
@@ -119,6 +132,8 @@ export function createBottomTabBar(ctx: BottomTabBarContext): BottomTabBarHandle
       tabEls.set(def.id, btn);
       root.appendChild(btn);
     }
+    // π refino — Indicator slide DOM element fica como último filho.
+    root.appendChild(indicator);
     applyActiveState();
     applyBadges();
   }
@@ -132,6 +147,23 @@ export function createBottomTabBar(ctx: BottomTabBarContext): BottomTabBarHandle
         btn.removeAttribute('aria-selected');
       }
     }
+    // π refino — Posiciona slide indicator no tab ativo. Usa offsetLeft/Width
+    // (não getBoundingClientRect) pra evitar layout thrashing em scroll.
+    if (activeTab) {
+      const activeBtn = tabEls.get(activeTab);
+      if (activeBtn) {
+        const left = activeBtn.offsetLeft;
+        const width = activeBtn.offsetWidth;
+        // 60% width do tab, centralizado (left + 20%)
+        const indicatorWidth = width * 0.6;
+        const indicatorLeft = left + width * 0.2;
+        indicator.style.width = `${indicatorWidth}px`;
+        indicator.style.transform = `translateX(${indicatorLeft}px)`;
+        indicator.classList.add('is-visible');
+      }
+    } else {
+      indicator.classList.remove('is-visible');
+    }
   }
 
   function applyBadges(): void {
@@ -141,18 +173,28 @@ export function createBottomTabBar(ctx: BottomTabBarContext): BottomTabBarHandle
     updateBadge('achievements', achievementsBadge);
   }
 
-  function updateBadge(tab: BottomTabId, count: number): void {
+  function updateBadge(tab: BottomTabId, count: number, popOnIncrement = false): void {
     const badge = badgeEls.get(tab);
     const btn = tabEls.get(tab);
     if (!badge || !btn) return;
+    const prevCount = parseInt(badge.textContent || '0', 10) || 0;
     if (count > 0) {
       badge.removeAttribute('hidden');
       badge.textContent = count > 99 ? '99+' : String(count);
       btn.classList.add('has-badge');
+      // π refino — Pop-in animation quando count incrementa.
+      if (popOnIncrement && count > prevCount) {
+        badge.classList.remove('is-popping');
+        // Force reflow pra reiniciar animação
+        void badge.offsetWidth;
+        badge.classList.add('is-popping');
+        setTimeout(() => badge.classList.remove('is-popping'), 320);
+      }
     } else {
       badge.setAttribute('hidden', 'true');
       badge.textContent = '';
       btn.classList.remove('has-badge');
+      badge.classList.remove('is-popping');
     }
   }
 
@@ -161,20 +203,27 @@ export function createBottomTabBar(ctx: BottomTabBarContext): BottomTabBarHandle
   return {
     element: root,
     setUnreadCount: (n: number) => {
-      unreadCount = Math.max(0, n | 0);
-      if (isCoop) updateBadge('chat', unreadCount);
+      const next = Math.max(0, n | 0);
+      // π refino — pop-in se incrementou
+      const popOnIncrement = next > unreadCount;
+      unreadCount = next;
+      if (isCoop) updateBadge('chat', unreadCount, popOnIncrement);
     },
     setActiveTab: (tab: BottomTabId | null) => {
       activeTab = tab;
       applyActiveState();
     },
     setQuestBadge: (count: number) => {
-      questBadge = Math.max(0, count | 0);
-      updateBadge('quests', questBadge);
+      const next = Math.max(0, count | 0);
+      const popOnIncrement = next > questBadge;
+      questBadge = next;
+      updateBadge('quests', questBadge, popOnIncrement);
     },
     setAchievementsBadge: (count: number) => {
-      achievementsBadge = Math.max(0, count | 0);
-      updateBadge('achievements', achievementsBadge);
+      const next = Math.max(0, count | 0);
+      const popOnIncrement = next > achievementsBadge;
+      achievementsBadge = next;
+      updateBadge('achievements', achievementsBadge, popOnIncrement);
     },
     setCoop: (next: boolean) => {
       if (next === isCoop) return;

@@ -192,6 +192,8 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
   const CLIENT_ALLOWED_KINDS = new Set([
     'home_loaded',
     'prefab_clicked',
+    // π — Sprint π Bottom Tab Bar — qual slot é mais usado em mobile
+    'bottom_tab_tap',
   ]);
   app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
     const kind = String(req.body?.kind ?? '');

@@ -70,9 +70,12 @@ export async function getHealth(): Promise<ApiHealth> {
   return fetchJson<ApiHealth>('/api/health');
 }
 
-// POLISH-0 — Telemetria client-side (whitelist server-side: home_loaded, prefab_clicked).
+// POLISH-0 + Sprint π — Telemetria client-side (whitelist server-side).
 // Fire-and-forget — falhas não bloqueiam fluxo nem aparecem em log do user.
-export function trackClientMetric(kind: 'home_loaded' | 'prefab_clicked', payload?: Record<string, unknown>): void {
+export function trackClientMetric(
+  kind: 'home_loaded' | 'prefab_clicked' | 'bottom_tab_tap',
+  payload?: Record<string, unknown>,
+): void {
   try {
     void fetch('/api/metrics/track', {
       method: 'POST',
