@@ -12,6 +12,7 @@ import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-m
 import { portraitFor } from '../../dnd/portrait';
 import { renderClassFeaturesBar } from './class-features-bar';
 import { getConditionIcon, getConditionDescription } from './condition-icons';
+import { renderInitiativeRibbon } from './initiative-ribbon';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -103,35 +104,9 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     }
   }
 
-  // ── Initiative tracker (F31: horizontal scroll, portrait do PJ se conhecido)
-  const initTracker = el('div', { class: 'cb-initiative' });
-  combat.initiativeOrder.forEach((p, idx) => {
-    const isCurrent = idx === combat.currentTurnIndex;
-    const isMe = p.kind === 'player' && p.id === myCharacterId;
-    const downed = isDowned(p, combat, party);
-    const cls = `cb-init-row ${isCurrent ? 'is-current' : ''} ${isMe ? 'is-me' : ''} ${downed ? 'is-down' : ''} cb-${p.kind}`;
-    // Portrait pra players, glyph pra inimigos
-    let avatar: HTMLElement;
-    if (p.kind === 'player') {
-      const pj = party.find((x) => x.id === p.id);
-      if (pj) {
-        const portrait = portraitFor({ raceId: pj.raceId, classId: pj.classId });
-        avatar = el('span', { class: 'cb-init-avatar', style: { background: portrait.aura } }, [
-          el('span', { class: 'cb-init-avatar-race', text: portrait.race }),
-        ]);
-      } else {
-        avatar = el('span', { class: 'cb-init-kind', text: '🧙' });
-      }
-    } else {
-      avatar = el('span', { class: 'cb-init-kind', text: '👹' });
-    }
-    initTracker.appendChild(el('div', { class: cls }, [
-      el('span', { class: 'cb-init-num', text: String(p.initiative) }),
-      avatar,
-      el('span', { class: 'cb-init-name', text: p.name }),
-    ]));
-  });
-  root.appendChild(initTracker);
+  // ο.4 — Initiative Ribbon Uber-Style. Substitui cb-initiative legacy.
+  // Avatars 40-48px, current pulsando dourado, connectors animados, tap expande mini-card.
+  root.appendChild(renderInitiativeRibbon({ combat, party, myCharacterId }));
 
   // ── Enemies portraits (C1: wrap em tab)
   if (combat.enemies.length > 0) {

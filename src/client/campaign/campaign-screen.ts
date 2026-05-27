@@ -42,6 +42,7 @@ import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerEx
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
+import { renderActionDockTopics } from './action-dock-topics';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -803,8 +804,30 @@ export class CampaignScreen {
       });
       this.replaceSlot(this.slots.mainContent, combatWrap);
     } else {
-      this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
+      // ο.3 — Em portrait-narrow, usa Action Dock Topicizado (4-5 tópicos
+      // cards + drill-down). Desktop mantém grid flat antigo.
+      const isNarrow = document.body.classList.contains('is-portrait-narrow');
+      if (isNarrow) {
+        this.replaceSlot(this.slots.mainContent, this.renderActionDockTopics());
+      } else {
+        this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
+      }
     }
+  }
+
+  private renderActionDockTopics(): HTMLElement {
+    return renderActionDockTopics({
+      isCombat: false,
+      canRest: this.currentState?.mode !== 'combat',
+      isCaster: shouldShowCastButton(this.character),
+      isDmThinking: this.isDmThinking,
+      onAction: (action, details) => this.takeAction(action, details ?? ''),
+      onCustomAction: (details) => this.takeAction('explore', details),
+      onCastSpell: () => this.openSpellModal(),
+      onInventory: () => this.openInventory(),
+      onShortRest: () => this.openShortRestModal(),
+      onLongRest: () => this.confirmLongRest(),
+    });
   }
 
   private updateChatBar(): void {
