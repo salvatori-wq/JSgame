@@ -400,6 +400,46 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'create_clock': {
+      // ψ.3 — DM cria clock novo (Blades-in-the-Dark pressão narrativa).
+      if (!camp.state.activeClocks) camp.state.activeClocks = [];
+      // Evita duplicar mesmo clockId — se já existe, atualiza max/label/trigger
+      const existing = camp.state.activeClocks.find((c) => c.id === tool.clockId);
+      if (existing) {
+        existing.label = tool.label;
+        existing.max = tool.max;
+        existing.trigger = tool.trigger;
+      } else {
+        camp.state.activeClocks.push({
+          id: tool.clockId,
+          label: tool.label,
+          progress: 0,
+          max: tool.max,
+          trigger: tool.trigger,
+        });
+        camp.pushRecentEvent(`⏳ Clock criado: ${tool.label} (0/${tool.max})`);
+      }
+      break;
+    }
+
+    case 'tick_clock': {
+      // ψ.3 — Avança clock. Clamp 0..max. Fired=true quando atinge max (DM viu).
+      if (!camp.state.activeClocks) break;
+      const clock = camp.state.activeClocks.find((c) => c.id === tool.clockId);
+      if (!clock) break;
+      const before = clock.progress;
+      clock.progress = Math.min(clock.max, clock.progress + tool.amount);
+      if (clock.progress > before) {
+        camp.pushRecentEvent(`⏳ ${clock.label}: ${clock.progress}/${clock.max}`);
+      }
+      // Disparo
+      if (clock.progress >= clock.max && !clock.fired) {
+        clock.fired = true;
+        camp.pushRecentEvent(`💥 ${clock.label} COMPLETOU: ${clock.trigger}`);
+      }
+      break;
+    }
+
     case 'apply_advantage': {
       // η.4 — DM declara vantagem/desvantagem no próximo roll do player matching targetRoll.
       const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;

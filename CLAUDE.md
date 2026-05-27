@@ -82,7 +82,60 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (Sprint π refino + Sprint κ.1 Tutorial Duolingo — 5 commits, 1362→1396 tests +34)
+> Última atualização: 2026-05-27 (Sprint POLISH ψ "Sentir cada toque" entregue — 5 sub-sprints, 1396→1429 tests +33)
+
+### Sprint POLISH ψ "Sentir cada toque" — 5 sub-sprints, 1396→1429 tests (+33 net)
+João pediu: "polish profundo — não precisa de mais funcionalidades, só que as que temos funcionem perfeitamente. Dado não cai, chat não tá legal, Mestre deve conduzir melhor". 4 auditorias paralelas identificaram 50+ issues. Plano organizado em 5 sub-sprints:
+
+#### ψ.1 Dice Drama (`64af801`) — dado físico de verdade
+- dieRolling keyframe REESCRITO 6 stops: drop-in translateY -180px→0 + spin + bounce settle (impacto squash). 1100→1800ms. cubic-bezier(0.16,1,0.3,1) físico.
+- dieShadowSync paralelo: sombra cresce 35%→70% width junto com aproximação. Profundidade real.
+- Dado overlay 58→**96px** desktop, 64→**112px** mobile. Protagonista visual.
+- Callback `onLand` em 35% do duration. playDiceLand() agora sincroniza com impacto físico (era no onDone fim).
+- Variação `--dieTilt` random ±15° por roll. Cada um único.
+- Reduced-motion: shadow-sync OFF + padding-top normal.
+- +2 tests novos (onLand antes onDone, idempotente).
+
+#### ψ.2 Chat Alive (`ceaca43`) — chat com alma
+- SERVER: `Campaign.partyMessages[]` cap 50 FIFO + `appendPartyMessage` com rate limit token-bucket (5 tokens, refill 1/2s por player). `joinCampaign` emite `partyMessageBacklog` (reconnect não perde histórico).
+- SERVER: `chatTyping` socket handler broadcast `partyTyping` pros aliados.
+- CLIENT: chat-sheet redesenhado — title "🤝 Party · N aliado(s)", empty state cinematográfico D&D ("A taverna está em silêncio…"), placeholder Sombrio-Trickster ("Sussurre algo aos aliados…"), `<textarea>` multi-line auto-resize 1-3, contador char visível >70% limit, typing indicator 3-dots bouncing, animação entrada msg slide+fade 240ms, timestamp live refresh 60s.
+- +7 tests novos campaign-chat (append, vazio, trunca, rate limit, refill, FIFO).
+
+#### ψ.5 Quick wins (`7f9da75`) — 7 fixes pequenos com ROI alto
+- `customDetails` action-dock preservado entre re-mounts (state externo `dockState` module-level + `resetActionDockState()`).
+- Combat swipe-tab guard: `Math.abs(dx) > 2*Math.abs(dy)` (mata false-positive de scroll vertical).
+- Owner-input debounce 200ms (era refreshCharsList a cada keystroke).
+- `appendError` acumula últimos 3 (era substituir): `.is-stale` dim os antigos.
+- 4 métricas novas: `combat_turn_duration`, `narration_word_count`, `auto_retry_success`, `error_kind_seen`.
+- +2 tests novos.
+
+#### ψ.4 Modal Native Free (`0b51cc4`) — 14 prompt/confirm matados
+- `ui-modal.ts` NOVO com 3 helpers: `confirmDialog`, `inputDialog`, `pickerDialog`. Promise-based, tema dourado/sangue, mobile-safe.
+- 8 substituições críticas: difficulty (picker), exit-em-combate (confirm danger), shortRest hit dice (input validator), longRest (confirm), custom action (input multiline), wizard randomize (confirm), banir personagem (confirm danger), excluir crônica (confirm danger), Help target (picker), Inspire target (picker), remover amigo (confirm).
+- +10 tests novos (confirm/input/picker render, click, validator, multiline, initialValue).
+
+#### ψ.3 DM Conductor (próximo commit) — DM conduz, não reage
+- `CampaignState.activeClocks[]`: clocks de pressão narrativa Blades-in-the-Dark style. DM cria via `create_clock` (ritual/suspeita/reforço) e tickka via `tick_clock`. Server persiste — LLM não esquece mais tensão entre calls.
+- 2 tools novas: `create_clock` (max 2-12) + `tick_clock` (amount 1-6 clamp). Validadas server-side.
+- Bloco `⏳ CLOCKS RODANDO` injetado no user prompt cada turn — DM lê e USA: narrativa avança ("o sino toca 4ª vez — 2 restantes"). Trigger fires quando completa.
+- Prompt expandido: tools entradas + nota explicit sobre persistência.
+- +12 tests novos (validação tool, clamp max, application state, no-op em id inexistente, fired flag).
+
+### Arquivos novos Sprint ψ
+- `src/client/dice/dice-3d.ts` (estendido com onLand callback)
+- `src/client/styles/dice.css` (keyframes reescritos)
+- `src/client/campaign/chat-sheet.ts` (typing, multi-line, anim, empty)
+- `src/server/campaign.ts` (partyMessages + appendPartyMessage)
+- `src/server/__tests__/campaign-chat.test.ts` NOVO (7 tests)
+- `src/client/ui-modal.ts` NOVO (confirm/input/picker helpers)
+- `src/client/styles/ui-modal.css` NOVO
+- `src/client/__tests__/ui-modal.test.ts` NOVO (10 tests)
+- `src/server/__tests__/dm-clocks.test.ts` NOVO (12 tests)
+- `src/shared/types.ts` (activeClocks + 3 socket events: backlog, typing client+server)
+- `src/server/dm/tools.ts` (create_clock + tick_clock validators)
+- `src/server/dm/prompts.ts` (CLOCKS RODANDO block + 2 tool defs)
+- `src/server/dm-tool-applier.ts` (handlers create_clock/tick_clock)
 
 ### Sprint κ.1 "Tutorial Duolingo guiado" — entregue (próximo commit, +15 tests)
 Pegada Duolingo: spotlight visual em cada componente da tela (narration / action dock / party / tab bar) com tooltip flutuante dourado apontando + 6 steps narrativos. Dispara na PRIMEIRA SESSÃO (sessionNumber=1) após primeira narração chegar. Dismissable a qualquer momento (botão "Pular ✕" + tecla Escape). Não conflita com exploration-tutorial — duolingo prevalece em coexistência.

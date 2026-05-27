@@ -183,14 +183,16 @@ Quando player joga uma ação significativa, **escolha 1-2 hard moves** da lista
 
 **Princípio Baker**: **NUNCA diga o nome da mecânica**. Você narra ficção: "a corda se rompe, você cai no buraco enquanto a porta range fechando entre vocês". Você NÃO diz "vou usar Separate Them".
 
-### CLOCKS BACKGROUND — PRESSÃO QUE NÃO PARA
+### CLOCKS BACKGROUND — PRESSÃO QUE NÃO PARA (ψ.3 — agora PERSISTENTES via tools)
 
-Mantenha 1-3 clocks invisíveis ao player rodando na cabeça. Exemplos:
+Mantenha 1-3 clocks rodando. Use \`create_clock\` quando ameaça grave aparece, \`tick_clock\` cada cena cara ao clock. Exemplos:
 - **Suspeita do guarda**: 0/4 → tique cada turn que player age suspeito → 4/4 = guardas avançam
 - **Ritual do culto**: 0/6 → tique cada cena passada sem interromper → 6/6 = ritual completa, vilão fica imortal
 - **Reforço chegando**: 0/3 → tique cada round de combate longo → 3/3 = mais 4 inimigos entram
 
 **Mostre o clock NA NARRAÇÃO** ocasionalmente: "o sino da igreja toca pela segunda vez — três badaladas e o ritual fecha". Player sente o tempo correndo.
+
+**IMPORTANTE**: Server agora persiste seus clocks via \`activeClocks\` no state. Sempre que system prompt mostra "⏳ CLOCKS RODANDO", USE essa info. NÃO esqueça clocks ativos. Tickar é responsabilidade sua quando ficção justifica.
 
 ### EXEMPLO CONCRETO — DO PROBLEMA REAL
 
@@ -248,6 +250,8 @@ Use TOOLS quando ação narrativa exigir mecânica:
 - update_objective: quando party cumpre um passo de quest ativa
 - complete_quest: quando todos objetivos cumpridos (success) OU quest virou impossível (failure). Success distribui rewardXp.
 - mark_highlight: PARCIMÔNIA — só pra momento que merece reel (kill épica de boss, escolha moral pesada, fala icônica). Máx 1-2 por sessão.
+- **create_clock** (ψ.3): cria pressão narrativa persistente. Use quando ameaça grave entra em cena (ritual culto, perseguição, reforço chegando, suspeita). Server persiste — você lembra entre turnos via system prompt.
+- **tick_clock** (ψ.3): avança um clock existente. Use cada cena cara ao clock + NARRE o tick.
 
 Ferramentas validadas server-side (rejeita inputs inválidos). Você sugere — server decide.
 
@@ -689,6 +693,32 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'create_clock',
+    description: 'ψ.3 — DM Conductor: cria um clock de pressão narrativa (Blades-in-the-Dark style). Use pra dar PESO temporal a ameaças/rituais/perseguições. Exemplos: "Ritual do culto" max 6, "Suspeita do guarda" max 4, "Reforço chegando" max 3. NARRE quando criar ("o sino da igreja toca pela primeira vez — 3 badaladas e o ritual fecha"). Quando completar, narre o trigger.',
+    schema: {
+      type: 'object',
+      properties: {
+        clockId: { type: 'string', description: 'ID curto único — ex: "ritual-culto", "suspeita-guarda".' },
+        label: { type: 'string', description: 'Nome legível do clock. Ex: "Ritual do Culto Sangrento".' },
+        max: { type: 'number', description: 'Quantos segmentos (4 ou 6 padrão Blades). 2-12.' },
+        trigger: { type: 'string', description: 'O que acontece quando 0→max (1 frase). Ex: "vilão fica imortal, party tem que fugir".' },
+      },
+      required: ['clockId', 'label', 'max', 'trigger'],
+    },
+  },
+  {
+    name: 'tick_clock',
+    description: 'ψ.3 — Avança um clock existente. Use após cena cara ao clock (player perdeu turno tentando convencer guarda → suspeita +1). NARRE o tick na próxima narração ("o sino da igreja toca pela 2ª vez — 4 badaladas, ritual avança"). Server clampa max e dispara trigger automaticamente.',
+    schema: {
+      type: 'object',
+      properties: {
+        clockId: { type: 'string', description: 'ID do clock a tickar.' },
+        amount: { type: 'number', description: 'Segmentos a avançar (1-6). Default 1.' },
+      },
+      required: ['clockId', 'amount'],
+    },
+  },
+  {
     name: 'apply_advantage',
     description: 'η.4 — Aplica vantagem ou desvantagem no PRÓXIMO roll do player. Use quando ficção justifica: PJ posicionado bem (cobertura, alto), magia/buff ativo, Help action de aliado, terreno favorável, condição não-automática que aplica. Server consome no próximo roll matching targetRoll.',
     schema: {
@@ -849,6 +879,19 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
       })()
     : '';
 
+  // ψ.3 — Active clocks injetados pro DM lembrar pressão narrativa rodando.
+  const clocksBlock = (() => {
+    const clocks = ctx.campaign.activeClocks ?? [];
+    if (clocks.length === 0) return '';
+    const lines = clocks.map((c) => {
+      const filled = '█'.repeat(c.progress);
+      const empty = '░'.repeat(c.max - c.progress);
+      const fired = c.fired ? ' ⚠️ DISPAROU' : '';
+      return `- **${c.label}** [${filled}${empty}] ${c.progress}/${c.max}${fired}\n  Trigger: "${c.trigger}"`;
+    });
+    return `\n## ⏳ CLOCKS RODANDO (use NARRAÇÃO pra mostrar pressão)\n${lines.join('\n')}\n\n**Lembrete**: você TEM clocks ativos. Em CADA narração apropriada, sugira/mostre que o tempo está correndo (sino tocando, fumaça crescendo, ritmo aumentando). Quando faz sentido na ficção, chame \`tick_clock\` pra avançar. NARRE o tick (não diga "clock avançou", narre "o sino toca pela 4ª vez — duas restantes").`;
+  })();
+
   return `## CONTEXTO DA CAMPANHA
 **Campanha**: ${ctx.campaign.name}
 **Sessão**: ${ctx.campaign.sessionNumber}
@@ -861,6 +904,7 @@ ${profileBlock}
 ${npcsBlock}
 ${questsBlock}
 ${difficultyBlock}
+${clocksBlock}
 
 ## FLAGS DO MUNDO
 ${Object.entries(ctx.campaign.worldFlags).length === 0 ? '(nenhuma ainda)' : Object.entries(ctx.campaign.worldFlags).map(([k, v]) => `- ${k}: ${v}`).join('\n')}

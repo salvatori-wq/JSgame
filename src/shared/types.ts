@@ -330,6 +330,20 @@ export interface CampaignState {
     reason: string;
     createdAt: number;
   }>;
+  // ψ.3 — Active Clocks (Blades-in-the-Dark style): pressão narrativa visível.
+  // DM cria via tool tick_clock, server mantém progress. Injetado no system
+  // prompt cada turn pro DM lembrar de onde tá a tensão. Cliente pode mostrar.
+  // Exemplos: { label: 'Ritual do culto', progress: 3, max: 6, trigger: '6/6 vilão fica imortal' }
+  activeClocks?: Array<{
+    id: string;
+    label: string;
+    progress: number;
+    max: number;
+    /** Trigger narrativo quando completa (DM lê e narra). */
+    trigger: string;
+    /** True quando completou e disparou — DM viu e narrou consequência. */
+    fired?: boolean;
+  }>;
 }
 
 // β.3 — Loja/Vendor schemas.

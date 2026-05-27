@@ -39,7 +39,12 @@ export type ValidatedTool =
   // β.3 — Abre loja/vendor pra party
   | { kind: 'open_shop'; npcName: string; shopType: import('../../shared/types.js').ShopType; items: import('../../shared/types.js').ShopItem[]; acceptsSell: boolean }
   // η.4 — Aplica vantagem ou desvantagem no PRÓXIMO roll do player (atk/save/skill)
-  | { kind: 'apply_advantage'; playerId: string; mode: 'advantage' | 'disadvantage'; targetRoll: 'next-attack' | 'next-save' | 'next-skill'; reason: string };
+  | { kind: 'apply_advantage'; playerId: string; mode: 'advantage' | 'disadvantage'; targetRoll: 'next-attack' | 'next-save' | 'next-skill'; reason: string }
+  // ψ.3 — DM Conductor: clocks de pressão narrativa (Blades-style).
+  // create_clock: cria clock novo (ritual, suspeita, reforço, etc).
+  // tick_clock: avança progresso. server clampa 0..max e dispara trigger ao chegar.
+  | { kind: 'create_clock'; clockId: string; label: string; max: number; trigger: string }
+  | { kind: 'tick_clock'; clockId: string; amount: number };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -348,6 +353,22 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         : 'medium';
       const flavor = input.flavor ? String(input.flavor).slice(0, 200) : undefined;
       return { kind: 'start_combat_balanced', difficulty: validDiff, flavor };
+    }
+
+    case 'create_clock': {
+      const clockId = String(input.clockId ?? '').slice(0, 40);
+      const label = String(input.label ?? '').slice(0, 80);
+      const max = clamp(Number(input.max) || 4, 2, 12);
+      const trigger = String(input.trigger ?? '').slice(0, 200);
+      if (!clockId || !label || !trigger) return null;
+      return { kind: 'create_clock', clockId, label, max, trigger };
+    }
+
+    case 'tick_clock': {
+      const clockId = String(input.clockId ?? '').slice(0, 40);
+      const amount = clamp(Number(input.amount) || 1, 1, 6);
+      if (!clockId) return null;
+      return { kind: 'tick_clock', clockId, amount };
     }
 
     default:
