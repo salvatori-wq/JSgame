@@ -40,6 +40,7 @@ import { restoreAllSlots } from '../dnd/spell-slots.js';
 import { rollDice } from '../dnd/dice.js';
 import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
 import { handleShortRest, handleLongRest, handleRollDeathSave } from './campaign-handlers/rest-handler.js';
+import { detectImpliedSkillCheck } from './skill-check-detector.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
@@ -257,6 +258,33 @@ export class Campaign {
 
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
     return this.enqueue(async () => {
+      // γ.2 — Pré-check: se action implica skill check (regex em details) e o DM
+      // AINDA não setou pendingCheck, server injeta automaticamente. DM respeita.
+      // Skip se: já tem pendingCheck ativo, combate ativo, ou action não-aplicável.
+      const combatActive = this.state.combat?.active === true;
+      if (!combatActive && !this.state.pendingCheck) {
+        const implied = detectImpliedSkillCheck(String(action), details);
+        if (implied) {
+          const skillDef = getSkill(implied.skill);
+          this.state.pendingCheck = {
+            skill: implied.skill,
+            dc: implied.dc,
+            reason: implied.reason,
+            playerId,
+          };
+          this.pushRecentEvent(`${playerNameOrId(this.party, playerId)} → ${action}${details ? `: ${details}` : ''}`);
+          // Resposta sintética — DM não foi chamada. Cliente verá pendingCheck no state
+          // e abre o overlay. Tem som de pulso narrativo curto.
+          const dummy: DMResponse = {
+            narration: `Pra ${implied.reason.toLowerCase()}: ${skillDef.name} DC ${implied.dc}. Rola o d20.`,
+            speaker: 'Mestre',
+            toolCalls: [],
+            raw: '',
+          };
+          return dummy;
+        }
+      }
+
       const focus = this.buildMemoryFocus({ playerAction: { playerId, action: String(action), details } });
       const [memoryFacts, npcRoster] = await Promise.all([
         this.retrieveMemory(focus.text, focus.playerId),
