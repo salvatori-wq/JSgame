@@ -88,11 +88,13 @@ describe('β.4 — consumeActionEconomy', () => {
     expect(combat.actionEconomy!['pj-1']!.movement).toBe(15);
   });
 
-  it('movement clamp em 0 se overflow', () => {
+  it('movement: rejeita se pediu mais que tem (V2 strict, não clampa)', () => {
     const party = [makePJ('pj-1')];
     const combat = startCombat({ party, enemies: [{ name: 'X', hp: 5, ac: 10 }] });
-    consumeActionEconomy(combat, 'pj-1', 'movement', 99);
-    expect(combat.actionEconomy!['pj-1']!.movement).toBe(0);
+    const r = consumeActionEconomy(combat, 'pj-1', 'movement', 99);
+    expect(r.ok).toBe(false);
+    // Movement preserved (não clampa nem consome parcial)
+    expect(combat.actionEconomy!['pj-1']!.movement).toBe(30);
   });
 
   it('participante inexistente é noop seguro', () => {

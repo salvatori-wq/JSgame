@@ -22,6 +22,7 @@ import {
   resolvePlayerAttack, resolveEnemyTurn, resolvePlayerDodge, resolvePlayerDash,
   resolvePlayerDisengage, resolveGrapple, resolveShove, resolveHelp, resolvePlayerHide,
   applyConditionTo,
+  consumeActionEconomy, actionEconomyKindFor,
 } from './combat.js';
 import {
   hasCombatFlag, setCombatFlag, clearCombatFlag,
@@ -434,6 +435,18 @@ export class Campaign {
       const player = this.party.find((p) => p.id === playerId);
       if (!player) return null;
 
+      // β.4 V2 — Checagem + consume da action economy ANTES do switch.
+      // Free actions (default case) não consomem nada. Two-weapon → bonus action.
+      // Demais (attack/dodge/dash/etc) → action principal.
+      // Se já gastou esse slot no turno, aborta com reason explicativo.
+      const economyKind = actionEconomyKindFor(action);
+      if (economyKind !== 'free') {
+        const econ = consumeActionEconomy(combat, playerId, economyKind);
+        if (!econ.ok) {
+          return { ok: false, events: [], log: econ.reason ?? 'economia de ações bloqueada' };
+        }
+      }
+
       const events: CombatEvent[] = [];
       let log = '';
 
@@ -800,6 +813,12 @@ export class Campaign {
         const cur = currentParticipant(this.state.combat);
         if (!cur || cur.kind !== 'player' || cur.id !== casterId) {
           return { ok: false, reason: 'não é seu turno', events: [], narration: '', spellName: '' };
+        }
+        // β.4 V2 — Cast Spell em combate consome Ação (simplificação MVP; spells
+        // com castingTime=bonus serão tratadas em refinamento futuro de spell metadata).
+        const econ = consumeActionEconomy(this.state.combat, casterId, 'action');
+        if (!econ.ok) {
+          return { ok: false, reason: econ.reason ?? 'sem ação', events: [], narration: '', spellName: '' };
         }
       }
 

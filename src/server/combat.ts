@@ -120,26 +120,93 @@ export function freshActionEconomy(): import('../shared/types.js').ActionEconomy
   return { action: true, bonusAction: true, reaction: true, movement: 30 };
 }
 
-// β.4 — Consume helper (V1: noop seguro). Action handlers podem chamar via
-// consumeActionEconomy(combat, id, 'action') pra marcar usado. Em V2 (γ),
-// retorna false se já consumido → handler aborta. Por ora sempre permite,
-// só atualiza state pra UI mostrar gray-out.
+// β.4 V2 — Consume helper. Retorna { ok, reason? } pra handlers checarem antes
+// de aplicar. Se slot=false (já consumido) → retorna { ok: false, reason }.
+// Caller decide abortar ou continuar.
+//
+// Movement é um pouco diferente: aceita ftRequested e retorna ok=false só se
+// pediu MAIS do que tem (não block-zero — andar 0 ft sempre OK).
+export type EconomyKind = 'action' | 'bonus' | 'reaction' | 'movement';
+
+export interface EconomyResult {
+  ok: boolean;
+  reason?: string;
+}
+
 export function consumeActionEconomy(
   combat: import('../shared/types.js').CombatState,
   participantId: string,
-  kind: 'action' | 'bonus' | 'reaction' | 'movement',
+  kind: EconomyKind,
   movementFt = 0,
-): boolean {
-  if (!combat.actionEconomy) return true;
+): EconomyResult {
+  if (!combat.actionEconomy) return { ok: true };
   const ec = combat.actionEconomy[participantId];
-  if (!ec) return true;
+  if (!ec) return { ok: true };  // participante sem economy tracker (legacy/edge)
+
   switch (kind) {
-    case 'action':    ec.action = false; return true;
-    case 'bonus':     ec.bonusAction = false; return true;
-    case 'reaction':  ec.reaction = false; return true;
-    case 'movement':
+    case 'action': {
+      if (!ec.action) return { ok: false, reason: 'Já gastou Ação neste turno (PHB pág 190).' };
+      ec.action = false;
+      return { ok: true };
+    }
+    case 'bonus': {
+      if (!ec.bonusAction) return { ok: false, reason: 'Já gastou Ação Bônus neste turno (PHB pág 189).' };
+      ec.bonusAction = false;
+      return { ok: true };
+    }
+    case 'reaction': {
+      if (!ec.reaction) return { ok: false, reason: 'Já gastou Reação neste round (PHB pág 190).' };
+      ec.reaction = false;
+      return { ok: true };
+    }
+    case 'movement': {
+      if (movementFt <= 0) return { ok: true };
+      if (ec.movement < movementFt) {
+        return { ok: false, reason: `Sem movimento suficiente (${ec.movement}/${movementFt}ft).` };
+      }
       ec.movement = Math.max(0, ec.movement - movementFt);
-      return true;
+      return { ok: true };
+    }
+  }
+}
+
+// β.4 V2 — Grant: caller pode RESTAURAR um slot. Usado por Action Surge
+// (PHB pág 72: guerreiro nv2 ganha +1 action no turno) e Haste (Quickened).
+export function grantActionEconomy(
+  combat: import('../shared/types.js').CombatState,
+  participantId: string,
+  kind: 'action' | 'bonus' | 'reaction',
+): void {
+  if (!combat.actionEconomy) return;
+  const ec = combat.actionEconomy[participantId];
+  if (!ec) return;
+  if (kind === 'action') ec.action = true;
+  if (kind === 'bonus') ec.bonusAction = true;
+  if (kind === 'reaction') ec.reaction = true;
+}
+
+// β.4 V2 — Map CombatActionKind → economia. 'free' significa não consome
+// (ex: speak, perception passiva). Usado pelo combatAction handler em campaign.ts.
+export function actionEconomyKindFor(action: string): EconomyKind | 'free' {
+  switch (action) {
+    case 'attack':
+    case 'cast-spell':
+    case 'dodge':
+    case 'dash':
+    case 'disengage':
+    case 'help':
+    case 'hide':
+    case 'ready':
+    case 'search':
+    case 'use-object':
+    case 'use-item':
+    case 'shove':
+    case 'grapple':
+      return 'action';
+    case 'two-weapon':
+      return 'bonus';
+    default:
+      return 'free';
   }
 }
 

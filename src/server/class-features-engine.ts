@@ -134,13 +134,13 @@ export function useFeature(
     case 'action-surge':
       return applyActionSurge(caster, slot, combat);
     case 'second-wind':
-      return applySecondWind(caster, slot);
+      return applySecondWind(caster, slot, combat);
     case 'channel-divinity':
       return applyChannelDivinity(caster, slot, combat);
     case 'ki':
       return applyKi(caster, slot, combat);
     case 'bardic-inspiration':
-      return applyBardicInspiration(caster, slot, party, opts.targetId);
+      return applyBardicInspiration(caster, slot, party, opts.targetId, combat);
     case 'wild-shape':
       return applyWildShape(caster, slot, combat);
   }
@@ -148,6 +148,12 @@ export function useFeature(
 
 function applyRage(caster: CharacterSheet, slot: { used: number; max: number }, combat: CombatState | null): UseFeatureResult {
   if (!combat?.active) return { ok: false, reason: 'Fúria só fora de combate? Use em combate.', events: [], log: '' };
+  // β.4 V2 — Rage é Ação Bônus (PHB pág 48). Bloqueia se já gastou.
+  const ec = combat.actionEconomy?.[caster.id];
+  if (ec && !ec.bonusAction) {
+    return { ok: false, reason: 'Já gastou Ação Bônus neste turno.', events: [], log: '' };
+  }
+  if (ec) ec.bonusAction = false;
   slot.used++;
   setCombatFlag(combat, caster.id, 'rage');
   const log = `${caster.characterName} entra em FÚRIA! +2 dano corpo-a-corpo, resistência física.`;
@@ -163,6 +169,10 @@ function applyActionSurge(caster: CharacterSheet, slot: { used: number; max: num
   if (!combat?.active) return { ok: false, reason: 'Surto de Ação só funciona em combate', events: [], log: '' };
   slot.used++;
   setCombatFlag(combat, caster.id, 'action-surge');
+  // β.4 V2 — Restaura Ação principal no turno (PHB pág 72)
+  if (combat.actionEconomy?.[caster.id]) {
+    combat.actionEconomy[caster.id]!.action = true;
+  }
   const log = `${caster.characterName} usa SURTO DE AÇÃO — pode atacar/agir de novo neste turno.`;
   combat.log.push(log);
   return {
@@ -172,7 +182,15 @@ function applyActionSurge(caster: CharacterSheet, slot: { used: number; max: num
   };
 }
 
-function applySecondWind(caster: CharacterSheet, slot: { used: number; max: number }): UseFeatureResult {
+function applySecondWind(caster: CharacterSheet, slot: { used: number; max: number }, combat?: CombatState | null): UseFeatureResult {
+  // β.4 V2 — Second Wind é Ação Bônus (PHB pág 72). Bloqueia se em combate sem bonus.
+  if (combat?.actionEconomy?.[caster.id]) {
+    const ec = combat.actionEconomy[caster.id]!;
+    if (!ec.bonusAction) {
+      return { ok: false, reason: 'Já gastou Ação Bônus neste turno.', events: [], log: '' };
+    }
+    ec.bonusAction = false;
+  }
   slot.used++;
   const roll = rollDice(1, 10, caster.level);
   const oldHp = caster.currentHp;
@@ -209,6 +227,12 @@ function applyChannelDivinity(caster: CharacterSheet, slot: { used: number; max:
 
 function applyKi(caster: CharacterSheet, slot: { used: number; max: number }, combat: CombatState | null): UseFeatureResult {
   if (!combat?.active) return { ok: false, reason: 'Rajada de Golpes só em combate', events: [], log: '' };
+  // β.4 V2 — Flurry of Blows é Ação Bônus (PHB pág 78).
+  const ec = combat.actionEconomy?.[caster.id];
+  if (ec && !ec.bonusAction) {
+    return { ok: false, reason: 'Já gastou Ação Bônus neste turno.', events: [], log: '' };
+  }
+  if (ec) ec.bonusAction = false;
   // Flurry of Blows: gasta 1 ki, +2 ataques desarmados. Damage 1d4 base + STR mod cada.
   slot.used++;
   const strMod = abilityModifier(caster.abilityScores.for);
@@ -220,10 +244,18 @@ function applyKi(caster: CharacterSheet, slot: { used: number; max: number }, co
   return { ok: true, log, events: [{ type: 'condition-applied', sourceId: caster.id, targetId: caster.id, text: log }] };
 }
 
-function applyBardicInspiration(caster: CharacterSheet, slot: { used: number; max: number }, party: CharacterSheet[], targetId?: string): UseFeatureResult {
+function applyBardicInspiration(caster: CharacterSheet, slot: { used: number; max: number }, party: CharacterSheet[], targetId?: string, combat?: CombatState | null): UseFeatureResult {
   const target = party.find((p) => p.id === targetId);
   if (!target) return { ok: false, reason: 'Inspiração precisa de alvo aliado', events: [], log: '' };
   if (target.id === caster.id) return { ok: false, reason: 'Não pode inspirar a si mesmo', events: [], log: '' };
+  // β.4 V2 — Bardic Inspiration é Ação Bônus (PHB pág 54). Bloqueia se em combate sem bonus.
+  if (combat?.actionEconomy?.[caster.id]) {
+    const ec = combat.actionEconomy[caster.id]!;
+    if (!ec.bonusAction) {
+      return { ok: false, reason: 'Já gastou Ação Bônus neste turno.', events: [], log: '' };
+    }
+    ec.bonusAction = false;
+  }
   slot.used++;
   // A2 — Buff engine: aplica +1d6 real no próximo attack do aliado (consume on use).
   // eslint-disable-next-line @typescript-eslint/no-var-requires

@@ -167,10 +167,24 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     const bar = el('div', { class: 'cb-actions cb-tab-content cb-tab-actions' });
     bar.appendChild(el('div', { class: 'cb-actions-title', text: `🎯 Seu turno, ${escapeHtml(myChar.characterName)}` }));
     const grid = el('div', { class: 'cb-actions-grid' });
+
+    // β.4 V2 — Action Economy: desabilita botões cujo slot já foi gasto.
+    // 'two-weapon' = bonus action; resto = action. Helper consulta state direto.
+    const ec = combat.actionEconomy?.[myCharacterId];
+    const isBlocked = (id: CombatActionKind): boolean => {
+      if (!ec) return false;
+      if (id === 'two-weapon') return !ec.bonusAction;
+      return !ec.action;
+    };
+
     for (const a of actions) {
+      const blocked = isBlocked(a.id);
+      const blockedTitle = blocked
+        ? (a.id === 'two-weapon' ? '⛔ Já gastou Ação Bônus' : '⛔ Já gastou Ação principal')
+        : a.hint;
       grid.appendChild(el('button', {
-        class: 'cb-action-btn',
-        attrs: { type: 'button', title: a.hint },
+        class: `cb-action-btn ${blocked ? 'is-blocked' : ''}`,
+        attrs: { type: 'button', title: blockedTitle, ...(blocked ? { disabled: true } : {}) },
         on: {
           click: () => {
             if (a.id === 'attack' || a.id === 'grapple' || a.id === 'shove' || a.id === 'two-weapon') {

@@ -705,3 +705,24 @@ body.is-portrait-narrow .combat-screen { touch-action: pan-y; }
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
+
+/* β.4 V2 — Combat action button blocked (economy spent) */
+.cb-action-btn.is-blocked,
+.cb-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  position: relative;
+}
+.cb-action-btn.is-blocked::after {
+  content: '⛔';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+.cb-action-btn:disabled:hover {
+  box-shadow: none;
+  transform: none;
+}
