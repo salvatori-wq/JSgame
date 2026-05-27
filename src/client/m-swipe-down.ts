@@ -46,8 +46,32 @@ export function attachSwipeDown(
   let startT = 0;
   let tracking = false;
 
+  // ψ.2-fix — Verifica se o touch começou DENTRO de uma área scrollável que ainda
+  // tem scroll disponível pra cima. Se sim, swipe-down deveria scrollar (não fechar).
+  // Resolve bug "chat não scrolla" — antes o swipe-down listener interceptava o
+  // gesture de scroll do .cs-messages e fechava o sheet.
+  const isInsideScrollableWithRoom = (target: EventTarget | null): boolean => {
+    let node: Node | null = target as Node | null;
+    while (node && node !== el && node instanceof HTMLElement) {
+      const cs = getComputedStyle(node);
+      const canScrollY = cs.overflowY === 'auto' || cs.overflowY === 'scroll';
+      // Tem scroll disponível pra cima (scrollTop > 0) OU pode scrollar pra baixo
+      if (canScrollY && node.scrollHeight > node.clientHeight) {
+        return true;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  };
+
   const onStart = (e: TouchEvent): void => {
     if (e.touches.length !== 1) return;
+    // ψ.2-fix — Se touch começou dentro de área scrollável com conteúdo, NÃO rastreia
+    // swipe-down. Deixa o scroll nativo do browser cuidar.
+    if (isInsideScrollableWithRoom(e.target)) {
+      tracking = false;
+      return;
+    }
     startX = e.touches[0]!.clientX;
     startY = e.touches[0]!.clientY;
     startT = performance.now();

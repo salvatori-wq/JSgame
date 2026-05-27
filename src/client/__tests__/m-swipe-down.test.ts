@@ -86,4 +86,38 @@ describe('attachSwipeDown', () => {
     touch(el, 'touchend', 100, 250);
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('ψ.2-fix — NÃO dispara quando touch começa em área scrollável com conteúdo', async () => {
+    // Cria area scrollável dentro do el (simula .cs-messages)
+    const scrollable = document.createElement('div');
+    scrollable.style.overflowY = 'auto';
+    // Força scrollHeight > clientHeight via mock
+    Object.defineProperty(scrollable, 'scrollHeight', { value: 1000, configurable: true });
+    Object.defineProperty(scrollable, 'clientHeight', { value: 200, configurable: true });
+    const inner = document.createElement('div');
+    scrollable.appendChild(inner);
+    el.appendChild(scrollable);
+
+    attachSwipeDown(el, onClose, { threshold: 80, minVelocity: 0.1 });
+    // Touch começa DENTRO da area scrollável
+    touch(inner, 'touchstart', 100, 100);
+    await new Promise<void>((r) => setTimeout(r, 30));
+    touch(inner, 'touchend', 100, 250); // dy=150 > 80, mas começou em scrollable
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('ψ.2-fix — DISPARA quando touch começa em área não-scrollável (handlebar/header)', async () => {
+    // Scrollable separado, touch começa FORA dele
+    const scrollable = document.createElement('div');
+    scrollable.style.overflowY = 'auto';
+    el.appendChild(scrollable);
+    const handlebar = document.createElement('div');
+    el.appendChild(handlebar);
+
+    attachSwipeDown(el, onClose, { threshold: 80, minVelocity: 0.1 });
+    touch(handlebar, 'touchstart', 100, 100);
+    await new Promise<void>((r) => setTimeout(r, 30));
+    touch(handlebar, 'touchend', 100, 250);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

@@ -61,12 +61,18 @@
 
 /* ψ.1 — Rolling animation v2: DROP-IN + SPIN + SETTLE BOUNCE.
  * Antes: spin in-place (1100ms). Player sentia "spinner girando", não dado caindo.
- * Agora: dado cai do topo (translateY -180→0), gira durante a queda, impacta
+ * Agora: dado cai do topo (translateY -drop→0), gira durante a queda, impacta
  * com bounce decrescente, settla. 1800ms total. Sombra anima junto pra
- * reforçar profundidade. Variação --dieTilt aleatória por roll. */
+ * reforçar profundidade.
+ *
+ * ψ.1-fix: --die-drop-y é configurável por contexto:
+ *   - overlay full (dice-roll-overlay): -180px (drop dramático)
+ *   - skill-check inline (.sc-die-slot): -60px (drop curto pra caber no row)
+ *   - outros: -60px default conservador
+ */
 @keyframes dieRolling {
   0% {
-    transform: translateY(-180px) scale(0.7) rotateX(0) rotateY(0) rotateZ(var(--dieTilt, 0deg));
+    transform: translateY(var(--die-drop-y, -60px)) scale(0.7) rotateX(0) rotateY(0) rotateZ(var(--dieTilt, 0deg));
     opacity: 0;
   }
   15% {
@@ -77,8 +83,8 @@
     transform: translateY(0) scale(1) rotateX(360deg) rotateY(540deg) rotateZ(120deg);
   }
   55% {
-    /* Bounce 1 — sobe ~22px */
-    transform: translateY(-22px) scale(0.96) rotateX(540deg) rotateY(720deg) rotateZ(180deg);
+    /* Bounce 1 — sobe (proporcional ao drop) */
+    transform: translateY(calc(var(--die-drop-y, -60px) * 0.12)) scale(0.96) rotateX(540deg) rotateY(720deg) rotateZ(180deg);
   }
   72% {
     /* Impacto — esmaga um tantinho (squash) */
@@ -86,11 +92,39 @@
   }
   86% {
     /* Bounce 2 — pequeno */
-    transform: translateY(-8px) scale(0.98) rotateX(550deg) rotateY(720deg) rotateZ(180deg);
+    transform: translateY(calc(var(--die-drop-y, -60px) * 0.045)) scale(0.98) rotateX(550deg) rotateY(720deg) rotateZ(180deg);
   }
   100% {
     transform: translateY(0) scale(1) rotateX(360deg) rotateY(360deg) rotateZ(0);
   }
+}
+
+/* ψ.1-fix — Override drop dramático SÓ no overlay grande (que tem padding-top 220px).
+ * Default (--die-drop-y: -60px) cabe inline no skill-check sem vazar o row. */
+.dice-roll-overlay .die-3d {
+  --die-drop-y: -180px;
+}
+
+/* ψ.1-fix — Skill-check overlay: garante o dado caindo NÃO seja cortado.
+ * .sc-stage tem padding 28px — drop curto -60px + padding-top extra 50px no row
+ * = dado entra do topo de .sc-stage com folga. */
+.sc-stage .die-3d {
+  --die-drop-y: -60px;
+  /* ψ.1-fix — dado protagonista no skill check (era 58/64 default) */
+  width: 80px;
+  height: 80px;
+  font-size: 34px;
+}
+body.is-portrait-narrow .sc-stage .die-3d {
+  width: 88px;
+  height: 88px;
+  font-size: 38px;
+}
+.sc-row {
+  padding-top: 60px;
+}
+body.is-portrait-narrow .sc-row {
+  padding-top: 50px;
 }
 
 /* Sombra acompanha — width/opacity/offset crescem conforme dado se aproxima */

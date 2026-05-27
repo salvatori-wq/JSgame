@@ -149,7 +149,8 @@ export function showSkillCheckResult(
   rollAndReveal(die, {
     final: finalValue,
     special,
-    durationMs: prefersReducedMotion() ? 200 : 1000,
+    // ψ.1-fix — Aumentado 1000→1500ms pra player ver o dado caindo+girando
+    durationMs: prefersReducedMotion() ? 200 : 1500,
     onDone: () => {
       // Camada 2 (som): land thud
       playDiceLand();
