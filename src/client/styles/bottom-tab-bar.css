@@ -1,0 +1,171 @@
+/* JSgame · π.1 — Bottom Tab Bar visual spec.
+ *
+ * Pegada Uber/Wash Me native — tab bar fixa bottom com 5 slots de mesma
+ * largura. Active state indicador dourado superior + label colored.
+ * Badge unread vermelho pulsante. Touch feedback scale(0.95).
+ *
+ * Mobile portrait-narrow: visível e funcional.
+ * Desktop: oculta (header full mantém botões inline).
+ *
+ * Altura cresce/diminui via density profile (ο.8):
+ *   --btb-height: compact=48 / standard=56 / comfortable=64
+ */
+
+:root {
+  --btb-height: 56px;
+  --btb-gold: var(--ink-gold);
+  --btb-faint: var(--ink-faint);
+  --btb-badge-bg: var(--accent-blood);
+}
+
+/* Density profile sobrescreve altura */
+body.ux-density-compact {
+  --btb-height: 48px;
+}
+body.ux-density-comfortable {
+  --btb-height: 64px;
+}
+
+.bottom-tab-bar {
+  display: none; /* default oculto; portrait-narrow ativa */
+  grid-template-columns: repeat(5, 1fr);
+  height: calc(var(--btb-height) + var(--m-safe-bottom, 0px));
+  padding-bottom: var(--m-safe-bottom, 0px);
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.97) 0%, rgba(8, 4, 6, 0.99) 100%);
+  border-top: 1px solid rgba(244, 208, 127, 0.25);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.55);
+  z-index: 9290; /* abaixo de sheet-stack-backdrop (BASE_Z=9300) */
+  isolation: isolate;
+}
+
+.btb-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  background: transparent;
+  border: 0;
+  color: var(--btb-faint);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1.1;
+  cursor: pointer;
+  transition: color 160ms ease, transform 100ms ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+}
+
+.btb-tab:hover {
+  color: var(--ink-warm);
+}
+
+.btb-tab:focus-visible {
+  outline: 2px solid var(--btb-gold);
+  outline-offset: -2px;
+}
+
+.btb-tab:active {
+  transform: scale(0.95);
+}
+
+.btb-tab-glyph {
+  font-size: 20px;
+  line-height: 1;
+  filter: grayscale(0.2);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.btb-tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Active state: indicador dourado superior + cor label */
+.btb-tab.is-active {
+  color: var(--btb-gold);
+}
+
+.btb-tab.is-active .btb-tab-glyph {
+  filter: grayscale(0) drop-shadow(0 0 4px rgba(244, 208, 127, 0.55));
+  transform: translateY(-1px);
+}
+
+.btb-tab.is-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--btb-gold);
+  box-shadow: 0 0 8px var(--btb-gold), 0 0 4px rgba(244, 208, 127, 0.8);
+  border-radius: 0 0 2px 2px;
+  transition: opacity 200ms ease;
+}
+
+/* Badge — número pulsante no canto sup-direito do glyph */
+.btb-tab-badge {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(8px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--btb-badge-bg);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(8, 4, 6, 0.95);
+  box-shadow: 0 0 6px rgba(200, 64, 50, 0.5);
+  pointer-events: none;
+}
+
+.btb-tab-badge[hidden] {
+  display: none;
+}
+
+.btb-tab.has-badge .btb-tab-badge {
+  animation: btb-badge-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes btb-badge-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(200, 64, 50, 0.5); }
+  50% { box-shadow: 0 0 12px rgba(200, 64, 50, 0.9); }
+}
+
+/* Reduced motion: instant active state, sem pulse */
+@media (prefers-reduced-motion: reduce) {
+  .btb-tab,
+  .btb-tab-glyph,
+  .btb-tab.is-active::before {
+    transition: none;
+  }
+  .btb-tab.has-badge .btb-tab-badge {
+    animation: none;
+  }
+  .btb-tab:active {
+    transform: none;
+  }
+}
+
+/* Portrait narrow: ativa visualmente */
+body.is-portrait-narrow .bottom-tab-bar {
+  display: grid;
+}
+
+/* Desktop / landscape: oculta completamente */
+body:not(.is-portrait-narrow) .bottom-tab-bar {
+  display: none !important;
+}
