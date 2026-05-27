@@ -12,6 +12,37 @@ import type { CR } from './monsters.js';
 import { getClass } from './classes.js';
 import { abilityModifier, proficiencyBonus } from './attributes.js';
 import { getCombinedSpellSlots, type CombinedClassEntry } from './multiclass.js';
+import { applyFeatEffects } from './feat-effects-engine.js';
+
+// ════════════════════════════════════════════════════════════════════════════
+// η.3 — ASI levels por classe (PHB).
+// Default 4/8/12/16/19. Fighter ganha extras em 6/14. Rogue em 10.
+// ════════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_ASI_LEVELS = [4, 8, 12, 16, 19] as const;
+const FIGHTER_ASI_LEVELS = [4, 6, 8, 12, 14, 16, 19] as const;
+const ROGUE_ASI_LEVELS = [4, 8, 10, 12, 16, 19] as const;
+
+export function getAsiLevels(classId: ClassId): readonly number[] {
+  if (classId === 'guerreiro') return FIGHTER_ASI_LEVELS;
+  if (classId === 'ladino') return ROGUE_ASI_LEVELS;
+  return DEFAULT_ASI_LEVELS;
+}
+
+/** True se o nível N é um nível ASI/Feat pra essa classe. */
+export function isAsiLevel(classId: ClassId, level: number): boolean {
+  return getAsiLevels(classId).includes(level);
+}
+
+/** Migração on-load: plannedLevel4Choice legacy → plannedAsiChoices[4]. Idempotente. */
+export function migratePlannedAsiChoices(sheet: CharacterSheet): void {
+  if (sheet.plannedAsiChoices && Object.keys(sheet.plannedAsiChoices).length > 0) return;
+  if (sheet.plannedLevel4Choice) {
+    sheet.plannedAsiChoices = { 4: sheet.plannedLevel4Choice };
+  } else {
+    sheet.plannedAsiChoices = {};
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // Tabelas oficiais PHB
@@ -167,12 +198,29 @@ function applySingleLevelUp(sheet: CharacterSheet): LevelUpResult {
   const slotsChanged = JSON.stringify(sheet.spellSlots) !== before;
   if (slotsChanged) notes.push('Spell slots atualizados');
 
-  // Level 4 choice (ASI ou Feat) — aplica plannedLevel4Choice quando PJ atinge nv 4
+  // η.3 — ASI/Feat choice: aplica em todos os níveis ASI (4/8/12/16/19 + Fighter/Rogue extras)
   let level4ChoiceApplied = false;
-  if (newLevel === 4 && sheet.plannedLevel4Choice) {
-    applyPlannedLevel4Choice(sheet);
-    level4ChoiceApplied = true;
-    notes.push('Escolha de nv 4 aplicada (ASI/Feat)');
+  if (isAsiLevel(sheet.classId, newLevel)) {
+    // Garante migração (PJs antigos)
+    migratePlannedAsiChoices(sheet);
+    const planned = sheet.plannedAsiChoices?.[newLevel];
+    if (planned) {
+      applyAsiChoice(sheet, planned);
+      delete sheet.plannedAsiChoices![newLevel];
+      level4ChoiceApplied = true;
+      notes.push(`Escolha de nv ${newLevel} aplicada (ASI/Feat)`);
+    } else {
+      // Sem plan — marca como pendente pra UI cobrar depois
+      if (!sheet.pendingAsiChoiceLevels) sheet.pendingAsiChoiceLevels = [];
+      if (!sheet.pendingAsiChoiceLevels.includes(newLevel)) {
+        sheet.pendingAsiChoiceLevels.push(newLevel);
+      }
+      notes.push(`Escolha de nv ${newLevel} PENDENTE — defina ASI ou Feat`);
+    }
+    // Legacy clearance (se nv 4)
+    if (newLevel === 4 && sheet.plannedLevel4Choice) {
+      sheet.plannedLevel4Choice = null;
+    }
   }
 
   return {
@@ -208,13 +256,11 @@ export function applySpellSlotProgression(sheet: CharacterSheet): void {
 }
 
 /**
- * Aplica a escolha plannedLevel4Choice (ASI ou Feat) no sheet.
- * Limpa o campo depois pra evitar re-aplicar.
+ * η.3 — Aplica uma PlannedAsiChoice ao sheet. Substitui o legacy applyPlannedLevel4Choice.
+ * Idempotente apenas até o nível ASI específico — caller é responsável por
+ * removê-la de plannedAsiChoices após aplicar.
  */
-function applyPlannedLevel4Choice(sheet: CharacterSheet): void {
-  const choice = sheet.plannedLevel4Choice;
-  if (!choice) return;
-
+export function applyAsiChoice(sheet: CharacterSheet, choice: import('../shared/types.js').PlannedAsiChoice): void {
   if (choice.kind === 'asi') {
     // ASI: +2 num atributo, +1 em outro (ou +1/+1). Cap em 20.
     const plusTwo = choice.plusTwo;
@@ -230,18 +276,9 @@ function applyPlannedLevel4Choice(sheet: CharacterSheet): void {
     // Import dinâmico pra evitar ciclo (server-only module ref em arquivo dnd/).
     // Em ambiente onde server-side não está disponível (test puro do dnd),
     // o try/catch protege. Em runtime do server, sempre roda.
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const engine = require('../server/feat-effects-engine.js') as typeof import('../server/feat-effects-engine.js');
-      engine.applyFeatEffects(sheet, choice.featId, choice.resilientAbility);
-    } catch {
-      // Fallback: anexa marker no backstory (será migrado on-load depois)
-      sheet.backstory = (sheet.backstory ? sheet.backstory + '\n' : '') + `[Feat nv 4: ${choice.featId}]`;
-    }
+    // η.1 — Import direto agora que feat-effects-engine mora em dnd/
+    applyFeatEffects(sheet, choice.featId, choice.resilientAbility);
   }
-
-  // Limpa pra evitar re-aplicar em level-ups futuros
-  sheet.plannedLevel4Choice = null;
 }
 
 /**

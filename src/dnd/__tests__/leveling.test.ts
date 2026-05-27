@@ -301,13 +301,14 @@ describe('applyLevelUpsIfDue — plannedLevel4Choice', () => {
     expect(pj.abilityScores.for).toBe(oldFor + 2); // não +3
   });
 
-  it('Feat: registra no backstory + limpa choice', () => {
+  it('Feat: aplica via engine + limpa choice (η.1)', () => {
     const pj = makeSheet({
       level: 3, xp: 2700, maxHp: 24, currentHp: 24,
       plannedLevel4Choice: { kind: 'feat', featId: 'sentinel' },
     });
     applyLevelUpsIfDue(pj);
-    expect(pj.backstory).toContain('Feat nv 4: sentinel');
+    // η.1: feat agora vira mecânica real via featsOwned (não anexa string)
+    expect(pj.featsOwned).toContain('sentinel');
     expect(pj.plannedLevel4Choice).toBeNull();
   });
 

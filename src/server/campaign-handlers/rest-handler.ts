@@ -101,7 +101,7 @@ export async function handleLongRest(camp: Campaign, playerId: string): Promise<
   // A2 — long rest limpa buffs ativos
   clearAllBuffs(player);
   // η.1 — Lucky feat: restaura 3 luck points por long rest (PHB pág 167)
-  const { restoreLuckyOnLongRest } = await import('../feat-effects-engine.js');
+  const { restoreLuckyOnLongRest } = await import('../../dnd/feat-effects-engine.js');
   restoreLuckyOnLongRest(player);
 
   camp.pushRecentEvent(`${player.characterName} descansou longo: HP cheio, slots resetados, ${recovered} hit dice voltam`);

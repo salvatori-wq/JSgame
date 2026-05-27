@@ -17,7 +17,7 @@ import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/da
 import { consumeBuffs, readAcBonus } from './buff-engine.js';
 import { resetReactionsForRound } from './reaction-engine.js';
 import { enrichAttackLog, buildKoNarration } from './combat-narrator.js';
-import { getInitiativeBonus } from './feat-effects-engine.js';
+import { getInitiativeBonus } from '../dnd/feat-effects-engine.js';
 
 const SKIP_TURN_CONDITIONS: ConditionId[] = ['atordoado', 'inconsciente', 'paralisado', 'petrificado'];
 

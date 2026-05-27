@@ -19,13 +19,17 @@ export type { DiceRoll, DieKind } from '../dnd/dice';
 export type { SubclassId } from '../dnd/subclasses';
 export type { FeatId } from '../dnd/feats';
 
-// Escolha pré-planejada de ASI ou Feat — aplica quando PJ atinge nv 4.
+// Escolha pré-planejada de ASI ou Feat — aplica quando PJ atinge nv 4/8/12/16/19 (PHB).
 // η.1 — Feats com sub-escolha:
 //   Resilient → ability key adicional
 //   (Magic Initiate: V2 — V1 ainda não suporta seleção fina)
 export type PlannedLevel4Choice =
   | { kind: 'asi'; plusTwo: AbilityKey; plusOne: AbilityKey }
   | { kind: 'feat'; featId: FeatId; resilientAbility?: AbilityKey };
+
+// η.3 — Alias semântico (mesmo tipo, melhor nome pra Record). plannedLevel4Choice
+// legacy mantido pra backwards-compat; migração on-load popula plannedAsiChoices.
+export type PlannedAsiChoice = PlannedLevel4Choice;
 
 // ════════════════════════════════════════════════════════════════════════════
 // CharacterSheet — ficha de personagem completa D&D 5e.
@@ -57,7 +61,13 @@ export interface CharacterSheet {
   alignment: Alignment;
 
   // Escolhas pré-planejadas no wizard pra futuros level-ups (latentes até PJ subir).
+  /** @deprecated η.3 — migrado pra plannedAsiChoices[4] em load. Mantido pra compat de PJs antigos. */
   plannedLevel4Choice?: PlannedLevel4Choice | null;
+  // η.3 — ASI/Feat choices por nível (PHB tem ASI em 4/8/12/16/19; Fighter +6/14, Rogue +10).
+  // Key = nível. Null/undefined = não planejado, será marcado em pendingAsiChoiceLevels.
+  plannedAsiChoices?: Record<number, PlannedAsiChoice | null>;
+  // η.3 — Níveis ASI que PJ atingiu sem choice definido. UI pode mostrar "1 escolha pendente".
+  pendingAsiChoiceLevels?: number[];
 
   // Progressão
   level: number;           // 1-20
