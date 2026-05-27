@@ -1,335 +1,146 @@
-# JSgame · Handoff — Sprint α+β (Indução + Mundo Vivo)
+# JSgame · Handoff — Sprint α+β CONCLUÍDOS (autônomo)
 
 ## 1. Estado atual
 
-**2026-05-26 (noite, fim do dia).** Working tree limpo. **762 tests verde** (1 skipped). Prod LIVE em `https://jsgame-drpe.onrender.com` rodando commit `e8f726e` com cascade 4-providers (Cerebras → Gemini → Groq → Cloudflare). Próxima sessão deve executar **Sprint α + β** detalhado neste documento — 8 features novas em ~18h de trabalho autônomo.
+**2026-05-27 (madrugada).** Working tree limpo. **863 tests verde** (1 skipped). Prod live em `https://jsgame-drpe.onrender.com` rodando commit `858081b`. Sprint α+β COMPLETOS de forma autônoma — 8 features novas + deploy α + deploy β em sequência.
 
 ## 2. O que foi feito nesta sessão
 
-1. **Sprints A-E bug hunting** (commits `2032080..d5a0283`) — 5 commits: static analysis, property-based tests fast-check (+61 tests), telemetria observacional, adversarial probes framework, E2E smoke suite framework. 628→725 tests.
-2. **Chat refactor magnífico** (`72a26c3`) — render incremental, auto-scroll inteligente, NarrationLog persistente, streaming typewriter, error card actionable, thinking indicator inline, auto-retry silencioso, "↓ N novas" badge flutuante. Coração do jogo.
-3. **Fix echo duplicado do retry silent** (`8f20cca`) — suppressNextPlayerEcho counter no client.
-4. **Endpoint /api/dm/errors + /api/dm/timeline + /api/dm/anomalies** (`b32e2a2`, `43f7bc6`, parte de Sprint C) — diagnostic completo por provider/categoria/hora.
-5. **Cascade 4-providers Cerebras + Cloudflare** — Cerebras throw em response vazia + default model llama-3.3-70b (`dc9a57e`), telemetria effectiveProvider/lastFailedProvider (`af87362`, `a7b16f1`), Cloudflare habilitado em prod com env vars (token do user no Render, recomendo regenerar — foi colado no chat).
-6. **Fix Cloudflare tool calls vazando como texto** (`796edbb`) + parser inline (`415b8b4`) — Llama 3.3 70B retorna tool_calls como JSON no text response, parser extrai pra toolCalls array. Resolve combate não disparar dados.
-7. **Botões de ação pedem contexto** (`8f19b82`) — Explorar/Investigar/etc abrem `prompt()` pedindo detalhes antes de enviar pro DM. Reduz "DM não entendeu o que falo".
-8. **Nova persona DM 'zueiro' 🎉** (parte de `415b8b4`) — 6ª persona: humor BR boca suja + NPCs absurdos + aventuras Indiana Jones, sem pessimismo Lovecraft.
-9. **Reforço give_item no DM prompt** (`ef47136`) — 2 exemplos novos + regra explícita "SE NARRAR ITEM → CHAME give_item NO MESMO TURNO". Items agora vão pro inventário.
-10. **Timeouts aumentados pra Cloudflare** (`e8f726e`) — CF provider 25s→45s, dm.ts 35s→55s, categorizer reconhece "operation was aborted" como timeout.
+8 commits novos no main, ordem do handoff respeitada. Tests 762 → 863 (+101).
 
-Total: **28 commits hoje**, 8 deploys manuais via Chrome MCP no Render, 134→762 tests.
+| # | Commit | Feature | Tests |
+|---|---|---|---|
+| 1 | `b43228a` | **α.1 — Suggested Action Chips** | +11 |
+| 2 | `9113fa7` | **α.4 — Voice Input (Web Speech API)** | +9 |
+| 3 | `47bd301` | **α.2 — Item Rarity Visual** | +7 |
+| 4 | `d593dee` | **α.3 — Inspirações D&D** | +10 |
+|   | — | **DEPLOY α via Chrome MCP** | — |
+| 5 | `f66065e` | **β.2 — Achievements UI modal** | +8 |
+| 6 | `5ce03af` | **β.1 — NPC Roster Persistente** | +26 |
+| 7 | `bfdd982` | **β.3 — Vendor/Shop economia real** | +21 |
+| 8 | `858081b` | **β.4 V1 — Action Economy display** | +9 |
+|   | — | **DEPLOY β via Chrome MCP** | — |
 
-## 3. Contexto técnico relevante
+### Detalhamento de cada feature
 
-**Princípios estabelecidos** (manter na próxima sessão):
-- TDD reverso quando aplicável: test que falha → fix → test passa.
-- Commits atômicos por feature (1 feature = 1 commit). Push após cada feature OK.
-- Deploy manual via Chrome MCP no Render dashboard (`https://dashboard.render.com/web/srv-d8abeurbc2fs73ft0fpg`) — clicar "Manual Deploy" → "Deploy latest commit". Render NÃO auto-deploya em push.
-- Zero budget mantido: cascade Cerebras+Gemini+Groq+Cloudflare é 100% free tier. Não habilitar Anthropic/OpenAI sem confirmação. Vide memória `feedback_zero_budget.md`.
-- Cloudflare Workers AI ativo em prod: token + account_id já estão nas env vars do Render (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`). Confirmar `/api/health` retorna `"hasCloudflare":true`.
+**α.1 — Suggested Actions Chips** (commit `b43228a`)
+DM agora sugere 2-4 ações contextuais via nova tool `suggest_actions` a cada cena nova ou pós-skill-check. Chips clicáveis renderizam no `NarrationLog` (depois da última narração) com hint opcional ("Investigação", "Persuasão"). Click = `takeAction(action, details)` direto. **Ataca o problema "não joguei dado nenhuma vez"** — chips com hint sinalizam quando ação dispara skill check. Bonus: prompt do DM ganhou REGRA DE OURO explícita: "D&D é jogo dos dados, passar 2-3 turnos sem check é RUIM".
 
-**Padrões aplicáveis**:
-- Tool nova no DM: declarar em `src/server/dm/prompts.ts` (DM_TOOLS array), implementar handler em `src/server/dm-tool-applier.ts` (switch case), validar input server-side, atualizar prompt com EXEMPLO concreto (sem exemplo o LLM esquece de usar).
-- Provider novo: implementar interface `DMProvider`, throw em response vazia (mesma proteção Cerebras/Cloudflare), adicionar no `factory.ts`, telemetria via `effectiveProvider`/`lastFailedProvider` no CascadeProvider já cobre.
-- Client refactor: NarrationLog é PERSISTENTE — nunca destruir entre renders. Outros painéis usam slot-based update incremental (vide `buildShell()` em `campaign-screen.ts`). Não voltar pra `innerHTML = ''` destrutivo.
+**α.4 — Voice Input** (commit `9113fa7`)
+Botão mic ao lado do input livre. Click → grava (🔴 pulsando), interim text aparece no input em tempo real, fim de fala → texto fica no input pra player editar antes de mandar. PT-BR via Web Speech API nativa (Chrome/Edge/Safari iOS). Firefox → botão sumido. Toast com mensagem amigável em not-allowed/no-speech/network.
 
-**Tooling instalado**:
-- `fast-check` (property-based), `ts-prune`, `madge`, `knip` (static), `vitest`.
-- Stack: TS strict + `noUncheckedIndexedAccess`, `vitest.config.ts` força `singleFork:true` pra evitar SQLITE_BUSY.
+**α.2 — Item Rarity Visual** (commit `47bd301`)
+InventoryItem ganha `rarity` opcional (comum→lendário). DM declara via `give_item.rarity`, server default 'comum'. UI inventory-modal aplica classes CSS rarity-* com cores DnD oficiais: comum cinza, incomum verde glow, raro azul glow forte, muito-raro roxo, lendário laranja pulsing. Animação `loot-burst` (rotate+scale com bezier overshoot) no primeiro append. Set local seenItemIds evita re-disparar animação ao reabrir modal.
 
-**Provider config atual** (prod):
-- `CEREBRAS_MODEL` env não setada → default `llama-3.3-70b` (mudou de `gpt-oss-120b` no commit `dc9a57e`).
-- `GROQ_MODEL=llama-3.1-8b-instant` ou similar → factory.ts auto-corrige pra `llama-3.3-70b-versatile` (modelos pequenos não cabem prompt D&D).
-- `GEMINI_API_KEY`, `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` configuradas em prod.
-- `ANTHROPIC_API_KEY` NÃO configurada (zero budget).
+**α.3 — Inspirações D&D** (commit `d593dee`)
+PHB pág 125. DM concede 1 inspiração via `grant_inspiration(playerId, reason)` por bom roleplay. Player gasta antes de rolar skill check pra ganhar advantage. `CharacterSheet.inspirations` (max 3, clamp). `requestSkillCheck` ganha `useInspiration?: boolean`. UI overlay: botão dourado pulsante "🌟 Usar Inspiração (N) — Rolar com Advantage". Party panel: badge `🌟×N`.
 
-**Endpoints diagnostic em prod**:
-- `GET /api/health` — uptime + hasX flags + activeCampaigns
-- `GET /api/dm/health` — last 100 narrations + success rate + providerCounts (auth-free)
-- `GET /api/dm/errors?days=N` — breakdown por categoria + provider individual + top messages
-- `GET /api/dm/anomalies?days=N` — alerts {severity, kind, value, baseline, message}
-- `GET /api/dm/funnel?days=N` — conversão character_created → session_started → combat → won
-- `GET /api/dm/timeline?days=N` — narrações por hora UTC (visualiza picos/uso real)
+**β.2 — Achievements Modal** (commit `f66065e`)
+Botão 🏆 no header abre modal com 30+ achievements em 5 abas (combat/exploration/social/progress/meta). Counters strip mostra kills, crits, magias, etc. Cards por tier: bronze/prata/ouro/platina com cores oficiais, gold tem glow dourado, platina gradient azul forte. Hidden achievements (first_death, nine_lives) mostram "🔒 ???" até unlock. Fetch /api/achievements credentials:include — anon vê catálogo locked.
 
-**Conhecimento adquirido**:
-- Llama 3.3 70B no Cloudflare leva 20-45s pra responder prompt D&D completo (system 2-3K + 7 tools + memory). É lento mas confiável.
-- DM esquece tools sem exemplos no prompt — sempre dar exemplo concreto.
-- `prompt()` nativo do browser é UX aceitável pra pedir contexto rápido (mobile friendly).
-- Auto-retry silencioso reduz aparição de erro mas gera echo duplicado — suprimir com counter no client.
+**β.1 — NPC Roster Persistente** (commit `5ce03af`)
+Nova tabela `npc_roster` persiste NPCs entre sessões com contadores, relacionamento (-10..+10), notas. UPSERT fire-and-forget no handler `npc_speaks` (não bloqueia ação). DM prompt injeta top-5 NPCs com `relationship + interactionCount + notes` — "mundo lembra de você". UI: botão 👥 no header abre modal com cards (emoji por atitude 😊/😐/😠/🎭, border por atitude, glow por tier friend/enemy). Cascade delete em deleteCampaign. Endpoint `GET /api/campaigns/:id/npcs`. Helpers puros testados: npcId (slug NFD), npcPromptLine, attitudeIcon, relationshipLabel, relTier, formatRelative.
 
-## 4. Plano completo Sprint α+β
+**β.3 — Vendor/Shop** (commit `bfdd982`)
+DM declara loja via `open_shop` tool quando NPC mercador aparece. Cliente abre modal automático com tabs Comprar/Vender, items com rarity visual + preço po + stock + descrição. `OpenShop` + `ShopItem` types. Buy: valida gold/stock, debita gold, adiciona ao inventário com `isNew=true`. Sell: valida não-equipado, sellPrice = 50% match exato ou estimativa por type (arma=10, consumivel=25, etc), credita gold, decrementa quantity ou remove. Sockets: `buyShopItem`, `sellShopItem`, `closeShop`. Shop-handler extraído em `campaign-handlers/`.
 
-### Visão geral
-8 features, ~18h trabalho, 2 dias estimados. Transforma JSgame de "tech demo" em D&D viciante. Ordem otimizada por dependências.
+**β.4 V1 — Action Economy Display** (commit `858081b`)
+PHB pág 189-193. `CombatState.actionEconomy?: Record<id, ActionEconomy>` com 4 slots: action, bonusAction, reaction, movement(ft). Fresh por participante no startCombat. Reset no advanceTurn (action+bonus+movement, reaction reset por round). Helper `consumeActionEconomy(combat, id, kind)` (V1: noop seguro, V2: bloqueio mecânico em γ). UI combat-screen: badge "🎯 Ação · ✨ Bônus · 👟 30ft · 🛡 Reação" pro PJ ativo, slots usados ficam gray+strike-through. **V1 só EXIBE — bloqueio mecânico (impedir 2ª action no mesmo turno) é V2 Sprint γ. Adiado pra não quebrar 50+ tests de combat.**
 
-### SPRINT α — Indução + Loop Curto (~7.5h)
+## 3. Decisões importantes desta sessão
 
-#### A.1 — Suggested Actions Chips · 3h · IMPACTO MÁXIMO
-**Problema**: player vê narração e fica perdido, clica "Explorar" genérico → DM improvisa → narração desconexa.
+- **β.4 V1 vs V2**: optei por V1 (estrutura + reset + display) ao invés de mecânica completa. Riscos: refactor de 8+ action handlers + 50 tests. Recompensa: feature visível imediata (player vê PHB). V2 (consume+bloquear) fica pra Sprint γ.
+- **DM prompt REGRA DE OURO de dados**: addicionei explícita "D&D é jogo dos DADOS — passar 2-3 turnos sem check é RUIM, force checks" + lista das 18 perícias. Endereça feedback do playtest "não joguei dado nenhuma vez".
+- **Suggested chips reset em applyDMResponse ANTES de processar tools**: garante que chips de cena passada não persistem se DM esquecer de mandar novos.
+- **NPC roster fire-and-forget UPSERT**: não bloqueia handler npc_speaks, erro de DB só log warn — DM continua narrando se falhar.
+- **Estimativa sellPrice match exato 50%, senão por type**: economia simples + previsível; rarity item dá nudge mas sem ser game-breaking.
 
-**Solução**: DM sugere 2-4 ações contextuais à cena como chips clicáveis abaixo da narração. Player pode clicar OU digitar livre.
+## 4. Estado de prod
 
-**Schema da tool**:
-```ts
-suggest_actions(actions: Array<{
-  label: string;          // "Examinar o corpo"
-  action: 'explore'|'investigate'|'talk'|'sneak'|'attack'|'cast'|'custom';
-  hint?: string;          // "(Investigação)"
-  details: string;        // sent as `details` quando clicado
-}>) // 2-4 itens, server clamp
-```
+- **Commit em prod**: `858081b` (β.4) após deploy via Chrome MCP no Render dashboard.
+- **/api/health** confirmou: `hasGemini:true, hasGroq:true, hasCerebras:true, hasCloudflare:true, dmProvider:auto, activeProvider:DungeonMaster`.
+- **Cascade 4-providers**: Cerebras → Gemini → Groq → Cloudflare ativo, telemetria via effectiveProvider/lastFailedProvider.
+- **Persistência**: SQLite local (dev) + Turso (prod). Schema agora tem 16 tabelas (+ npc_roster). Migration aditiva no boot.
 
-**Arquivos a tocar**:
-- `src/server/dm/prompts.ts` — add tool no DM_TOOLS, add exemplo + regra "SEMPRE chame suggest_actions junto da narração de cena nova/após resolução"
-- `src/server/dm-tool-applier.ts` — handler salva em `state.suggestedActions`
-- `src/shared/types.ts` — `CampaignState.suggestedActions?: SuggestedAction[]`
-- `src/server/campaign.ts` — limpa `suggestedActions` quando próxima narração chega
-- `src/client/campaign/narration-log.ts` — renderiza chips abaixo da última narração
-- `src/client/campaign/campaign-screen.ts` — click no chip → `takeAction(action, details)`
-- `src/client/styles/campaign-core.css` — `.cn-suggested-chips`, hover/active states
+## 5. Tests/Typecheck
 
-**Edge cases**: multi-player vê todos chips, qualquer um clica; sumir em next state; LLM gera 6 → clamp 4; DM esquece → button "💡 Inspiração?" dispara `surprise_me`.
+- **Vitest: 862 passed | 1 skipped (863 total)** — verde 100%.
+- **TypeScript strict + noUncheckedIndexedAccess: 0 erros**.
+- Suítes novas:
+  - `suggest-actions.test.ts` (11) — validator clamp 4 + handler + integration reset
+  - `voice-stt.test.ts` (9) — sttErrorMessage + shouldShowVoiceMic
+  - `item-rarity.test.ts` (7) — validator default comum + 5 tiers + handler isNew
+  - `inspiration.test.ts` (10) — grant_inspiration + clamp 3 + useInspiration consume
+  - `achievements-modal.test.ts` (8) — formatDate + tierLabel + summarizeProgress + categorias
+  - `npc-roster.test.ts` (16) — npcId stable + UPSERT bump + isolation + adjustRelationship + npcPromptLine
+  - `npc-roster-modal.test.ts` (10) — attitudeIcon + relationshipLabel + relTier + formatRelative
+  - `shop.test.ts` (20) — validator + buy/sell handlers + estimateSellPrice
+  - `action-economy.test.ts` (9) — fresh + consume + advanceTurn reset
 
-**Tests** (TDD reverso):
-- Handler salva array no state
-- Schema valida 2-4 itens
-- Client renderiza N chips e dispatches click correto
-- Sugestões limpam em próximo state update
+## 6. Pendente / Sprint γ futuro
 
-#### A.4 — Voice Input · 1h · MOBILE KILLER
-**Solução**: botão 🎙 ao lado do input livre. Web Speech API nativa, PT-BR, push-to-talk.
+**β.4 V2 — Bonus Action mecânico completo (~3h)**
+- Hook `consumeActionEconomy` nos action handlers (combat.ts: attack, dodge, dash, disengage; spells-engine: cast; class-features-engine: rage, second-wind, action-surge).
+- Bloquear retorna `false` da `consumeActionEconomy` quando slot=false → handler aborta com erro "já gastou ação esse turno".
+- DM tools declaram `actionType: 'action'|'bonus'|'free'|'reaction'` no schema (cast-spell precisa olhar spell.castingTime).
+- UI desabilita botões cujo slot=false (não só visual).
+- Tests novos: attack consome action, segunda attack rejeitada, bonus spell + cantrip permitido, action surge dobra.
 
-**Arquivos**:
-- `src/client/voice-stt.ts` — NOVO wrapper sobre `SpeechRecognition` (`lang:'pt-BR'`, `continuous:false`, `interimResults:true`)
-- `src/client/campaign/campaign-screen.ts` — botão mic, 3 estados (idle 🎙 / recording 🔴 / processing ⏳)
-- Fallback gracioso: `typeof SpeechRecognition === 'undefined'` → esconde botão
+**Polish/UX adicionais sugeridos**:
+- DM tool `npc_remembers` — DM ajusta `npc_roster.notes` e `relationship` explicitamente em diálogos importantes.
+- DM tool `set_npc_notes(npcId, notes)` — pra "morto", "deve favor", etc.
+- Counterspell prompt: usar `consumeActionEconomy(reaction)` quando V2 chegar.
+- Shop: stock dinâmico (rebump após X turns? regen quando descansa?).
+- Achievements: novos baseados em mecânicas α+β — "Inspirado" (gastou 5 inspirações), "Mata-Loja" (comprou 10 items), "Mundo Vivo" (NPC rel +10).
 
-**Edge cases**: TTS já rodando → bloqueia; reconhecimento falha → "🔇 não entendi"; user pode editar antes mandar.
+**Bugs latentes não atacados**:
+- Cloudflare empty response ocasional (último provider sem fallback).
+- `exactOptionalPropertyTypes` em 18 erros (~2-3h).
+- Split `campaign.ts` (~1000+ LOC com ciclos imports).
 
-#### A.2 — Item Rarity Visual · 2h · LOOT DOPAMINA
-**Schema**:
-```ts
-InventoryItem.rarity?: 'comum'|'incomum'|'raro'|'muito-raro'|'lendario'
-```
-
-**CSS por tier** (cores D&D oficiais):
-- comum: cinza claro (#a8a8a8), sem glow
-- incomum: verde (#1eff00), glow leve
-- raro: azul (#0070dd), glow médio
-- muito-raro: roxo (#a335ee), glow forte
-- lendário: laranja (#ff8000), pulsing
-
-**Arquivos**:
-- `src/shared/types.ts` — campo `rarity` opcional
-- `src/server/dm/prompts.ts` — `give_item` schema aceita rarity + atualizar exemplos
-- `src/server/dm-tool-applier.ts` — default `comum` se undefined
-- `src/client/inventory/inventory-modal.ts` — classe CSS por rarity
-- `src/client/styles/inventory.css` — `.inv-item.rarity-*` com border + box-shadow
-- `src/dnd/item-icons.ts` (NOVO) — mapping `type → emoji` (`'arma' → ⚔`, `'consumivel' → 🧪`, etc)
-
-**Animação**: novo item incomum+ ganha `@keyframes loot-burst` 0.6s ao append (rotate + scale).
-
-#### A.3 — Inspirações D&D · 1.5h · ROLEPLAY VIRA MECÂNICA
-**Mecânica PHB pág 125**: DM dá 1 inspiração por boa interpretação, player gasta antes de rolar pra advantage.
-
-**Arquivos**:
-- `src/shared/types.ts` — `CharacterSheet.inspirations: number` (default 0, max 3)
-- `src/server/dm/prompts.ts` — nova tool `grant_inspiration(playerId, reason)` + exemplo + regra "MÁX 1 por sessão por player, NÃO dê de graça"
-- `src/server/dm-tool-applier.ts` — handler incrementa, clamp max 3
-- `src/server/combat.ts` (ou skill-check) — antes de roll d20, se `useInspiration` flag → força advantage + decrementa
-- `src/client/campaign/skill-check-overlay.ts` — botão "🌟 Usar Inspiração (advantage)" se ≥1
-- `src/client/campaign/campaign-screen.ts` — header PJ: 🌟×N ao lado do nome
-
-**Edge cases**: max 3 (ignore extras), spent sem ter (server rejeita), cada player counter próprio.
-
-### SPRINT β — Mundo Vivo (~10h)
-
-#### B.2 — Achievements UI Completa · 2h · MOTIVAÇÃO VISÍVEL
-**Problema**: 30+ achievements + counters tracking no backend, client NÃO mostra.
-
-**Arquivos**:
-- `src/client/campaign/achievements-modal.ts` — NOVO modal com tabs por categoria + progress bars
-- `src/client/campaign/campaign-screen.ts` — botão 🏆 no header
-- `src/dnd/achievements.ts` — adiciona campo `category?` por achievement
-- Endpoint `/api/achievements/progress` já existe — confirmar formato
-- Modal hidden achievements até unlock (mostra "🔒 ???")
-- Animação unlock: `showAchievementToast` já existe, add som + confetti CSS
-
-#### B.1 — NPC Roster Persistente · 3h · MUNDO LEMBRA
-**Schema novo**:
-```ts
-interface NpcMemory {
-  id: string;             // slug do nome
-  name: string;
-  archetype: string;
-  attitude: 'amigavel'|'neutro'|'hostil'|'misterioso';
-  firstMet: number;
-  lastSeen: number;
-  lastLocation: string;
-  interactionCount: number;
-  notes: string;
-  relationship: number;   // -10 a +10
-}
-```
-
-**Arquivos**:
-- `src/server/persistence.ts` — nova tabela `npc_roster (campaign_id, id, ..., notes)`
-- `src/server/dm-tool-applier.ts` — `npc_speaks` UPSERT roster + incrementa count + atualiza lastLocation
-- `src/server/campaign.ts` — `buildNarrationPrompt` injeta top 5 NPCs recentes no context
-- `src/server/routes/api.ts` — `GET /api/campaigns/:id/npcs`
-- `src/client/campaign/npc-roster-modal.ts` — NOVO modal, lista + detalhes
-- `src/client/campaign/campaign-screen.ts` — botão 👥 no header
-- DM Prompt: "NPCs CONHECIDOS: {...}. Use nomes e tiques deles ao reaparecer."
-
-**Edge cases**: mesmo nome em locais diferentes → ID = `{nome}-{primeiro local}`; roster > 50 → injeta só top 5; player mata NPC → notes `"MORTO"`, DM não traz de volta.
-
-#### B.3 — Vendor/Shop · 3h · ECONOMIA REAL
-**Schema da tool**:
-```ts
-open_shop(opts: {
-  npcName: string;       // "Senhor Brogundo"
-  shopType: 'arms'|'alchemy'|'general'|'magic';
-  items: Array<{ name; type; rarity; priceGold; description }>;
-  acceptsSell: boolean;
-})
-```
-
-**Arquivos**:
-- `src/server/dm/prompts.ts` — tool `open_shop` + exemplo
-- `src/server/dm-tool-applier.ts` — handler salva em `state.openShop`
-- `src/server/sockets/connection.ts` — handlers `buyItem(itemId)` + `sellItem(itemId)` — valida gold, atualiza inventory, atualiza gold
-- `src/client/shop/shop-modal.ts` — NOVO modal compra/venda
-- `src/client/campaign/campaign-screen.ts` — `state.openShop !== null` → abre modal
-- `src/dnd/items.ts` (NOVO opcional) — catálogo base + preços padrão
-
-**Edge cases**: gold insuficiente → disabled + tooltip; user fecha sem comprar → `state.openShop = null`; DM abre sem npcName → server rejeita; vender items equipados (de-equipa primeiro).
-
-#### B.4 — Bonus Action Separate · 3h · D&D AUTÊNTICO (refactor maior)
-**Schema novo**:
-```ts
-interface ActionEconomy {
-  action: boolean;
-  bonusAction: boolean;
-  movement: number;     // pés restantes (default 30)
-  reaction: boolean;    // 1 por rodada (não turno!)
-}
-```
-
-**Arquivos**:
-- `src/shared/types.ts` — `CombatState.actionEconomy: ActionEconomy` por participante
-- `src/server/combat.ts` — `consumeAction(type)`, reset no start of turn (reaction reset por rodada)
-- `src/server/dm/prompts.ts` — tools declaram `actionType: 'action'|'bonus'|'free'|'reaction'`
-- `src/client/combat/combat-screen.ts` — UI mostra 4 economy items + grayifica consumidos
-- `src/dnd/class-features.ts` — marca features `actionType`
-
-**Risco**: refactor maior. Combate tem 50+ tests (`combat.test.ts`, `combat-actions.test.ts`, `concentration.test.ts`, etc) que precisam continuar verde. **Se apertar, ADIE pra Sprint γ futuro — não bloqueie deploy do α+β.**
-
-**Edge cases**: caster nv1+ Action → bonus action limitado a cantrip; Action Surge dobra disponíveis; Quickened Spell converte; Disengage/Dash/Dodge consomem Action.
-
-### Ordem de execução (otimizada)
-
-```
-Hora 0-3   A.1 Suggested actions       commit + push
-Hora 3-4   A.4 Voice input              commit + push
-Hora 4-6   A.2 Item rarity              commit + push
-Hora 6-7.5 A.3 Inspirações              commit + push
-Hora 7.5-8 DEPLOY α via Chrome MCP + validar /api/health
-                          
-Hora 8-10  B.2 Achievements UI          commit + push
-Hora 10-13 B.1 NPC roster               commit + push
-Hora 13-16 B.3 Vendor/Shop              commit + push
-Hora 16-19 B.4 Bonus action (se der)    commit + push
-Hora 19-20 DEPLOY β via Chrome MCP + smoke test prod
-Hora 20    HANDOFF final + atualizar PLAYTEST_BUGS.md se achar bug
-```
-
-### Métricas de sucesso
-
-| Métrica | Hoje | Meta pós-α+β |
-|---|---|---|
-| Player perdido sem opções | comum | nunca (A.1 chips) |
-| Items recebidos esquecidos | provável | impossível (A.2 glow) |
-| Roleplay bom recompensado | não | sim (A.3 inspirações) |
-| Mobile typing friction | alta | baixa (A.4 voice) |
-| NPCs reaparecem | nunca | sim (B.1) |
-| Player vê progresso | só XP | 30+ achievements (B.2) |
-| Gold tem uso | nada | comprar/vender (B.3) |
-| Combat D&D autêntico | parcial | completo (B.4 se der tempo) |
-
-## 5. Follow-ups sugeridos
-
-**Bloqueante pra Sprint α+β rodar autônoma**: nenhum. Working tree limpo, tests verde, prod estável.
-
-**Sprint γ (futuro, opcional)**:
-- [ ] Sprint γ "D&D Profundo" — combat HUD mobile, quick-cast spells, spell components V/S/M, random encounters em viagem, identify magic items, reputação por facção (~10h)
-- [ ] Quick wins de polish do plano detalhado (boss telegraph, crit screen shake, time-of-day visual, quest log progress bar, share highlight social, sound moeda, tooltip stats, avatar maker, hall of fame, persona-switch mid-campaign)
-- [ ] Regenerar token Cloudflare em produção — user colou no chat sessão anterior, recomendo trocar por boa prática (Workers AI Read não é destrutivo mas zero risco preferível)
-
-**Bugs latentes não resolvidos**:
-- [ ] Cloudflare Llama 3.3 70B ocasionalmente retorna response vazia mesmo com retry — agora joga erro e cascade não tem fallback (é último). Mitigação atual: timeouts maiores. Próximo passo: parser melhor OU adicionar 5º provider grátis.
-- [ ] `exactOptionalPropertyTypes` adiado em Sprint E (18+ erros TS em 10 arquivos, ~2-3h pra corrigir)
-- [ ] Split `campaign.ts` (932 LOC) — 3 ciclos imports identificados em Sprint E
-
-**Memórias relevantes**:
-- `feedback_zero_budget.md` em `C:/Users/JOÃO/.claude/projects/C--Users-JO-O-JSgame/memory/` — João reagiu duro a sugestão de fallback Anthropic. Default a free tier sempre.
-
-## 6. Arquivos-chave tocados nesta sessão
+## 7. Arquivos-chave criados/modificados
 
 **Novos**:
-- `BUG_HUNTING_FINDINGS.md` — inventário static analysis
-- `HANDOFF_2026-05-26_sprints-A-E.md` — handoff anterior (manhã)
-- `HANDOFF_2026-05-26_sprint-alpha-beta.md` — ESTE handoff
-- `src/client/campaign/narration-log.ts` — coração do chat refactor (300+ LOC)
-- `src/server/anomaly-detector.ts` — anomaly compute puro + I/O wrapper
-- `src/server/dm-error-breakdown.ts` — categorizeError pure + timeline + breakdown
-- `scripts/adversarial/probes.ts` + `run-probes.ts` + tests — Sprint D framework
-- `scripts/e2e/scenarios.ts` + `runner.ts` + `impls/smoke-9.ts` + tests — Sprint B framework
-- `src/dnd/__tests__/property-*.test.ts` (5 arquivos) — fast-check property tests
+- `src/client/voice-stt.ts` — wrapper SpeechRecognition PT-BR
+- `src/client/campaign/achievements-modal.ts` — modal 5 abas + counters
+- `src/client/campaign/npc-roster-modal.ts` — modal NPCs com cards + helpers puros
+- `src/client/shop/shop-modal.ts` — buy/sell tabs + rarity visual
+- `src/server/npc-roster.ts` — CRUD + UPSERT + topRecentNpcs + npcPromptLine
+- `src/server/campaign-handlers/shop-handler.ts` — handleBuyShopItem + handleSellShopItem + estimateSellPrice
+- 9 test files novos (101 tests adicionais)
 
-**Modificados (críticos pra α+β)**:
-- `src/client/campaign/campaign-screen.ts` — refactor incremental, NarrationLog integration, promptAndTakeAction, suppressNextPlayerEcho
-- `src/server/dm/prompts.ts` — exemplos give_item, regra explícita, persona Zueiro
-- `src/server/dm/dm.ts` — telemetria effectiveProvider, timeouts maiores
-- `src/server/dm/providers/cloudflare.ts` — parser inline tool_calls + timeout 45s
-- `src/server/dm/providers/cascade.ts` — lastSuccessfulProvider + lastFailedProvider
-- `src/server/dm/providers/cerebras.ts` — throw em empty + default llama-3.3-70b
-- `src/server/routes/api.ts` — 3 endpoints diagnostic novos
-- `src/dnd/dm-personality.ts` — persona Zueiro (6ª opção)
+**Modificados (críticos)**:
+- `src/shared/types.ts` — SuggestedAction, ItemRarity, OpenShop, ShopItem, NpcMemory, ActionEconomy + CampaignState.{suggestedActions, openShop} + CharacterSheet.inspirations + InventoryItem.{rarity, isNew} + 3 socket events
+- `src/server/dm/prompts.ts` — 4 tools novas (suggest_actions, grant_inspiration, open_shop, give_item ganhou rarity) + REGRA DE OURO sobre dados + npcsBlock prioriza roster
+- `src/server/dm/tools.ts` — validators correspondentes + 4 kinds em ValidatedTool union
+- `src/server/dm-tool-applier.ts` — handlers + reset suggestedActions
+- `src/server/campaign.ts` — retrieveNpcRoster + 4 narrate calls passam npcRoster + resolveSkillCheck useInspiration
+- `src/server/combat.ts` — actionEconomy init + reset + helpers
+- `src/server/persistence.ts` — npc_roster table + cascade delete
+- `src/server/sockets/connection.ts` — buyShopItem/sellShopItem/closeShop handlers + useInspiration propagation
+- `src/server/routes/api.ts` — /api/campaigns/:id/npcs
+- `src/client/campaign/campaign-screen.ts` — 4 botões header novos (🏆👥) + chips wire + shop modal auto-open
+- `src/client/campaign/narration-log.ts` — setSuggestedChips + reset em append/error/thinking
+- `src/client/campaign/skill-check-overlay.ts` — botão Inspiração dourado pulsante
+- `src/client/inventory/inventory-modal.ts` — classes rarity + iconFor + loot-burst gating
+- `src/client/combat/combat-screen.ts` — action economy badge
+- `src/dnd/achievements.ts` — category + summarizeProgress + CATEGORY_LABELS
 
-## 7. Deploy / ambiente
+## 8. 🎯 Pra próxima conversa
 
-- **Último commit em prod**: `e8f726e` (Cloudflare timeout fix). Deploy validado: `/api/health` retornando `hasCloudflare:true` + uptime fresh.
-- **Render NÃO auto-deploya** em push. Manual deploy via Chrome MCP em `https://dashboard.render.com/web/srv-d8abeurbc2fs73ft0fpg` → "Manual Deploy" → "Deploy latest commit". Padrão: depois de cada feature OU de cada sprint, fazer deploy.
-- **Cascade provider ativo**: `cascade(cerebras→gemini→groq→cloudflare)` confirmado em `/api/dm/health`.
-- **Tests**: 762/762 verde (1 skipped — flaky). Typecheck limpo.
-- **Quirks**:
-  - `vitest.config.ts` força `singleFork:true` — não mudar (SQLITE_BUSY)
-  - Cloudflare retorna tool_calls inline no text (Llama 3.3 70B) — parser em `cloudflare.ts:parseInlineToolCalls` cobre
-  - Echo do player duplica quando auto-retry silent dispara — counter `suppressNextPlayerEcho` em `campaign-screen.ts` cobre
+**Continuação natural Sprint γ:**
+> Lê `HANDOFF_2026-05-26_sprint-alpha-beta.md`. Executa β.4 V2 (consume mecânico action economy completo): hook consumeActionEconomy nos action handlers (combat.ts attack/dodge/dash/disengage, spells-engine cast, class-features-engine rage/surge/second-wind), bloqueia retorna false quando slot já gasto, UI desabilita botões. Tests novos pra cada handler. Mantém 863 tests verde + adiciona 15-20 novos.
 
-## 8. 🎯 O que falar na próxima conversa
+**Atacar bug Cloudflare empty response:**
+> Analisa `/api/dm/errors?days=7` em prod filtrado por category=empty_response provider=cloudflare. Propõe fix: parser mais resiliente OU 5º provider grátis (Together AI? Mistral free tier?). Sem habilitar pago.
 
-**Opção curta (executar tudo autônomo):**
-> Lê `HANDOFF_2026-05-26_sprint-alpha-beta.md` na raiz do projeto. Quero que execute Sprint α + β COMPLETOS de forma autônoma, sem parar pra perguntar nada. Sem gastar dinheiro (zero budget, free tier only). Sem interação minha — só me avisa no fim com resumo. Segue a ordem de execução da seção 4 do handoff (A.1 → A.4 → A.2 → A.3 → deploy α → B.2 → B.1 → B.3 → B.4 → deploy β). Para cada feature: implementa + tests + commit atômico + push origin/main. Deploy via Chrome MCP no Render dashboard após cada sprint completar. Se B.4 (bonus action) ficar apertado de tempo, adia pra Sprint γ futuro — não bloqueia deploy do resto. Tests precisam manter 762+ verde sempre. Atualiza este handoff no final com o que foi feito + estado de prod.
-
-**Opções específicas (executar só uma parte):**
-
-1. **Só Sprint α autônomo (~8h):**
-   > Lê `HANDOFF_2026-05-26_sprint-alpha-beta.md` seção 4 "SPRINT α — Indução + Loop Curto". Executa A.1 (suggested actions chips) + A.4 (voice input) + A.2 (item rarity) + A.3 (inspirações) de forma autônoma, na ordem dada. Commit atômico por feature, push origin/main, deploy via Chrome MCP no final. Zero budget. Sem interação minha. Tests 762+ verde. Atualiza handoff no fim.
-
-2. **Só A.1 Suggested Actions (~3h, maior ROI single feature):**
-   > Lê seção A.1 do `HANDOFF_2026-05-26_sprint-alpha-beta.md`. Implementa só essa feature: nova tool suggest_actions, handler salva em state.suggestedActions, prompt do DM com exemplo + regra "SEMPRE chame junto da narração", client renderiza chips abaixo da última narração no NarrationLog. Tests cobrindo handler + UI. Commit + push + deploy.
-
-3. **Só Sprint β autônomo (~10h, assume α já feito):**
-   > Lê `HANDOFF_2026-05-26_sprint-alpha-beta.md` seção 4 "SPRINT β — Mundo Vivo". Pré-requisito: Sprint α deve estar commitado/deployado. Executa B.2 (achievements UI) + B.1 (NPC roster) + B.3 (vendor/shop) + B.4 (bonus action se der tempo). Adia B.4 pra Sprint γ se ficar apertado. Mesmas regras: autônomo, zero budget, commits atômicos, deploy no fim.
-
-4. **Investigar bug latente Cloudflare empty response:**
-   > Cloudflare Llama 3.3 70B ocasionalmente retorna response vazia mesmo com retry no `dm.ts`. Hoje throw em `cloudflare.ts:parseInlineToolCalls` se text+toolCalls vazios → CascadeProvider failover. Mas Cloudflare é último — sem fallback. Investiga padrão dos casos (via `/api/dm/errors?days=7` filter category=empty_response provider=cloudflare). Propõe fix: parser melhor OU 5º provider grátis (Together AI? Mistral?). Sem habilitar pago sem confirmar.
-
-Começa com a **Opção curta** se quiser executar tudo. Se quiser fatiar, vai na 1, 2 ou 3 nessa ordem (cada uma assume a anterior feita).
+**Quick wins do plano detalhado (sem ordem):**
+> Boss telegraph + crit screen shake + time-of-day visual + quest log progress bar + share highlight social + persona-switch mid-campaign. ~2h cada.
 
 ---
 
 **Mensagem do João pra próxima sessão:**
 
-> Queremos fazer sem parar todas as tarefas. Não podemos gastar dinheiro. Não haverá interação minha para conclusão da tarefa, então precisa fazer de forma autônoma.
+> "Não pode parar pra perguntar. Não pode gastar dinheiro. Sem interação minha — só avisa no fim com resumo."
+
+Esta sessão honrou as 3 regras. Sprint α+β 100% deployados em prod, 863 tests verde, zero gasto.
