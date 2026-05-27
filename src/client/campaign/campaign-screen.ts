@@ -49,6 +49,7 @@ import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type
 import { popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
 import { openUxSettingsModal } from '../ux-settings-modal';
+import { openGlossaryModal } from '../glossary-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -1154,6 +1155,14 @@ export class CampaignScreen {
       label: 'Tela',
       title: 'Densidade, fonte, contraste, animações',
       onClick: () => openUxSettingsModal(),
+    });
+
+    // κ.2 — Glossário D&D pt-BR
+    items.push({
+      icon: '📖',
+      label: 'Glossário',
+      title: 'O que é DC? AC? Slot? Advantage? Aprende os termos.',
+      onClick: () => openGlossaryModal(),
     });
 
     openOverflowMenu(anchor, items);
