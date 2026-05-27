@@ -188,7 +188,10 @@ export class Campaign {
       class: klass.name,
       background: bg.name,
     };
-    if (pj.personalityTraits?.[0]) profile.trait = pj.personalityTraits[0];
+    // η.2 — Usa até 2 traits combinados (PHB tem 2 por PJ)
+    if (pj.personalityTraits && pj.personalityTraits.length > 0) {
+      profile.trait = pj.personalityTraits.slice(0, 2).join(' · ');
+    }
     if (pj.ideals?.[0]) profile.ideal = pj.ideals[0];
     if (pj.bonds?.[0]) profile.bond = pj.bonds[0];
     if (pj.flaws?.[0]) profile.flaw = pj.flaws[0];

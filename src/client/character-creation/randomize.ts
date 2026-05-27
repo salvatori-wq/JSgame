@@ -8,6 +8,7 @@ import type { BackgroundId } from '../../dnd/backgrounds';
 import { ALL_RACES } from '../../dnd/races';
 import { ALL_CLASSES } from '../../dnd/classes';
 import { ALL_BACKGROUNDS } from '../../dnd/backgrounds';
+import { rollRandomPersonality } from '../../dnd/personality-tables';
 
 const ALIGNMENTS: Alignment[] = ['lb', 'nb', 'cb', 'ln', 'nn', 'cn', 'lm', 'nm', 'cm'];
 
@@ -57,6 +58,9 @@ export function randomizeWizardState(): WizardState {
   const abilityScoresBase: AbilityScores = { for: 8, des: 8, con: 8, int: 8, sab: 8, car: 8 };
   shuffledAbilities.forEach((k, i) => { abilityScoresBase[k] = ARRANGEMENT[i]!; });
 
+  // η.2 — Personality sortear automático
+  const personality = rollRandomPersonality(background.id as BackgroundId);
+
   return {
     step: 'review',  // pula direto pra review pra player editar/confirmar
     raceId: race.id as RaceId,
@@ -69,5 +73,9 @@ export function randomizeWizardState(): WizardState {
     additionalClasses: [],
     characterName,
     alignment: pick(ALIGNMENTS),
+    personalityTraits: personality.traits,
+    personalityIdeals: personality.ideals,
+    personalityBonds: personality.bonds,
+    personalityFlaws: personality.flaws,
   };
 }

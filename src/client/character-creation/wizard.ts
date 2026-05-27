@@ -17,13 +17,14 @@ import { renderClassStep } from './step-class';
 import { renderSubclassStep } from './step-subclass';
 import { renderAbilitiesStep } from './step-abilities';
 import { renderBackgroundStep } from './step-background';
+import { renderPersonalityStep } from './step-personality';
 import { renderFeatStep } from './step-feat';
 import { renderReviewStep } from './step-review';
 import { renderLivePreview } from './live-preview';
 import { clearCompareTray } from './compare-modal';
 import { randomizeWizardState } from './randomize';
 
-export type WizardStep = 'race' | 'class' | 'subclass' | 'abilities' | 'background' | 'level4' | 'review';
+export type WizardStep = 'race' | 'class' | 'subclass' | 'abilities' | 'background' | 'personality' | 'level4' | 'review';
 
 export interface WizardState {
   step: WizardStep;
@@ -37,9 +38,14 @@ export interface WizardState {
   additionalClasses: MulticlassEntry[]; // multi-classe (PHB cap 6) — opcional
   characterName: string;
   alignment: import('../../shared/types').Alignment;
+  // η.2 — Personality (PHB cap 4). Opcional — skip permite vazio.
+  personalityTraits?: string[];
+  personalityIdeals?: string[];
+  personalityBonds?: string[];
+  personalityFlaws?: string[];
 }
 
-const STEP_ORDER: WizardStep[] = ['race', 'class', 'subclass', 'abilities', 'background', 'level4', 'review'];
+const STEP_ORDER: WizardStep[] = ['race', 'class', 'subclass', 'abilities', 'background', 'personality', 'level4', 'review'];
 
 export class CharacterWizard {
   private state: WizardState;
@@ -112,6 +118,7 @@ export class CharacterWizard {
       subclass: 'Subclasse',
       abilities: 'Atributos',
       background: 'Antecedente',
+      personality: 'Personalidade',
       level4: 'Nv 4',
       review: 'Revisão',
     };
@@ -184,6 +191,8 @@ export class CharacterWizard {
         return renderAbilitiesStep(this.state, { update, next, back });
       case 'background':
         return renderBackgroundStep(this.state, { update, next, back });
+      case 'personality':
+        return renderPersonalityStep(this.state, { update, next, back });
       case 'level4':
         return renderFeatStep(this.state, { update, next, back });
       case 'review':
@@ -288,10 +297,10 @@ function buildCharacterSheet(state: WizardState): CharacterSheet {
       4: { max: 0, used: 0 }, 5: { max: 0, used: 0 }, 6: { max: 0, used: 0 },
       7: { max: 0, used: 0 }, 8: { max: 0, used: 0 }, 9: { max: 0, used: 0 },
     },
-    personalityTraits: [],
-    ideals: [],
-    bonds: [],
-    flaws: [],
+    personalityTraits: state.personalityTraits ?? [],
+    ideals: state.personalityIdeals ?? [],
+    bonds: state.personalityBonds ?? [],
+    flaws: state.personalityFlaws ?? [],
     backstory: '',
     createdAt: now,
     lastPlayedAt: now,

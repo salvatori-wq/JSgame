@@ -1,0 +1,126 @@
+/* JSgame · η.2 — Step Personality CSS. */
+
+.wiz-step-personality {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wiz-personality-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.wiz-personality-roll-all {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(244, 208, 127, 0.18) 0%, rgba(244, 180, 60, 0.12) 100%);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  color: var(--gold);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wiz-personality-roll-all:hover {
+  background: linear-gradient(135deg, rgba(244, 208, 127, 0.28) 0%, rgba(244, 180, 60, 0.2) 100%);
+}
+
+.wiz-personality-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(20, 12, 8, 0.45);
+  border: 1px solid rgba(244, 208, 127, 0.18);
+  border-radius: 8px;
+}
+
+.wiz-personality-h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.wiz-personality-selected {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wpi-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: linear-gradient(180deg, rgba(40, 28, 12, 0.85) 0%, rgba(28, 20, 12, 0.95) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.wpi-chip-text {
+  flex: 1 1 auto;
+  line-height: 1.35;
+}
+
+.wpi-chip-remove {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wpi-chip-remove:hover {
+  color: var(--accent-blood, #c84030);
+}
+
+.wiz-personality-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.wpi-option {
+  text-align: left;
+  padding: 8px 10px;
+  background: rgba(10, 6, 8, 0.55);
+  border: 1px solid rgba(244, 208, 127, 0.15);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.wpi-option:hover {
+  border-color: rgba(244, 208, 127, 0.42);
+  background: rgba(40, 28, 12, 0.5);
+}
+
+.wpi-option:active {
+  transform: scale(0.99);
+}
+
+.wiz-personality-full {
+  padding: 6px 0 0;
+  font-size: 11px;
+  color: rgba(244, 208, 127, 0.65);
+  font-style: italic;
+}

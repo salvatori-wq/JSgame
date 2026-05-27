@@ -6,6 +6,7 @@
 @import './styles/boot.css';
 @import './styles/home-core.css';
 @import './styles/wizard.css';
+@import './styles/step-personality.css';
 @import './styles/campaign-core.css';
 @import './styles/home-coop.css';
 @import './styles/campaign-party.css';
