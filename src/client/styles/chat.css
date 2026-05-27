@@ -1,0 +1,349 @@
+/* JSgame · ο.2 — Chat Pill + Chat Sheet styles.
+ * Pill bottom-right floating, badge unread. Sheet bottom 60% slide-up. */
+
+/* ──────────────── Sheet Stack Manager backdrop ──────────────── */
+
+.sheet-stack-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, background 220ms ease;
+  z-index: 9295;
+}
+
+.sheet-stack-backdrop.is-visible {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 1);
+}
+
+.is-stacked-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 88dvh;
+  background: linear-gradient(180deg, rgba(20, 12, 8, 0.98) 0%, rgba(10, 6, 8, 0.99) 100%);
+  border-top: 2px solid rgba(244, 208, 127, 0.45);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.6);
+  transform: translateY(100%);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.is-stacked-sheet.is-entering {
+  transform: translateY(100%);
+}
+
+.is-stacked-sheet.is-active {
+  transform: translateY(0);
+}
+
+.is-stacked-sheet.is-leaving {
+  transform: translateY(100%);
+}
+
+/* Layer 2 fica ligeiramente menor + offset acima */
+.is-stacked-sheet[data-stack-layer="1"] {
+  max-height: 84dvh;
+  bottom: 4px;
+}
+
+@media (min-width: 600px) {
+  .is-stacked-sheet {
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 100%);
+    width: min(560px, 96vw);
+    border-radius: 14px;
+    bottom: 16px;
+  }
+  .is-stacked-sheet.is-active {
+    transform: translate(-50%, 0);
+  }
+  .is-stacked-sheet.is-leaving {
+    transform: translate(-50%, 100%);
+  }
+}
+
+/* ──────────────── Chat Pill ──────────────── */
+
+.chat-pill {
+  position: fixed;
+  bottom: calc(80px + var(--m-safe-bottom, 0px));
+  right: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(244, 208, 127, 0.45);
+  background: linear-gradient(135deg, rgba(40, 28, 12, 0.92) 0%, rgba(20, 12, 8, 0.95) 100%);
+  color: var(--gold);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), 0 0 0 rgba(244, 208, 127, 0);
+  z-index: 9280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 160ms ease, box-shadow 240ms ease, opacity 220ms ease;
+}
+
+.chat-pill:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 10px rgba(244, 208, 127, 0.3);
+}
+
+.chat-pill:active {
+  transform: scale(0.94);
+}
+
+.chat-pill.has-unread {
+  animation: chat-pill-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes chat-pill-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), 0 0 0 rgba(244, 208, 127, 0);
+  }
+  50% {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), 0 0 16px rgba(244, 208, 127, 0.45);
+  }
+}
+
+.chat-pill.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.85);
+}
+
+.chat-pill-glyph {
+  font-size: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.65));
+}
+
+.chat-pill-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: var(--accent-blood, #c84030);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(10, 6, 8, 0.95);
+  box-shadow: 0 0 6px rgba(200, 64, 50, 0.55);
+}
+
+.chat-pill-badge[hidden] {
+  display: none;
+}
+
+/* Desktop: pill fica menor + bottom-right */
+@media (min-width: 600px) {
+  .chat-pill {
+    bottom: 24px;
+    right: 24px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+/* ──────────────── Chat Sheet ──────────────── */
+
+.chat-sheet {
+  z-index: 9300;
+}
+
+.chat-sheet .cs-handlebar {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(244, 208, 127, 0.35);
+  margin: 8px auto 4px;
+  flex-shrink: 0;
+}
+
+.chat-sheet .cs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 14px 8px;
+  border-bottom: 1px solid rgba(244, 208, 127, 0.15);
+  flex-shrink: 0;
+}
+
+.chat-sheet .cs-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.chat-sheet .cs-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-sheet .cs-close:hover {
+  color: var(--ink);
+}
+
+.chat-sheet .cs-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.chat-sheet .cs-empty {
+  text-align: center;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 40px 16px;
+  font-size: 13px;
+}
+
+.cs-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 92%;
+  align-self: flex-start;
+}
+
+.cs-msg.is-me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.cs-msg-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(40, 28, 12, 0.7);
+  border: 1px solid rgba(244, 208, 127, 0.28);
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-msg-bubble {
+  background: linear-gradient(180deg, rgba(30, 20, 12, 0.7) 0%, rgba(18, 12, 8, 0.85) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.18);
+  border-radius: 10px;
+  padding: 6px 10px;
+  max-width: 100%;
+}
+
+.cs-msg.is-me .cs-msg-bubble {
+  background: linear-gradient(180deg, rgba(40, 28, 12, 0.75) 0%, rgba(28, 20, 12, 0.9) 100%);
+  border-color: rgba(244, 208, 127, 0.32);
+}
+
+.cs-msg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.cs-msg-speaker {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.cs-msg-time {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.cs-msg-text {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.chat-sheet .cs-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px calc(10px + var(--m-safe-bottom, 0px));
+  border-top: 1px solid rgba(244, 208, 127, 0.15);
+  flex-shrink: 0;
+}
+
+.chat-sheet .cs-input {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 8px 12px;
+  background: rgba(10, 6, 8, 0.6);
+  border: 1px solid rgba(244, 208, 127, 0.28);
+  border-radius: 18px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.chat-sheet .cs-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.chat-sheet .cs-send {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: none;
+  color: var(--bg-deep);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-sheet .cs-send:hover {
+  filter: brightness(1.1);
+}
+
+.chat-sheet .cs-send:active {
+  transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-stacked-sheet,
+  .sheet-stack-backdrop,
+  .chat-pill,
+  .chat-pill.has-unread {
+    transition: none;
+    animation: none;
+  }
+}

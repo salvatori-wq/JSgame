@@ -43,6 +43,9 @@ import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics } from './action-dock-topics';
+import { createChatPill, type ChatPillHandle } from './chat-pill';
+import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, type PartyMessage } from './chat-sheet';
+import { popAll as popAllSheets } from '../sheet-stack-manager';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -103,6 +106,10 @@ export class CampaignScreen {
   private socketBound = false;
   private socketCleanups: Array<() => void> = [];
   private viewportCleanups: Array<() => void> = [];
+  // ο.2 — Chat Perfeito state
+  private chatPill: ChatPillHandle | null = null;
+  private partyMessages: PartyMessage[] = [];
+  private unreadChatCount = 0;
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -133,6 +140,15 @@ export class CampaignScreen {
     this.socketCleanups = [];
     for (const off of this.viewportCleanups) off();
     this.viewportCleanups = [];
+    // ο.2 — Limpa chat pill + sheets
+    if (this.chatPill) {
+      this.chatPill.destroy();
+      this.chatPill = null;
+    }
+    closeChatSheet();
+    popAllSheets();
+    this.partyMessages = [];
+    this.unreadChatCount = 0;
     closeSkillCheck();
     closeCastSpellModal();
     closeInventoryModal();
@@ -336,6 +352,20 @@ export class CampaignScreen {
     };
     s.on('campaignState', onState);
     this.socketCleanups.push(() => s.off('campaignState', onState));
+
+    // ο.2 — Party chat message (broadcast separado da narração)
+    const onPartyMessage = (msg: PartyMessage): void => {
+      this.partyMessages.push(msg);
+      if (isChatSheetOpen()) {
+        appendChatMessage(msg);
+      } else if (this.character && msg.characterId !== this.character.id) {
+        // Não conta próprias msgs como unread
+        this.unreadChatCount += 1;
+        this.chatPill?.setUnreadCount(this.unreadChatCount);
+      }
+    };
+    s.on('partyMessage', onPartyMessage);
+    this.socketCleanups.push(() => s.off('partyMessage', onPartyMessage));
 
     const onParty = (party: CharacterSheet[]): void => {
       this.party = party;
@@ -833,10 +863,43 @@ export class CampaignScreen {
   private updateChatBar(): void {
     if (!this.slots) return;
     if (this.party.length > 1) {
-      this.replaceSlot(this.slots.chatBar, this.renderChatBar());
+      // ο.2 — Coop ativo: chat-bar inline some, pill flutuante toma lugar
+      this.replaceSlot(this.slots.chatBar, null);
+      this.ensureChatPill();
     } else {
       this.replaceSlot(this.slots.chatBar, null);
+      if (this.chatPill) {
+        this.chatPill.destroy();
+        this.chatPill = null;
+      }
+      closeChatSheet();
     }
+  }
+
+  private ensureChatPill(): void {
+    if (this.chatPill) return;
+    this.chatPill = createChatPill({
+      unreadCount: this.unreadChatCount,
+      onClick: () => this.openPartyChat(),
+    });
+    document.body.appendChild(this.chatPill.element);
+  }
+
+  private openPartyChat(): void {
+    if (!this.character) return;
+    if (isChatSheetOpen()) {
+      closeChatSheet();
+      return;
+    }
+    // Zera unread ao abrir
+    this.unreadChatCount = 0;
+    this.chatPill?.setUnreadCount(0);
+    openChatSheet({
+      party: this.party,
+      messages: this.partyMessages,
+      myCharacterId: this.character.id,
+      onSend: (text) => this.opts.socket.emit('chat', { text }),
+    });
   }
 
   // Auto-retry helper: lastAction com timestamp pra decisão de janela 30s.

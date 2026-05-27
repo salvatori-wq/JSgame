@@ -539,6 +539,14 @@ export interface ServerToClientEvents {
   achievementUnlocked: (payload: { id: string; name: string; description: string; icon: string }) => void;
   // F20: daily streak bump (user logado). Cliente mostra toast/badge.
   streakUpdate: (payload: { currentStreak: number; longestStreak: number; brokeRecord: boolean }) => void;
+  // ο.2 — Party chat message (broadcast separado da narração, renderizado no chat-sheet).
+  partyMessage: (payload: {
+    id: string;
+    characterId: string;
+    speaker: string;
+    text: string;
+    timestamp: number;
+  }) => void;
 }
 
 export type ExplorationAction =

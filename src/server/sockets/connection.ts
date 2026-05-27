@@ -942,10 +942,19 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
       if (!trimmed) return;
       const camp = campaigns.get(activeCampaignId);
       const myName = camp?.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Anônimo';
+      // Legacy (narration log) — mantém compat com client antigo
       io.to(activeCampaignId).emit('dmNarration', {
         text: trimmed,
         speaker: `💬 ${myName}`,
         mood: 'neutral',
+      });
+      // ο.2 — Novo: broadcast separado pra chat-sheet
+      io.to(activeCampaignId).emit('partyMessage', {
+        id: `pm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        characterId: activePlayerId,
+        speaker: myName,
+        text: trimmed,
+        timestamp: Date.now(),
       });
     });
   });
