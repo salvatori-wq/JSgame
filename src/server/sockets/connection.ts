@@ -184,9 +184,6 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
                 speaker: response.speaker ?? 'Mestre',
                 mood: 'neutral',
               });
-              // POLISH-0 — track first_narration AQUI (era trackeado só no takeAction,
-              // medindo composto inflado de ~52s; agora mede latência real do cold open).
-              trackFirstNarrationIfNeeded();
               broadcastState(camp);
               await drainAchievements(camp);
               // T1 — Track campaign_created se é o primeiro narration
@@ -196,7 +193,12 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
                 kind: 'campaign_created',
               });
             }
+            // POLISH-0 — race coop fix: se response é null, outro player startou
+            // nesta campanha (enqueue serializou). O dmNarration foi emitido via
+            // io.to(camp.state.id) pelo vencedor — este socket recebe via room.
+            // Trackear first_narration AQUI cobre ambos casos (vencedor + perdedor).
           });
+          trackFirstNarrationIfNeeded();
         } else {
           for (const entry of camp.getNarrationLog().slice(-3)) {
             const [speaker, ...rest] = entry.split(': ');

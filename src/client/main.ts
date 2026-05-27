@@ -4,7 +4,7 @@
 import './styles.css';
 import { io, type Socket } from 'socket.io-client';
 import type { ClientToServerEvents, ServerToClientEvents, CharacterSheet } from '../shared/types';
-import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, deleteCampaign as deleteCampaignApi, type CampaignSummary } from './api';
+import { listCharacters, getCharacter, deleteCharacter, getHealth, listCampaigns, deleteCampaign as deleteCampaignApi, trackClientMetric, type CampaignSummary } from './api';
 import { el, getOwnerName, setOwnerName, getLastSession, clearLastSession } from './util';
 import { CharacterWizard } from './character-creation/wizard';
 import { CampaignScreen } from './campaign/campaign-screen';
@@ -170,6 +170,12 @@ function navigate(view: View): void {
 
 async function renderHome(): Promise<void> {
   const owner = getOwnerName();
+  // POLISH-0 — telemetria funil pré-sessão. Mede quantas visitas convertem em joinCampaign.
+  trackClientMetric('home_loaded', {
+    has_anon: !owner,
+    has_user: !!currentUser,
+    returning: !!getLastSession(),
+  });
   const health = await getHealth().catch(() => ({ ok: false } as Awaited<ReturnType<typeof getHealth>>));
 
   const root = el('main', { class: 'home-screen' });
@@ -702,6 +708,8 @@ function renderPrefabCard(card: PrefabCard, ownerInput: HTMLInputElement): HTMLE
           toastWarn('Diga seu nome primeiro');
           return;
         }
+        // POLISH-0 — telemetria funil: click no prefab card
+        trackClientMetric('prefab_clicked', { prefab_id: card.id });
         btn.setAttribute('disabled', '');
         btn.classList.add('is-loading');
         try {

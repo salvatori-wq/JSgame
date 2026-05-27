@@ -31,7 +31,10 @@ export type MetricsEventKind =
   | 'action_taken'            // payload: { action, has_details } — toda takeAction (pra ratio rolls/actions)
   // F3/F4 — Densidade metrics
   | 'dm_callback_used'        // payload: { npc_count, quest_count, location_count, total }
-  | 'dm_used_backstory';      // payload: { trait, ideal, bond, flaw } booleans
+  | 'dm_used_backstory'       // payload: { trait, ideal, bond, flaw } booleans
+  // POLISH-0 — Client-side eventos de funil pré-sessão (POST /api/metrics/track)
+  | 'home_loaded'             // payload: { has_anon, has_user, returning } — homepage renderizada
+  | 'prefab_clicked';         // payload: { prefab_id } — click em prefab card
 
 export interface MetricsEvent {
   id: string;

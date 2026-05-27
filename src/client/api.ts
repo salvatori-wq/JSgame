@@ -70,6 +70,20 @@ export async function getHealth(): Promise<ApiHealth> {
   return fetchJson<ApiHealth>('/api/health');
 }
 
+// POLISH-0 — Telemetria client-side (whitelist server-side: home_loaded, prefab_clicked).
+// Fire-and-forget — falhas não bloqueiam fluxo nem aparecem em log do user.
+export function trackClientMetric(kind: 'home_loaded' | 'prefab_clicked', payload?: Record<string, unknown>): void {
+  try {
+    void fetch('/api/metrics/track', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind, payload }),
+      keepalive: true,
+    }).catch(() => { /* silent — telemetria nunca quebra UX */ });
+  } catch { /* fetch sync throw — também silencioso */ }
+}
+
 export async function listCharacters(ownerName: string): Promise<CharacterSummary[]> {
   const data = await fetchJson<{ characters: CharacterSummary[] }>(
     `/api/characters?owner=${encodeURIComponent(ownerName)}`,

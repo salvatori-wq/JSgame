@@ -32,6 +32,7 @@ import {
 import { getMetricsSummary, getDmErrorRate, getAvgSessionLength, trackMetricEvent } from '../metrics.js';
 import { detectAnomalies, computeFunnel } from '../anomaly-detector.js';
 import { computeUxFunnel } from '../ux-funnel.js';
+import { computeSessionDebug } from '../session-debug.js';
 import { getDmErrorBreakdown, getDmTimeline } from '../dm-error-breakdown.js';
 import type { MemoryStore } from '../memory.js';
 import type { Campaign } from '../campaign.js';
@@ -167,6 +168,51 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     } catch (err) {
       console.error('[api] ux-funnel:', err);
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POLISH-0 — Per-session debug pra investigar dropoffs no funil.
+  // Retorna lista das últimas N sessões com event kinds + timestamps + stage
+  // classification heurística (started_only/narration_only/action_no_response/...).
+  app.get('/api/dm/session-debug', async (req, res) => {
+    try {
+      const days = Math.max(1, Math.min(30, Number(req.query.days) || 2));
+      const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 30));
+      const result = await computeSessionDebug(days, limit);
+      res.json(result);
+    } catch (err) {
+      console.error('[api] session-debug:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POLISH-0 — Client-side telemetria. Whitelist estrito de kinds pra cliente
+  // emitir, evitando flood. Usado pra eventos pré-sessão (home_loaded, prefab_clicked)
+  // que não passam pelo socket joinCampaign.
+  const CLIENT_ALLOWED_KINDS = new Set([
+    'home_loaded',
+    'prefab_clicked',
+  ]);
+  app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
+    const kind = String(req.body?.kind ?? '');
+    if (!CLIENT_ALLOWED_KINDS.has(kind)) {
+      res.status(400).json({ ok: false, error: 'kind não permitido' });
+      return;
+    }
+    const user = (req as ExpressReqWithUser).user;
+    const payload = (req.body?.payload && typeof req.body.payload === 'object')
+      ? req.body.payload as Record<string, unknown>
+      : undefined;
+    try {
+      await trackMetricEvent({
+        userId: user?.id ?? null,
+        kind: kind as Parameters<typeof trackMetricEvent>[0]['kind'],
+        payload,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[api] /api/metrics/track:', err);
+      res.status(500).json({ ok: false, error: String(err) });
     }
   });
 
