@@ -515,6 +515,54 @@
   border-color: var(--accent-rune);
 }
 
+.camp-custom-input.is-listening {
+  border-color: #e85050;
+  background: rgba(80, 20, 20, 0.18);
+  animation: input-listening-pulse 1.2s ease-in-out infinite;
+}
+@keyframes input-listening-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 80, 80, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(232, 80, 80, 0); }
+}
+
+/* α.4 — Voice STT mic button (push-to-talk) */
+.camp-mic-btn {
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  color: var(--ink-warm);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.1s ease;
+  user-select: none;
+}
+.camp-mic-btn:hover:not(:disabled) {
+  background: rgba(60, 40, 30, 0.7);
+  border-color: var(--accent-rune);
+}
+.camp-mic-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.camp-mic-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.camp-mic-btn.is-recording {
+  background: rgba(140, 30, 30, 0.5);
+  border-color: #e85050;
+  animation: mic-recording-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-recording-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 80, 80, 0.55); }
+  50%      { box-shadow: 0 0 0 8px rgba(232, 80, 80, 0); }
+}
+.camp-mic-btn.is-processing {
+  background: rgba(80, 60, 30, 0.6);
+  border-color: var(--ink-gold);
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    Skill check overlay (d20 animado)
    ════════════════════════════════════════════════════════════════════════ */

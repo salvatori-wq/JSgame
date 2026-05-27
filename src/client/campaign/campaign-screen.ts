@@ -34,6 +34,7 @@ import { toastError, toastWarn } from '../toast';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
+import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -1024,8 +1025,68 @@ export class CampaignScreen {
         if (v) { this.takeAction('explore', v); customInput.value = ''; }
       }
     });
-    actionsEl.appendChild(el('div', { class: 'camp-custom-row' }, [customInput, customBtn]));
+
+    // α.4 — Voice input (push-to-talk) — só aparece se browser suporta STT.
+    const row = el('div', { class: 'camp-custom-row' }, [customInput, customBtn]);
+    if (shouldShowVoiceMic()) {
+      row.insertBefore(this.renderVoiceMicBtn(customInput, disabled), customBtn);
+    }
+    actionsEl.appendChild(row);
     return actionsEl;
+  }
+
+  // α.4 — Botão mic: click-to-toggle. Idle → recording → processing → idle.
+  // Texto reconhecido vai pro input pra player editar antes de mandar.
+  private voiceSession: SttSession | null = null;
+  private renderVoiceMicBtn(input: HTMLInputElement, disabled: boolean): HTMLButtonElement {
+    const btn = el('button', {
+      class: 'camp-mic-btn',
+      attrs: { type: 'button', disabled, title: 'Falar (push-to-talk)' },
+      text: '🎙',
+    }) as HTMLButtonElement;
+    const setState = (state: 'idle' | 'recording' | 'processing'): void => {
+      btn.classList.remove('is-recording', 'is-processing');
+      if (state === 'recording') {
+        btn.classList.add('is-recording');
+        btn.textContent = '🔴';
+        btn.title = 'Toque pra parar';
+      } else if (state === 'processing') {
+        btn.classList.add('is-processing');
+        btn.textContent = '⏳';
+      } else {
+        btn.textContent = '🎙';
+        btn.title = 'Falar (push-to-talk)';
+      }
+    };
+
+    btn.addEventListener('click', () => {
+      if (this.voiceSession) {
+        this.voiceSession.stop();
+        this.voiceSession = null;
+        return;
+      }
+      this.voiceSession = startStt({
+        onStatus: (s) => setState(s),
+        onInterim: (text) => {
+          input.value = text;
+          input.classList.add('is-listening');
+        },
+        onFinal: (text) => {
+          input.value = text;
+          input.classList.remove('is-listening');
+          input.focus();
+          this.voiceSession = null;
+        },
+        onError: (code, msg) => {
+          input.classList.remove('is-listening');
+          this.voiceSession = null;
+          // 'aborted' = user clicou stop — não mostra erro
+          if (code === 'aborted') return;
+          toastWarn(sttErrorMessage(code) + (msg ? ` (${msg})` : ''));
+        },
+      });
+    });
+    return btn;
   }
 
   // 2026-05-26 fix UX: clique em botão genérico (Explorar/Investigar/Falar/etc)
