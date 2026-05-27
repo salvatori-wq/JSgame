@@ -8,6 +8,7 @@ import type {
 import type { SpellDef, SpellEffect } from '../dnd/spells.js';
 import { getSpell, type SpellId } from '../dnd/spells.js';
 import { getCastingAbilityMod, isSpellcaster } from '../dnd/spell-slots.js';
+import { isPreparedCaster } from '../dnd/prepared-casters.js';
 import { rollD20, rollNotation } from '../dnd/dice.js';
 import { proficiencyBonus, abilityModifier } from '../dnd/attributes.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
@@ -37,9 +38,14 @@ export function resolvePlayerCastSpell(input: CastSpellInput): CastSpellResult {
   const spell = getSpell(spellId);
   if (!spell) return fail(`Magia desconhecida: ${spellId}`);
 
-  // 1. Caster precisa conhecer/preparar a magia
+  // 1. Caster precisa conhecer a magia
   if (!caster.spellsKnown.includes(spellId)) {
     return fail(`${caster.characterName} não conhece ${spell.name}`);
+  }
+  // η.5 — Prepared casters (Mago/Clérigo/Druida/Paladino): magia deve estar preparada
+  // (cantrips sempre OK). Bruxo/Sorcerer/Bardo: known = prepared, sem check.
+  if (spell.level > 0 && isPreparedCaster(caster.classId) && !caster.spellsPrepared.includes(spellId)) {
+    return fail(`${caster.characterName} não preparou ${spell.name} hoje (faça long rest pra trocar)`);
   }
 
   // 2. Caster precisa ser caster da classe certa

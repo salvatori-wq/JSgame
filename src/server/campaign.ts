@@ -42,6 +42,7 @@ import { getBackground } from '../dnd/backgrounds.js';
 import { restoreAllSlots } from '../dnd/spell-slots.js';
 import { rollDice } from '../dnd/dice.js';
 import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
+import { autoFillPreparedSpells } from '../dnd/prepared-casters.js';
 import { handleShortRest, handleLongRest, handleRollDeathSave } from './campaign-handlers/rest-handler.js';
 import { detectImpliedSkillCheck } from './skill-check-detector.js';
 import { getColdOpen, pickFallbackLocation } from './cold-opens.js';
@@ -121,6 +122,9 @@ export class Campaign {
     if (!this.party.find((p) => p.id === c.id)) {
       // F23 — Garante estrutura classFeatureUses inicializada (PJs antigos não têm)
       ensureFeatureUses(c);
+      // η.5 — Auto-fill spellsPrepared pra prepared casters sem nada preparado
+      // (PJs antigos + recém-criados). Gentle default: preenche até o limit.
+      autoFillPreparedSpells(c);
       this.party.push(c);
       this.state.partyCharacterIds = this.party.map((p) => p.id);
     }

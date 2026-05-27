@@ -147,6 +147,8 @@ describe('F25 — Ritual cast', () => {
   it('detect-magic ritual fora de combate NÃO gasta slot', () => {
     const pj = mkCaster();
     pj.spellsKnown.push('detect-magic' as never);
+    // η.5 — Mago precisa preparar (não-cantrip)
+    pj.spellsPrepared.push('detect-magic' as never);
     const slotsBefore = pj.spellSlots[1]!.used;
     const result = resolvePlayerCastSpell({
       caster: pj,
@@ -163,6 +165,7 @@ describe('F25 — Ritual cast', () => {
   it('detect-magic ritual EM combate gasta slot normalmente', () => {
     const pj = mkCaster();
     pj.spellsKnown.push('detect-magic' as never);
+    pj.spellsPrepared.push('detect-magic' as never);
     const combat = startCombat({ party: [pj], enemies: [{ name: 'g', hp: 1, ac: 10 }] });
     const slotsBefore = pj.spellSlots[1]!.used;
     const result = resolvePlayerCastSpell({
