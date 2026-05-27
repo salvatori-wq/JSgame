@@ -114,6 +114,12 @@ export interface CampaignSummary {
   name: string;
   sessionNumber: number;
   lastPlayedAt: number;
+  // ι.2 — Preview rico
+  currentLocation?: string;
+  lastNarrationSnippet?: string;
+  // ι.5 — Vidas em risco
+  partyAnyAtRisk?: boolean;
+  partyAtRiskName?: string;
 }
 
 export async function listCampaigns(): Promise<CampaignSummary[]> {

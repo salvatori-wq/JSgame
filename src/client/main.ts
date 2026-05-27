@@ -556,12 +556,20 @@ function renderCampaignCard(
 ): HTMLElement {
   const when = new Date(c.lastPlayedAt);
   const whenStr = when.toLocaleDateString() + ' ' + when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  return el('div', { class: 'home-camp-card' }, [
-    el('div', { class: 'hcamp-body' }, [
-      el('div', { class: 'hcamp-name', text: c.name }),
-      el('div', { class: 'hcamp-meta', text: `Sessão ${c.sessionNumber} · ${whenStr}` }),
-      el('div', { class: 'hcamp-id', text: `ID: ${c.id}` }),
-    ]),
+  // ι.2 — Preview da última narração + location se disponíveis
+  const bodyChildren: (HTMLElement | null)[] = [
+    el('div', { class: 'hcamp-name', text: c.name }),
+    el('div', { class: 'hcamp-meta', text: `Sessão ${c.sessionNumber} · ${whenStr}` }),
+    c.currentLocation ? el('div', { class: 'hcamp-location', text: `📍 ${c.currentLocation}` }) : null,
+    c.lastNarrationSnippet ? el('div', { class: 'hcamp-preview', text: `"${c.lastNarrationSnippet}"` }) : null,
+    // ι.5 — Badge HP em risco
+    c.partyAnyAtRisk
+      ? el('div', { class: 'hcamp-risk-badge', text: `⚠ ${c.partyAtRiskName ?? 'Aliado'} em risco!` })
+      : null,
+    el('div', { class: 'hcamp-id', text: `ID: ${c.id}` }),
+  ];
+  return el('div', { class: `home-camp-card ${c.partyAnyAtRisk ? 'is-risk' : ''}` }, [
+    el('div', { class: 'hcamp-body' }, bodyChildren.filter(Boolean) as HTMLElement[]),
     el('button', {
       class: 'hcamp-join-btn',
       text: '🤝 Joinar',

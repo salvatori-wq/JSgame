@@ -1,0 +1,55 @@
+/* JSgame · ι.2/ι.5 — Home Campaign Card enriquecido. */
+
+.hcamp-location {
+  font-size: 12px;
+  color: rgba(244, 208, 127, 0.78);
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.hcamp-preview {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(20, 12, 8, 0.45);
+  border-left: 2px solid rgba(244, 208, 127, 0.35);
+  border-radius: 4px;
+  line-height: 1.4;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.hcamp-risk-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  background: linear-gradient(135deg, rgba(200, 64, 50, 0.25) 0%, rgba(140, 40, 30, 0.35) 100%);
+  border: 1px solid rgba(200, 64, 50, 0.55);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff8070;
+  letter-spacing: 0.02em;
+  animation: hcamp-risk-pulse 2s ease-in-out infinite;
+}
+
+@keyframes hcamp-risk-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(200, 64, 50, 0); }
+  50% { box-shadow: 0 0 10px rgba(200, 64, 50, 0.45); }
+}
+
+.home-camp-card.is-risk {
+  border-color: rgba(200, 64, 50, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hcamp-risk-badge {
+    animation: none;
+  }
+}

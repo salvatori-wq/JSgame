@@ -361,16 +361,58 @@ export async function loadCampaign(id: string): Promise<CampaignState | null> {
   }
 }
 
-export async function listRecentCampaigns(limit = 20): Promise<Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }>> {
+/**
+ * ι.2/ι.5 — Tipo enriquecido: inclui currentLocation, snippet de narração
+ * e info de HP do party em risco. Caller (api endpoint) extrai do state JSON.
+ */
+export interface RecentCampaignSummary {
+  id: string;
+  name: string;
+  sessionNumber: number;
+  lastPlayedAt: number;
+  // ι.2
+  currentLocation?: string;
+  lastNarrationSnippet?: string;
+  // ι.5
+  partyAnyAtRisk?: boolean;
+  partyAtRiskName?: string;
+}
+
+function extractEnrichedFields(row: { state?: string; id: string; name: string; sessionNumber: number; lastPlayedAt: number }): RecentCampaignSummary {
+  const base: RecentCampaignSummary = {
+    id: row.id, name: row.name,
+    sessionNumber: row.sessionNumber, lastPlayedAt: row.lastPlayedAt,
+  };
+  if (!row.state) return base;
+  try {
+    const state = JSON.parse(row.state) as {
+      currentLocation?: string;
+      currentSceneDescription?: string;
+      recentEvents?: string[];
+      partyCharacterIds?: string[];
+    };
+    base.currentLocation = state.currentLocation;
+    // Preview: usa currentSceneDescription se existe, senão último recentEvent
+    const last = state.currentSceneDescription || state.recentEvents?.[state.recentEvents.length - 1] || '';
+    if (last) {
+      base.lastNarrationSnippet = last.length > 140 ? last.slice(0, 137) + '…' : last;
+    }
+    // HP risk: precisa carregar PJs separadamente — defer pro endpoint (custo de IO)
+  } catch { /* state invalido */ }
+  return base;
+}
+
+export async function listRecentCampaigns(limit = 20): Promise<RecentCampaignSummary[]> {
   const r = await requireClient().execute({
-    sql: 'SELECT id, name, sessionNumber, lastPlayedAt FROM campaigns ORDER BY lastPlayedAt DESC LIMIT ?',
+    sql: 'SELECT id, name, sessionNumber, lastPlayedAt, state FROM campaigns ORDER BY lastPlayedAt DESC LIMIT ?',
     args: [limit],
   });
-  return r.rows.map(row => ({
+  return r.rows.map(row => extractEnrichedFields({
     id: row.id as string,
     name: row.name as string,
     sessionNumber: Number(row.sessionNumber),
     lastPlayedAt: Number(row.lastPlayedAt),
+    state: row.state as string,
   }));
 }
 
@@ -378,7 +420,7 @@ export async function listRecentCampaigns(limit = 20): Promise<Array<{ id: strin
 // Schema atual não normaliza partyCharacterIds — está dentro do JSON state.
 // Estratégia: fetch top N candidates ordenadas por lastPlayedAt, filter em memória.
 // Performance: para N=200 campaigns ativas a custo é ~200 JSON.parse (microssegundos).
-export async function listRecentCampaignsByUserId(userId: string, limit = 20): Promise<Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }>> {
+export async function listRecentCampaignsByUserId(userId: string, limit = 20): Promise<RecentCampaignSummary[]> {
   const client = requireClient();
   // 1) Carrega IDs dos PJs do user
   const charRows = await client.execute({
@@ -394,18 +436,19 @@ export async function listRecentCampaignsByUserId(userId: string, limit = 20): P
     args: [Math.max(limit * 4, 80)],
   });
 
-  const out: Array<{ id: string; name: string; sessionNumber: number; lastPlayedAt: number }> = [];
+  const out: RecentCampaignSummary[] = [];
   for (const row of r.rows) {
     try {
       const state = JSON.parse(row.state as string) as { partyCharacterIds?: string[] };
       const partyIds = state.partyCharacterIds ?? [];
       if (partyIds.some((id) => charIds.has(id))) {
-        out.push({
+        out.push(extractEnrichedFields({
           id: row.id as string,
           name: row.name as string,
           sessionNumber: Number(row.sessionNumber),
           lastPlayedAt: Number(row.lastPlayedAt),
-        });
+          state: row.state as string,
+        }));
         if (out.length >= limit) break;
       }
     } catch { /* state JSON corrupted — skip silenciosamente */ }
