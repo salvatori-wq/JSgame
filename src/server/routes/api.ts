@@ -315,6 +315,33 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     }
   });
 
+  // F1 — POST /api/characters/prefab — cria PJ pré-fab pronto pra jogar.
+  // Body: { prefabId: 'borin' | 'lyra' | 'sina', ownerName?: string }
+  // Server constrói sheet completo via buildPrefabCharacter, salva, retorna sheet+id.
+  app.post('/api/characters/prefab', async (req, res) => {
+    try {
+      const { prefabId, ownerName } = req.body as { prefabId?: string; ownerName?: string };
+      if (prefabId !== 'borin' && prefabId !== 'lyra' && prefabId !== 'sina') {
+        res.status(400).json({ error: 'prefabId inválido (use borin/lyra/sina)' });
+        return;
+      }
+      const reqUser = (req as ExpressReqWithUser).user;
+      const owner = ownerName?.trim() || reqUser?.displayName || reqUser?.email?.split('@')[0] || 'Anônimo';
+      const { buildPrefabCharacter } = await import('../../dnd/prefab-characters.js');
+      const sheet = buildPrefabCharacter(prefabId, owner, reqUser?.id ?? null);
+      await saveCharacter(sheet);
+      void trackMetricEvent({
+        userId: reqUser?.id ?? null,
+        kind: 'character_created',
+        payload: { classId: sheet.classId, raceId: sheet.raceId, level: 1, prefab: prefabId },
+      });
+      res.json({ ok: true, sheet });
+    } catch (err) {
+      console.error('[api] prefab character:', err);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   app.delete('/api/characters/:id', async (req, res) => {
     try {
       await deleteCharacter(req.params.id);

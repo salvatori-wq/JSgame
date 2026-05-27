@@ -41,6 +41,7 @@ import { rollDice } from '../dnd/dice.js';
 import { handleUseItem, handleEquipItem, handleUnequipItem } from './campaign-handlers/item-handler.js';
 import { handleShortRest, handleLongRest, handleRollDeathSave } from './campaign-handlers/rest-handler.js';
 import { detectImpliedSkillCheck } from './skill-check-detector.js';
+import { getColdOpen } from './cold-opens.js';
 import { uuid } from './util.js';
 import type { MemoryStore } from './memory.js';
 import { awardXpToParty, type AwardXpResult } from '../dnd/leveling.js';
@@ -202,6 +203,34 @@ export class Campaign {
       if (this.isStarted || this.isStarting) return null;
       this.isStarting = true;
       try {
+        // F1 — Primeiro Minuto Magia: se sessão 1 + party=1 PJ + sem recentEvents,
+        // usa cold open background-aware SERVER-SIDE (sem LLM call). Sempre seta
+        // pendingCheck pra player rolar dado imediatamente. Reduz time-to-first-roll
+        // de minutos pra <60s.
+        if (this.state.sessionNumber === 1
+            && this.party.length === 1
+            && this.state.recentEvents.length === 0
+            && this.narrationLog.length === 0) {
+          const pj = this.party[0]!;
+          const cold = getColdOpen(pj.backgroundId, pj.characterName);
+          this.state.currentSceneDescription = cold.narration;
+          this.state.pendingCheck = {
+            skill: cold.pendingCheck.skill,
+            dc: cold.pendingCheck.dc,
+            reason: cold.pendingCheck.reason,
+            playerId: pj.id,
+          };
+          this.pushRecentEvent(`Cold open: ${cold.pendingCheck.reason}`);
+          this.narrationLog.push(`${cold.speaker}: ${cold.narration}`);
+          this.isStarted = true;
+          return {
+            narration: cold.narration,
+            speaker: cold.speaker,
+            toolCalls: [],
+            raw: '',
+          };
+        }
+
         // A3 — Auto-recap pra sessão N > 1. QW-4: paraleliza recap + narração
         // principal (eram sequenciais → 8-12s na sessão 2+). São operações
         // INDEPENDENTES (recap usa só facts, narrate usa só state) — Promise.all

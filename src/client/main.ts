@@ -255,10 +255,13 @@ async function renderHome(): Promise<void> {
     ownerInput,
   ]));
 
+  // F1 — 3 PJs pré-fab pra jogar em 10s
+  root.appendChild(renderPrefabSection(ownerInput));
+
   root.appendChild(el('div', { class: 'home-actions' }, [
     el('button', {
-      class: 'home-btn',
-      text: '⚔ Novo Personagem',
+      class: 'home-btn home-btn-secondary',
+      text: '⚔ Personagem Customizado (Wizard)',
       on: { click: () => {
         if (!getOwnerName().trim()) {
           ownerInput.focus();
@@ -653,6 +656,85 @@ if (last) {
   clearLastSession();
   navigate({ kind: 'home' });
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// F1 — Prefab characters section
+// 3 cards (Borin / Lyra / Sina) — click cria PJ instantâneo + entra em sessão
+// ════════════════════════════════════════════════════════════════════════════
+
+interface PrefabCard {
+  id: 'borin' | 'lyra' | 'sina';
+  icon: string;
+  label: string;
+  archetype: string;
+  teaser: string;
+}
+
+const PREFAB_CARDS: PrefabCard[] = [
+  { id: 'borin', icon: '🪨', label: 'Borin Forjarocha',  archetype: 'Tank · Bate forte',           teaser: 'Veterano anão. Bate forte, segura porrada.' },
+  { id: 'lyra',  icon: '🌟', label: 'Lyra Estrelaluz',  archetype: 'Caster · Magia & segredos',  teaser: 'Arquivista alta-elfa. Magia e segredos perigosos.' },
+  { id: 'sina',  icon: '🗡', label: 'Sina Tribuna',      archetype: 'Skirmisher · Rápida e sneaky', teaser: 'Trapaceira halfling. Foge rápido, ataca preciso.' },
+];
+
+function renderPrefabSection(ownerInput: HTMLInputElement): HTMLElement {
+  const section = el('section', { class: 'home-prefab-section' });
+  section.appendChild(el('h3', { class: 'cs-h3', text: '⚡ Jogar Já (PJs prontos)' }));
+  section.appendChild(el('p', { class: 'home-prefab-hint', text: 'Click → entra direto numa cena com tensão. Sem wizard, sem demora.' }));
+
+  const grid = el('div', { class: 'home-prefab-grid' });
+  for (const card of PREFAB_CARDS) {
+    grid.appendChild(renderPrefabCard(card, ownerInput));
+  }
+  section.appendChild(grid);
+  return section;
+}
+
+function renderPrefabCard(card: PrefabCard, ownerInput: HTMLInputElement): HTMLElement {
+  const btn = el('button', {
+    class: 'home-prefab-card',
+    attrs: { type: 'button', 'data-prefab': card.id, title: `Jogar como ${card.label} agora` },
+    on: {
+      click: async () => {
+        const owner = getOwnerName().trim();
+        if (!owner) {
+          ownerInput.focus();
+          ownerInput.style.borderColor = 'var(--accent-blood)';
+          toastWarn('Diga seu nome primeiro');
+          return;
+        }
+        btn.setAttribute('disabled', '');
+        btn.classList.add('is-loading');
+        try {
+          const res = await fetch('/api/characters/prefab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prefabId: card.id, ownerName: owner }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.ok || !data.sheet?.id) {
+            toastError(data?.error ?? 'falha ao criar prefab');
+            btn.removeAttribute('disabled');
+            btn.classList.remove('is-loading');
+            return;
+          }
+          navigate({ kind: 'campaign', characterId: data.sheet.id });
+        } catch (err) {
+          toastError(`erro: ${String(err)}`);
+          btn.removeAttribute('disabled');
+          btn.classList.remove('is-loading');
+        }
+      },
+    },
+  }, [
+    el('div', { class: 'home-prefab-icon', text: card.icon }),
+    el('div', { class: 'home-prefab-label', text: card.label }),
+    el('div', { class: 'home-prefab-archetype', text: card.archetype }),
+    el('div', { class: 'home-prefab-teaser', text: card.teaser }),
+    el('div', { class: 'home-prefab-cta', text: '▶ JOGAR' }),
+  ]);
+  return btn;
+}
 
 // Bootstrap: tenta hidratar sessão atual antes do primeiro render.
 // Se sessão válida, popula currentUser; senão segue anônimo.
