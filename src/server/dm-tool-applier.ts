@@ -357,6 +357,12 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'suggest_actions': {
+      // α.1 — Sobrescreve sugestões anteriores (chips são da CENA ATUAL, não acumula).
+      camp.state.suggestedActions = tool.actions;
+      break;
+    }
+
     case 'complete_quest': {
       const quest = camp.state.quests?.find((q) => q.id === tool.questId);
       if (!quest || quest.status !== 'active') break;

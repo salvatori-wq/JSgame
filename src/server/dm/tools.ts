@@ -31,7 +31,9 @@ export type ValidatedTool =
   // B3 — Encounter builder: DM passa só difficulty, server calcula balanceamento
   | { kind: 'start_combat_balanced'; difficulty: 'easy' | 'medium' | 'hard' | 'deadly'; flavor?: string }
   // 2A — DM declara que inimigo conjurou magia (abre janela de Counterspell pros casters)
-  | { kind: 'enemy_casts_spell'; sourceName: string; spellName: string; spellLevel: number; targetIds?: string[]; visible: boolean };
+  | { kind: 'enemy_casts_spell'; sourceName: string; spellName: string; spellLevel: number; targetIds?: string[]; visible: boolean }
+  // α.1 — Suggested actions chips (2-4 ações contextuais clicáveis abaixo da narração)
+  | { kind: 'suggest_actions'; actions: import('../../shared/types.js').SuggestedAction[] };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -39,6 +41,7 @@ const VALID_ABILITIES = new Set(['for', 'des', 'con', 'int', 'sab', 'car']);
 const VALID_NPC_ATTITUDES = new Set(['amigavel', 'neutro', 'hostil', 'misterioso']);
 const VALID_ITEM_TYPES = new Set(['arma', 'armadura', 'escudo', 'consumivel', 'tesouro', 'ferramenta', 'misc']);
 const VALID_OUTCOMES = new Set(['victory', 'defeat', 'fled']);
+const VALID_SUGGESTED_ACTIONS = new Set(['explore', 'investigate', 'talk', 'sneak', 'attack', 'cast-spell', 'use-item', 'rest-short', 'rest-long', 'travel', 'custom']);
 const DICE_NOTATION_RE = /^\d+d(4|6|8|10|12|20|100)([+-]\d+)?$/i;
 
 export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
@@ -245,6 +248,26 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
         ? input.targetIds.map((t) => String(t).slice(0, 60)).filter(Boolean).slice(0, 6)
         : undefined;
       return { kind: 'enemy_casts_spell', sourceName, spellName, spellLevel, targetIds, visible };
+    }
+
+    case 'suggest_actions': {
+      const raw = Array.isArray(input.actions) ? input.actions : null;
+      if (!raw || raw.length === 0) return null;
+      const actions = raw
+        .filter((a: unknown): a is Record<string, unknown> => typeof a === 'object' && a !== null)
+        .map((a) => {
+          const label = String(a.label ?? '').slice(0, 40).trim();
+          const details = String(a.details ?? a.label ?? '').slice(0, 200).trim();
+          const rawAction = String(a.action ?? 'custom').toLowerCase();
+          const action = (VALID_SUGGESTED_ACTIONS.has(rawAction) ? rawAction : 'custom') as
+            import('../../shared/types.js').SuggestedAction['action'];
+          const hint = a.hint ? String(a.hint).slice(0, 40).trim() : undefined;
+          return { label, action, details, ...(hint ? { hint } : {}) };
+        })
+        .filter((a) => a.label.length > 0 && a.details.length > 0)
+        .slice(0, 4);
+      if (actions.length === 0) return null;
+      return { kind: 'suggest_actions', actions };
     }
 
     case 'start_combat_balanced': {

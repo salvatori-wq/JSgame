@@ -828,6 +828,11 @@ export class Campaign {
       });
     }
 
+    // α.1 — Reseta suggestedActions ANTES de processar tools: chips são da CENA
+    // ATUAL. Se o DM mandar suggest_actions nesta response, sobrescreve com novo
+    // set. Se esqueceu, fica vazio e a UI mostra fallback "💡 Pedir ideias".
+    this.state.suggestedActions = [];
+
     for (const tc of response.toolCalls) {
       const valid = validateToolCall(tc);
       if (!valid) {

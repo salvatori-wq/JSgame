@@ -50,6 +50,15 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+// α.1 — Suggested action chip schema (espelha SuggestedAction do shared/types).
+// Duplicado aqui pra não criar dep do client → shared no domínio do log puro.
+export interface SuggestedChip {
+  label: string;
+  hint?: string;
+  // Callback dispara takeAction com action/details. NarrationLog não conhece socket.
+  onClick: () => void;
+}
+
 export class NarrationLog {
   private rootEl: HTMLElement;
   private entriesEl: HTMLElement;
@@ -59,6 +68,8 @@ export class NarrationLog {
   private thinkingState: ThinkingState | null = null;
   private thinkingTimer: ReturnType<typeof setInterval> | null = null;
   private lastErrorEntryEl: HTMLElement | null = null;
+  // α.1 — Container persistente dos chips de sugestão (sempre ÚLTIMO no log).
+  private chipsEl: HTMLElement | null = null;
   private newSinceScrolled = 0;
   private isPinnedToBottom = true;
   private opts: Required<NarrationLogOpts>;
@@ -117,6 +128,7 @@ export class NarrationLog {
     if (this.destroyed) return;
     this.removeEmptyState();
     this.removeThinkingEl(); // narração chegou — remove "Mestre escrevendo..."
+    this.removeChipsEl();    // α.1 — chips da cena passada não fazem sentido com narração nova
 
     const entry: NarrationEntry = {
       id: genId(),
@@ -151,6 +163,7 @@ export class NarrationLog {
     if (this.destroyed) return;
     this.removeEmptyState();
     this.removeThinkingEl();
+    this.removeChipsEl(); // α.1 — erro invalida chips da cena anterior
 
     // Remove o error card anterior se houver
     if (this.lastErrorEntryEl) {
@@ -215,6 +228,7 @@ export class NarrationLog {
     }
 
     this.removeEmptyState();
+    this.removeChipsEl(); // α.1 — pensando = chips sumindo enquanto DM gera nova cena
     this.thinkingState = state;
     const thinkingEl = el('div', { class: 'camp-narr-entry is-thinking' }, [
       el('div', { class: 'cn-thinking-row' }, [
@@ -240,6 +254,37 @@ export class NarrationLog {
     }, 1000);
 
     this.afterAppend(thinkingEl);
+  }
+
+  /**
+   * α.1 — Atualiza chips de sugestão renderizados após a última narração.
+   * Passa [] pra esconder. Substitui set anterior (não acumula).
+   * Chips sempre vivem no FIM do log (após thinking se houver).
+   */
+  setSuggestedChips(chips: SuggestedChip[]): void {
+    if (this.destroyed) return;
+    // Remove o container antigo se houver
+    if (this.chipsEl) {
+      this.chipsEl.remove();
+      this.chipsEl = null;
+    }
+    if (chips.length === 0) return;
+
+    const wrap = el('div', { class: 'cn-suggested-chips', attrs: { role: 'group', 'aria-label': 'Ações sugeridas' } });
+    for (const chip of chips) {
+      const btn = el('button', {
+        class: 'cn-chip',
+        attrs: { type: 'button' },
+        on: { click: () => chip.onClick() },
+      }, [
+        el('span', { class: 'cn-chip-label', text: chip.label }),
+        chip.hint ? el('span', { class: 'cn-chip-hint', text: chip.hint }) : null,
+      ].filter(Boolean) as HTMLElement[]);
+      wrap.appendChild(btn);
+    }
+    this.entriesEl.appendChild(wrap);
+    this.chipsEl = wrap;
+    this.afterAppend(wrap);
   }
 
   /**
@@ -366,6 +411,13 @@ export class NarrationLog {
   private removeEmptyState(): void {
     const empty = this.entriesEl.querySelector('.camp-narr-empty');
     if (empty) empty.remove();
+  }
+
+  private removeChipsEl(): void {
+    if (this.chipsEl) {
+      this.chipsEl.remove();
+      this.chipsEl = null;
+    }
   }
 
   private removeThinkingEl(): void {

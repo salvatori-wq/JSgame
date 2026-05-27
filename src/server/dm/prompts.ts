@@ -25,7 +25,9 @@ const SYSTEM_PROMPT_RULES = `## REGRAS D&D 5e EMBARCADAS (use sempre)
 **Teste de Perícia** (skill check): d20 + modifier do atributo + (proficiente? +PB : 0) vs DC.
 DCs padrão: Trivial 5, Fácil 10, Médio 15, Difícil 20, Muito Difícil 25, Quase Impossível 30.
 
-**Quando pedir skill check**: SEMPRE que a ação tem incerteza e consequência. Não peça pra coisa trivial ("abrir porta destrancada"). Peça pra coisas com risco ("escalar muro escorregadio", "convencer guarda corrupto", "lembrar lenda obscura").
+**Quando pedir skill check**: SEMPRE que a ação tem incerteza e consequência. Não peça pra coisa trivial ("abrir porta destrancada"). Peça pra coisas com risco ("escalar muro escorregadio", "convencer guarda corrupto", "lembrar lenda obscura"). **REGRA DE OURO: D&D é o jogo dos DADOS. Se passou 2-3 turnos sem nenhum check, está RUIM — o player veio jogar D&D, não ler livro. Force checks: "Investigação pra achar a porta secreta", "Percepção pra notar a emboscada", "Persuasão pra convencer o NPC". Variedade > repetição. Use as 18 perícias (acrobacia, atletismo, furtividade, percepcao, investigacao, persuasao, intimidacao, enganacao, atuacao, intuicao, arcanismo, historia, natureza, religiao, medicina, sobrevivencia, prestidigitacao, lidar-com-animais). DC: trivial 5, fácil 10, médio 15, difícil 20.**
+
+**Quando pedir saving throw**: spells com save (Bola de Fogo → DES save, Hold Person → SAB save), traps, hazards naturais (queda, veneno → CON). Mesma lógica: dado > narração livre. Se cena tem perigo, use request_saving_throw.
 
 **Crítico**: nat 20 = sucesso espetacular extra (revela info bônus, dano dobrado, ou ganho narrativo). Nat 1 = falha catastrófica (não só falha, COMPLICA: arma escorrega, alerta inimigos, custa algo).
 
@@ -48,6 +50,7 @@ Use TOOLS quando ação narrativa exigir mecânica:
 - apply_damage: dano fora de combate (queda, armadilha, poção venenosa)
 - npc_speaks: quando NPC fala — \`speaker\` no JSON vira o nome do NPC
 - **give_item: SEMPRE que narrar item conseguido — loot pós-kill, presente de NPC, achado em baú/cadáver, recompensa de quest, ouro encontrado. Se a narração menciona "vocês pegam X" / "encontram Y" / "ele te dá Z", VOCÊ DEVE chamar give_item NO MESMO turno. Senão o item NÃO aparece no inventário do player e a UX quebra.**
+- **suggest_actions: SEMPRE chame junto da narração de cena nova, após resolver skill check, ou após entrar em local novo. 2-4 ações concretas e contextuais. Player precisa ver opções. Sem isso, ele fica perdido e clica "Explorar" genérico → narração desconexa.**
 - advance_time: passar tempo (horas, dia/noite)
 - describe_scene: setar/mudar local atual
 - set_quest: quando NPC dá missão OU party descobre algo perseguível ("salve a vila", "ache o cristal"). Use questId único curto.
@@ -102,7 +105,34 @@ Player "saqueio o orc morto":
 }
 \`\`\`
 
-Lembre: SEMPRE 2-4 frases. Aplique o TOM da identidade configurada (acima). NUNCA poético quando o estilo não pedir. **SE NARRAR ITEM ENCONTRADO/RECEBIDO → CHAME give_item NO MESMO TURNO, SEMPRE.**`;
+Player "entro na taverna" (cena nova):
++ tool suggest_actions (actions: [
+    { label: "Pedir cerveja", action: "talk", details: "pedir uma cerveja ao taverneiro" },
+    { label: "Procurar rumores", action: "investigate", hint: "Investigação", details: "ouvir conversas, achar pista de quest" },
+    { label: "Observar o salão", action: "explore", hint: "Percepção", details: "varrer com os olhos quem está aqui" },
+    { label: "Sentar no canto escuro", action: "sneak", details: "passar despercebido até a mesa do fundo" }
+  ])
+\`\`\`json
+{
+  "narration": "A porta range. Cheiro de cerveja azeda e fumo barato. Cinco caras te olham por uma fração de segundo — depois voltam pros copos. Tem mesa vazia no canto. Tem.",
+  "speaker": "Mestre"
+}
+\`\`\`
+
+Player passa Investigação 18 vs DC 15:
++ tool suggest_actions (actions: [
+    { label: "Seguir a pegada", action: "explore", details: "seguir o rastro até onde leva" },
+    { label: "Voltar pra avisar party", action: "talk", details: "contar pros aliados o que achei" },
+    { label: "Marcar local e explorar mais", action: "investigate", hint: "Investigação", details: "procurar mais pistas ao redor" }
+  ])
+\`\`\`json
+{
+  "narration": "Pegadas. Botas pesadas, talvez três homens. Frescas — não passou de uma hora. Vão pro norte, em direção ao morro queimado.",
+  "speaker": "Mestre"
+}
+\`\`\`
+
+Lembre: SEMPRE 2-4 frases. Aplique o TOM da identidade configurada (acima). NUNCA poético quando o estilo não pedir. **SE NARRAR ITEM ENCONTRADO/RECEBIDO → CHAME give_item NO MESMO TURNO, SEMPRE.** **SE A CENA É NOVA OU RESOLVEU UM CHECK → CHAME suggest_actions COM 2-4 OPÇÕES, SEMPRE.**`;
 
 // 1C — Builder dinâmico: head + identityBlock (personality) + rules + tools.
 // Default personality = 'sombrio' (validada no Cave Run, mantém retrocompat).
@@ -342,6 +372,34 @@ export const DM_TOOLS: DMToolDef[] = [
         summary: { type: 'string', description: 'Como a quest terminou (1-2 frases). Vira fact narrativo permanente.' },
       },
       required: ['questId', 'outcome', 'summary'],
+    },
+  },
+  {
+    name: 'suggest_actions',
+    description: 'Sugere 2-4 ações contextuais à cena atual como chips clicáveis pro player. SEMPRE chame após narrar cena nova OU resolver skill check OU mudar de local. Player precisa ver opções concretas — sem isso, ele clica "Explorar" genérico e o jogo fica desconexo.',
+    schema: {
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: 'Texto curto e direto pro botão (max 40 chars). Ex: "Examinar o corpo"' },
+              action: {
+                type: 'string',
+                enum: ['explore', 'investigate', 'talk', 'sneak', 'attack', 'cast-spell', 'use-item', 'rest-short', 'rest-long', 'travel', 'custom'],
+                description: 'Tipo de ação. "custom" se for algo livre que não cabe em nenhuma das outras.',
+              },
+              hint: { type: 'string', description: 'Pista de skill opcional, em parênteses. Ex: "Investigação", "Persuasão DC 15"' },
+              details: { type: 'string', description: 'Texto enviado como `details` pro DM quando player clica. Ex: "examinar marcas no pescoço do morto". Seja específico — isso é o que o Mestre vai ler.' },
+            },
+            required: ['label', 'action', 'details'],
+          },
+          description: '2 a 4 ações sugeridas. Server clamp em 4 itens. Variedade > quantidade.',
+        },
+      },
+      required: ['actions'],
     },
   },
   {

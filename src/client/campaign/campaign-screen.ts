@@ -500,6 +500,30 @@ export class CampaignScreen {
     this.updatePendingCheck();
     this.updateMainContent();
     this.updateChatBar();
+    this.updateSuggestedChips();
+  }
+
+  // α.1 — Re-sincroniza chips de sugestão com state.suggestedActions.
+  // Chips ficam no NarrationLog (depois da última narração).
+  private updateSuggestedChips(): void {
+    if (!this.narrationLog) return;
+    const suggestions = this.currentState?.suggestedActions ?? [];
+    // Só mostra chips fora de combate (combat-screen tem própria UI)
+    const isCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
+    if (isCombat || suggestions.length === 0 || this.isDmThinking) {
+      this.narrationLog.setSuggestedChips([]);
+      return;
+    }
+    const chips = suggestions.map((s) => ({
+      label: s.label,
+      ...(s.hint ? { hint: s.hint } : {}),
+      onClick: () => {
+        // 'custom' não é ExplorationAction — mapeia pra 'explore' (DM lê details)
+        const action: ExplorationAction = (s.action === 'custom' ? 'explore' : s.action) as ExplorationAction;
+        this.takeAction(action, s.details);
+      },
+    }));
+    this.narrationLog.setSuggestedChips(chips);
   }
 
   // Constrói o shell estável uma única vez. Slots ficam vazios — update*() preenchem.

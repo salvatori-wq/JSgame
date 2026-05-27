@@ -188,6 +188,66 @@
   transform: translateY(8px);
 }
 
+/* α.1 — Suggested action chips abaixo da última narração.
+   Vivem dentro de .cn-entries (último filho) pra scroll-track natural. */
+.cn-suggested-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 4px 12px;
+  animation: narr-fade-in 0.45s ease-out;
+}
+
+.cn-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(60, 40, 20, 0.85), rgba(40, 28, 14, 0.85));
+  border: 1px solid rgba(200, 155, 95, 0.55);
+  border-radius: 999px;
+  color: var(--ink-warm);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 200, 130, 0.08);
+}
+
+.cn-chip:hover {
+  background: linear-gradient(135deg, rgba(90, 60, 30, 0.95), rgba(60, 40, 20, 0.95));
+  border-color: var(--ink-gold, #e8c789);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(200, 155, 95, 0.25), inset 0 1px 0 rgba(255, 200, 130, 0.15);
+}
+
+.cn-chip:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) inset;
+}
+
+.cn-chip-label {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.cn-chip-hint {
+  font-size: 11px;
+  color: var(--ink-mute);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 480px) {
+  .cn-chip {
+    font-size: 13px;
+    padding: 10px 14px;
+    /* Hit target maior pro touch */
+    min-height: 38px;
+  }
+}
+
 .camp-narr-empty {
   text-align: center;
   color: var(--ink-mute);

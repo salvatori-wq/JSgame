@@ -260,6 +260,18 @@ export interface CampaignState {
   // de Counterspell pros casters do party. Server limpa após windowMs ou após
   // resolução de castReaction. Não persiste — é runtime mid-turn.
   pendingEnemySpell?: PendingEnemySpell | null;
+  // α.1 — Suggested actions chips. DM sugere 2-4 ações contextuais a cada cena.
+  // Player clica → vira `takeAction(action, details)`. Reseta a cada nova narração.
+  // Server clamp em 4 itens. Runtime — não persiste entre sessões.
+  suggestedActions?: SuggestedAction[];
+}
+
+// α.1 — Ação sugerida pelo DM (chip clicável abaixo da narração).
+export interface SuggestedAction {
+  label: string;                                   // "Examinar o corpo"
+  action: ExplorationAction | 'custom';            // routing: vira ExplorationAction no takeAction
+  hint?: string;                                   // "(Investigação)" — pista de skill check
+  details: string;                                 // enviado como `details` ao takeAction
 }
 
 export interface PendingEnemySpell {
