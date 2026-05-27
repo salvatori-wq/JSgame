@@ -93,6 +93,57 @@ describe('MP2 — campaign-core.css header mobile', () => {
   });
 });
 
+describe('MP3 — m-layout.css aplicado aos 7 modais em portrait-narrow', () => {
+  const css = readCss('m-layout.css');
+
+  it('overlays alinham flex-end (bottom-sheet) em 7 modais', () => {
+    // Tem que cobrir todas as 7 classes de overlay/backdrop
+    expect(css).toMatch(/\.inv-modal-overlay/);
+    expect(css).toMatch(/\.shop-modal-overlay/);
+    expect(css).toMatch(/\.cs-modal-overlay/);
+    expect(css).toMatch(/\.mem-modal-overlay/);
+    expect(css).toMatch(/\.ach-modal-overlay/);
+    expect(css).toMatch(/\.npc-modal-overlay/);
+    expect(css).toMatch(/\.qlm-backdrop/);
+    // Regra inclui align-items flex-end
+    expect(css).toMatch(/align-items:\s*flex-end\s*!important/);
+  });
+
+  it('cards de modal viram full-width + 90dvh + bottom border-radius', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.inv-modal,[\s\S]*?\.qlm-card[\s\S]*?\{[\s\S]*?width:\s*100vw\s*!important/);
+    expect(css).toMatch(/border-radius:\s*var\(--m-modal-radius\)\s+var\(--m-modal-radius\)\s+0\s+0\s+!important/);
+    expect(css).toMatch(/animation:\s*m-sheet-up/);
+  });
+
+  it('headers viram sticky em 4 modais com header explícito', () => {
+    expect(css).toMatch(/\.inv-modal-header[\s\S]*?\.cs-modal-header[\s\S]*?\.mem-modal-header[\s\S]*?\.qlm-header[\s\S]*?\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0/);
+  });
+
+  it('bodies/lists viram flex:1 overflow:auto', () => {
+    expect(css).toMatch(/\.inv-modal-list[\s\S]*?\.cs-modal-list[\s\S]*?\.mem-modal-list[\s\S]*?\.ach-modal-body[\s\S]*?\.npc-modal-body[\s\S]*?\.shop-content[\s\S]*?\{[\s\S]*?flex:\s*1\s+1\s+auto[\s\S]*?overflow-y:\s*auto/);
+  });
+
+  it('close buttons hit ≥40px em todos os modais', () => {
+    expect(css).toMatch(/\.inv-modal-close[\s\S]*?\.cs-modal-close[\s\S]*?\.mem-modal-close[\s\S]*?\.qlm-close-btn[\s\S]*?\{[\s\S]*?min-width:\s*var\(--m-hit-min/);
+  });
+
+  it('shop/inv action buttons hit ≥40px em mobile', () => {
+    expect(css).toMatch(/\.inv-action-btn[\s\S]*?\.shop-buy-btn[\s\S]*?\.shop-sell-btn[\s\S]*?min-height:\s*var\(--m-hit-min/);
+  });
+
+  it('grids viram 1-col em mobile (inv/shop/cs/npc)', () => {
+    expect(css).toMatch(/\.inv-grid[\s\S]*?\.shop-grid[\s\S]*?\.cs-modal-grid[\s\S]*?\.npc-grid[\s\S]*?\{[\s\S]*?grid-template-columns:\s*1fr\s*!important/);
+  });
+
+  it('achievement tabs viram scroll-x em mobile', () => {
+    expect(css).toMatch(/\.ach-tabs[\s\S]*?overflow-x:\s*auto/);
+  });
+
+  it('reduced-motion kill animation pra todos modais', () => {
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*?\.inv-modal,[\s\S]*?\.qlm-card[\s\S]*?animation:\s*none/);
+  });
+});
+
 describe('MP2 — modals.css combat mobile', () => {
   const css = readCss('modals.css');
 

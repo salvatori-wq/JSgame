@@ -1,7 +1,7 @@
 // JSgame · F18 — Quest log modal. Mostra quests ativas/completas/falhas.
 // Lê CampaignState.quests do estado atual passado pelo campaign-screen.
 
-import { el } from '../util';
+import { el, onSwipeDown } from '../util';
 import type { Quest } from '../../shared/types';
 
 interface Opts {
@@ -76,6 +76,12 @@ function renderModal(opts: Opts): HTMLElement {
       for (const q of failed) card.appendChild(renderQuest(q));
     }
   }
+
+  // MP3 — swipe-down close em mobile
+  onSwipeDown(card, () => {
+    opts.onClose();
+    closeQuestLog();
+  });
 
   backdrop.appendChild(card);
   return backdrop;
