@@ -88,6 +88,20 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     el('span', { class: 'cb-turn', text: current ? `Vez de ${current.name}` : '—' }),
   ]));
 
+  // β.4 — Action Economy badge (PHB pág 189-193). Mostra pro PJ ativo se for o
+  // turno dele. 4 slots: ação / bônus / movimento / reação.
+  if (current && current.kind === 'player' && current.id === myCharacterId && combat.actionEconomy) {
+    const ec = combat.actionEconomy[current.id];
+    if (ec) {
+      root.appendChild(el('div', { class: 'cb-economy', attrs: { title: 'Economia de ações PHB pág 189' } }, [
+        el('span', { class: `cb-eco-slot ${ec.action ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação principal (attack, dash, dodge, cast)' }, text: ec.action ? '🎯 Ação' : '— Ação' }),
+        el('span', { class: `cb-eco-slot ${ec.bonusAction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação bônus (1 por turno SE você tem feature/spell que dá)' }, text: ec.bonusAction ? '✨ Bônus' : '— Bônus' }),
+        el('span', { class: `cb-eco-slot ${ec.movement > 0 ? 'is-avail' : 'is-used'}`, attrs: { title: 'Movimento restante (em pés)' }, text: `👟 ${ec.movement}ft` }),
+        el('span', { class: `cb-eco-slot ${ec.reaction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Reação (1 por round) — opportunity attack, counterspell, shield' }, text: ec.reaction ? '🛡 Reação' : '— Reação' }),
+      ]));
+    }
+  }
+
   // ── Initiative tracker (F31: horizontal scroll, portrait do PJ se conhecido)
   const initTracker = el('div', { class: 'cb-initiative' });
   combat.initiativeOrder.forEach((p, idx) => {

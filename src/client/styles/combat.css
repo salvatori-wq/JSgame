@@ -668,3 +668,40 @@ body.is-portrait-narrow .combat-screen[data-active-tab="log"] .cb-tab-content:no
 /* Swipe hint sutil (mobile only) */
 body.is-portrait-narrow .combat-screen { touch-action: pan-y; }
 
+
+/* β.4 — Action Economy badge (PHB pág 189-193) */
+.cb-economy {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(20, 12, 6, 0.5);
+  border: 1px solid rgba(255, 230, 180, 0.15);
+  border-radius: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cb-eco-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(60, 40, 18, 0.5);
+  border: 1px solid rgba(255, 230, 180, 0.3);
+  border-radius: 12px;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-warm);
+  transition: opacity 0.18s ease, background 0.18s ease;
+  cursor: help;
+}
+.cb-eco-slot.is-avail {
+  background: rgba(80, 60, 30, 0.7);
+  border-color: var(--ink-gold);
+  color: var(--ink-gold);
+}
+.cb-eco-slot.is-used {
+  opacity: 0.4;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}

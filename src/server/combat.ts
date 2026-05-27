@@ -95,6 +95,14 @@ export function startCombat(input: StartCombatInput): CombatState {
   // Ordena desc (com index original como tiebreaker estável)
   initiativeOrder.sort((a, b) => b.initiative - a.initiative);
 
+  // β.4 — Action Economy inicial: fresh por participante (action + bonusAction +
+  // reaction disponíveis, movement 30ft padrão). Player vê isso no HUD; consume
+  // mecânico em Sprint γ.
+  const actionEconomy: Record<string, import('../shared/types.js').ActionEconomy> = {};
+  for (const p of initiativeOrder) {
+    actionEconomy[p.id] = freshActionEconomy();
+  }
+
   return {
     active: true,
     round: 1,
@@ -102,7 +110,37 @@ export function startCombat(input: StartCombatInput): CombatState {
     currentTurnIndex: 0,
     enemies,
     log: [`Initiative: ${initiativeOrder.map((p) => `${p.name}(${p.initiative})`).join(' · ')}`],
+    actionEconomy,
   };
+}
+
+// β.4 — Action economy padrão: tudo disponível, 30ft movement (PHB pág 191).
+// Custom move speeds (anão 25, monge 40+) ficam pra próxima iteração.
+export function freshActionEconomy(): import('../shared/types.js').ActionEconomy {
+  return { action: true, bonusAction: true, reaction: true, movement: 30 };
+}
+
+// β.4 — Consume helper (V1: noop seguro). Action handlers podem chamar via
+// consumeActionEconomy(combat, id, 'action') pra marcar usado. Em V2 (γ),
+// retorna false se já consumido → handler aborta. Por ora sempre permite,
+// só atualiza state pra UI mostrar gray-out.
+export function consumeActionEconomy(
+  combat: import('../shared/types.js').CombatState,
+  participantId: string,
+  kind: 'action' | 'bonus' | 'reaction' | 'movement',
+  movementFt = 0,
+): boolean {
+  if (!combat.actionEconomy) return true;
+  const ec = combat.actionEconomy[participantId];
+  if (!ec) return true;
+  switch (kind) {
+    case 'action':    ec.action = false; return true;
+    case 'bonus':     ec.bonusAction = false; return true;
+    case 'reaction':  ec.reaction = false; return true;
+    case 'movement':
+      ec.movement = Math.max(0, ec.movement - movementFt);
+      return true;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -144,6 +182,17 @@ export function advanceTurn(combat: CombatState, party: CharacterSheet[]): { par
     }
     // M3 — limpa flags que duram "until start of next turn" (dodging)
     clearStartOfTurnFlags(combat, next.id);
+    // β.4 — Reset action economy do participante entrando no turno.
+    // Reaction NÃO é resetada aqui (reset por round em resetReactionsForRound).
+    if (combat.actionEconomy) {
+      const prev = combat.actionEconomy[next.id] ?? freshActionEconomy();
+      combat.actionEconomy[next.id] = {
+        action: true,
+        bonusAction: true,
+        movement: 30,
+        reaction: prev.reaction, // preserva (round-based)
+      };
+    }
     return { participant: next, combatOver: false };
   }
   combat.active = false;

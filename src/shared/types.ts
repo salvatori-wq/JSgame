@@ -353,6 +353,18 @@ export interface CombatState {
   currentTurnIndex: number;            // index em initiativeOrder
   enemies: EnemySnapshot[];
   log: string[];                       // últimas ações narradas curtas
+  // β.4 — Action Economy (PHB pág 189-193). Por participante (id → economy).
+  // V1: server reseta no start of turn + UI exibe. Consume é fire-and-forget pelos
+  // handlers (consumeActionEconomy()) — visual + telemetria. Bloqueio mecânico em γ.
+  actionEconomy?: Record<string, ActionEconomy>;
+}
+
+// β.4 — PHB pág 189-193: turn budget de cada participante.
+export interface ActionEconomy {
+  action: boolean;        // 1 por turno: attack/dash/dodge/disengage/cast spell padrão
+  bonusAction: boolean;   // 1 por turno (só se você TEM uma feature/spell que dá)
+  reaction: boolean;      // 1 por round (não turno!) — opportunity attack, counterspell
+  movement: number;       // pés restantes (default 30 — varia por raça/condição)
 }
 
 export interface EnemySnapshot {
