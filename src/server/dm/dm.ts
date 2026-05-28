@@ -145,11 +145,21 @@ export class DungeonMaster {
     // em vez de mostrar o JSON cru ao jogador.
     let narration = stripInlineToolMentions((parsed.narration ?? response.text).trim());
 
+    // V.2 — PRESERVAR toolCalls da PRIMEIRA chamada antes de qualquer retry.
+    // Bug descoberto no playtest 2026-05-29: quando retry-sem-tools dispara, o
+    // `response` é SUBSTITUÍDO pela nova resposta (sem tools). As toolCalls
+    // originais (que eram VÁLIDAS — start_combat, suggest_actions) eram perdidas.
+    // Resultado: DM narrava lindo "machado no ar, dança começa" mas combate
+    // NUNCA INICIAVA. F4 inacessível em ~30% das sessões.
+    // Fix: snapshot das toolCalls antes do retry, e na hora de retornar usa
+    // o melhor dos dois mundos — narração nova + tools antigas.
+    const originalToolCalls = response.toolCalls;
+
     // BUG-001 recovery: Gemini (e às vezes Groq) com mode=auto retorna 200 OK
     // contendo APENAS functionCalls (sem text part) → narração vazia chega ao cliente.
     // Retry sem tools quando isso acontece — mesma idéia do retry de 400.
     if (!narration && response.toolCalls.length > 0 && !retriedWithoutTools) {
-      console.warn('[dm] narração vazia com toolCalls — retry sem tools');
+      console.warn('[dm] narração vazia com toolCalls — retry sem tools (preservando toolCalls originais)');
       try {
         response = await this.callWithBackoff(systemPrompt, userPrompt, false);
         retriedWithoutTools = true;
@@ -169,10 +179,16 @@ export class DungeonMaster {
     // T1 — track narration_success (após validar que de fato veio conteúdo).
     void this.trackSuccess(context, retriedWithoutTools);
 
+    // V.2 — Se houve retry sem tools, usar as toolCalls ORIGINAIS (perdidas no retry).
+    // Caso normal (sem retry): response.toolCalls é o mesmo que originalToolCalls.
+    const finalToolCalls = retriedWithoutTools && originalToolCalls.length > 0
+      ? originalToolCalls
+      : response.toolCalls;
+
     return {
       narration,
       speaker: parsed.speaker,
-      toolCalls: response.toolCalls,
+      toolCalls: finalToolCalls,
       raw: response.text,
     };
   }

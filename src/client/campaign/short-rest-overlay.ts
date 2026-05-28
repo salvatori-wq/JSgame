@@ -81,7 +81,10 @@ export function openShortRestPicker(ctx: ShortRestPickerCtx): void {
     ]),
     el('span', { class: 'srm-info-dot', text: '·' }),
     el('span', { class: 'srm-info-stat' }, [
-      el('span', { text: `d${dieFaces}+${conMod >= 0 ? '+' : ''}${conMod}` }),
+      // V.3.a — Antes: `d${faces}+${con>=0?'+':''}${conMod}` somava '+' duas vezes
+      // quando con era positivo, virando "d10++3". Agora: o sinal já vem em conMod
+      // negativo (-1) ou explícito (+1) via formatModifier alike.
+      el('span', { text: `d${dieFaces}${conMod >= 0 ? `+${conMod}` : conMod}` }),
     ]),
   ]));
 

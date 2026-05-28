@@ -125,4 +125,57 @@ describe('BUG-001 — DM narration recovery', () => {
     // (speaker "Mestre (offline)" detectado por isDegradedNarration no client).
     expect(result.speaker).toBe('Mestre (offline)');
   });
+
+  // V.2 — Bug crítico descoberto no playtest 2026-05-29.
+  // Quando retry-sem-tools dispara (narration vazia + toolCalls da 1ª chamada),
+  // o `response` é substituído pela 2ª chamada. As toolCalls originais (que
+  // ERAM VÁLIDAS — ex: start_combat) ficavam perdidas no retorno.
+  // Fix: usar toolCalls originais quando retry-sem-tools acontece.
+  it('V.2 — preserva toolCalls da 1ª chamada quando retry-sem-tools dispara', async () => {
+    const originalTools = [
+      { name: 'start_combat', input: { enemies: [{ name: 'Carcereiro Bruto', hp: 11, ac: 13 }] } },
+      { name: 'suggest_actions', input: { actions: [{ label: 'Atacar' }] } },
+    ];
+    const provider = new StubProvider([
+      // 1ª chamada (com tools): narração vazia + toolCalls válidas
+      { text: '', toolCalls: originalTools },
+      // 2ª chamada (sem tools): narração linda mas SEM toolCalls
+      { text: '{"narration":"O machado de Borin chia na chuva.","speaker":"Mestre"}', toolCalls: [] },
+    ]);
+    const dm = new DungeonMaster(provider);
+    const result = await dm.narrate(mkContext());
+
+    expect(provider.calls.length).toBe(2);
+    expect(result.narration).toBe('O machado de Borin chia na chuva.');
+    // Antes do fix: result.toolCalls = [] (perdidas!)
+    // Após V.2: preservadas da 1ª chamada
+    expect(result.toolCalls).toHaveLength(2);
+    expect(result.toolCalls[0]!.name).toBe('start_combat');
+    expect(result.toolCalls[1]!.name).toBe('suggest_actions');
+  });
+
+  it('V.2 — caso normal sem retry: toolCalls vêm da chamada única', async () => {
+    const tools = [{ name: 'request_skill_check', input: { skill: 'percepcao', dc: 13 } }];
+    const provider = new StubProvider([
+      { text: '{"narration":"Algo se move nas sombras.","speaker":"Mestre"}', toolCalls: tools },
+    ]);
+    const dm = new DungeonMaster(provider);
+    const result = await dm.narrate(mkContext());
+
+    expect(provider.calls.length).toBe(1);
+    expect(result.toolCalls).toHaveLength(1);
+    expect(result.toolCalls[0]!.name).toBe('request_skill_check');
+  });
+
+  it('V.2 — retry-sem-tools sem toolCalls originais (caso degenerado): mantém vazio', async () => {
+    const provider = new StubProvider([
+      // toolCalls vazias mas narration também vazia (degenerado mas válido)
+      { text: '', toolCalls: [] },
+    ]);
+    const dm = new DungeonMaster(provider);
+    const result = await dm.narrate(mkContext());
+
+    // Sem toolCalls na 1ª, não dispara retry — vai pro fallback
+    expect(result.speaker).toBe('Mestre (offline)');
+  });
 });

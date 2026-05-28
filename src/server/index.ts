@@ -135,9 +135,30 @@ async function main(): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
     const staticDir = path.resolve(process.cwd(), 'dist/client');
     console.log(`[jsgame] servindo estático de ${staticDir}`);
-    app.use(express.static(staticDir, { maxAge: '1h', etag: true }));
-    // SPA fallback — qualquer rota não-API vai pro index.html
+    // V.1 — Cache-Control granular pra fechar a janela "deploy demora 1h pra aparecer".
+    // Assets hashed (vite gera /assets/index-<hash>.js) → cache forever (immutable).
+    // Resto (sw.js, index.html, manifest) → cache curto pra puxar versão nova logo.
+    app.use(express.static(staticDir, {
+      etag: true,
+      setHeaders: (res, filePath) => {
+        const lower = filePath.toLowerCase();
+        if (lower.includes(`${path.sep}assets${path.sep}`) || lower.includes('/assets/')) {
+          // Assets hashed: 1 ano + immutable (hash muda, URL muda)
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (lower.endsWith('sw.js') || lower.endsWith('index.html') || lower.endsWith('manifest.webmanifest')) {
+          // Crítico: sw.js precisa atualizar logo (browsers respeitam max-age em SW
+          // script). index.html é o entry — sempre fresh garante bundle novo.
+          // no-cache obriga browser a revalidar antes de servir.
+          res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
+        } else {
+          // Default (icons SVG etc): 1h
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+        }
+      },
+    }));
+    // SPA fallback — qualquer rota não-API vai pro index.html (sempre fresh)
     app.get(/^(?!\/api|\/socket\.io).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
       res.sendFile(path.join(staticDir, 'index.html'));
     });
   }

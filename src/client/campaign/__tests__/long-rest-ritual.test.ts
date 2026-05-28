@@ -66,4 +66,24 @@ describe('T3.3 — playLongRestRitual behavior', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
+
+  // V.3.c — Antes ignorava `force-motion` (toggle UX Settings Ω.1). Agora
+  // honra: reduced-motion OS + force-motion ON = mostra overlay (não pula).
+  it('V.3.c — force-motion ON com reduced-motion OS: AINDA mostra overlay', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q.includes('reduce'),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    document.body.classList.add('force-motion');
+    const cb = vi.fn();
+    playLongRestRitual(cb);
+    // Overlay aparece (force-motion sobrescreve reduced-motion)
+    expect(document.querySelector('.lrr-overlay')).toBeTruthy();
+    expect(cb).not.toHaveBeenCalled();
+    document.body.classList.remove('force-motion');
+    vi.unstubAllGlobals();
+    // cleanup do overlay
+    document.querySelector('.lrr-overlay')?.remove();
+  });
 });

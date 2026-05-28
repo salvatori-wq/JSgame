@@ -14,8 +14,13 @@ const SEQUENCE: Array<{ icon: string; label: string; durationMs: number }> = [
 const DEFAULT_TOTAL_MS = SEQUENCE.reduce((sum, s) => sum + s.durationMs, 0);
 
 export function playLongRestRitual(onDone: () => void): void {
-  // Respeita reduced-motion: chama callback imediato sem overlay.
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // V.3.c — Respeita reduced-motion DA OS, MAS honra o toggle UX `force-motion`
+  // (Ω.1 — body.force-motion sobrescreve OS reduced-motion). Antes só checava
+  // matchMedia direto, ignorando o toggle do user em UX Settings. Agora alinha
+  // com dice-3d.ts pattern: reduced AND NOT force-motion = skip overlay.
+  const reducedOS = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const forceMotion = document.body.classList.contains('force-motion');
+  const reduced = reducedOS && !forceMotion;
   if (reduced) {
     onDone();
     return;

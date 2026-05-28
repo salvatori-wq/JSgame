@@ -298,7 +298,9 @@ export class LobbyScreen {
       }, [
         el('span', { class: 'lmb-icon', text: '⚔' }),
         el('span', { class: 'lmb-label', text: 'Criar PJ novo' }),
-        el('span', { class: 'lmb-sub', text: 'Wizard 5 steps (party te vê construir)' }),
+        // V.3.b — Antes: "Wizard 5 steps" — desatualizado (wizard tem 8 steps
+        // pós-F2) e "Wizard" é jargão dev (T1.2 corrigiu na home). Alinha aqui.
+        el('span', { class: 'lmb-sub', text: 'Passo a passo (~3 min — party te vê construir)' }),
       ]));
       section.appendChild(grid);
     }

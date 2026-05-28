@@ -37,8 +37,18 @@ services:
         value: 10000
       - key: GROQ_API_KEY
         sync: false   # define manualmente no painel — fica encrypted
-      - key: DM_PROVIDER
-        value: groq
+      # V.1 — DM_PROVIDER REMOVIDO (era 'groq' single-provider).
+      # Bug: em prod, força APENAS Groq sem cascade. Groq 429 = jogo trava
+      # sem fallback. Em dev, sem essa env, auto-detect cascade (groq→gemini)
+      # salvava. Removendo aqui pra prod TAMBÉM usar cascade.
+      # Quando adicionar mais providers (Cerebras/Mistral), só setar a env
+      # KEY que entra no cascade automaticamente.
+      - key: GEMINI_API_KEY
+        sync: false   # ESSENCIAL pra fallback. Cria conta em ai.google.dev → encrypted
+      - key: CEREBRAS_API_KEY
+        sync: false   # OPCIONAL (Llama 3.3 70B, 1M tok/dia free) — cloud.cerebras.ai
+      - key: MISTRAL_API_KEY
+        sync: false   # OPCIONAL (Mistral Small, 500K/dia) — console.mistral.ai
       - key: TURSO_DATABASE_URL
         sync: false   # libsql://xxx.turso.io — pega na CLI Turso
       - key: TURSO_AUTH_TOKEN

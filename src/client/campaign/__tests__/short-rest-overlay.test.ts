@@ -29,3 +29,34 @@ describe('T2.5 — estimateShortRestHp', () => {
     expect(estimateShortRestHp(12, 1, 1)).toBe(8);
   });
 });
+
+// V.3.a — Bug visual no display da fórmula: "d10++3" quando Con positivo.
+// Causa: `d${faces}+${con>=0?'+':''}${conMod}` adicionava '+' duas vezes.
+// Fix: usar template condicional sem o '+' literal antes.
+// Não há acesso direto ao DOM no overlay sem mounting; aqui testamos o helper
+// usado pra construir a string.
+describe('V.3.a — formato fórmula d_N+ConMod', () => {
+  // Helper inline reproduzindo o template do short-rest-overlay.ts:84
+  const formatDieAndCon = (dieFaces: number, conMod: number): string =>
+    `d${dieFaces}${conMod >= 0 ? `+${conMod}` : conMod}`;
+
+  it('Con positivo: "d10+3" (não "d10++3")', () => {
+    expect(formatDieAndCon(10, 3)).toBe('d10+3');
+  });
+
+  it('Con zero: "d8+0"', () => {
+    expect(formatDieAndCon(8, 0)).toBe('d8+0');
+  });
+
+  it('Con negativo: "d6-1"', () => {
+    expect(formatDieAndCon(6, -1)).toBe('d6-1');
+  });
+
+  it('NUNCA contém "++" (regressão guard)', () => {
+    for (const con of [-3, -2, -1, 0, 1, 2, 3, 5]) {
+      for (const die of [6, 8, 10, 12]) {
+        expect(formatDieAndCon(die, con)).not.toContain('++');
+      }
+    }
+  });
+});

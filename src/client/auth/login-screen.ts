@@ -188,7 +188,16 @@ export class LoginScreen {
     }
     this.lastError = null;
     try {
-      const r = await requestMagicLink(email);
+      // V.3.d — Timeout client-side 10s. Antes: sem timeout, request pendurado
+      // (BREVO ausente ou hiccup HTTP) deixava botão eterno "⏳ Enviando…".
+      // Promise.race + AbortController não disponível em requestMagicLink — uso
+      // setTimeout reject simples.
+      const r = await Promise.race([
+        requestMagicLink(email),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 10000),
+        ),
+      ]);
       if (!r.ok) {
         this.lastError = r.error ?? 'Erro ao enviar';
         this.render();
@@ -198,7 +207,15 @@ export class LoginScreen {
       this.mode = 'sent';
       this.render();
     } catch (err) {
-      this.lastError = `Falhou: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = err instanceof Error ? err.message : String(err);
+      // V.3.d — Mensagens humanizadas (antes virava "Falhou: timeout" cru).
+      if (msg === 'timeout') {
+        this.lastError = '⏱ O servidor demorou demais — tente de novo daqui a pouco.';
+      } else if (/network|fetch/i.test(msg)) {
+        this.lastError = '📡 Sem conexão. Verifique sua internet.';
+      } else {
+        this.lastError = `Falhou: ${msg}`;
+      }
       this.render();
     }
   }
