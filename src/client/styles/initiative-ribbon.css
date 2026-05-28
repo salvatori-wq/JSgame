@@ -204,14 +204,33 @@
   font-style: italic;
 }
 
-/* ──────────────── Coop next hint ──────────────── */
-
+/* ──────────────── W3-DnD Sprint W — Next-up preview ──────────────── */
+/* Antes só coop ("↓ Lyra é a próxima"). Agora SEMPRE — vira "ordem dramática"
+ * do consultor D&D. Cardo italic pra peso narrativo. Cor por kind: enemy =
+ * sangue, aliado = gold mute, me = gold + bg dim. */
 .irb-next-hint {
-  padding: 4px 8px;
-  font-size: 11px;
-  color: rgba(244, 208, 127, 0.78);
+  padding: 6px 12px;
+  margin-top: 4px;
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 12px;
   font-style: italic;
   letter-spacing: 0.02em;
+  color: rgba(244, 208, 127, 0.7);
+  text-align: center;
+  border-radius: 4px;
+}
+.irb-next-hint.irb-next-enemy {
+  color: rgba(220, 130, 120, 0.85);
+}
+.irb-next-hint.irb-next-player {
+  color: rgba(244, 208, 127, 0.78);
+}
+.irb-next-hint.is-me-next {
+  color: var(--ink-gold);
+  font-weight: 700;
+  font-style: normal;
+  background: rgba(244, 208, 127, 0.10);
+  text-shadow: 0 0 6px rgba(244, 208, 127, 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {

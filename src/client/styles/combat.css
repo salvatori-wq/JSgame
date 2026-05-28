@@ -166,12 +166,24 @@
   font-size: 13px;
   color: #ffa080;
 }
+/* W3.1 — Sprint W: cb-enemy-meta agora carrega HP ADJETIVO (não stats numéricos).
+ * Fog of war restaurado: player NÃO vê CA/+atq/dano. Adjetivo derivado da %
+ * HP narra o estado ("intacto" → "à beira"). Cor por severidade. */
 .cb-enemy-meta {
-  font-family: monospace;
-  font-size: 10px;
+  font-family: 'Cardo', Georgia, serif;
+  font-style: italic;
+  font-size: 12px;
   color: var(--ink-mute);
   margin: 2px 0 6px;
+  letter-spacing: 0.02em;
 }
+.cb-enemy-hp-adj.cb-enemy-hp-intacto       { color: #a0c890; }
+.cb-enemy-hp-adj.cb-enemy-hp-arranhado     { color: #c8c090; }
+.cb-enemy-hp-adj.cb-enemy-hp-ferido        { color: #d8a060; }
+.cb-enemy-hp-adj.cb-enemy-hp-muito-ferido  { color: #e07840; font-weight: 600; }
+.cb-enemy-hp-adj.cb-enemy-hp-à-beira       { color: #e85040; font-weight: 700; text-shadow: 0 0 4px rgba(220, 60, 50, 0.4); }
+.cb-enemy-hp-adj.cb-enemy-hp-caído,
+.cb-enemy-hp-adj.cb-enemy-hp-morto         { color: var(--ink-mute); text-decoration: line-through; }
 .cb-enemy-hp-bar {
   height: 8px;
   background: rgba(0, 0, 0, 0.6);
@@ -318,115 +330,73 @@
 }
 
 .cb-log {
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.4);
+  padding: 10px 14px 8px;
+  background: rgba(20, 12, 6, 0.55);
   border-left: 2px solid var(--ink-gold);
   border-radius: 0 4px 4px 0;
-  max-height: 180px;
+  max-height: 200px;
   overflow-y: auto;
 }
 .cb-log-title {
   font-family: var(--font-heading);
   font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  margin-bottom: 4px;
-}
-.cb-log-line {
-  font-family: monospace;
-  font-size: 11px;
-  color: var(--ink-warm);
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(255, 230, 180, 0.04);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════ */
-/* ATTACK OVERLAY */
-/* ═══════════════════════════════════════════════════════════════════════ */
-
-.atk-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.atk-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(40, 8, 8, 0.85);
-  backdrop-filter: blur(3px);
-}
-.atk-stage {
-  position: relative;
-  padding: 24px 30px;
-  background: linear-gradient(180deg, rgba(40, 20, 14, 0.95), rgba(20, 8, 6, 0.95));
-  border: 2px solid #c04040;
-  border-radius: 8px;
-  min-width: 320px;
-  text-align: center;
-  box-shadow: 0 0 40px rgba(180, 60, 50, 0.4);
-}
-.atk-label {
-  font-family: var(--font-heading);
-  font-size: 14px;
-  color: #ff9070;
-  margin-bottom: 12px;
-  letter-spacing: 0.08em;
-}
-.atk-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin: 12px 0;
-}
-.atk-die {
-  width: 90px;
-  height: 90px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid var(--ink-gold);
-  border-radius: 8px;
-  font-family: var(--font-heading);
-  font-size: 36px;
-  color: var(--ink-warm);
-}
-.atk-die-rolling { animation: atk-spin 0.15s linear infinite; }
-.atk-die-hit    { border-color: #4a9030; box-shadow: 0 0 16px rgba(90, 180, 60, 0.5); }
-.atk-die-crit   { border-color: #ffd060; box-shadow: 0 0 24px rgba(255, 220, 100, 0.8); color: #ffd060; }
-.atk-die-miss   { border-color: #604040; opacity: 0.7; }
-.atk-die-fumble { border-color: #c03030; box-shadow: 0 0 16px rgba(220, 60, 50, 0.6); color: #ff8070; }
-@keyframes atk-spin {
-  0%   { transform: rotate(0deg);   }
-  100% { transform: rotate(360deg); }
-}
-.atk-chip-ac {
-  padding: 8px 14px;
-  background: rgba(60, 20, 20, 0.7);
-  border: 1px solid rgba(180, 60, 50, 0.5);
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 14px;
-  color: #ff9070;
-}
-.atk-verdict {
-  font-family: var(--font-heading);
-  font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-top: 8px;
-  min-height: 18px;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
 }
-.atk-verdict-idle   { color: var(--ink-mute); }
-.atk-verdict-hit    { color: #6ac050; }
-.atk-verdict-crit   { color: #ffd060; font-size: 14px; }
-.atk-verdict-miss   { color: var(--ink-mute); }
-.atk-verdict-fumble { color: #ff8070; font-size: 14px; }
+/* W2.4 — Combat log narrativo Sprint W. Antes: monospace 11px (syslog-feel).
+ * Agora: Cardo serif italic 14px line-height 1.5 — DM "narrando em mesa".
+ * Cor por evento (β.6 mantido + reforçado): crit dourado uppercase,
+ * miss apagado, kill bold vermelho. Consultor D&D: "log atual é syslog,
+ * em mesa real DM narra 'o orc gira o machado, te acerta no ombro'". */
+.cb-log-line {
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink-warm);
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(244, 208, 127, 0.06);
+}
+.cb-log-line:last-child {
+  border-bottom: none;
+}
+.cb-log-line.cb-log-crit {
+  color: #ffd060;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(255, 208, 96, 0.35);
+}
+.cb-log-line.cb-log-miss {
+  color: var(--ink-mute);
+  opacity: 0.78;
+}
+.cb-log-line.cb-log-player {
+  color: var(--ink-warm);
+}
+.cb-log-line.cb-log-enemy {
+  color: #d8a890;
+}
+.cb-log-line.cb-log-skill {
+  color: rgba(180, 200, 140, 0.92);
+}
+.cb-log-line.cb-log-death {
+  color: #ff8070;
+  font-weight: 700;
+  font-style: normal;
+  text-shadow: 0 0 6px rgba(220, 60, 50, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* W1.1 — Sprint W: legacy .atk-* overlay REMOVIDO.                        */
+/* Combat attack-roll usa showDiceRollOverlay (dice-roll-overlay.ts)       */
+/* desde γ.1, via campaign-screen.ts:505. Bloco .atk-die spinner CSS era   */
+/* órfão (sem caller TS) e violava drama D&D — substituído por dado 3D    */
+/* real com drop-in + bounce + crit flash visceral.                        */
+/* ═══════════════════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════════════════════
    F34 — Floating numbers + HP bar flash
@@ -801,17 +771,119 @@ body.is-portrait-narrow .combat-screen[data-active-tab="log"] .cb-tab-content:no
 /* Swipe hint sutil (mobile only) */
 body.is-portrait-narrow .combat-screen { touch-action: pan-y; }
 
+/* W3-DnD — Sprint W: Damage TAKEN visceral. Body class ativa 600ms quando
+ * o player toma dano (combat event 'damage' com targetId === myId). Border
+ * inset vermelho pulse + screen-shake leve. Crit variant mais intenso.
+ * Consultor D&D: "momento de tensão máxima do D&D — precisa peso visceral,
+ * não só -X HP no display". */
+body.is-took-damage,
+body.is-took-damage-crit {
+  animation: bodyDamageShake 250ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+body.is-took-damage .campaign-screen,
+body.is-took-damage .combat-screen,
+body.is-took-damage-crit .campaign-screen,
+body.is-took-damage-crit .combat-screen {
+  position: relative;
+}
+body.is-took-damage .campaign-screen::after,
+body.is-took-damage .combat-screen::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  box-shadow: inset 0 0 0 4px rgba(220, 60, 50, 0.7),
+              inset 0 0 60px rgba(180, 30, 20, 0.45);
+  animation: dmgFlashFade 600ms ease-out forwards;
+}
+body.is-took-damage-crit .campaign-screen::after,
+body.is-took-damage-crit .combat-screen::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  box-shadow: inset 0 0 0 6px rgba(220, 50, 40, 0.95),
+              inset 0 0 100px rgba(180, 20, 15, 0.6);
+  animation: dmgFlashFade 700ms ease-out forwards;
+}
+@keyframes bodyDamageShake {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(-2px, 1px); }
+  40%      { transform: translate(3px, -1px); }
+  60%      { transform: translate(-2px, 0); }
+  80%      { transform: translate(1px, 1px); }
+}
+@keyframes dmgFlashFade {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.is-took-damage,
+  body.is-took-damage-crit { animation: none; }
+  body.is-took-damage .campaign-screen::after,
+  body.is-took-damage .combat-screen::after,
+  body.is-took-damage-crit .campaign-screen::after,
+  body.is-took-damage-crit .combat-screen::after { animation: none; opacity: 0; }
+}
 
-/* β.4 — Action Economy badge (PHB pág 189-193) */
+/* W3.4 — Sprint W: "AGORA É VOCÊ" — body.is-my-turn aplica border dourado
+ * inset 3px na combat-screen + fade in 400ms. Sinal contundente que o
+ * jogador NÃO pode ignorar. Consultor Mobile: "cb-turn-pulse 1.4s glow é
+ * sutil demais — player perde a vez". */
+body.is-my-turn .combat-screen {
+  box-shadow: inset 0 0 0 3px var(--ink-gold),
+              inset 0 0 24px rgba(244, 208, 127, 0.18);
+  animation: turnEnterPulse 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes turnEnterPulse {
+  0%   { box-shadow: inset 0 0 0 0 var(--ink-gold), inset 0 0 0 rgba(244, 208, 127, 0); }
+  60%  { box-shadow: inset 0 0 0 5px var(--ink-gold), inset 0 0 40px rgba(244, 208, 127, 0.32); }
+  100% { box-shadow: inset 0 0 0 3px var(--ink-gold), inset 0 0 24px rgba(244, 208, 127, 0.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.is-my-turn .combat-screen {
+    animation: none;
+    box-shadow: inset 0 0 0 3px var(--ink-gold);
+  }
+}
+
+
+/* β.4 + W3.3 — Action Economy badge (PHB pág 189-193) STICKY TOP.
+ * Consultor Mobile: chips escondidos no scroll = player gasta Bonus sem ver.
+ * Sticky position garante "sempre visível" enquanto combat-screen rola. */
 .cb-economy {
   display: flex;
   gap: 6px;
-  padding: 6px 10px;
-  background: rgba(20, 12, 6, 0.5);
-  border: 1px solid rgba(255, 230, 180, 0.15);
-  border-radius: 4px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(28, 18, 10, 0.97), rgba(20, 12, 8, 0.92));
+  border: 1px solid rgba(255, 230, 180, 0.18);
+  border-bottom: 1px solid rgba(184, 128, 48, 0.35);
+  border-radius: 6px;
   flex-wrap: wrap;
   justify-content: center;
+  /* Sticky no scroll do parent (combat-screen ou viewport). */
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+/* W3.3 — readonly state (entre turnos) ganha opacity sutil — info disponível
+ * mas marca "não é sua vez agora". Hover restaura full pra inspeção. */
+.cb-economy.is-readonly {
+  opacity: 0.72;
+  border-bottom-color: rgba(120, 100, 70, 0.25);
+}
+.cb-economy.is-readonly:hover,
+.cb-economy.is-readonly:focus-within {
+  opacity: 1;
+}
+.cb-economy.is-active-turn {
+  border-bottom-color: var(--ink-gold);
+  box-shadow: 0 2px 12px rgba(244, 208, 127, 0.18);
 }
 .cb-eco-slot {
   display: inline-flex;

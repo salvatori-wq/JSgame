@@ -110,22 +110,18 @@
  * = dado entra do topo de .sc-stage com folga. */
 .sc-stage .die-3d {
   --die-drop-y: -60px;
-  /* ψ.1-fix — dado protagonista no skill check (era 58/64 default) */
-  width: 80px;
-  height: 80px;
-  font-size: 34px;
-}
-body.is-portrait-narrow .sc-stage .die-3d {
-  width: 88px;
-  height: 88px;
-  font-size: 38px;
+  /* W1.2 — dado protagonista DESKTOP: 100px (era 80px). Em mobile vira 140px
+   * via override em campaign-core.css. Consultor unificado: dado precisa ser
+   * o foco visual, não chip lateral. */
+  width: 100px;
+  height: 100px;
+  font-size: 44px;
 }
 .sc-row {
   padding-top: 60px;
 }
-body.is-portrait-narrow .sc-row {
-  padding-top: 50px;
-}
+/* W1.2 — portrait-narrow .sc-row layout é GRID (definido em campaign-core.css).
+ * Padding-top movido pra lá; aqui só garante que o drop-in tenha buffer base. */
 
 /* Sombra acompanha — width/opacity/offset crescem conforme dado se aproxima */
 @keyframes dieShadowSync {
@@ -199,33 +195,79 @@ body.is-portrait-narrow .sc-row {
   opacity: 0.88;
 }
 
-/* ── Screen flash (crit em combate) ────────────────────────────────────── */
+/* ── W1.5 — Screen flash visceral em crit/fumble ──────────────────────── */
+/* Original (γ.1) era sutil demais. Agora gradient full-screen radial gold
+ * em crit, vermelho em fumble. 700ms intensa pra marcar "momento épico". */
 .dice-screen-flash {
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.18) 0%, rgba(255, 215, 0, 0) 70%);
   pointer-events: none;
   z-index: 9990;
-  animation: diceFlashFade 600ms ease-out forwards;
+  animation: diceFlashFade 700ms ease-out forwards;
+}
+.dice-screen-flash.is-crit {
+  background: radial-gradient(circle at center,
+    rgba(255, 215, 0, 0.35) 0%,
+    rgba(255, 180, 60, 0.18) 35%,
+    rgba(255, 215, 0, 0) 75%);
+}
+.dice-screen-flash.is-fumble {
+  background: radial-gradient(circle at center,
+    rgba(220, 60, 50, 0.35) 0%,
+    rgba(180, 30, 30, 0.20) 35%,
+    rgba(200, 50, 50, 0) 75%);
+}
+/* Compatibilidade: sem is-* class cai pro gold (legacy callers) */
+.dice-screen-flash:not(.is-crit):not(.is-fumble) {
+  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.18) 0%, rgba(255, 215, 0, 0) 70%);
 }
 
 @keyframes diceFlashFade {
   0%   { opacity: 0; }
-  20%  { opacity: 1; }
+  18%  { opacity: 1; }
   100% { opacity: 0; }
 }
 
+/* W1.5 — Dado escala 1.2× no landing em crit/fumble (momento de impacto). */
+.die-3d.die-crit-landed {
+  animation: dieCritLanded 600ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.die-3d.die-fumble-landed {
+  animation: dieFumbleLanded 600ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+@keyframes dieCritLanded {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.2); filter: brightness(1.25); }
+  100% { transform: scale(1); }
+}
+@keyframes dieFumbleLanded {
+  0%   { transform: scale(1) rotate(0); }
+  40%  { transform: scale(1.15) rotate(-3deg); filter: saturate(1.3); }
+  60%  { transform: scale(1.1) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
 /* ── Dice overlay genérico (combat attack roll, etc) ───────────────────── */
+/* W1-Mobile + W1.3 — Screen dim mais escuro (0.55→0.72) + blur mais forte
+ * (3px→6px). Marvel Snap escurece tudo durante roll pro cube ser
+ * protagonista. is-rolling desabilita pointer-events em CHIPS/BOTÕES do
+ * overlay durante o reveal — "drama silence" do consultor D&D. */
 .dice-roll-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.72);
   z-index: 9500;
-  backdrop-filter: blur(3px);
-  animation: doFadeIn 180ms ease-out;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: doFadeIn 220ms ease-out;
+}
+/* W1.3 — is-rolling guard: nada clicável dentro do overlay durante reveal.
+ * Removido no auto-close. */
+.dice-roll-overlay.is-rolling .dro-stage *:not(.die-3d):not(.die-3d *) {
+  pointer-events: none;
 }
 
 @keyframes doFadeIn {

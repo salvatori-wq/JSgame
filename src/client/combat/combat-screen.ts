@@ -15,6 +15,10 @@ import { getConditionIcon, getConditionDescription } from './condition-icons';
 import { renderInitiativeRibbon } from './initiative-ribbon';
 import { enemyToStatBlock } from '../components/stat-block';
 import { openStatBlockModal } from '../components/stat-block-modal';
+import { hapticSuccess, hapticTap } from '../haptic';
+import { showToast } from '../toast';
+import { enemyHpAdjective as _enemyHpAdjective } from './combat-screen-helpers';
+import { openCombatTargetSheet } from './combat-target-sheet';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -41,9 +45,27 @@ function setActiveTab(tab: CombatTab): void {
   });
 }
 
+// W3.4 — Tracker module-level pra detectar TRANSIÇÃO turn → my-turn (não
+// só estado atual). Quando aparece o turno do player, dispara haptic + toast
+// "▶ Seu turno" + body.is-my-turn. Evita re-trigger em re-renders dentro do
+// mesmo turno. Reset quando combat termina (combat.active=false).
+let lastMyTurnState = false;
+
 export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpts): void {
   const { combat, party, myCharacterId, socket, combatLog } = opts;
   const myChar = party.find((p) => p.id === myCharacterId) ?? null;
+
+  // W3.4 — Detecta meu turno e aplica/remova body class + side effects de transição.
+  const myTurnNow = isMyTurn(combat, myCharacterId);
+  if (typeof document !== 'undefined') {
+    document.body.classList.toggle('is-my-turn', myTurnNow);
+  }
+  if (myTurnNow && !lastMyTurnState) {
+    // Transição EXTERNO → seu turno: drama "AGORA É VOCÊ"
+    try { hapticSuccess(); } catch { /* silent */ }
+    try { showToast({ kind: 'info', message: '▶ Seu turno', durationMs: 1800 }); } catch { /* silent */ }
+  }
+  lastMyTurnState = myTurnNow;
 
   const activeTab = getActiveTab();
   const root = el('section', { class: 'combat-screen', attrs: { 'data-active-tab': activeTab } });
@@ -110,17 +132,25 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     el('span', { class: 'cb-turn', text: current ? `Vez de ${current.name}` : '—' }),
   ]));
 
-  // β.4 — Action Economy badge (PHB pág 189-193). Mostra pro PJ ativo se for o
-  // turno dele. 4 slots: ação / bônus / movimento / reação.
-  if (current && current.kind === 'player' && current.id === myCharacterId && combat.actionEconomy) {
-    const ec = combat.actionEconomy[current.id];
-    if (ec) {
-      root.appendChild(el('div', { class: 'cb-economy', attrs: { title: 'Economia de ações PHB pág 189' } }, [
-        el('span', { class: `cb-eco-slot ${ec.action ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação principal (attack, dash, dodge, cast)' }, text: ec.action ? '🎯 Ação' : '— Ação' }),
-        el('span', { class: `cb-eco-slot ${ec.bonusAction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação bônus (1 por turno SE você tem feature/spell que dá)' }, text: ec.bonusAction ? '✨ Bônus' : '— Bônus' }),
-        el('span', { class: `cb-eco-slot ${ec.movement > 0 ? 'is-avail' : 'is-used'}`, attrs: { title: `Movimento restante — ${Math.round(ec.movement * 0.3 * 10) / 10}m / ${ec.movement}ft (1 quadrado = 1.5m = 5ft)` }, text: `👟 ${Math.round(ec.movement * 0.3 * 10) / 10}m` }),
-        el('span', { class: `cb-eco-slot ${ec.reaction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Reação (1 por round) — opportunity attack, counterspell, shield' }, text: ec.reaction ? '🛡 Reação' : '— Reação' }),
-      ]));
+  // W3.3 — Sprint W: Action Economy STICKY top.
+  // Mostra MEU economy mesmo entre turnos (read-only quando não é minha vez) —
+  // antes só renderizava no meu turno = chips sumiam ao vencer minha vez.
+  // Sticky top: ribbon persiste enquanto scroll desce. Consultor Mobile:
+  // "player gasta Bonus Action sem perceber porque chips estão escondidos".
+  if (combat.actionEconomy) {
+    const myEc = combat.actionEconomy[myCharacterId];
+    const isMyTurnNow = !!current && current.kind === 'player' && current.id === myCharacterId;
+    if (myEc) {
+      const eco = el('div', {
+        class: `cb-economy${isMyTurnNow ? ' is-active-turn' : ' is-readonly'}`,
+        attrs: { title: isMyTurnNow ? 'Economia de ações PHB pág 189 — seu turno' : 'Economia (read-only — não é seu turno)' },
+      }, [
+        el('span', { class: `cb-eco-slot ${myEc.action ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação principal (attack, dash, dodge, cast)' }, text: myEc.action ? '🎯 Ação' : '— Ação' }),
+        el('span', { class: `cb-eco-slot ${myEc.bonusAction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação bônus (1 por turno SE você tem feature/spell que dá)' }, text: myEc.bonusAction ? '✨ Bônus' : '— Bônus' }),
+        el('span', { class: `cb-eco-slot ${myEc.movement > 0 ? 'is-avail' : 'is-used'}`, attrs: { title: `Movimento restante — ${Math.round(myEc.movement * 0.3 * 10) / 10}m / ${myEc.movement}ft (1 quadrado = 1.5m = 5ft)` }, text: `👟 ${Math.round(myEc.movement * 0.3 * 10) / 10}m` }),
+        el('span', { class: `cb-eco-slot ${myEc.reaction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Reação (1 por round) — opportunity attack, counterspell, shield' }, text: myEc.reaction ? '🛡 Reação' : '— Reação' }),
+      ]);
+      root.appendChild(eco);
     }
   }
 
@@ -132,15 +162,36 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   if (combat.enemies.length > 0) {
     const enemiesGrid = el('div', { class: 'cb-enemies cb-tab-content cb-tab-enemies' });
     for (const en of combat.enemies) {
+      const enemyForClosure = en; // closure capture
       enemiesGrid.appendChild(renderEnemyCard(en, () => {
         // Se for meu turno e o enemy estiver vivo, ataca (ou pending action)
         if (!isMyTurn(combat, myCharacterId)) return;
-        if (en.currentHp <= 0) return;
+        if (enemyForClosure.currentHp <= 0) return;
+        if (!myChar) return;
+
+        // W3-Mobile — Targeting glow 200ms + haptic 15ms ANTES do sheet abrir.
+        // Consultor Mobile: Genshin/HSR fazem isso, "sensação de mira travada".
+        const cardEl = root.querySelector(`[data-combat-target="${enemyForClosure.id}"]`) as HTMLElement | null;
+        cardEl?.classList.add('is-targeted');
+        try { hapticTap(); } catch { /* silent */ }
+
         const w = window as unknown as { __pendingCombatAction?: CombatActionKind };
         const pending = w.__pendingCombatAction;
-        const action: CombatActionKind = pending ?? 'attack';
+        const pendingAction: CombatActionKind = pending ?? 'attack';
         delete w.__pendingCombatAction;
-        socket.emit('combatAction', { action, targetId: en.id });
+
+        // 200ms drama → abre target sheet contextual (W3.2)
+        window.setTimeout(() => {
+          cardEl?.classList.remove('is-targeted');
+          openCombatTargetSheet({
+            enemy: enemyForClosure,
+            myChar,
+            pendingAction,
+            onConfirm: (action) => {
+              socket.emit('combatAction', { action, targetId: enemyForClosure.id });
+            },
+          });
+        }, 200);
       }, isMyTurn(combat, myCharacterId)));
     }
     root.appendChild(enemiesGrid);
@@ -336,9 +387,17 @@ function conditionSeverity(c: string): 'severe' | 'moderate' | 'mild' {
   return 'mild';
 }
 
+// W3.1 — enemyHpAdjective moved to combat-screen-helpers.ts pra ser compartilhado
+// com combat-target-sheet sem circular dep. Re-export pra compat existente.
+export { enemyHpAdjective } from './combat-screen-helpers';
+
 function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: boolean): HTMLElement {
   const pct = en.maxHp > 0 ? Math.round((en.currentHp / en.maxHp) * 100) : 0;
   const dead = en.currentHp <= 0;
+  // W3.1 — Fog of war: stats CA/+atq/dano REMOVIDOS do card principal.
+  // Player vê: nome + adjetivo HP ("ferido") + barra relativa + conditions.
+  // Stats completos via botão ℹ (abre stat-block modal Φ.2).
+  const hpAdj = _enemyHpAdjective(en.currentHp, en.maxHp);
   const card = el('div', {
     class: `cb-enemy-card ${dead ? 'is-dead' : ''} ${clickable && !dead ? 'is-clickable' : ''}`,
     attrs: { 'data-combat-target': en.id },
@@ -346,7 +405,7 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
   }, [
     el('button', {
       class: 'cb-enemy-info-btn',
-      attrs: { type: 'button', 'aria-label': `Ver ficha de ${en.name}` },
+      attrs: { type: 'button', 'aria-label': `Ver ficha completa de ${en.name}`, title: 'Ver ficha completa (CA, ataque, dano, HP exato)' },
       text: 'ℹ',
       on: { click: (e): void => {
         e.stopPropagation();
@@ -354,14 +413,18 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
       } },
     }),
     el('div', { class: 'cb-enemy-name', text: en.name }),
-    el('div', { class: 'cb-enemy-meta', text: `CA ${en.armorClass} · +${en.attackBonus} · ${en.damageDice}${en.damageBonus ? `+${en.damageBonus}` : ''}` }),
+    // W3.1 — Adjetivo HP em vez de stats numéricos. Tooltip explica como ver detalhes.
+    el('div', {
+      class: `cb-enemy-meta cb-enemy-hp-adj cb-enemy-hp-${hpAdj.replace(/\s+/g, '-')}`,
+      text: hpAdj,
+      attrs: { title: 'Toque em ℹ pra ver CA, ataque, dano e HP exato' },
+    }),
     el('div', { class: 'cb-enemy-hp-bar' }, [
       el('div', {
         class: `cb-enemy-hp-fill ${pct < 33 ? 'is-low' : pct < 66 ? 'is-mid' : ''}`,
         style: { width: `${pct}%` },
       }),
     ]),
-    el('div', { class: 'cb-enemy-hp-txt', text: `HP ${en.currentHp}/${en.maxHp}` }),
   ]);
   if (en.conditions.length > 0) {
     const condRow = el('div', { class: 'cb-enemy-cond' });

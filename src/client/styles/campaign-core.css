@@ -379,6 +379,27 @@
   animation: narr-fade-in 0.4s ease-out;
 }
 
+/* W2.1 — Sprint W: READ-ALOUD BOX (estilo PHB) pras narrações de Mestre.
+ * Consultor D&D: "PHB usa caixa cinza/cream destacada — narração do DM não
+ * pode ser igual a chat". Aplicado SÓ a .is-narration NÃO-roll-echo.
+ * Player echo e roll-echo mantém estilo discreto (W2.2). Read-aloud box
+ * dá peso visual: gradient warm-gold + border-left forte + Cardo serif 16px
+ * line-height 1.6 + drop-cap inteligente (W2.1 narration-log) nas primeiras
+ * 3 da cena + após location change. */
+.camp-narr-entry.is-narration:not(.is-roll-echo) {
+  background: linear-gradient(180deg, rgba(74, 56, 26, 0.34) 0%, rgba(56, 40, 18, 0.30) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.22);
+  border-left: 3px solid var(--ink-gold);
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.camp-narr-entry.is-narration:not(.is-roll-echo) .cnn-text {
+  font-family: var(--font-body), 'Cardo', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
 @keyframes narr-fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -411,7 +432,12 @@
  * Mobile (≤480px) reduz pra 32px proporcional.
  * N3.3 — Responsivo: narrações curtas (data-drop-cap=sm) usam 32px desktop /
  * 28px mobile pra não dominar visualmente. Padrão (md) 38/32. */
-.camp-narr-entry.is-first-narration .cnn-text::first-letter {
+/* W2.1 — Drop-cap inteligente Sprint W. Aparece em is-first-narration (cold-open)
+ * E em todas entries com data-drop-cap-active='1' (primeiras 3 da cena +
+ * após location change). Consultor Mobile pediu: NÃO drop-cap sempre — vira
+ * ruído visual em log longo. */
+.camp-narr-entry.is-first-narration .cnn-text::first-letter,
+.camp-narr-entry[data-drop-cap-active='1'] .cnn-text::first-letter {
   font-family: var(--font-heading);
   font-size: 38px;
   line-height: 0.9;
@@ -424,16 +450,19 @@
                0 2px 4px rgba(0, 0, 0, 0.6);
   letter-spacing: 0.02em;
 }
-.camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter {
+.camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter,
+.camp-narr-entry[data-drop-cap-active='1'][data-drop-cap='sm'] .cnn-text::first-letter {
   font-size: 32px;
   margin: 3px 7px 0 0;
 }
 @media (max-width: 480px) {
-  .camp-narr-entry.is-first-narration .cnn-text::first-letter {
+  .camp-narr-entry.is-first-narration .cnn-text::first-letter,
+  .camp-narr-entry[data-drop-cap-active='1'] .cnn-text::first-letter {
     font-size: 32px;
     margin: 3px 6px 0 0;
   }
-  .camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter {
+  .camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter,
+  .camp-narr-entry[data-drop-cap-active='1'][data-drop-cap='sm'] .cnn-text::first-letter {
     font-size: 28px;
     margin: 2px 5px 0 0;
   }
@@ -488,9 +517,12 @@
   color: rgba(212, 168, 87, 0.55);
   margin-bottom: 1px;
 }
+/* W2.2 — Tipografia echo refinada Sprint W: 12→13px. Consultor: echo
+ * precisa ser CLARAMENTE menor que narração Mestre (16px read-aloud box)
+ * mas ainda legível. Italic preservado. */
 .camp-narr-entry.is-roll-echo .cnn-text {
   font-family: 'Cardo', Georgia, serif;
-  font-size: 12px;
+  font-size: 13px;
   font-style: italic;
   color: var(--ink-mute, #867758);
   line-height: 1.35;
@@ -498,6 +530,87 @@
 }
 .camp-narr-entry.is-roll-echo:hover {
   opacity: 1;
+}
+
+/* W2.2 — Player echo ("▶ Nome: ação") — distinto de Mestre (gold) e de
+ * roll-echo (mute). Tint azul-aço sutil mostra "ação minha/aliado",
+ * tipografia 13px italic opacity 0.78. NÃO ganha read-aloud box. */
+.camp-narr-entry.is-player-echo {
+  background: rgba(28, 38, 56, 0.42);
+  border-left: 2px solid rgba(120, 160, 220, 0.45);
+  border-radius: 0 4px 4px 0;
+  padding: 6px 12px 6px 10px;
+  margin: 4px 0;
+  opacity: 0.86;
+}
+.camp-narr-entry.is-player-echo .cnn-speaker {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(160, 190, 230, 0.7);
+  margin-bottom: 2px;
+}
+.camp-narr-entry.is-player-echo .cnn-text {
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  color: rgba(200, 210, 225, 0.88);
+  line-height: 1.4;
+}
+.camp-narr-entry.is-player-echo:hover {
+  opacity: 1;
+}
+
+/* W2.3 — Party message (chat coop absorvido no log). Avatar 24px circle com
+ * icon da classe + nome + texto. Bg azul-aço mais saturado que player-echo
+ * pra marcar "voz real de aliado" vs "ação reportada". Consultor Mobile pediu:
+ * avatar conectado ao PJ (classe icon), não hash arbitrário do nome. */
+.camp-narr-entry.is-party-message {
+  background: linear-gradient(180deg, rgba(28, 52, 78, 0.42) 0%, rgba(22, 40, 60, 0.38) 100%);
+  border: 1px solid rgba(120, 160, 220, 0.22);
+  border-left: 3px solid rgba(140, 180, 230, 0.7);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.cn-pm-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.cn-pm-avatar {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(50, 80, 120, 0.85), rgba(20, 35, 55, 0.95));
+  border: 1px solid rgba(140, 180, 230, 0.45);
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.5),
+              0 0 6px rgba(140, 180, 230, 0.25);
+  font-size: 14px;
+  line-height: 1;
+}
+.cn-pm-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cn-pm-speaker {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: rgba(180, 210, 240, 0.92);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.cn-pm-text {
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-warm);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* N2.2 — Separator visual sutil ABAIXO do echo — linha gold 1px com gradiente
@@ -531,13 +644,34 @@
   animation: thinking-pulse 1.4s ease-in-out infinite;
 }
 
-/* Chat refactor — thinking indicator INLINE (entry temporária no log) */
+/* Chat refactor + W2-Mobile — thinking indicator INLINE com skeleton shimmer.
+ * Consultor Mobile: "Disco Elysium faz isso entre skill checks — silhueta da
+ * próxima narração animada com shimmer". Mantém dots bouncing (cn-dot-pulse)
+ * e adiciona shimmer gradient horizontal no bg pro feel premium nativo. */
 .camp-narr-entry.is-thinking {
-  padding: 10px 12px;
-  background: rgba(20, 12, 6, 0.4);
-  border-left: 3px solid rgba(200, 155, 95, 0.4);
-  border-radius: 0 4px 4px 0;
-  animation: narr-fade-in 0.3s ease-out;
+  position: relative;
+  padding: 14px 16px;
+  background:
+    linear-gradient(180deg, rgba(74, 56, 26, 0.18) 0%, rgba(56, 40, 18, 0.14) 100%),
+    linear-gradient(110deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(244, 208, 127, 0.10) 50%,
+      transparent 60%,
+      transparent 100%);
+  background-size: 100% 100%, 200% 100%;
+  background-position: 0 0, -100% 0;
+  background-repeat: no-repeat, no-repeat;
+  border: 1px solid rgba(244, 208, 127, 0.15);
+  border-left: 3px solid var(--ink-gold);
+  border-radius: 4px;
+  margin: 12px 0;
+  animation: narr-fade-in 0.3s ease-out, thinkingShimmer 2.4s linear infinite;
+  overflow: hidden;
+}
+@keyframes thinkingShimmer {
+  0%   { background-position: 0 0, -100% 0; }
+  100% { background-position: 0 0, 200% 0; }
 }
 .cn-thinking-row {
   display: flex;
@@ -546,6 +680,8 @@
   color: var(--ink-mute);
   font-style: italic;
   font-size: 14px;
+  position: relative;
+  z-index: 1;
 }
 .cn-thinking-dots {
   display: inline-flex;
@@ -654,6 +790,8 @@
 @media (prefers-reduced-motion: reduce) {
   .camp-narr-entry { animation: none; }
   .cn-dot { animation: none; opacity: 0.7; }
+  /* W2-Mobile — Skeleton shimmer respeitando reduced-motion: dots only. */
+  .camp-narr-entry.is-thinking { animation: narr-fade-in 0.3s ease-out; }
   .cnn-text.is-streaming::after { animation: none; }
 }
 
@@ -826,10 +964,15 @@
   justify-content: center;
 }
 
+/* W1-Mobile — Backdrop com blur (consultor Mobile: dado precisa de "screen dim"
+ * Marvel-Snap-style pra ser protagonista). Radial gradient escurecido + blur
+ * isola visualmente o overlay do contexto. */
 .sc-backdrop {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(10, 6, 4, 0.85), rgba(2, 1, 0, 0.96));
+  background: radial-gradient(circle at 50% 50%, rgba(10, 6, 4, 0.92), rgba(2, 1, 0, 0.98));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   animation: narr-fade-in 0.2s ease-out;
 }
 
@@ -1158,64 +1301,102 @@ body.is-portrait-narrow .camp-action-btn {
  *   │ Pular este teste  │
  *   └─────────────────────┘
  * Reduz altura total ~25% em mobile — texto sub não esmaga mais. */
+/* W1.2 — Sprint W: DADO PROTAGONISTA em mobile portrait.
+ * ANTES (M2.2): grid 2-col com dado lateral 72px ladeado por chips em coluna.
+ * AGORA: flex column single-stack, dado 140px CENTRAL no topo, chips em row
+ * embaixo. Consultor Mobile: "Marvel Snap o cube toma ~40% da tela durante
+ * o roll — protagonista visual absoluto". 140 / 375 ≈ 37% width.
+ *
+ * Layout final:
+ *   ┌─────────────────────┐
+ *   │     LABEL big       │
+ *   │     sub italic      │
+ *   │      ┌─────┐        │   ← dado 140×140
+ *   │      │ d20 │        │
+ *   │      └─────┘        │
+ *   │  [DEX +3] [DC 12]   │   ← chips ABAIXO em row
+ *   │ [tutorial inline]   │
+ *   │     verdict         │
+ *   │   🎲 Rolar          │
+ *   │   Pular este teste  │
+ *   └─────────────────────┘
+ */
 body.is-portrait-narrow .sc-stage {
   min-width: 280px;
-  padding: 20px 18px;
+  padding: 22px 18px 18px;
   width: 100%;
   max-width: 100vw;
   box-sizing: border-box;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  column-gap: 14px;
-  row-gap: 10px;
-  text-align: left;
-}
-body.is-portrait-narrow .sc-label {
-  grid-column: 1;
-  grid-row: 1;
-  text-align: left;
-}
-body.is-portrait-narrow .sc-sub {
-  grid-column: 1;
-  grid-row: 2;
-  text-align: left;
-  margin: 0;
-}
-/* sc-row contém chip-attr + dado + chip-dc — em portrait-narrow vira coluna
- * vertical à direita, ocupando 2 rows do grid pra centralizar com label/sub.
- * Override padding-top: 50px do dice.css (era buffer pra drop-in landscape),
- * em column layout o dado cai DO TOPO do grid pai naturalmente. */
-body.is-portrait-narrow .sc-row {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+  display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+body.is-portrait-narrow .sc-label,
+body.is-portrait-narrow .sc-sub {
+  text-align: center;
   margin: 0;
-  padding-top: 20px; /* curto buffer pra drop-in --die-drop-y: -60px */
-  align-self: center;
-  justify-content: center;
 }
+/* W1.2 — sc-row vira GRID com 2 areas:
+ *   die spans 2 colunas (linha 1) → dado central protagonista
+ *   chip-attr coluna 1 + chip-dc coluna 2 (linha 2) → chips lado a lado abaixo
+ * Padding-top: 0 (drop-in -60px cabe no flex column gap). */
+body.is-portrait-narrow .sc-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "die die"
+    "chip-attr chip-dc";
+  row-gap: 18px;
+  column-gap: 14px;
+  margin: 0;
+  padding-top: 28px; /* buffer pra drop-in --die-drop-y: -60px */
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+body.is-portrait-narrow .sc-row .sc-die-slot {
+  grid-area: die;
+}
+body.is-portrait-narrow .sc-row .sc-chip-attr {
+  grid-area: chip-attr;
+  justify-self: end;
+  margin-right: 4px;
+}
+body.is-portrait-narrow .sc-row .sc-chip-dc {
+  grid-area: chip-dc;
+  justify-self: start;
+  margin-left: 4px;
+}
+/* W1.2 — Dado SKILL-CHECK 140×140 em mobile (era 72×72). Font-size 64px
+ * faz o número ocupar visualmente o centro. Override do dice.css default. */
+body.is-portrait-narrow .sc-stage .die-3d.sc-die-slot,
 body.is-portrait-narrow .sc-die {
-  width: 72px;
-  height: 72px;
-  font-size: 30px;
+  width: 140px !important;
+  height: 140px !important;
+  font-size: 64px !important;
+  border-radius: 18px;
 }
-/* Tutorial + verdict + botões: full-width abaixo (col 1 / -1) */
+/* W1.2 — Chip maior pro touch (legibilidade alinhada ao dado grande) */
+body.is-portrait-narrow .sc-chip {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+/* Tutorial + verdict + botões: full-width abaixo do bloco dado+chips */
 body.is-portrait-narrow .sc-tutorial,
 body.is-portrait-narrow .sc-verdict,
 body.is-portrait-narrow .sc-roll-btn,
 body.is-portrait-narrow .sc-skip-btn {
-  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 320px;
 }
 body.is-portrait-narrow .sc-roll-btn {
   min-height: var(--m-hit-comfortable, 44px);
-  width: 100%;
-  max-width: 280px;
   margin: 4px auto 0;
-  justify-self: center;
 }
 body.is-portrait-narrow .sc-skip-btn {
-  justify-self: center;
   min-height: 44px; /* N1.3 — hit polegar WCAG AAA em mobile */
   font-size: 13px;
 }

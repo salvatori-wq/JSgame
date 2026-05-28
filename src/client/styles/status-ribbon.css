@@ -137,6 +137,28 @@ body.is-portrait-narrow .sr-xp {
   font-variant-numeric: tabular-nums;
 }
 
+/* W3-DnD Sprint W — Concentration chip: tint violeta sutil + bg highlight.
+ * Visível tanto em exploration quanto em combat. Click no chip futuro pode
+ * mostrar tooltip detalhado da magia mantida. */
+.sr-conc {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  background: rgba(160, 110, 200, 0.18);
+  border: 1px solid rgba(160, 110, 200, 0.42);
+  border-radius: 6px;
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(220, 180, 240, 0.95);
+  white-space: nowrap;
+}
+.sr-conc:hover {
+  background: rgba(160, 110, 200, 0.28);
+}
+
 body.is-portrait-narrow .sr-turn {
   flex-shrink: 0;
   font-weight: 500;

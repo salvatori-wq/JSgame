@@ -25,10 +25,12 @@ export interface PendingCheck {
 }
 
 let currentEl: HTMLDivElement | null = null;
-/** Ω.1 — Watchdog: se server não responder diceRollResult em 5s, mostra toast +
- * restaura botão. Previne UI travada em "Rolando…" indefinidamente. */
+/** W1.4 — Watchdog 10s (era Ω.1 5s). Consultor Mobile: "latência LLM real é
+ * 3-12s, player vê 'Rolando…' e desiste antes da animação completar. 5s mata
+ * o flow". 10s cobre p95 sem prender UI indefinidamente. Toast também muda
+ * pra não-disruptivo durante latência normal: "🎲 O Mestre está pensando…". */
 let watchdogTimer: number | null = null;
-const WATCHDOG_MS = 5000;
+const WATCHDOG_MS = 10000;
 
 export function showPendingSkillCheck(
   check: PendingCheck,
@@ -258,8 +260,10 @@ function handleWatchdogTimeout(rollBtn: HTMLButtonElement, inspBtn: HTMLButtonEl
   rollBtn.textContent = '🎲 Tentar novamente';
   rollBtn.classList.remove('is-rolling');
   if (inspBtn) inspBtn.removeAttribute('disabled');
+  // W1.4 — mensagem não-disruptiva pra cobrir latência LLM normal.
+  // "O Mestre está pensando" sugere imersão, não erro.
   try {
-    showToast({ kind: 'warn', message: 'O Mestre demorou pra responder. Tente rolar de novo.', durationMs: 5000 });
+    showToast({ kind: 'info', message: '🎲 O Mestre está pensando… tente rolar de novo se travou.', durationMs: 5000 });
   } catch { /* silent */ }
   try {
     trackClientMetric('dice_roll_timeout', { kind: 'skill-check' });

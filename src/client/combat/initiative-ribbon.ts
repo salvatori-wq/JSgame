@@ -92,13 +92,19 @@ export function renderInitiativeRibbon(ctx: InitiativeRibbonContext): HTMLElemen
       if (expanded) expandArea.appendChild(expanded);
     }
 
-    // Hint coop: "↓ Lyra é a próxima" se o próximo turno é aliado
-    const nextIdx = (combat.currentTurnIndex + 1) % combat.initiativeOrder.length;
-    const next = combat.initiativeOrder[nextIdx];
-    if (next && next.kind === 'player' && next.id !== myCharacterId && !isDowned(next, combat, party)) {
+    // W3-DnD — Iniciativa next-up preview SEMPRE (não só coop). Pula
+    // participantes downed pra mostrar quem REALMENTE joga em seguida.
+    // Tipografia Cardo italic — "ordem dramática" do consultor D&D ("DM diz
+    // 'depois do orc é a anã, depois o goblin foge'"). Em vez de timeline
+    // asséptica, vira narração de turno.
+    const nextAlive = findNextAliveAfter(combat, party, combat.currentTurnIndex);
+    if (nextAlive) {
+      const isMyNext = nextAlive.kind === 'player' && nextAlive.id === myCharacterId;
+      const glyph = isMyNext ? '▶' : (nextAlive.kind === 'enemy' ? '🩸' : '🤝');
+      const label = isMyNext ? 'você' : nextAlive.name;
       expandArea.appendChild(el('div', {
-        class: 'irb-next-hint',
-        text: `↓ ${next.name} é o próximo`,
+        class: `irb-next-hint irb-next-${nextAlive.kind}${isMyNext ? ' is-me-next' : ''}`,
+        text: `${glyph} Próximo: ${label}`,
       }));
     }
   };
@@ -170,6 +176,27 @@ function isDowned(
   }
   const pj = party.find((x) => x.id === p.id);
   return !!pj && (pj.currentHp <= 0 || pj.conditions.includes('inconsciente'));
+}
+
+/**
+ * W3-DnD — Encontra o próximo participante vivo após currentTurnIndex.
+ * Pula downed. Retorna null se ninguém vivo além do atual (boss solo, etc).
+ * Exportado pra tests.
+ */
+export function findNextAliveAfter(
+  combat: CombatState,
+  party: CharacterSheet[],
+  fromIdx: number,
+): CombatState['initiativeOrder'][number] | null {
+  const n = combat.initiativeOrder.length;
+  if (n === 0) return null;
+  for (let i = 1; i <= n; i++) {
+    const idx = (fromIdx + i) % n;
+    if (idx === fromIdx) break;
+    const cand = combat.initiativeOrder[idx];
+    if (cand && !isDowned(cand, combat, party)) return cand;
+  }
+  return null;
 }
 
 function shorten(s: string, max: number): string {

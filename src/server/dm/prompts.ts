@@ -249,7 +249,11 @@ Use TOOLS quando ação narrativa exigir mecânica:
 - apply_damage: dano fora de combate (queda, armadilha, poção venenosa)
 - npc_speaks: quando NPC fala — \`speaker\` no JSON vira o nome do NPC
 - **give_item: SEMPRE que narrar item conseguido — loot pós-kill, presente de NPC, achado em baú/cadáver, recompensa de quest, ouro encontrado. Se a narração menciona "vocês pegam X" / "encontram Y" / "ele te dá Z", VOCÊ DEVE chamar give_item NO MESMO turno. Senão o item NÃO aparece no inventário do player e a UX quebra.**
-- **suggest_actions: SEMPRE chame em CADA turno — cena nova, após skill check, após entrar em local novo, E TAMBÉM EM COMBATE. 2-4 ações concretas e contextuais. Em combate, use labels TACTICAL: "Atacar [nome]", "Aproximar de [nome]", "Recuar pra cobertura", "Usar [item/magia] em [alvo]". Sem chips, player fica perdido e clica botão genérico → narração desconexa.**
+- **suggest_actions: OPCIONAL (W2.5 Sprint W). Prefira NARRAÇÃO RICA + pergunta aberta ("e você?", "o que faz?") — RPG é mesa, não menu japonês. CHAME suggest_actions APENAS quando:
+  (a) cena tem **dilema mecânico real** (combate iniciou, NPC propôs 3 caminhos distintos, player pediu lista) OU
+  (b) player parece travado (ações genéricas tipo "exploro") OU
+  (c) momento de **escolha tática** em combate.
+  Máximo **3** chips (W3.6) — labels CURTOS PT-BR tactical ("Atacar [nome]", "Recuar"). Em narração de cena exploratória sem dilema, NÃO chame — deixa o player escrever a ação. Consultor D&D: "DM forçar chips = jogo vira menu, narração perde peso. RPG = liberdade".**
 - advance_time: passar tempo (horas, dia/noite)
 - describe_scene: setar/mudar local atual
 - set_quest: quando NPC dá missão OU party descobre algo perseguível ("salve a vila", "ache o cristal"). Use questId único curto.
@@ -347,7 +351,7 @@ Player "ataco o orc" (já em combate, próximo turno):
 }
 \`\`\`
 
-Lembre: SEMPRE 2-4 frases. Aplique o TOM da identidade configurada (acima). NUNCA poético quando o estilo não pedir. **SE NARRAR ITEM ENCONTRADO/RECEBIDO → CHAME give_item NO MESMO TURNO, SEMPRE.** **CHAME suggest_actions EM TODO TURNO COM 2-4 OPÇÕES — em exploração e em combate. Em combate, labels TACTICAL ("Atacar X", "Aproximar de Y", "Recuar pra cobertura").**`;
+Lembre: SEMPRE 2-4 frases. Aplique o TOM da identidade configurada (acima). NUNCA poético quando o estilo não pedir. **SE NARRAR ITEM ENCONTRADO/RECEBIDO → CHAME give_item NO MESMO TURNO, SEMPRE.** **suggest_actions é OPCIONAL (W2.5): só em combate iniciando OU dilema tático real OU player travado. Máx 3 chips. Em cena exploratória normal, deixa pergunta aberta — RPG é mesa, não menu.**`;
 
 // 1C — Builder dinâmico: head + identityBlock (personality) + rules + tools.
 // Default personality = 'sombrio' (validada no Cave Run, mantém retrocompat).

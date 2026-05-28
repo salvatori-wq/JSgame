@@ -313,6 +313,9 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
     case 'suggest_actions': {
       const raw = Array.isArray(input.actions) ? input.actions : null;
       if (!raw || raw.length === 0) return null;
+      // W3.6 — Clamp em 3 (era 4). Consultor D&D: "chips em quantidade vira
+      // menu RPG japonês. PHB DM Style Guide pede 3 ou menos pra manter peso
+      // narrativo". Garante que LLM não consegue spammar opções.
       const actions = raw
         .filter((a: unknown): a is Record<string, unknown> => typeof a === 'object' && a !== null)
         .map((a) => {
@@ -325,7 +328,7 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
           return { label, action, details, ...(hint ? { hint } : {}) };
         })
         .filter((a) => a.label.length > 0 && a.details.length > 0)
-        .slice(0, 4);
+        .slice(0, 3);
       if (actions.length === 0) return null;
       return { kind: 'suggest_actions', actions };
     }

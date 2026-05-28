@@ -95,6 +95,8 @@ function renderCombatBody(state: CampaignState, character: CharacterSheet | null
   const turnText = isMyTurn ? 'Sua vez' : `Vez de ${shorten(currentTurn?.name ?? '?', 12)}`;
   const economy = character && combat.actionEconomy?.[character.id];
   const economyGlyphs = renderEconomyGlyphs(economy);
+  // W3-DnD — Concentração visível mesmo em combate (consultor D&D pediu)
+  const concEl = renderConcentrationChip(character);
 
   return el('span', { class: 'sr-text' }, [
     el('span', { class: 'sr-glyph', text: '⚔️' }),
@@ -103,7 +105,32 @@ function renderCombatBody(state: CampaignState, character: CharacterSheet | null
     el('span', { class: `sr-turn ${isMyTurn ? 'is-my-turn' : ''}`, text: turnText }),
     economyGlyphs ? el('span', { class: 'sr-sep', text: '·' }) : null,
     economyGlyphs,
+    concEl ? el('span', { class: 'sr-sep', text: '·' }) : null,
+    concEl,
   ].filter(Boolean) as HTMLElement[]);
+}
+
+/**
+ * W3-DnD — Sprint W: Concentration visible chip pro status ribbon.
+ * Quando character.concentratingOn é set (F25), mostra "🧠 [Spell]" no
+ * ribbon. Consultor D&D: "F25 já implementou concentration mas plano W não
+ * tinha UI. Perder Bless mid-combat por falhar CON save = drama puro D&D".
+ * Exportado pra tests.
+ */
+export function renderConcentrationChip(character: CharacterSheet | null): HTMLElement | null {
+  if (!character) return null;
+  const spellId = character.concentratingOn;
+  if (!spellId) return null;
+  // SpellId vem como "bless" → display "Bless" (1ª letra maiúscula).
+  const displayName = spellId.charAt(0).toUpperCase() + spellId.slice(1).replace(/[-_]/g, ' ');
+  return el('span', {
+    class: 'sr-conc',
+    text: `🧠 ${displayName}`,
+    attrs: {
+      title: `Concentrando: ${displayName}. Receber dano dispara save Constituição (DC max(10, dano/2)). Falhar = magia perdida.`,
+      'aria-label': `Concentrando em ${displayName}`,
+    },
+  });
 }
 
 function renderEconomyGlyphs(economy: { action: boolean; bonusAction: boolean; reaction: boolean; movement: number } | null | undefined): HTMLElement | null {
@@ -174,6 +201,12 @@ function renderExplorationBody(state: CampaignState, character: CharacterSheet |
   if (xp) {
     items.push(el('span', { class: 'sr-sep', text: '·' }));
     items.push(el('span', { class: 'sr-xp', text: xp }));
+  }
+  // W3-DnD — concentração visível também fora de combate
+  const concEl = renderConcentrationChip(character);
+  if (concEl) {
+    items.push(el('span', { class: 'sr-sep', text: '·' }));
+    items.push(concEl);
   }
 
   return el('span', { class: 'sr-text' }, items.filter(Boolean) as HTMLElement[]);

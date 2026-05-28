@@ -42,7 +42,7 @@ import { humanizeServerError } from '../humanize-error';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial } from './duolingo-tutorial';
-import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak } from './narration-log';
+import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak, classIcon } from './narration-log';
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
@@ -299,7 +299,13 @@ export class CampaignScreen {
           trackClientMetric('error_kind_seen', { kind: 'unknown' });
         }
       } else {
-        this.narrationLog!.appendNarration({ speaker, text: payload.text });
+        // W2.1 — Passa currentLocation pra drop-cap inteligente reset por cena.
+        const loc = this.currentState?.currentLocation;
+        this.narrationLog!.appendNarration({
+          speaker,
+          text: payload.text,
+          ...(typeof loc === 'string' ? { currentLocation: loc } : {}),
+        });
         // ψ.5 — Narration word count + auto_retry_success
         const words = payload.text.split(/\s+/).filter((w) => w.length > 0).length;
         trackClientMetric('narration_word_count', { words, kind: 'normal' });
@@ -435,9 +441,21 @@ export class CampaignScreen {
     s.on('campaignState', onState);
     this.socketCleanups.push(() => s.off('campaignState', onState));
 
-    // ο.2 — Party chat message (broadcast separado da narração)
+    // ο.2 + W2.3 — Party chat message: absorvido em narration-log como entry
+    // inline (.is-party-message). Antes só ia pro chat-sheet modal (disruptivo);
+    // agora player vê AMBAS narrações + chat no mesmo fluxo. Em solo (party=1)
+    // chat-pill nem aparece, mas mensagens em outros canais (futuros) podem
+    // aparecer aqui sem refactor.
     const onPartyMessage = (msg: PartyMessage): void => {
       this.partyMessages.push(msg);
+      // W2.3 — Absorve no log SEMPRE (mesmo se chat-sheet aberto). Source of
+      // truth visual é o log. chat-sheet vira fallback opcional.
+      const charForIcon = this.party.find((p) => p.id === msg.characterId);
+      this.narrationLog?.appendPartyMessage({
+        speaker: msg.speaker,
+        text: msg.text,
+        classIcon: classIcon(charForIcon?.classId),
+      });
       if (isChatSheetOpen()) {
         appendChatMessage(msg);
       } else if (this.character && msg.characterId !== this.character.id) {
@@ -451,9 +469,18 @@ export class CampaignScreen {
     s.on('partyMessage', onPartyMessage);
     this.socketCleanups.push(() => s.off('partyMessage', onPartyMessage));
 
-    // ψ.2 — Backlog em joinCampaign (resolve reconnect = histórico vazio)
+    // ψ.2 + W2.3 — Backlog em joinCampaign. Insere todas msgs como entries no
+    // log (player reconectou e perdeu histórico — vê o que conversaram).
     const onBacklog = (payload: { messages: PartyMessage[] }): void => {
       this.partyMessages = [...payload.messages];
+      for (const msg of payload.messages) {
+        const charForIcon = this.party.find((p) => p.id === msg.characterId);
+        this.narrationLog?.appendPartyMessage({
+          speaker: msg.speaker,
+          text: msg.text,
+          classIcon: classIcon(charForIcon?.classId),
+        });
+      }
     };
     s.on('partyMessageBacklog', onBacklog);
     this.socketCleanups.push(() => s.off('partyMessageBacklog', onBacklog));
@@ -509,7 +536,8 @@ export class CampaignScreen {
           final: ev.value,
           special,
           verdictText: ev.crit ? 'CRÍTICO!' : ev.nat1 ? 'FALHA CRÍTICA' : `Resultado ${ev.value}`,
-          showAfterMs: 1200,
+          // W1.3 — sem showAfterMs manual: deixa default (2500ms / 4000ms crit/fumble)
+          // pro silêncio dramático D&D. Era 1200ms — tempo de Tinder.
         });
         // Não return — outros eventos (damage, miss) chegam logo após e atualizam UI.
         return;
@@ -525,6 +553,17 @@ export class CampaignScreen {
             playDamage();
           } else {
             playHit();
+          }
+          // W3-DnD — Damage TAKEN visceral. Body class .is-took-damage 600ms
+          // ativa screen-shake leve + flash vermelho borda. Consultor D&D:
+          // "momento de tensão máxima do D&D. Precisa peso visceral, não
+          // só -X HP no display". Crit dispara variant mais intensa (HARDHIT).
+          if (ev.targetId && ev.targetId === myId && typeof document !== 'undefined') {
+            const bodyCls = ev.crit ? 'is-took-damage-crit' : 'is-took-damage';
+            document.body.classList.remove(bodyCls);
+            void document.body.offsetWidth;
+            document.body.classList.add(bodyCls);
+            window.setTimeout(() => document.body.classList.remove(bodyCls), 700);
           }
           break;
         case 'attack-miss':
@@ -598,7 +637,7 @@ export class CampaignScreen {
           final: payload.roll.rolls[0] ?? payload.roll.total,
           special,
           verdictText: payload.roll.nat20 ? 'NAT 20 — Crítico!' : payload.roll.nat1 ? 'NAT 1 — Falha Crítica' : success ? 'Sucesso' : 'Falhou',
-          showAfterMs: 1800,
+          // W1.3 — default 2500ms (4000ms em nat20/nat1) substitui 1800ms manual.
         });
         return;
       }
@@ -615,7 +654,7 @@ export class CampaignScreen {
           final: payload.roll.rolls[0] ?? payload.roll.total,
           special,
           verdictText: payload.roll.nat20 ? 'NAT 20 — Volta da Morte!' : payload.roll.nat1 ? 'NAT 1 — 2 falhas' : success ? '✓ Sucesso' : '✗ Falha',
-          showAfterMs: 2200,
+          // W1.3 — momento mais dramático do D&D usa default 2500ms (4000ms crit/fumble).
         });
         return;
       }

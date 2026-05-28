@@ -56,7 +56,13 @@ export interface DiceRollOverlayOpts {
 export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
   closeDiceRollOverlay();
 
-  const overlay = el('div', { class: 'dice-roll-overlay', attrs: { 'data-die-kind': opts.kind } }) as HTMLDivElement;
+  // W1.3 — is-rolling class no overlay inteiro garante "drama silence":
+  // pointer-events: none → chips/botões inertes até landing settle. Removido
+  // ao auto-close. Consultor D&D: "em mesa real ninguém respira pós-dado".
+  const overlay = el('div', {
+    class: 'dice-roll-overlay is-rolling',
+    attrs: { 'data-die-kind': opts.kind },
+  }) as HTMLDivElement;
   const stage = el('div', { class: 'dro-stage' });
 
   if (opts.label) {
@@ -106,14 +112,19 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
       playDiceLand();
     },
     onDone: () => {
-      // Camada 3 (opcional): crit ting OU fumble dread
+      // Camada 3 (opcional): crit ting OU fumble dread.
+      // W1.5 — Screen flash visceral em ambos crit (gold) e fumble (red).
+      // Dado também escala 1.2× via .die-crit-landed / .die-fumble-landed class.
       if (opts.special === 'crit') {
         playDiceCritTing();
         hapticCrit();
-        if (!opts.noScreenFlash) flashScreen();
+        if (!opts.noScreenFlash) flashScreen('crit');
+        die.classList.add('die-crit-landed');
       } else if (opts.special === 'fumble') {
         playDiceFumble();
         hapticFumble();
+        if (!opts.noScreenFlash) flashScreen('fumble');
+        die.classList.add('die-fumble-landed');
       } else if (opts.special === 'success') {
         hapticSuccess();
       }
@@ -135,7 +146,15 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
       });
       stage.appendChild(ariaLive);
 
-      const closeAfter = opts.showAfterMs ?? 1500;
+      // W1.3 — Drama timing: default 2500ms (era 1500ms "tempo de Tinder").
+      // Crit/fumble dobra pra 4000ms — momento mais épico do D&D merece silêncio.
+      // Consultor D&D: "silêncio pós-roll dura 5-10s em mesa, 2.5-4s é meio-termo".
+      const isDramatic = opts.special === 'crit' || opts.special === 'fumble';
+      const defaultAfter = isDramatic ? 4000 : 2500;
+      const closeAfter = opts.showAfterMs ?? defaultAfter;
+
+      // Liberar interação só DEPOIS do tempo dramático (drama silence).
+      // is-rolling permanece até closeAfter — chips/botões inertes durante reveal.
       currentTimer = window.setTimeout(() => {
         closeDiceRollOverlay();
         opts.onClose?.();
@@ -157,10 +176,16 @@ export function closeDiceRollOverlay(): void {
   currentEl = null;
 }
 
-/** Screen flash dourado pulsante — crit em combate. Respeita reduced-motion. */
-function flashScreen(): void {
+/** W1.5 — Screen flash visceral (gold em crit, vermelho em fumble).
+ * Mais intenso que original (radial gradient full-screen 700ms). Respeita
+ * reduced-motion. Consultor D&D: crit/fumble é "momento épico do D&D" e
+ * merece sinal visual contundente. */
+function flashScreen(kind: 'crit' | 'fumble' = 'crit'): void {
   if (prefersReducedMotion()) return;
-  const flash = el('div', { class: 'dice-screen-flash', attrs: { 'aria-hidden': 'true' } });
+  const flash = el('div', {
+    class: `dice-screen-flash is-${kind}`,
+    attrs: { 'aria-hidden': 'true' },
+  });
   document.body.appendChild(flash);
   window.setTimeout(() => flash.remove(), 700);
 }

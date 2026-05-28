@@ -63,6 +63,20 @@ export interface SuggestedChip {
   onClick: () => void;
 }
 
+// W2.3 — Mapa de classe D&D → icon emoji pra avatar 24px de party-message.
+// Ajuste consultor Mobile: avatar "hash do nome" era arbitrário, agora reflete
+// o PJ real (classe icon). Casos sem match caem em 🗣 (genérico).
+const CLASS_ICONS: Record<string, string> = {
+  barbarian: '🪓', bard: '🎵', cleric: '🛡', druid: '🌿',
+  fighter: '⚔', monk: '👊', paladin: '🛡', ranger: '🏹',
+  rogue: '🥷', sorcerer: '✨', warlock: '🔮', wizard: '🧙',
+};
+export function classIcon(className: string | undefined | null): string {
+  if (!className) return '🗣';
+  const key = className.trim().toLowerCase();
+  return CLASS_ICONS[key] ?? '🗣';
+}
+
 export class NarrationLog {
   private rootEl: HTMLElement;
   private entriesEl: HTMLElement;
@@ -74,6 +88,12 @@ export class NarrationLog {
   private lastErrorEntryEl: HTMLElement | null = null;
   // α.1 — Container persistente dos chips de sugestão (sempre ÚLTIMO no log).
   private chipsEl: HTMLElement | null = null;
+  // W2.1 — Drop-cap inteligente: ajuste consultor Mobile. SEMPRE drop-cap em
+  // log longo vira ruído visual. Drop-cap aparece SÓ nas primeiras 3 narrações
+  // da cena E na 1ª após location change (cria "começo de capítulo" dramático
+  // sem poluir). Track location atual + counter por cena.
+  private lastSceneLocation: string | null = null;
+  private narrationsInCurrentScene = 0;
   private newSinceScrolled = 0;
   private isPinnedToBottom = true;
   private opts: Required<NarrationLogOpts>;
@@ -170,8 +190,12 @@ export class NarrationLog {
    *
    * Typewriter visual aplicado APENAS na entry mais recente (e só se for
    * narração de Mestre — não em ecos de chat). Respeita prefers-reduced-motion.
+   *
+   * W2.1 — `currentLocation` opcional dispara reset do counter de drop-caps por
+   * cena. Permite que cada cena nova ganhe seu próprio "começo de capítulo"
+   * dramático sem poluir log longo.
    */
-  appendNarration(payload: { speaker: string; text: string }): void {
+  appendNarration(payload: { speaker: string; text: string; currentLocation?: string }): void {
     if (this.destroyed) return;
     this.removeEmptyState();
     this.removeThinkingEl(); // narração chegou — remove "Mestre escrevendo..."
@@ -191,18 +215,40 @@ export class NarrationLog {
     };
     this.entries.push(entry);
 
+    // W2.1 — Drop-cap inteligente. Detecta speaker como Mestre (não echo)
+    // e aplica drop-cap apenas se cabe na "janela dramática" da cena:
+    //  - primeiras 3 narrações da cena atual
+    //  - 1ª após location change
+    // Player vê drop-cap em momentos importantes (começo de cena), não em
+    // todo turno. Consultor Mobile: "20 drop-caps Cinzel 38px em log longo
+    // vira ruído visual e mata hierarquia da narração nova".
+    const isMasterNarration = entry.speaker === 'Mestre' || entry.speaker.startsWith('Mestre ');
+    const locationChanged =
+      typeof payload.currentLocation === 'string' &&
+      payload.currentLocation !== this.lastSceneLocation;
+    if (locationChanged) {
+      this.lastSceneLocation = payload.currentLocation ?? null;
+      this.narrationsInCurrentScene = 0;
+    }
+    const dropCapActive = isMasterNarration &&
+      (isFirstNarration || locationChanged || this.narrationsInCurrentScene < 3);
+    if (isMasterNarration) this.narrationsInCurrentScene += 1;
+
     // N3.3 — Drop-cap responsivo: narrações curtas (<100 chars) → drop-cap
     // menor pra não dominar visualmente o conteúdo. Narrações médias/longas
     // → drop-cap padrão. Aplicado via data-attr lido pelo CSS.
-    let dropCapSize: 'sm' | 'md' = 'md';
-    if (isFirstNarration && payload.text.length < 100) dropCapSize = 'sm';
+    const dropCapSize: 'sm' | 'md' = payload.text.length < 100 ? 'sm' : 'md';
     const extraClass = `is-narration${isFirstNarration ? ' is-first-narration' : ''}`;
     const entryEl = this.buildEntryEl(entry, extraClass);
-    if (isFirstNarration) entryEl.dataset.dropCap = dropCapSize;
+    // W2.1 — data-drop-cap='active' liga o ::first-letter no CSS pra esta entry.
+    // Tamanho (sm/md) controla a escala. Drop-cap inativo = atributo omitido.
+    if (dropCapActive) {
+      entryEl.dataset.dropCap = dropCapSize;
+      entryEl.dataset.dropCapActive = '1';
+    }
     this.entriesEl.appendChild(entryEl);
 
     // Typewriter visual nas narrações de Mestre (não em chat/echo).
-    const isMasterNarration = entry.speaker === 'Mestre' || entry.speaker.startsWith('Mestre ');
     if (isMasterNarration && this.opts.enableTypewriter) {
       this.startTypewriter(entry, entryEl);
     }
@@ -462,6 +508,51 @@ export class NarrationLog {
   }
 
   /**
+   * W2.3 — Sprint W: Chat absorvido em narration-log.
+   * Insere uma mensagem de party (chat coop) como entry no log inline.
+   * Avatar 24px com icon da classe do PJ (consultor Mobile: avatar conectado
+   * ao PJ real, não hash arbitrário do nome). Visual `.is-party-message` —
+   * border azul-aço sutil + bg azulado discreto pra distinguir de narração
+   * Mestre (gold read-aloud) e de echo player (azul-aço discreto similar
+   * mas sem avatar).
+   *
+   * Returns o entryEl pra caller decidir se quer scrollar até.
+   */
+  appendPartyMessage(payload: { speaker: string; text: string; classIcon?: string }): HTMLElement {
+    const icon = payload.classIcon ?? '🗣';
+    const entry: NarrationEntry = {
+      id: genId(),
+      speaker: payload.speaker,
+      text: payload.text,
+      kind: 'narration',
+      timestamp: Date.now(),
+    };
+    this.entries.push(entry);
+
+    const entryEl = el('div', {
+      class: 'camp-narr-entry is-party-message',
+      attrs: { 'data-id': entry.id, 'data-kind': 'party-message' },
+    }, [
+      el('div', { class: 'cn-pm-row' }, [
+        el('span', {
+          class: 'cn-pm-avatar',
+          attrs: { 'aria-hidden': 'true', title: payload.speaker },
+          text: icon,
+        }),
+        el('div', { class: 'cn-pm-body' }, [
+          el('div', { class: 'cnn-speaker cn-pm-speaker', text: payload.speaker }),
+          el('div', { class: 'cnn-text cn-pm-text', text: payload.text }),
+        ]),
+      ]),
+    ]);
+
+    this.removeEmptyState();
+    this.entriesEl.appendChild(entryEl);
+    this.afterAppend(entryEl);
+    return entryEl;
+  }
+
+  /**
    * α.1 — Atualiza chips de sugestão renderizados após a última narração.
    * Passa [] pra esconder. Substitui set anterior (não acumula).
    * Chips sempre vivem no FIM do log (após thinking se houver).
@@ -568,7 +659,14 @@ export class NarrationLog {
     // do corpo narrado pelo Mestre (visual claro: "isso é mecânica, não cena").
     const isRollEcho = entry.kind === 'narration'
       && (entry.speaker.startsWith('🎲 ') || entry.speaker.startsWith('🛡 ') || entry.speaker.startsWith('🚶 '));
-    const echoClass = isRollEcho ? ' is-roll-echo' : '';
+    // W2.2 — Player echo ("▶ Nome: ação") também recebe estilo discreto
+    // similar a roll-echo. Antes ficava igual a narração Mestre (W2.1 read-aloud
+    // box) — competia visualmente com a narração real. Agora tipografia menor +
+    // tint azul-aço diferencia de Mestre (gold).
+    const isPlayerEcho = entry.kind === 'narration'
+      && !isRollEcho
+      && entry.speaker.startsWith('▶ ');
+    const echoClass = isRollEcho ? ' is-roll-echo' : (isPlayerEcho ? ' is-player-echo' : '');
     const entryEl = el('div', {
       class: `camp-narr-entry ${extraClass}${echoClass}`,
       attrs: { 'data-id': entry.id, 'data-kind': entry.kind },

@@ -15,20 +15,25 @@
   opacity: 1;
 }
 
-/* ──────────────── Combat Enter — vinheta vermelha pulsante ──────────────── */
+/* ──────────────── Combat Enter — W3-Mobile reforçada Sprint W ──────────────── */
+/* Antes (ο.7): radial 30→100% red 0.55. Sutil demais — passava despercebido.
+ * Agora (W3-Mobile): intensidade 0.75 + zoom-in maior (1.10→1) + flash branco
+ * breve no início pra criar "impacto Marvel Snap". 700ms total. */
 
 .mode-transition-vignette.is-combat-enter {
-  background: radial-gradient(
-    ellipse at center,
-    transparent 30%,
-    rgba(200, 64, 50, 0.55) 100%
-  );
-  animation: vignette-combat-enter 600ms ease-out;
+  background:
+    radial-gradient(
+      ellipse at center,
+      transparent 25%,
+      rgba(220, 60, 50, 0.75) 90%
+    );
+  animation: vignette-combat-enter 700ms ease-out;
 }
 
 @keyframes vignette-combat-enter {
-  0%   { opacity: 0; transform: scale(1.05); }
-  30%  { opacity: 1; }
+  0%   { opacity: 0; transform: scale(1.10); filter: brightness(2) saturate(1.5); }
+  8%   { opacity: 1; filter: brightness(1.4) saturate(1.2); }
+  35%  { opacity: 1; transform: scale(1); filter: brightness(1) saturate(1); }
   100% { opacity: 0; transform: scale(1); }
 }
 

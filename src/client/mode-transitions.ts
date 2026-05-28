@@ -34,9 +34,19 @@ function trigger(kind: string, durationMs: number): void {
   }, durationMs);
 }
 
-/** Entrada em combate — vinheta vermelha fade-in 400ms. */
+/** Entrada em combate — vinheta vermelha + haptic warn (W3-Mobile Sprint W).
+ * Consultor Mobile: "macro-momento (exploration→combat) precisa de vinheta —
+ * Marvel Snap faz isso em cada match-found". Já tinha vinheta CSS; W3 adiciona
+ * haptic 30ms pulse pra reforçar o impacto no corpo, e usa duração mais longa
+ * (700ms) pra player ter tempo de internalizar a transição. */
 export function transitionToCombat(): void {
-  trigger('combat-enter', 600);
+  // Haptic burst sem dependência (audio.ts não tem pra evitar imports cruzados)
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate([30, 40, 30]); // pulse breve, pause, pulse final
+    }
+  } catch { /* silent */ }
+  trigger('combat-enter', 700);
 }
 
 /** Saída combate vitória — vinheta dourada radiating 800ms. */
