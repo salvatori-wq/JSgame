@@ -1,5 +1,6 @@
-// JSgame · Ω.2 — Footer minimal.
-// Links discretos: ⚙ Tela & Preferências · 📖 Glossário · perfil/login.
+// JSgame · Ω.10 — Footer bottom-tab navigation (fixo bottom).
+// 3 ícones grandes com label: Perfil / Glossário / Tela. Estilo de bottom nav
+// de jogo mobile sério (icon + label, hit target 50px+).
 
 import { el } from '../../util';
 import { openUxSettingsModal } from '../../ux-settings-modal';
@@ -12,32 +13,23 @@ export interface HomeFooterOpts {
   onLoginClick: () => void;
 }
 
+function renderTabLink(icon: string, label: string, onClick: () => void, title?: string): HTMLElement {
+  return el('button', {
+    class: 'home-footer-link',
+    attrs: { type: 'button', title: title ?? label },
+    on: { click: onClick },
+  }, [
+    el('span', { class: 'home-footer-link-icon', text: icon, attrs: { 'aria-hidden': 'true' } }),
+    el('span', { class: 'home-footer-link-label', text: label }),
+  ]);
+}
+
 export function renderHomeFooter(opts: HomeFooterOpts): HTMLElement {
-  return el('footer', { class: 'home-footer', attrs: { 'aria-label': 'Atalhos rodapé' } }, [
-    el('button', {
-      class: 'home-footer-link',
-      text: '⚙ Tela',
-      attrs: { type: 'button', title: 'Densidade, fonte, animações' },
-      on: { click: () => openUxSettingsModal() },
-    }),
-    el('button', {
-      class: 'home-footer-link',
-      text: '📖 Glossário',
-      attrs: { type: 'button', title: 'Termos D&D em pt-BR' },
-      on: { click: () => openGlossaryModal() },
-    }),
+  return el('footer', { class: 'home-footer', attrs: { 'aria-label': 'Navegação principal' } }, [
     opts.currentUser
-      ? el('button', {
-          class: 'home-footer-link',
-          text: '👤 Perfil',
-          attrs: { type: 'button', title: opts.currentUser.email },
-          on: { click: opts.onProfileClick },
-        })
-      : el('button', {
-          class: 'home-footer-link',
-          text: '👤 Entrar',
-          attrs: { type: 'button', title: 'Login / criar conta' },
-          on: { click: opts.onLoginClick },
-        }),
+      ? renderTabLink('👤', 'Perfil', opts.onProfileClick, opts.currentUser.email)
+      : renderTabLink('🔑', 'Entrar', opts.onLoginClick, 'Login / criar conta'),
+    renderTabLink('📖', 'Glossário', () => openGlossaryModal(), 'Termos D&D pt-BR'),
+    renderTabLink('⚙', 'Tela', () => openUxSettingsModal(), 'Densidade · fonte · animações'),
   ]);
 }
