@@ -143,7 +143,7 @@ export class DungeonMaster {
     let parsed = extractJson(response.text);
     // Nullish (not ||) — preserva "" literal de parsed.narration pra que o retry dispare
     // em vez de mostrar o JSON cru ao jogador.
-    let narration = (parsed.narration ?? response.text).trim();
+    let narration = stripInlineToolMentions((parsed.narration ?? response.text).trim());
 
     // BUG-001 recovery: Gemini (e às vezes Groq) com mode=auto retorna 200 OK
     // contendo APENAS functionCalls (sem text part) → narração vazia chega ao cliente.
@@ -154,7 +154,7 @@ export class DungeonMaster {
         response = await this.callWithBackoff(systemPrompt, userPrompt, false);
         retriedWithoutTools = true;
         parsed = extractJson(response.text);
-        narration = (parsed.narration ?? response.text).trim();
+        narration = stripInlineToolMentions((parsed.narration ?? response.text).trim());
       } catch (err) {
         console.warn('[dm] retry pós-narração-vazia falhou:', err);
       }
@@ -317,6 +317,62 @@ export function makeGracefulFallback(err: unknown, providersAttempted: string[] 
       canRetry,
     },
   };
+}
+
+// U.1 — Lista canônica de tool names. Usada por `stripInlineToolMentions` pra detectar
+// vazamento em texto narrativo (ex: "+ tool start_combat (enemies: [...])"). Cobrir TODAS
+// as tools declaradas em prompts.ts.
+// IMPORTANTE: incluir variações compactas (sem underscore) — Gemini às vezes
+// compacta o nome ("startcombat" em vez de "start_combat").
+const KNOWN_TOOL_NAMES = [
+  'request_skill_check', 'requestskillcheck',
+  'start_combat', 'startcombat',
+  'apply_condition', 'applycondition',
+  'end_combat_with_outcome', 'endcombatwithoutcome', 'end_combat', 'endcombat',
+  'apply_exhaustion', 'applyexhaustion',
+  'apply_damage', 'applydamage',
+  'npc_speaks', 'npcspeaks',
+  'give_item', 'giveitem',
+  'advance_time', 'advancetime',
+  'describe_scene', 'describescene',
+  'set_quest', 'setquest',
+  'update_objective', 'updateobjective',
+  'mark_highlight', 'markhighlight',
+  'complete_quest', 'completequest',
+  'open_shop', 'openshop',
+  'grant_inspiration', 'grantinspiration',
+  'suggest_actions', 'suggestactions',
+  'start_combat_balanced', 'startcombatbalanced',
+  'enemy_casts_spell', 'enemycastsspell',
+  'create_clock', 'createclock',
+  'tick_clock', 'tickclock',
+  'apply_advantage', 'applyadvantage',
+];
+
+/**
+ * U.1 — Strip "+ tool NAME (args)" mentions from narration text.
+ *
+ * Bug observado em playtest 2026-05-29: quando retry-sem-tools é forçado
+ * (Gemini com mode=auto retornou narração vazia + toolCalls), o modelo —
+ * sem function calling disponível — IMITA os exemplos do system prompt
+ * (prompts.ts:275-281) que mostram `+ tool start_combat (enemies: [...])`.
+ * Resultado: texto narrativo legível com sufixo cru "+ tool startcombat ([...])".
+ *
+ * Fix defensivo: localiza o primeiro `\s*\+?\s*tool\s+NAME\s*\(` e trunca dali
+ * em diante. Trim trailing whitespace e pontuação solta.
+ *
+ * Exportado pra tests.
+ */
+export function stripInlineToolMentions(text: string): string {
+  if (!text) return text;
+  const namesAlt = KNOWN_TOOL_NAMES.join('|');
+  // Pattern flexível: opcional `+`, espaços, "tool" (case-insensitive),
+  // espaço, nome canônico, espaços, `(`. Snake_case OR no-underscore.
+  const pattern = new RegExp(`\\s*\\+?\\s*tool\\s+(?:${namesAlt})\\s*\\(`, 'i');
+  const m = pattern.exec(text);
+  if (!m) return text;
+  // Trunca a partir do match. Limpa whitespace e pontuação solta no fim.
+  return text.slice(0, m.index).replace(/[\s+]+$/, '').trim();
 }
 
 // Detecta JSON de tool_call format OpenAI-style ({"type":"function","name":...,"parameters":...}).

@@ -25,6 +25,30 @@ export interface ConnectionCtx {
   getOrCreateCampaign: (id: string | undefined, name: string | undefined, dm: DMInterface) => Promise<Campaign>;
 }
 
+/**
+ * U.2 — Mapeia ExplorationAction enum ("attack", "explore", etc) pra label
+ * PT-BR com ícone consistente com action-dock-topics.ts no client.
+ * Usado em echo de ação do player (linha takeAction handler) pra evitar que
+ * jargão dev ("attack") apareça no narration log visível pro jogador.
+ *
+ * Exportado pra tests.
+ */
+export function explorationActionLabel(action: string): string {
+  const map: Record<string, string> = {
+    'attack':      '⚔ Atacar',
+    'explore':     '🔍 Explorar',
+    'investigate': '🔎 Investigar',
+    'sneak':       '🥷 Furtar-se',
+    'travel':      '🚶 Viajar',
+    'talk':        '🗣 Falar',
+    'rest-short':  '🛌 Descanso Curto',
+    'rest-long':   '🏕 Descanso Longo',
+    'use-item':    '🧪 Usar Item',
+    'cast-spell':  '🔮 Lançar Magia',
+  };
+  return map[action] ?? action;
+}
+
 export function registerConnectionHandler(ctx: ConnectionCtx): void {
   const { io, dm, lobbyManager, campaigns, helpers, getOrCreateCampaign } = ctx;
   const { broadcastState, drainHighlights, drainAchievements, flushPostCombatRewards, withThinkingBroadcast } = helpers;
@@ -230,7 +254,10 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
 
         const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
-        const echoText = details ? `${String(action)} — "${details}"` : String(action);
+        // U.2 — Player echo "attack" literal era jargão dev visível no log.
+        // Agora mapeia pra label PT-BR com ícone consistente com action-dock.
+        const actionLabel = explorationActionLabel(String(action));
+        const echoText = details ? `${actionLabel} — "${details}"` : actionLabel;
         io.to(camp.state.id).emit('dmNarration', {
           text: echoText,
           speaker: `▶ ${myName}`,
