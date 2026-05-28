@@ -9,6 +9,16 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon-192.svg" />
     <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <!-- Sprint Φ.5 — Tipografia D&D autêntica.
+         Cinzel = headers (small caps livros oficiais).
+         Cardo = body serif próximo a Bookman/Garamond dos livros.
+         font-display: swap pra evitar FOIT — fallback Georgia desde o início. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cardo:ital,wght@0,400;0,700;1,400&display=swap"
+    />
     <link rel="stylesheet" href="/src/client/styles.css" />
   </head>
   <body>

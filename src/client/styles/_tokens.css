@@ -18,9 +18,11 @@
   --accent-blood: #c84032;
   --accent-life: #8cd070;
 
-  /* Tipografia */
+  /* Tipografia — Sprint Φ.5: Cinzel (heading) + Cardo (body) via Google Fonts (index.html).
+   * Cinzel = small caps elegantes dos títulos D&D oficial.
+   * Cardo = serif Bookman-like dos livros impressos. Fallback Cormorant/Georgia. */
   --font-heading: 'Cinzel', 'Trajan Pro', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --font-body: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Cardo', 'Cormorant Garamond', 'Bookman Old Style', Georgia, 'Times New Roman', serif;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Mobile-safe */

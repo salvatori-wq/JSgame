@@ -81,8 +81,8 @@ describe('Φ.1 — Não regrediu tokens de tema existentes', () => {
     expect(TOKENS).toMatch(/--accent-rune:\s*#d4a857/i);
   });
 
-  it('mantém fontes do tema (Cinzel heading + body serif)', () => {
+  it('mantém fontes do tema (Cinzel heading + Cardo body Φ.5)', () => {
     expect(TOKENS).toMatch(/--font-heading:\s*'Cinzel'/);
-    expect(TOKENS).toMatch(/--font-body:\s*'Cormorant Garamond'/);
+    expect(TOKENS).toMatch(/--font-body:\s*'Cardo'/);
   });
 });

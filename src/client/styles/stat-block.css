@@ -10,7 +10,7 @@
   border-top: 3px solid var(--dnd-title-red);
   border-bottom: 3px solid var(--dnd-title-red);
   position: relative;
-  font-family: 'Cardo', 'Bookman Old Style', 'Bookman', Georgia, 'Times New Roman', serif;
+  font-family: var(--font-body);
   font-size: 13.5px;
   line-height: 1.4;
   max-width: 720px;
