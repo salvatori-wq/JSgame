@@ -82,7 +82,78 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-28 (Sub-sprints A/B/C próximos passos — 3 commits, 1559→1576 tests +17)
+> Última atualização: 2026-05-29 (Sprint "Dado Visível" D1/D2/D3 — 3 commits, 1576→1591 tests +15)
+
+### Sprint "Dado Visível" — entregue (3 commits, +15 tests)
+
+João reportou: *"toda vez que começa uma partida a gente joga um dado. depois
+não o vejo mais, meio sem nexo"*. Audit profundo com 2 chamadas LLM Gemini
+confirmou 3 causas: chip-skill indistinguível, sem botão dado persistente,
+onboarding sem step sobre dado.
+
+#### D1 — Chip-skill visível (`b0f40eb`)
+- `.cn-chip.is-skill` (auto quando há hint): border dourado #f4d07f, glow,
+  hover translateY
+- Ícone 🎲 prefix com pulse 2.6s sutil (reduced-motion off)
+- Badge perícia agora pill dourada PT-BR maiúscula ("INVESTIGAÇÃO")
+- Hit 38→44px (WCAG AAA) + tooltip "🎲 Rola Investigação (d20 + bônus)"
+
+#### D2 — "🎲 Tentar" picker persistente (`3cb9d63`) — +9 tests
+- Topic 'dice' novo no action-dock-topics (entre Magia e Mais)
+- src/client/campaign/skill-picker.ts: 18 perícias em ordem ergonômica
+  (Percepção/Investigação/Persuasão/Atletismo/Furtividade primeiro)
+- Descrição com prefix atributo: "SAB · Notar presença, ouvir conversa baixa..."
+- Server: Campaign.setPlayerInitiatedSkillCheck() (NÃO sobrescreve pending
+  existente — Mestre prevalece)
+- Socket 'requestSkillCheck' estendido pra aceitar payload com skill (server
+  cria pending novo com DC 12 default + broadcastState)
+
+#### D3 — Onboarding + detector expandido (`96f860e`) — +6 tests
+- Duolingo step novo "🎲 Como rolar o dado?" entre "Aqui você age" e "Sua
+  ficha viva" (total 6→7 steps)
+- Aponta .cn-chip.is-skill com fallback ch-slot-main-content
+- skill-check-detector.ts patterns expandidos:
+  - Percepção: "cheirar o ar", "sentir [uma] presença", "me aproximo
+    devagar/com cuidado"
+  - Atletismo: "empurro porta", "levanto baú pesado" ([úu] acento), "abro
+    com força" (abr\w+ conjugado)
+
+### Arquivos editados Sprint Dado Visível
+**Novos:**
+- `src/client/campaign/skill-picker.ts` — 18 perícias picker
+- `src/client/campaign/__tests__/skill-picker.test.ts` — 6 tests
+- `src/server/__tests__/campaign-player-initiated-roll.test.ts` — 3 tests
+- `HANDOFF_2026-05-29_dado-visivel.md` — handoff + plano de melhoria
+
+**Editados:**
+- `src/client/campaign/narration-log.ts` — chip is-skill class + 🎲 prefix
+- `src/client/styles/campaign-core.css` — is-skill border + glow + dice pulse
+- `src/client/campaign/action-dock-topics.ts` — topic 'dice' + onRollDice
+- `src/client/campaign/campaign-screen.ts` — openSkillPickerAndRoll wire
+- `src/server/campaign.ts` — setPlayerInitiatedSkillCheck novo método
+- `src/server/sockets/connection.ts` — requestSkillCheck aceita skill payload
+- `src/client/campaign/duolingo-tutorial.ts` — step novo sobre rolar dado
+- `src/client/campaign/__tests__/duolingo-tutorial.test.ts` — total 6→7 steps
+- `src/server/skill-check-detector.ts` — patterns expandidos Percepção/Atletismo
+- `src/server/__tests__/skill-check-detector.test.ts` — +6 tests
+
+### Validação preview real (D4)
+Teste real com 2 chamadas Gemini LLM:
+1. Cold-open carregou + dado overlay abriu ✓
+2. Rolagem do dado funcionou, DM respondeu ✓
+3. Após DM: 4 chips, 2 com `.is-skill` (border #f4d07f rgb 244/208/127, h=44,
+   ícone 🎲 presente, tooltip OK) ✓
+4. Action dock mostrou "🎲 Tentar" + outros 5 topics ✓
+5. Click "🎲 Tentar" abriu modal com 18 perícias em ordem ergonômica ✓
+
+### Plano de melhoria (próxima sessão)
+10 achados novos via preview real — 3 críticos, 4 médios, 3 polish.
+Ver `HANDOFF_2026-05-29_dado-visivel.md` seção "Plano de Melhoria":
+- M1: Layout campanha mobile (dock sticky, dispensar dado, header)
+- M2: Polish visual (chips com ícones, dice overlay 2-col, echo styling)
+- M3: Refino estético (tutorial padding, drop-cap, background texture)
+
+> Última atualização anterior: 2026-05-28 (Sub-sprints A/B/C próximos passos — 3 commits, 1559→1576 tests +17)
 
 ### Próximos passos da equipe (A/B/C) — entregue (3 commits, +17 tests)
 
