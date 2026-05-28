@@ -284,6 +284,33 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Sub-sprint C (Henrique) — primeira narração da sessão tem fade-in mais
+ * dramático + glow dourado sutil pra marcar "começo da história". Cold-open
+ * = moment of truth da primeira impressão. */
+.camp-narr-entry.is-first-narration {
+  animation: narr-first-reveal 1.4s cubic-bezier(0.2, 0.85, 0.3, 1);
+  border-left-width: 4px;
+  box-shadow: -2px 0 16px rgba(212, 168, 87, 0.15),
+              inset 1px 0 0 rgba(212, 168, 87, 0.25);
+}
+.camp-narr-entry.is-first-narration .cnn-speaker {
+  color: var(--ink-gold);
+  text-shadow: 0 0 8px rgba(212, 168, 87, 0.4);
+}
+
+@keyframes narr-first-reveal {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.96); }
+  40%  { opacity: 1; box-shadow: -2px 0 28px rgba(212, 168, 87, 0.35); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camp-narr-entry.is-first-narration {
+    animation: narr-fade-in 0.4s ease-out;
+    box-shadow: -2px 0 6px rgba(212, 168, 87, 0.1);
+  }
+}
+
 .cnn-speaker {
   font-family: var(--font-heading);
   font-size: 10px;

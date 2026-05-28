@@ -38,6 +38,7 @@ import { isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../v
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { toastError, toastWarn } from '../toast';
+import { humanizeServerError } from '../humanize-error';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial } from './duolingo-tutorial';
@@ -646,8 +647,9 @@ export class CampaignScreen {
       // bugs reais — só mostra erros reais (failure de tool call, save fail).
       const benign = /no active campaign|campaign not found|outro player|sem combate ativo/i;
       if (!benign.test(msg)) {
-        // B6 — Toast inferior em vez de só push narração (mais visível)
-        toastError(msg);
+        // Sub-sprint C (Henrique) — traduz erros técnicos em mensagens
+        // family-friendly antes de exibir no toast.
+        toastError(humanizeServerError(msg));
       }
       clearThinking();
     };

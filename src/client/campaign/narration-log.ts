@@ -176,6 +176,11 @@ export class NarrationLog {
     this.removeThinkingEl(); // narração chegou — remove "Mestre escrevendo..."
     this.removeChipsEl();    // α.1 — chips da cena passada não fazem sentido com narração nova
 
+    // Sub-sprint C (Henrique) — primeira narração da sessão recebe classe
+    // .is-first-narration pra animação fade-in mais dramática (cold-open
+    // = "moment of truth" da primeira impressão).
+    const isFirstNarration = this.entries.filter((e) => e.kind === 'narration').length === 0;
+
     const entry: NarrationEntry = {
       id: genId(),
       speaker: payload.speaker,
@@ -185,7 +190,8 @@ export class NarrationLog {
     };
     this.entries.push(entry);
 
-    const entryEl = this.buildEntryEl(entry, 'is-narration');
+    const extraClass = `is-narration${isFirstNarration ? ' is-first-narration' : ''}`;
+    const entryEl = this.buildEntryEl(entry, extraClass);
     this.entriesEl.appendChild(entryEl);
 
     // Typewriter visual nas narrações de Mestre (não em chat/echo).

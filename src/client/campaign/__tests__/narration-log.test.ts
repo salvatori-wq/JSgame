@@ -1,6 +1,8 @@
+// @vitest-environment happy-dom
 // Chat refactor — tests pras helpers puras do narration-log.
 // O componente NarrationLog em si depende de DOM, mas as funções de decisão
 // (isDegradedNarration, shouldAutoRetrySilent, shouldTtsSpeak) são puras.
+// Sub-sprint C — happy-dom adicionado pra cobrir is-first-narration class.
 
 import { describe, it, expect, vi } from 'vitest';
 import { isDegradedNarration, shouldAutoRetrySilent } from '../narration-log';
@@ -105,5 +107,49 @@ describe('NarrationLog — DOM smoke (JSDOM)', () => {
   // Mas marcamos a expectativa: o componente é exercitado em e2e/preview.
   it.skip('append entries persistem entre updates', async () => {
     // Placeholder pra futura suite com @vitest/browser ou playwright.
+  });
+});
+
+// Sub-sprint C — Tests do is-first-narration usando happy-dom (não persiste,
+// só smoke do build do entry el).
+describe('NarrationLog — is-first-narration (DOM)', async () => {
+  if (typeof document === 'undefined') {
+    it.skip('skip — não tem DOM', () => {});
+    return;
+  }
+  const { NarrationLog } = await import('../narration-log');
+  const newLog = (): { log: InstanceType<typeof NarrationLog>; el: HTMLElement } => {
+    const log = new NarrationLog();
+    return { log, el: log.element };
+  };
+
+  it('primeira narração ganha .is-first-narration', () => {
+    const { log, el } = newLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'A chuva cai. Você abre os olhos.' });
+    const entry = el.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-first-narration')).toBe(true);
+    log.destroy();
+  });
+
+  it('narrações seguintes NÃO ganham .is-first-narration', () => {
+    const { log, el } = newLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Primeira.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Segunda.' });
+    const entries = el.querySelectorAll('.camp-narr-entry');
+    expect(entries.length).toBe(2);
+    expect(entries[0]?.classList.contains('is-first-narration')).toBe(true);
+    expect(entries[1]?.classList.contains('is-first-narration')).toBe(false);
+    log.destroy();
+  });
+
+  it('só a primeira entry de qualquer speaker recebe .is-first-narration', () => {
+    const { log, el } = newLog();
+    // primeira entry — não importa speaker, ganha is-first
+    log.appendNarration({ speaker: 'TestPlayer', text: 'oi galera' });
+    log.appendNarration({ speaker: 'Mestre', text: 'O Mestre olha.' });
+    const entries = el.querySelectorAll('.camp-narr-entry');
+    expect(entries[0]?.classList.contains('is-first-narration')).toBe(true);
+    expect(entries[1]?.classList.contains('is-first-narration')).toBe(false);
+    log.destroy();
   });
 });
