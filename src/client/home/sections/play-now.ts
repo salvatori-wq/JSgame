@@ -15,10 +15,13 @@ export interface PrefabCard {
   teaser: string;
 }
 
+// Round 1 fix (Mariana DM 10+ anos) — archetype agora usa terminologia PHB correta
+// (Classe Raça · habilidade icônica) em vez de gamer-speak "TANK · BATE FORTE".
+// Teaser fica como flavor narrativo, sem repetir raça/classe.
 export const PREFAB_CARDS: readonly PrefabCard[] = [
-  { id: 'borin', icon: '🪨', label: 'Borin Forjarocha', archetype: 'Tank · Bate forte',         teaser: 'Veterano anão. Bate forte, segura porrada.' },
-  { id: 'lyra',  icon: '🌟', label: 'Lyra Estrelaluz', archetype: 'Caster · Magia',              teaser: 'Arquivista alta-elfa. Magia e segredos.' },
-  { id: 'sina',  icon: '🗡', label: 'Sina Tribuna',    archetype: 'Skirmisher · Rápida',         teaser: 'Trapaceira halfling. Ataque preciso.' },
+  { id: 'borin', icon: '🪨', label: 'Borin Forjarocha', archetype: 'Lutador Anão · Linha de frente',     teaser: 'Veterano de guerras. Dois golpes por turno.' },
+  { id: 'lyra',  icon: '🌟', label: 'Lyra Estrelaluz', archetype: 'Maga Alta-elfa · Mistérios arcanos',   teaser: 'Arquivista das torres. Magias e segredos antigos.' },
+  { id: 'sina',  icon: '🗡', label: 'Sina Tribuna',    archetype: 'Ladina Halfling · Ataque furtivo',    teaser: 'Mãos leves nas sombras. Acerto crítico ao surpreender.' },
 ] as const;
 
 export interface PlayNowOpts {

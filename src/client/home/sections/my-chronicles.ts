@@ -42,8 +42,15 @@ export async function renderMyChronicles(opts: MyChroniclesOpts): Promise<MyChro
         listContainer.appendChild(el('div', { class: 'home-empty home-empty-small', text: `+${camps.length - 8} crônicas mais antigas` }));
       }
     } catch (err) {
+      // Round 1 fix (Henrique) — empty state amigável em vez de despejar "500 Internal
+      // Server Error" pro usuário. Mantém retry implícito via re-abrir o collapsible.
       listContainer.innerHTML = '';
-      listContainer.appendChild(el('div', { class: 'home-empty', text: `Erro listando crônicas: ${String(err)}` }));
+      const msg = String(err).toLowerCase();
+      const friendly = msg.includes('500') || msg.includes('failed to fetch') || msg.includes('networkerror')
+        ? '🌙 Não consegui falar com o servidor. Tente abrir de novo em alguns segundos.'
+        : '🕯 Nenhuma crônica viva no momento. Comece uma — a IA tece o resto.';
+      listContainer.appendChild(el('div', { class: 'home-empty', text: friendly }));
+      if (countLabel) countLabel.textContent = '';
     }
   };
 

@@ -16,9 +16,10 @@ export interface CoopOpts {
 
 export function renderCoop(opts: CoopOpts): HTMLElement {
   const section = el('section', { class: 'home-coop-section', attrs: { 'aria-label': 'Jogar em coop' } });
+  // Round 1 fix (Henrique) — "lobby" trocado por "sala" no hint (jargão gamer).
   section.appendChild(el('div', { class: 'home-section-header' }, [
     el('span', { class: 'home-section-eyebrow', text: '🤝 JOGAR EM COOP' }),
-    el('span', { class: 'home-section-hint', text: 'Até 3 amigos via lobby pré-jogo' }),
+    el('span', { class: 'home-section-hint', text: 'Até 3 amigos numa sala privada' }),
   ]));
 
   // 2 botões iguais (grid 50/50)
@@ -26,7 +27,7 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
 
   buttons.appendChild(el('button', {
     class: 'home-coop-btn home-coop-btn-create',
-    attrs: { type: 'button', title: 'Crie um lobby — amigos joinam com o código' },
+    attrs: { type: 'button', title: 'Crie uma sala — amigos entram com o código' },
     on: {
       click: () => {
         if (!ensureOwner(opts.identityBar)) return;
@@ -35,14 +36,14 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     },
   }, [
     el('span', { class: 'home-coop-btn-icon', text: '🏛' }),
-    el('span', { class: 'home-coop-btn-label', text: 'Criar Lobby' }),
+    el('span', { class: 'home-coop-btn-label', text: 'Criar Sala' }),
   ]));
 
   // Joinar Lobby: botão + input revelado on-focus
   const joinBtnWrap = el('div', { class: 'home-coop-join' });
   const lobbyInput = el('input', {
     class: 'home-coop-input',
-    attrs: { type: 'text', placeholder: 'Código do lobby', maxlength: '8', 'aria-label': 'Código do lobby' },
+    attrs: { type: 'text', placeholder: 'Código da sala', maxlength: '8', 'aria-label': 'Código da sala' },
   }) as HTMLInputElement;
   const joinBtn = el('button', {
     class: 'home-coop-btn home-coop-btn-join',
@@ -57,7 +58,7 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     },
   }, [
     el('span', { class: 'home-coop-btn-icon', text: '🔗' }),
-    el('span', { class: 'home-coop-btn-label', text: 'Joinar Lobby' }),
+    el('span', { class: 'home-coop-btn-label', text: 'Entrar na Sala' }),
   ]);
   joinBtnWrap.appendChild(lobbyInput);
   joinBtnWrap.appendChild(joinBtn);

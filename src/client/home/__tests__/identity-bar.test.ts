@@ -33,7 +33,8 @@ describe('renderIdentityBar', () => {
     });
     const btns = bar.querySelectorAll('.home-id-btn');
     const labels = Array.from(btns).map((b) => b.textContent);
-    expect(labels).toContain('Entrar');
+    // Round 1 fix (Henrique) — "Entrar" virou "Login" pra não confundir com "entrar no jogo"
+    expect(labels).toContain('Login');
     expect(labels).not.toContain('Sair');
   });
 

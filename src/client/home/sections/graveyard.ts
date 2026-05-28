@@ -7,17 +7,19 @@ import { portraitFor } from '../../../dnd/portrait';
 import { makeCollapsibleSection } from './collapsible';
 
 export function renderGraveyard(): HTMLElement {
+  // Round 1 fix (Henrique pai 35a + filho 12a) — "Cemitério" trocado pra "Heróis
+  // Caídos" (tom cinematográfico, menos macabro pra família). Mecânica idêntica.
   return makeCollapsibleSection({
     id: 'graveyard',
-    title: 'Cemitério',
-    icon: '💀',
+    title: 'Heróis Caídos',
+    icon: '🪦',
     defaultOpen: false,
     renderContent: async () => {
       const list = el('div', { class: 'graveyard-list' });
       try {
         const tombs = await listTombstones();
         if (tombs.length === 0) {
-          list.appendChild(el('div', { class: 'graveyard-empty', text: 'Ainda nenhum PJ seu morreu. (Sorte ou medo?)' }));
+          list.appendChild(el('div', { class: 'graveyard-empty', text: 'Nenhum herói caiu ainda. Mantenha-os vivos.' }));
         } else {
           for (const t of tombs.slice(0, 10)) {
             list.appendChild(renderTombstoneCard(t));

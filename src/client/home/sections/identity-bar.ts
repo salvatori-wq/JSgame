@@ -28,10 +28,12 @@ export function renderIdentityBar(opts: IdentityBarOpts): HTMLElement {
     class: 'home-id-owner-input',
     attrs: {
       type: 'text',
-      placeholder: 'Seu nome…',
+      // Round 1 fix (Henrique) — placeholder agora deixa claro que basta digitar
+      // pra começar (sem conta obrigatória).
+      placeholder: 'Digite seu nome e jogue agora',
       maxlength: '32',
       value: owner,
-      'aria-label': 'Seu nome de jogador',
+      'aria-label': 'Seu nome de jogador (sem cadastro necessário)',
     },
     on: {
       input: (e) => {
@@ -77,10 +79,13 @@ export function renderIdentityBar(opts: IdentityBarOpts): HTMLElement {
       },
     }));
   } else {
+    // Round 1 fix (Henrique) — "Entrar" virou "Login" pra evitar confusão com
+    // "Entrar no jogo". Login aqui = identificar com email (opcional, pra salvar
+    // progresso). Tooltip explícito.
     actions.appendChild(el('button', {
       class: 'home-id-btn home-id-btn-primary',
-      text: 'Entrar',
-      attrs: { type: 'button', title: 'Login / criar conta' },
+      text: 'Login',
+      attrs: { type: 'button', title: 'Salvar progresso entre dispositivos (opcional)' },
       on: { click: opts.onLoginClick },
     }));
   }

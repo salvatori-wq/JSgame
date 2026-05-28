@@ -34,7 +34,7 @@ export async function renderMyCharacters(opts: MyCharactersOpts): Promise<MyChar
     listContainer.innerHTML = '';
     const owner = getOwnerName().trim();
     if (!owner) {
-      listContainer.appendChild(el('div', { class: 'home-empty', text: '🪶 Diga seu nome no topo — PJs e cemitério aparecem aqui.' }));
+      listContainer.appendChild(el('div', { class: 'home-empty', text: '🪶 Diga seu nome no topo — seus heróis aparecem aqui.' }));
       if (countLabel) countLabel.textContent = '';
       selectedCharId = null;
       opts.onSelectionChange(null);
