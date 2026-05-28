@@ -82,7 +82,55 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo N "Hierarquia + Visual Rich + Polish Vivo" — 1 commit, 1635→1657 tests +22)
+> Última atualização: 2026-05-29 (Ciclo O "Combat + Coop + Economy" — 1 commit, 1657→1676 tests +19)
+
+### Ciclo O "Combat + Coop + Economy" — entregue (1 commit, +19 tests)
+
+Audit visual amplo via DOM injection (combat-screen, action-dock-topics, party panel
+mobile, death banner). 7 achados pela equipe das 4 personas — áreas menos cobertas
+nos ciclos M e N.
+
+#### O1 — Crítico (parte do commit `1b7c94f`)
+- O1.1: Topics dock com 1 sub-ação só (Combate exploration = "Atacar", Social = "Falar")
+  agora direct-action SEM abrir drill. `directActionFor()` exportada. Card ganha
+  `.is-direct` quando aplicável. Exclui `more`/`custom`/`dice`/`magic` (já têm
+  fast-path próprio).
+- O1.2: `cb-tab-btn` min-height 33→44px em portrait-narrow (WCAG AAA). Tab é
+  navegação principal em combat. Padding 8/6 → 10/8 + font-size 11→12.
+- O1.3: `.cdb-roll-btn` (Death Save) hit 39→48px + font 12→14 + padding 14/28 +
+  gradient mais saturado + keyframe `cdb-roll-urgency` 2.4s pra sentir urgência.
+  Momento mais dramático do D&D precisa prominência. Reduced-motion off.
+
+#### O2 — Médio
+- O2.1: Combat economy "👟 30ft" → "👟 9m" (PT-BR primeiro). Status ribbon idem.
+  Title attr completo "9m / 30ft (1 quadrado = 1.5m = 5ft)" pra player que pensa
+  em ft. Consistente com glossary D&D PT-BR.
+- O2.2: Em coop (party.length>1) mobile, `.cp-list` vira flex horizontal scroll-snap.
+  PJs cards 200px (220 pra `.is-me` + `order:-1` sempre primeiro). Resolve "3 PJs
+  squeeze em 179px = só 1.5 visíveis". Solo mantém vertical full.
+
+#### O3 — Polish
+- O3.1: `cb-eco-slot.is-avail` ganha box-shadow gold sutil inset 1px + glow 6px.
+  `.is-used` ganha grayscale(0.5) + bg escurecido. Distinção visual gasto/disponível.
+- O3.2: Tab counts (Inimigos/Log) extraídos pra `.cb-tab-badge` pill dourada
+  destacada (linear-gradient ink-gold). min-width 18 + 10px monospace + glow.
+  Substitui "(N)" inline com pill escaneável.
+
+### Arquivos novos/editados Ciclo O
+**Novos:**
+- `src/client/campaign/__tests__/action-dock-direct.test.ts` — 10 tests directActionFor
+- `HANDOFF_2026-05-29_ciclo-O-combat-coop-economy-done.md`
+
+**Editados:**
+- `src/client/campaign/action-dock-topics.ts` — directActionFor() + .is-direct class
+- `src/client/campaign/campaign-screen.ts` — wire is-coop em cp-list
+- `src/client/campaign/status-ribbon.ts` — movement metros em vez de ft
+- `src/client/combat/combat-screen.ts` — economy 9m + tab badges separadas
+- `src/client/styles/combat.css` — cb-tab-btn 44px + tab-badge + eco-slot shadow/grayscale
+- `src/client/styles/campaign-party.css` — cdb-roll-btn 48 + urgency keyframe
+- `src/client/styles/m-camp-dock.css` — cp-list.is-coop flex scroll-snap
+- `src/client/campaign/__tests__/action-dock-topics.test.ts` — ajustado pra "Explorar"
+- `src/client/__tests__/mobile-polish-css.test.ts` — +10 CSS snapshot guards
 
 ### Ciclo N "Hierarquia + Visual Rich + Polish Vivo" — entregue (1 commit, +22 tests)
 
