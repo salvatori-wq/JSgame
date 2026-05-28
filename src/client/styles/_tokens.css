@@ -84,6 +84,45 @@
   --m-modal-max-h: 90dvh;
   --m-modal-radius: 12px;
   --m-text-min: 12px;
+
+  /* Sprint Φ.1 — Paleta D&D 5e oficial (extraída de rpgtex/DND-5e-LaTeX-Template
+   * lib/dndcolors.sty, MIT). Usada por componentes autênticos do livro:
+   * StatBlock, SpellCard, ItemCard. Mantém tokens de tema (--ink-*) intactos
+   * pra não quebrar visual atual. */
+  --dnd-title-red: #58180D;       /* títulos D&D — sangue escuro */
+  --dnd-title-gold: #C9AD6A;      /* régua de título — dourado dessaturado */
+  --dnd-rule-red: #9C2B1B;        /* régua triangular do stat block */
+  --dnd-stat-ribbon: #E69A28;     /* fita gold do top/bottom de stat block */
+  --dnd-stat-bg: #FDF1DC;         /* fundo tan do stat block */
+  --dnd-read-aloud: #F7F2E5;      /* fundo box "leia em voz alta" */
+  --dnd-page-gold: #B89A67;       /* footer / page numbers */
+  --dnd-contour-gray: #CACCBE;    /* outline em chapter font */
+
+  /* Trim oficial — fundos de seção do PHB/DMG */
+  --dnd-phb-green: #E0E5C1;       /* PHB Part 1 */
+  --dnd-phb-cyan: #B5CEB8;        /* PHB Part 2 */
+  --dnd-phb-mauve: #DCCCC5;       /* PHB Part 3 */
+  --dnd-phb-tan: #E5D5AC;         /* PHB appendix */
+  --dnd-dmg-lavender: #E3CED3;    /* DMG Part 1 */
+  --dnd-dmg-coral: #F3D7C1;       /* DMG Part 2 */
+
+  /* Rarity colors — DMG p.135 (item rarities) */
+  --dnd-rarity-common: #c8c8c8;       /* cinza claro */
+  --dnd-rarity-uncommon: #1eff00;     /* verde */
+  --dnd-rarity-rare: #0070dd;         /* azul */
+  --dnd-rarity-very-rare: #a335ee;    /* roxo */
+  --dnd-rarity-legendary: #ff8000;    /* laranja */
+  --dnd-rarity-artifact: #e6cc80;     /* dourado claro */
+
+  /* Spell school colors — convenção fan-made D&D 5e */
+  --dnd-school-abjuration: #4287f5;     /* azul protetor */
+  --dnd-school-conjuration: #d4a857;    /* dourado conjurador */
+  --dnd-school-divination: #b8a4dc;     /* lavanda visão */
+  --dnd-school-enchantment: #ff8ec5;    /* rosa charm */
+  --dnd-school-evocation: #e8542e;      /* laranja fogo */
+  --dnd-school-illusion: #9333ea;       /* roxo */
+  --dnd-school-necromancy: #2d8a3e;     /* verde necrótico */
+  --dnd-school-transmutation: #b08442;  /* marrom mutável */
 }
 
 /* MP1 — Em portrait narrow, gap-loose vira padding-screen pra ritmo consistente */
