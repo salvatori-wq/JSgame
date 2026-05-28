@@ -4,6 +4,7 @@
 
 import type { DMProvider, DMToolCall } from './providers/base.js';
 import { getSystemPrompt, DM_TOOLS, buildNarrationPrompt, type NarrationContext } from './prompts.js';
+import { lintNarrationForOpponentNumbers, correctionPromptForNarration } from './narration-linter.js';
 
 export interface DMResponse {
   narration: string;
@@ -185,12 +186,71 @@ export class DungeonMaster {
       ? originalToolCalls
       : response.toolCalls;
 
+    // Y.A1 — Sprint Y: Fog of war LINTER. Consultor D&D: "regra X.A4 no prompt
+    // é instrução, não enforcement. LLM vaza ~10-15%". Pipeline:
+    //   1. Lint narration → detecta números do oponente
+    //   2. Se violação E ainda não retried: retry 1× com correction prompt
+    //   3. Se 2× violação: sanitize manual (substitui por adjetivos)
+    //   4. Log + telemetria
+    const lintResult = lintNarrationForOpponentNumbers(narration);
+    let narrationFinal = narration;
+    let fogRetryDone = false;
+    if (lintResult.hasViolation && !retriedWithoutTools) {
+      console.warn('[dm.fog] violation detected:', lintResult.matches.slice(0, 5).join(' / '));
+      // Retry 1× com correction prompt injetado no userPrompt
+      try {
+        const correctionInstruction = correctionPromptForNarration(narration, lintResult.matches);
+        const retryUserPrompt = userPrompt + '\n\n' + correctionInstruction;
+        const retryResponse = await this.callWithBackoff(systemPrompt, retryUserPrompt, false);
+        const retryParsed = extractJson(retryResponse.text);
+        const retryNarration = stripInlineToolMentions((retryParsed.narration ?? retryResponse.text).trim());
+        if (retryNarration) {
+          const retryLint = lintNarrationForOpponentNumbers(retryNarration);
+          if (!retryLint.hasViolation) {
+            narrationFinal = retryNarration;
+          } else {
+            // 2ª violação — sanitize MANUAL substituindo padrões por adjetivos
+            narrationFinal = retryLint.sanitized;
+            console.warn('[dm.fog] retry also violated — sanitized manually');
+          }
+          fogRetryDone = true;
+        }
+      } catch (err) {
+        console.warn('[dm.fog] retry com correction falhou:', err);
+        // Fallback: sanitize original
+        narrationFinal = lintResult.sanitized;
+      }
+    } else if (lintResult.hasViolation) {
+      // retriedWithoutTools já gastou orçamento de retry — sanitize direto
+      narrationFinal = lintResult.sanitized;
+      console.warn('[dm.fog] sanitized (no retry budget):', lintResult.matches.slice(0, 5).join(' / '));
+    }
+    if (lintResult.hasViolation) {
+      void this.trackFogViolation(context, lintResult.matches, fogRetryDone);
+    }
+
     return {
-      narration,
+      narration: narrationFinal,
       speaker: parsed.speaker,
       toolCalls: finalToolCalls,
       raw: response.text,
     };
+  }
+
+  /** Y.A1 — Telemetria de violação de fog of war (silenciosa, não bloqueia). */
+  private async trackFogViolation(context: NarrationContext, matches: string[], retryDone: boolean): Promise<void> {
+    try {
+      const { trackMetricEvent } = await import('../metrics.js');
+      await trackMetricEvent({
+        sessionId: context.campaign.id ?? null,
+        kind: 'fog_violation',
+        payload: {
+          matches: matches.slice(0, 5).join('|'),
+          retry_done: retryDone,
+          count: matches.length,
+        },
+      });
+    } catch { /* silent */ }
   }
 
   // T1 — Helpers de telemetria, lazy-import pra evitar ciclo. Falhas silenciosas.

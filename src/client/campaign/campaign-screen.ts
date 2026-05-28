@@ -25,7 +25,7 @@ import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { openShopModal, closeShopModal } from '../shop/shop-modal';
-import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled, playEnemyKill } from '../audio';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled, playEnemyKill, playDeathSaveHeartbeat } from '../audio';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
 import type { AmbientMood } from '../audio';
@@ -43,6 +43,22 @@ import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-t
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
 import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial } from './duolingo-tutorial';
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak, classIcon } from './narration-log';
+import { playConfetti, showItemReveal } from '../reward-juice';
+
+/**
+ * Y.B3 — Classifica CombatEvent pro kind do combat-echo no narration-log.
+ * Reusa heurística de β.6 (classifyLogLine) mas baseada no ev.type estruturado.
+ */
+function classifyCombatEventKind(ev: CombatEvent): 'crit' | 'miss' | 'kill' | 'skill' | 'player' | 'enemy' | 'neutral' | 'death' {
+  if (ev.type === 'death') return 'death';
+  if (ev.type === 'damage' && ev.crit) return 'crit';
+  if (ev.type === 'attack-miss') return 'miss';
+  if (ev.text) {
+    const l = ev.text.toLowerCase();
+    if (l.includes('teste de') || l.includes('save') || l.includes('rolou ')) return 'skill';
+  }
+  return 'neutral';
+}
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
@@ -120,6 +136,8 @@ export class CampaignScreen {
   // ο.2 — Chat Perfeito state
   private chatPill: ChatPillHandle | null = null;
   private partyMessages: PartyMessage[] = [];
+  /** Y.A2 — Sprint Y: tracker pra disparar heartbeat só na transição ENTRA (não a cada re-render). */
+  private wasInDeathSave = false;
   private unreadChatCount = 0;
   // π.1 — Bottom Tab Bar (mobile portrait-narrow). Persistente entre renders.
   private bottomTabBar: BottomTabBarHandle | null = null;
@@ -406,6 +424,15 @@ export class CampaignScreen {
       // ο.7 — Mode transitions cinematográficas
       if (!wasInCombat && isInCombat) {
         transitionToCombat();
+        // Y.B1 — Sprint Y: sincronizar vinheta + ring "passou pra você" do
+        // initiative-ribbon. body.is-combat-just-started faz com que o ring
+        // expansivo do meu node atrase 400ms (CSS animation-delay) — vinheta
+        // 700ms peak por volta de 200ms, ring começa em 400ms = fade direto
+        // pro ring expansivo sem gap. Consultor Mobile #1.
+        document.body.classList.add('is-combat-just-started');
+        window.setTimeout(() => {
+          document.body.classList.remove('is-combat-just-started');
+        }, 1200);
       } else if (wasInCombat && !isInCombat) {
         // Detecta vitória (todos enemies derrotados) vs derrota (PJ caiu/fugiu)
         const lastCombat = this.currentState?.combat;
@@ -494,10 +521,28 @@ export class CampaignScreen {
     this.socketCleanups.push(() => s.off('partyTyping', onTyping));
 
     const onParty = (party: CharacterSheet[]): void => {
-      this.party = party;
+      // Y.B2 — Sprint Y: Detecta NOVO item no inventory (loot drop) e
+      // dispara showItemReveal antes de this.character ser atualizado.
+      // Comparação por id evita falso-positivo em equip/unequip (mesmo item,
+      // só muda flag equipped).
       const me = party.find((p) => p.id === this.opts.characterId);
+      const oldIds = new Set((this.character?.inventory ?? []).map((it) => it.id));
+      const newItems = me ? me.inventory.filter((it) => !oldIds.has(it.id)) : [];
+      this.party = party;
       if (me) this.character = me;
       this.render();
+      // Y.B2 — Reveal o ÚLTIMO item novo (geralmente loot puro tem 1 item;
+      // múltiplos numa tacada só = level-up de quest reward, mostra o mais
+      // raro ou o primeiro). Skip se mesmo player já tinha (rejoin/restore).
+      // Auto-dismiss 4.5s ou tap.
+      if (newItems.length > 0 && this.currentState !== null) {
+        const featured = newItems.find((it) => it.rarity && it.rarity !== 'comum') ?? newItems[0];
+        if (featured) {
+          try {
+            showItemReveal({ item: featured });
+          } catch { /* silent — modal queue conflict */ }
+        }
+      }
     };
     s.on('partyUpdate', onParty);
     this.socketCleanups.push(() => s.off('partyUpdate', onParty));
@@ -521,6 +566,11 @@ export class CampaignScreen {
         this.combatLog.push(ev.text);
         // Sprint 4: capacity 20→50 — player gosta de scrollar log longo pra ver combate todo.
         if (this.combatLog.length > 50) this.combatLog = this.combatLog.slice(-50);
+        // Y.B3 — Sprint Y: absorver no narration-log como is-combat-echo.
+        // Mantém cb-log-line legacy como fallback (tab "Log" do combat-screen).
+        // Player vê combat events INLINE com narração de Mestre — 1 feed só.
+        const kind = classifyCombatEventKind(ev);
+        try { this.narrationLog?.appendCombatEcho({ text: ev.text, kind }); } catch { /* silent */ }
       }
       // SFX baseado no tipo do evento
       const myId = this.character?.id;
@@ -724,6 +774,13 @@ export class CampaignScreen {
       // Overlay aparece pra TODOS — celebra a party junto. Só sound e visual,
       // qualquer player pode fechar o próprio.
       enqueueLevelUp(payload);
+      // Y.B2 — Sprint Y: Reward juice confetti dourado em level-up. Consultor
+      // Mobile #2: "Marvel Snap moment-of-glory. playLevelUp arpeggio existe
+      // mas falta confetti dourado". Dispara só pro PJ DO PLAYER (não tela
+      // dos aliados se for coop) — overlay levelUp já mostra pra todos.
+      if (this.character && payload.characterId === this.character.id) {
+        try { playConfetti({ origin: 'top', count: 70, durationMs: 2400 }); } catch { /* silent */ }
+      }
       notify({
         title: `🌟 LEVEL UP — ${payload.characterName}`,
         body: `Nv ${payload.oldLevel} → Nv ${payload.newLevel}`,
@@ -1055,6 +1112,20 @@ export class CampaignScreen {
       'is-player-dead',
       !!this.character && this.character.currentHp <= 0 && (this.character.deathSaveFailures ?? 0) >= 3,
     );
+    // Y.A2 — Sprint Y: Death save drama. Body class .is-death-save-pending
+    // ativa vinheta vermelha sutil nas bordas. Heartbeat audio dispara 1×
+    // ao ENTRAR no estado (não em cada re-render). lastDeathSavePending
+    // tracker module-level previne repetição.
+    const inDeathSave = !!this.character
+      && this.character.currentHp <= 0
+      && (this.character.deathSaveSuccesses ?? 0) < 3
+      && (this.character.deathSaveFailures ?? 0) < 3;
+    document.body.classList.toggle('is-death-save-pending', inDeathSave);
+    if (inDeathSave && !this.wasInDeathSave) {
+      // Acabou de entrar em death save state — drama audio
+      try { playDeathSaveHeartbeat(); } catch { /* silent */ }
+    }
+    this.wasInDeathSave = inDeathSave;
     if (isCombat && this.currentState?.combat && this.character) {
       const combatWrap = el('div');
       renderCombatScreen(combatWrap, {

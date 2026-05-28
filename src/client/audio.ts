@@ -265,6 +265,19 @@ export function playDeathSaveFail(): void {
   tone({ freq: 220, freqEnd: 110, duration: 0.4, type: 'sawtooth', gain: 0.4 });
 }
 
+/** Y.A2 — Sprint Y: Death save heartbeat. Dois pulses graves 80→40Hz com
+ * gap de 0.4s simulando batimento cardíaco fraco. Disparado quando player
+ * ENTRA em estado caído (currentHp=0) e quando re-rola. Consultor D&D:
+ * "momento mais dramático do D&D — sangue pulsa fraco no pescoço.
+ * Pasteurizado hoje". Volume bem baixo (gain 0.5 sub-bass = ~ouvido como
+ * presença, não barulho). */
+export function playDeathSaveHeartbeat(): void {
+  // 1º batimento — sub-bass thud (sístole)
+  tone({ freq: 80, freqEnd: 40, duration: 0.20, type: 'sine', gain: 0.55 });
+  // 2º batimento — eco mais leve (diástole)
+  tone({ freq: 70, freqEnd: 35, duration: 0.18, type: 'sine', gain: 0.42, delay: 0.42 });
+}
+
 /** Spell cast — shimmer crescente. */
 export function playSpellCast(): void {
   tone({ freq: 600, freqEnd: 1200, duration: 0.35, type: 'sine', gain: 0.3 });

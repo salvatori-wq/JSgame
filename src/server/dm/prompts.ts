@@ -739,6 +739,32 @@ export const DM_TOOLS: DMToolDef[] = [
     },
   },
   {
+    name: 'mark_npc_secret',
+    description: 'Y.A3 — Registra um SEGREDO que esse NPC esconde. SERVER-ONLY (cliente NUNCA vê o texto até reveal_npc_secret). Use quando NPC mentiu, traiu, esconde identidade real, conhece informação importante. Texto fica injetado nos próximos prompts SÓ pra você lembrar — player descobre só via reveal. Exemplos revealCondition: "insight>=15", "after_quest_X_completa", "player_confronta_diretamente", "manual" (decide você quando).',
+    schema: {
+      type: 'object',
+      properties: {
+        npcName: { type: 'string', description: 'Nome do NPC que guarda o segredo (case-insensitive lookup).' },
+        secret: { type: 'string', description: 'Texto do segredo. SÓ você verá nos prompts até revealed. Ex: "é irmão do bandido perseguido", "traiu o reino há 10 anos", "está possuído por demônio".' },
+        revealCondition: { type: 'string', description: 'Condição livre pra decidir quando revelar. Ex: "insight>=15", "after_quest_caverna", "manual".' },
+        secretId: { type: 'string', description: 'Opcional. ID único (caso queira controlar manualmente). Se omitido, server gera.' },
+      },
+      required: ['npcName', 'secret', 'revealCondition'],
+    },
+  },
+  {
+    name: 'reveal_npc_secret',
+    description: 'Y.A3 — Marca um segredo de NPC como REVELADO. Use quando: player rola Insight e passa o DC, cumpre quest, confronta NPC com prova, descobre carta/documento, etc. NA MESMA narração revele o segredo dramaticamente ("os olhos da estalajadeira se desviam — ela é, sim, a irmã do bandido"). secretId vem do mark_npc_secret anterior (você lembra dos secrets via system prompt).',
+    schema: {
+      type: 'object',
+      properties: {
+        npcName: { type: 'string', description: 'Nome do NPC (case-insensitive).' },
+        secretId: { type: 'string', description: 'ID do segredo a revelar (do mark_npc_secret prévio).' },
+      },
+      required: ['npcName', 'secretId'],
+    },
+  },
+  {
     name: 'apply_advantage',
     description: 'η.4 — Aplica vantagem ou desvantagem no PRÓXIMO roll do player. Use quando ficção justifica: PJ posicionado bem (cobertura, alto), magia/buff ativo, Help action de aliado, terreno favorável, condição não-automática que aplica. Server consome no próximo roll matching targetRoll.',
     schema: {
@@ -912,6 +938,34 @@ export function buildNarrationPrompt(ctx: NarrationContext): string {
     return `\n## ⏳ CLOCKS RODANDO (use NARRAÇÃO pra mostrar pressão)\n${lines.join('\n')}\n\n**Lembrete**: você TEM clocks ativos. Em CADA narração apropriada, sugira/mostre que o tempo está correndo (sino tocando, fumaça crescendo, ritmo aumentando). Quando faz sentido na ficção, chame \`tick_clock\` pra avançar. NARRE o tick (não diga "clock avançou", narre "o sino toca pela 4ª vez — duas restantes").`;
   })();
 
+  // Y.A3 — Sprint Y: NPC Secrets pending. Server-only — injeta no system
+  // prompt SÓ os segredos dos NPCs recém-vistos (últimos 5 em npcsMet) que
+  // ainda NÃO foram revealed. DM lembra que tem informação escondida e usa
+  // pra tecer conspiração ("a estalajadeira evita teu olhar quando você
+  // menciona o nome do bandido"). Quando reveal condition cumprida, DM
+  // chama reveal_npc_secret na MESMA narração.
+  const npcSecretsBlock = (() => {
+    const secretsByNpc = ctx.campaign.npcSecrets ?? {};
+    if (Object.keys(secretsByNpc).length === 0) return '';
+    // Foco em NPCs RECENTES (últimos 5 vistos) — não inunda prompt com tudo
+    const recentNpcKeys = (ctx.campaign.npcsMet ?? [])
+      .slice(-5)
+      .map((n) => n.name.toLowerCase());
+    const lines: string[] = [];
+    for (const npcKey of recentNpcKeys) {
+      const list = secretsByNpc[npcKey];
+      if (!list) continue;
+      const pending = list.filter((s) => !s.revealed);
+      if (pending.length === 0) continue;
+      // Recover original casing — primeira ocorrência em npcsMet
+      const npcDisplay = (ctx.campaign.npcsMet ?? []).find((n) => n.name.toLowerCase() === npcKey)?.name ?? npcKey;
+      const secretLines = pending.map((s) => `    - id="${s.id}" | "${s.secret}" | revelar quando: ${s.revealCondition}`).join('\n');
+      lines.push(`  - **${npcDisplay}** guarda ${pending.length} segredo(s):\n${secretLines}`);
+    }
+    if (lines.length === 0) return '';
+    return `\n## 🤫 SEGREDOS QUE NPCs RECENTES GUARDAM (SÓ você vê — player não)\n${lines.join('\n')}\n\n**Use pra tecer conspiração**: NPC com segredo pendente AGE de forma sutil (desvia olhar, troca de assunto, mente discretamente). Quando reveal condition cumprida (insight passou, quest cumprida, player confronta), chame \`reveal_npc_secret\` E narre a revelação dramaticamente na MESMA mensagem.`;
+  })();
+
   return `## CONTEXTO DA CAMPANHA
 **Campanha**: ${ctx.campaign.name}
 **Sessão**: ${ctx.campaign.sessionNumber}
@@ -925,6 +979,7 @@ ${npcsBlock}
 ${questsBlock}
 ${difficultyBlock}
 ${clocksBlock}
+${npcSecretsBlock}
 
 ## FLAGS DO MUNDO
 ${Object.entries(ctx.campaign.worldFlags).length === 0 ? '(nenhuma ainda)' : Object.entries(ctx.campaign.worldFlags).map(([k, v]) => `- ${k}: ${v}`).join('\n')}

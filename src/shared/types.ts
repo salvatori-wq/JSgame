@@ -349,6 +349,32 @@ export interface CampaignState {
     /** True quando completou e disparou — DM viu e narrou consequência. */
     fired?: boolean;
   }>;
+  // Y.A3 — Sprint Y: NPC com segredos persistentes. SERVER-ONLY (stripped do
+  // state que vai pro client). DM marca segredos via mark_npc_secret tool +
+  // reveal_npc_secret quando condition cumprida. Consultor D&D: "DM que TECE
+  // conspiração" vs "Mestre IA legal". Prompt injeta segredos pending no
+  // próximo encontro com o NPC, mas client NUNCA vê texto do segredo até
+  // reveal. Map por nome do NPC (case-insensitive lookup).
+  npcSecrets?: Record<string, NpcSecret[]>;
+}
+
+/**
+ * Y.A3 — NPC Secret. Server-only entry (não vai pro client). DM popula via
+ * mark_npc_secret tool. Cada secret tem condition livre (regex/heuristic
+ * lookup pelo DM) + texto que SÓ DM vê até reveal.
+ */
+export interface NpcSecret {
+  id: string;
+  secret: string;
+  /** Free-form condition que DM lê pra decidir quando revelar.
+   * Ex: "insight>=15", "after_quest_X", "told_player_about_Y", "manual". */
+  revealCondition: string;
+  /** True após reveal_npc_secret. Texto fica visível pro client a partir daí. */
+  revealed: boolean;
+  /** Timestamp do reveal (pra ordenação histórica). */
+  revealedAt?: number;
+  /** Timestamp criação. */
+  createdAt: number;
 }
 
 // β.3 — Loja/Vendor schemas.

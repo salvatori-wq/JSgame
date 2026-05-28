@@ -46,7 +46,9 @@ export type MetricsEventKind =
   | 'error_kind_seen'         // payload: { kind: 'timeout'|'rate_limit'|'auth'|'parse'|'empty'|'unknown' }
   // Ω.1 — Sprint Ω dado DEFINITIVO — watchdog 5s + render diagnostics
   | 'dice_roll_timeout'       // payload: { kind: 'skill-check'|'combat' } — watchdog disparou
-  | 'dice_roll_visual_slow';  // payload: { elapsed_ms, expected_ms } — anim demorou +1.5s do esperado
+  | 'dice_roll_visual_slow'   // payload: { elapsed_ms, expected_ms } — anim demorou +1.5s do esperado
+  // Y.A1 — Sprint Y fog of war linter — DM vazou números do oponente
+  | 'fog_violation';          // payload: { matches: string, retry_done: boolean, count: number }
 
 export interface MetricsEvent {
   id: string;

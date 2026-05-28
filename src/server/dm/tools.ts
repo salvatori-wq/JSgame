@@ -44,7 +44,13 @@ export type ValidatedTool =
   // create_clock: cria clock novo (ritual, suspeita, reforço, etc).
   // tick_clock: avança progresso. server clampa 0..max e dispara trigger ao chegar.
   | { kind: 'create_clock'; clockId: string; label: string; max: number; trigger: string }
-  | { kind: 'tick_clock'; clockId: string; amount: number };
+  | { kind: 'tick_clock'; clockId: string; amount: number }
+  // Y.A3 — Sprint Y: NPCs com segredos persistentes (consultor D&D #3).
+  // mark_npc_secret: registra segredo SERVER-ONLY (cliente nunca vê texto até reveal).
+  // reveal_npc_secret: marca como revelado quando condition cumprida (insight, quest, etc).
+  // Server injeta segredos pending no system prompt no próximo encontro com o NPC.
+  | { kind: 'mark_npc_secret'; npcName: string; secret: string; revealCondition: string; secretId?: string }
+  | { kind: 'reveal_npc_secret'; npcName: string; secretId: string };
 
 const VALID_SKILL_IDS = new Set(Object.keys(SKILLS));
 const VALID_CONDITION_IDS = new Set(Object.keys(CONDITIONS));
@@ -372,6 +378,31 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
       const amount = clamp(Number(input.amount) || 1, 1, 6);
       if (!clockId) return null;
       return { kind: 'tick_clock', clockId, amount };
+    }
+
+    // Y.A3 — Sprint Y: NPC com segredos persistentes.
+    case 'mark_npc_secret': {
+      const npcName = String(input.npcName ?? '').slice(0, 60).trim();
+      const secret = String(input.secret ?? '').slice(0, 400).trim();
+      const revealCondition = String(input.revealCondition ?? 'manual').slice(0, 80).trim();
+      const secretId = input.secretId !== undefined
+        ? String(input.secretId).slice(0, 40).trim() || undefined
+        : undefined;
+      if (!npcName || !secret) return null;
+      return {
+        kind: 'mark_npc_secret',
+        npcName,
+        secret,
+        revealCondition: revealCondition || 'manual',
+        ...(secretId ? { secretId } : {}),
+      };
+    }
+
+    case 'reveal_npc_secret': {
+      const npcName = String(input.npcName ?? '').slice(0, 60).trim();
+      const secretId = String(input.secretId ?? '').slice(0, 40).trim();
+      if (!npcName || !secretId) return null;
+      return { kind: 'reveal_npc_secret', npcName, secretId };
     }
 
     default:

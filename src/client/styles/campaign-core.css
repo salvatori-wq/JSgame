@@ -452,6 +452,50 @@
   .cn-scene-pin { animation: none; }
 }
 
+/* Y.A2 — Sprint Y: Death save drama vinheta. body.is-death-save-pending
+ * ativa overlay vermelho sutil nas bordas pulsando em sincronia com
+ * heartbeat audio (0.8s ciclo). Consultor D&D: "momento mais dramático
+ * do D&D — sangue pulsa fraco no pescoço, hoje pasteurizado". Não compete
+ * com is-took-damage (W3-DnD) — esse fade-in/out vs aquela flash brief. */
+body.is-death-save-pending::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9300;
+  box-shadow: inset 0 0 0 0 rgba(180, 30, 30, 0),
+              inset 0 0 80px rgba(180, 20, 20, 0.45);
+  animation: deathSaveHeartbeatVignette 1600ms ease-in-out infinite;
+}
+@keyframes deathSaveHeartbeatVignette {
+  0%, 100% {
+    box-shadow: inset 0 0 0 4px rgba(180, 30, 30, 0.25),
+                inset 0 0 60px rgba(180, 20, 20, 0.32);
+  }
+  20% {
+    /* batimento sístole */
+    box-shadow: inset 0 0 0 8px rgba(220, 40, 40, 0.45),
+                inset 0 0 120px rgba(200, 30, 30, 0.55);
+  }
+  45% {
+    /* diástole leve */
+    box-shadow: inset 0 0 0 5px rgba(190, 30, 30, 0.30),
+                inset 0 0 80px rgba(180, 20, 20, 0.40);
+  }
+  60% {
+    /* batimento 2 (eco) */
+    box-shadow: inset 0 0 0 7px rgba(210, 35, 35, 0.40),
+                inset 0 0 100px rgba(200, 30, 30, 0.48);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.is-death-save-pending::after {
+    animation: none;
+    box-shadow: inset 0 0 0 4px rgba(180, 30, 30, 0.35),
+                inset 0 0 80px rgba(180, 20, 20, 0.45);
+  }
+}
+
 /* W2.1 — Sprint W: READ-ALOUD BOX (estilo PHB) pras narrações de Mestre.
  * Consultor D&D: "PHB usa caixa cinza/cream destacada — narração do DM não
  * pode ser igual a chat". Aplicado SÓ a .is-narration NÃO-roll-echo.
@@ -631,6 +675,64 @@
 }
 .camp-narr-entry.is-player-echo:hover {
   opacity: 1;
+}
+
+/* Y.B3 — Sprint Y: Combat log absorvido em narration-log.
+ * `.is-combat-echo` é entry compacta inline com cor por kind. cb-log-line
+ * legacy continua existindo no combat-screen (fallback opcional na tab Log).
+ * Consultor Mobile #3: "2 feeds verticais competem em portrait — fundir
+ * vira 1 superfície narrativa única". */
+.camp-narr-entry.is-combat-echo {
+  background: rgba(40, 20, 14, 0.32);
+  border-left: 2px solid rgba(160, 100, 70, 0.55);
+  border-radius: 0 4px 4px 0;
+  padding: 4px 12px 4px 10px;
+  margin: 3px 0;
+  opacity: 0.86;
+}
+.camp-narr-entry.is-combat-echo .cnn-text {
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink-warm);
+  font-variant-numeric: tabular-nums;
+}
+.camp-narr-entry.is-combat-echo:hover {
+  opacity: 1;
+}
+/* Cor por kind (β.6 mantido + reforçado) */
+.camp-narr-entry.is-combat-echo-crit {
+  border-left-color: #ffd060;
+  background: rgba(80, 60, 18, 0.35);
+}
+.camp-narr-entry.is-combat-echo-crit .cnn-text {
+  color: #ffd97a;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.camp-narr-entry.is-combat-echo-miss .cnn-text {
+  color: var(--ink-mute);
+  opacity: 0.72;
+}
+.camp-narr-entry.is-combat-echo-kill,
+.camp-narr-entry.is-combat-echo-death {
+  border-left-color: #c04040;
+  background: rgba(60, 18, 14, 0.42);
+}
+.camp-narr-entry.is-combat-echo-kill .cnn-text,
+.camp-narr-entry.is-combat-echo-death .cnn-text {
+  color: #ff8070;
+  font-weight: 700;
+  font-style: normal;
+}
+.camp-narr-entry.is-combat-echo-skill {
+  border-left-color: rgba(160, 200, 100, 0.6);
+}
+.camp-narr-entry.is-combat-echo-skill .cnn-text {
+  color: rgba(190, 220, 140, 0.95);
 }
 
 /* W2.3 — Party message (chat coop absorvido no log). Avatar 24px circle com

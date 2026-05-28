@@ -1,0 +1,149 @@
+/* JSgame · Y.B2 — Reward juice: confetti dourado + item reveal.
+ * Consultor Mobile #2: "Marvel Snap moment-of-glory". */
+
+/* ───────────────────────── Confetti container ───────────────────────── */
+.rj-confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9700;
+  overflow: hidden;
+}
+
+/* Partículas individuais — animação 2.2s default, override via inline style */
+.rj-confetti-particle {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(244, 208, 127, 0.45);
+  will-change: transform, opacity;
+}
+
+/* Origin: TOP — confetti chove de cima pra baixo (level-up) */
+.rj-confetti-particle.rj-confetti-top {
+  top: -20px;
+  animation: rj-fall-spin linear forwards;
+}
+@keyframes rj-fall-spin {
+  0%   { transform: translate(0, 0) rotate(0); opacity: 0; }
+  10%  { opacity: 1; }
+  100% {
+    transform: translate(var(--rj-drift-x, 0), calc(100vh + 40px)) rotate(var(--rj-rotate-end, 720deg));
+    opacity: 0.85;
+  }
+}
+
+/* Origin: CENTER — burst radial (loot reveal pode usar) */
+.rj-confetti-particle.rj-confetti-center {
+  top: 50%;
+  left: 50%;
+  animation: rj-burst-radial cubic-bezier(0.22, 0.85, 0.4, 1) forwards;
+}
+@keyframes rj-burst-radial {
+  0%   { transform: translate(-50%, -50%) rotate(0); opacity: 0; }
+  15%  { opacity: 1; }
+  100% {
+    transform:
+      rotate(var(--rj-angle, 0))
+      translate(180px, 0)
+      rotate(calc(-1 * var(--rj-angle, 0)))
+      rotate(var(--rj-rotate-end, 540deg));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 8 partículas só, animação simples fade */
+  .rj-confetti-particle {
+    animation: rj-fade-only 1.4s ease-out forwards !important;
+  }
+  @keyframes rj-fade-only {
+    0%   { opacity: 0; transform: scale(0.7); }
+    20%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.2); }
+  }
+}
+
+/* ───────────────────────── Item reveal overlay ──────────────────────── */
+.rj-item-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rj-overlay-fade-in 280ms ease-out;
+}
+.rj-item-reveal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+@keyframes rj-overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Card central — drop in + glow + scale */
+.rj-item-reveal-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 28px 22px 20px;
+  background: linear-gradient(180deg, rgba(46, 32, 16, 0.96) 0%, rgba(26, 18, 10, 0.98) 100%);
+  border: 2px solid rgba(244, 208, 127, 0.55);
+  border-radius: 16px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.7),
+    0 0 60px rgba(244, 208, 127, 0.32),
+    inset 0 0 24px rgba(244, 208, 127, 0.12);
+  min-width: 280px;
+  max-width: min(420px, 90vw);
+  animation: rj-card-reveal 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rj-item-reveal-card.is-reduced {
+  animation: rj-overlay-fade-in 300ms ease-out;
+}
+@keyframes rj-card-reveal {
+  0%   { transform: scale(0.5) translateY(-40px); opacity: 0; }
+  60%  { transform: scale(1.05) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.rj-item-reveal-head {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-gold);
+  text-shadow: 0 0 8px rgba(244, 208, 127, 0.5);
+}
+
+.rj-item-reveal-card-inner {
+  width: 100%;
+  /* item-card visual já tem styling, herdar */
+}
+
+.rj-item-reveal-dismiss {
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  color: rgba(244, 208, 127, 0.65);
+  font-family: 'Cardo', Georgia, serif;
+  font-style: italic;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 12px;
+  -webkit-tap-highlight-color: transparent;
+}
+.rj-item-reveal-dismiss:hover {
+  color: var(--ink-gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rj-item-reveal-overlay { animation: none; }
+  .rj-item-reveal-card    { animation: rj-overlay-fade-in 300ms ease-out; }
+}

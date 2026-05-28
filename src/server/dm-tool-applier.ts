@@ -440,6 +440,42 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
       break;
     }
 
+    case 'mark_npc_secret': {
+      // Y.A3 — Registra segredo de NPC (server-only). Cliente NUNCA vê texto
+      // do segredo até reveal. Lookup case-insensitive pelo nome do NPC.
+      const key = tool.npcName.trim().toLowerCase();
+      if (!camp.state.npcSecrets) camp.state.npcSecrets = {};
+      if (!camp.state.npcSecrets[key]) camp.state.npcSecrets[key] = [];
+      const list = camp.state.npcSecrets[key]!;
+      const id = tool.secretId ?? `s${Date.now().toString(36).slice(-6)}-${Math.random().toString(36).slice(2, 5)}`;
+      // Evita duplicar mesmo id
+      if (list.some((s) => s.id === id)) break;
+      list.push({
+        id,
+        secret: tool.secret,
+        revealCondition: tool.revealCondition,
+        revealed: false,
+        createdAt: Date.now(),
+      });
+      // Recent event SEM expor o segredo — só sinaliza existência
+      camp.pushRecentEvent(`🤫 ${tool.npcName} guarda um segredo (revelar quando: ${tool.revealCondition})`);
+      break;
+    }
+
+    case 'reveal_npc_secret': {
+      // Y.A3 — Marca segredo como revelado. Texto vai pro recent event +
+      // futuro client pode ler. DM narra simultâneo o conteúdo.
+      const key = tool.npcName.trim().toLowerCase();
+      const list = camp.state.npcSecrets?.[key];
+      if (!list) break;
+      const secret = list.find((s) => s.id === tool.secretId);
+      if (!secret || secret.revealed) break;
+      secret.revealed = true;
+      secret.revealedAt = Date.now();
+      camp.pushRecentEvent(`💡 Segredo revelado (${tool.npcName}): ${secret.secret}`);
+      break;
+    }
+
     case 'apply_advantage': {
       // η.4 — DM declara vantagem/desvantagem no próximo roll do player matching targetRoll.
       const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;

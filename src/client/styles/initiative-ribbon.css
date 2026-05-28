@@ -97,6 +97,21 @@
   .irb-node.is-just-arrived::before { animation: none; opacity: 0; }
 }
 
+/* Y.B1 — Sprint Y: Vinheta combat-enter SINCRONIZADA com ring "passou pra você".
+ * Hoje vinheta dispara em T+0, ring também → ambos peak ~200ms = competição
+ * visual. body.is-combat-just-started (campaign-screen.ts onState wasInCombat
+ * transition) adiciona animation-delay 400ms ao ring: vinheta peak passa,
+ * fade direto pro ring expansivo sem gap. Consultor Mobile #1: "fundir as
+ * duas em 1 momento dramático contínuo". */
+body.is-combat-just-started .irb-node.is-just-arrived .irb-avatar {
+  animation:
+    irb-current-pulse 1.6s ease-in-out infinite,
+    irb-just-arrived 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 400ms;
+}
+body.is-combat-just-started .irb-node.is-just-arrived::before {
+  animation-delay: 400ms;
+}
+
 .irb-node.is-down {
   cursor: default;
 }

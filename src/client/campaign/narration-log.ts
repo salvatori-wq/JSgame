@@ -282,6 +282,39 @@ export class NarrationLog {
   }
 
   /**
+   * Y.B3 — Sprint Y: Combat log absorvido em narration-log.
+   * Antes: `.cb-log-line` separado embaixo do combat-screen. Agora: cada
+   * combat event chega como entry `.is-combat-echo` inline com narração e
+   * roll/player echoes — 1 superfície narrativa única. Mantém kind pra
+   * cor por evento (crit/miss/kill/skill/player/enemy/neutral).
+   * Consultor Mobile #3: "2 feeds verticais em mobile portrait competem".
+   *
+   * Returns entry pra caller decidir scroll/highlight.
+   */
+  appendCombatEcho(payload: { text: string; kind: 'crit' | 'miss' | 'kill' | 'skill' | 'player' | 'enemy' | 'neutral' | 'death' }): HTMLElement {
+    const entry: NarrationEntry = {
+      id: genId(),
+      speaker: '⚔',  // glyph sutil no canto
+      text: payload.text,
+      kind: 'narration',
+      timestamp: Date.now(),
+    };
+    this.entries.push(entry);
+
+    const entryEl = el('div', {
+      class: `camp-narr-entry is-combat-echo is-combat-echo-${payload.kind}`,
+      attrs: { 'data-id': entry.id, 'data-kind': 'combat-echo' },
+    }, [
+      el('div', { class: 'cnn-text', text: payload.text }),
+    ]);
+
+    this.removeEmptyState();
+    this.entriesEl.appendChild(entryEl);
+    this.afterAppend(entryEl);
+    return entryEl;
+  }
+
+  /**
    * X.B3 — Cria (lazy) ou atualiza o pin sticky com a última narração de
    * Mestre. Pin sempre RENDERIZADO ANTES de entriesEl no rootEl, com
    * `position: sticky; top: 0`. Preserva estado expandido entre updates.
