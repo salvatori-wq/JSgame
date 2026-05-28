@@ -46,7 +46,12 @@ export function openInventoryModal(opts: InventoryModalOpts): void {
   const listEl = el('div', { class: 'inv-modal-list' });
   listEl.appendChild(el('h4', { class: 'inv-section-title', text: 'Itens' }));
   if (character.inventory.length === 0) {
-    listEl.appendChild(el('div', { class: 'inv-empty', text: '🎒 Bolsa vazia. Saqueie ou compre algo decente.' }));
+    // P5 — Empty state estruturado: ícone grande + título + dica didática
+    listEl.appendChild(el('div', { class: 'inv-empty' }, [
+      el('div', { class: 'inv-empty-icon', text: '🎒' }),
+      el('div', { class: 'inv-empty-title', text: 'Bolsa vazia' }),
+      el('div', { class: 'inv-empty-sub', text: 'O Mestre concede itens via aventura. Saqueie inimigos, abra baús, ou compre numa cidade.' }),
+    ]));
   } else {
     const grid = el('div', { class: 'inv-grid' });
     for (const item of character.inventory) {
@@ -178,6 +183,24 @@ function renderActions(item: InventoryItem, isEquipped: boolean, socket: SocketT
     }));
   } else if (isEquipped) {
     actions.appendChild(el('span', { class: 'inv-badge', text: '✓ Equipado' }));
+  }
+  // P1 — Acessorio (anéis, amuletos, etc) com requiresAttunement mostra estado
+  // de sintonia + dica pra player. Sem socket novo: server decide sintonização
+  // via DM tool call (player pede via ação livre "sintonizo o anel").
+  if (item.requiresAttunement) {
+    if (item.isAttuned) {
+      actions.appendChild(el('span', {
+        class: 'inv-badge inv-attuned',
+        text: '✨ Sintonizado',
+        attrs: { title: 'Item ativo — efeito mágico disponível' },
+      }));
+    } else {
+      actions.appendChild(el('span', {
+        class: 'inv-badge inv-needs-attunement',
+        text: '◇ Pede pra sintonizar',
+        attrs: { title: 'Item mágico — peça ao Mestre pra sintonizar (ação livre durante descanso curto)' },
+      }));
+    }
   }
 
   return actions;

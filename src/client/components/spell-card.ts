@@ -67,6 +67,19 @@ export function renderSpellCard(sp: SpellDef, opts: RenderSpellCardOpts = {}): H
     card.appendChild(up);
   }
 
+  // P2 — CTA visível "🪄 Castar" no footer do card compact. Antes o card
+  // inteiro era clicável mas affordance era fraca — player não sabia.
+  // canCast=false → dim "—Sem slot—" pra educar (precisa restaurar slot).
+  // No variant full (tooltip/details) NÃO renderiza CTA (card é só info).
+  if (compact && onClick) {
+    card.appendChild(el('div', { class: 'sc-cta-row' }, [
+      el('span', {
+        class: `sc-cta-btn ${canCast ? 'is-castable' : 'is-no-slot'}`,
+        text: canCast ? '🪄 Castar' : '— Sem slot —',
+      }),
+    ]));
+  }
+
   return card;
 }
 

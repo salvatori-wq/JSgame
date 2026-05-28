@@ -234,6 +234,44 @@
   display: none;       /* compact omite upcast */
 }
 
+/* P2 — CTA "🪄 Castar" no compact card. Affordance visível pra player
+ * saber que pode clicar. Pill no canto bottom-right, hover acompanha o
+ * card. is-castable dourado vibrante; is-no-slot dim com explicação. */
+.sc-cta-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.sc-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.sc-cta-btn.is-castable {
+  background: linear-gradient(180deg, var(--ink-gold, #f4d07f), #b48d49);
+  color: #1a0e04;
+  border: 1px solid rgba(244, 208, 127, 0.8);
+  box-shadow: 0 0 8px rgba(244, 208, 127, 0.3);
+}
+.sc-card-compact:hover:not(.is-disabled) .sc-cta-btn.is-castable {
+  box-shadow: 0 0 14px rgba(244, 208, 127, 0.55);
+  transform: scale(1.04);
+}
+.sc-cta-btn.is-no-slot {
+  background: rgba(40, 28, 16, 0.6);
+  color: var(--ink-mute, #867758);
+  border: 1px solid rgba(120, 100, 70, 0.3);
+  font-style: italic;
+}
+
 /* ─── Mobile narrow tweaks ───────────────────────────────────────────────── */
 @media (max-width: 360px) {
   .sc-card .sc-stats {

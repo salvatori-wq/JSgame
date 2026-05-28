@@ -337,6 +337,51 @@ describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   });
 });
 
+describe('P — ciclo modais (spell CTA + slots + empty CTA + acessorio)', () => {
+  const modals = readCss('modals.css');
+  const spellCard = readCss('spell-card.css');
+
+  it('P1 — inv-badge.inv-attuned com glow gold + border solid', () => {
+    expect(modals).toMatch(/\.inv-badge\.inv-attuned\s*\{[\s\S]*?border:\s*1px\s+solid\s+rgba\(244,\s*208,\s*127/);
+    expect(modals).toMatch(/\.inv-badge\.inv-attuned\s*\{[\s\S]*?box-shadow:[^;]*rgba\(244,\s*208,\s*127/);
+  });
+
+  it('P1 — inv-badge.inv-needs-attunement com border dashed', () => {
+    expect(modals).toMatch(/\.inv-badge\.inv-needs-attunement\s*\{[\s\S]*?border:\s*1px\s+dashed/);
+  });
+
+  it('P2 — sc-cta-btn.is-castable gradient gold + uppercase', () => {
+    expect(spellCard).toMatch(/\.sc-cta-btn\.is-castable\s*\{[\s\S]*?background:\s*linear-gradient[^;]*--ink-gold/);
+    expect(spellCard).toMatch(/\.sc-cta-btn\s*\{[\s\S]*?text-transform:\s*uppercase/);
+  });
+
+  it('P2 — sc-cta-btn.is-no-slot dim + italic', () => {
+    expect(spellCard).toMatch(/\.sc-cta-btn\.is-no-slot\s*\{[\s\S]*?font-style:\s*italic/);
+  });
+
+  it('P3 — cs-modal-slot.is-empty com line-through + italic', () => {
+    expect(modals).toMatch(/\.cs-modal-slot\.is-empty\s*\{[\s\S]*?text-decoration:\s*line-through/);
+    expect(modals).toMatch(/\.cs-modal-slot\.is-empty\s*\{[\s\S]*?font-style:\s*italic/);
+  });
+
+  it('P3 — cs-modal-slot ativo ganha box-shadow violet glow', () => {
+    expect(modals).toMatch(/\.cs-modal-slot\s*\{[\s\S]*?box-shadow:[^;]*rgba\(160,\s*120,\s*220/);
+  });
+
+  it('P4 — cs-modal-empty estruturado: icon + title + sub + CTA', () => {
+    expect(modals).toMatch(/\.cs-modal-empty-icon\s*\{[\s\S]*?font-size:\s*44px/);
+    expect(modals).toMatch(/\.cs-modal-empty-title\s*\{/);
+    expect(modals).toMatch(/\.cs-modal-empty-sub\s*\{/);
+    expect(modals).toMatch(/\.cs-modal-empty-cta\s*\{[\s\S]*?min-height:\s*44px/);
+  });
+
+  it('P5 — inv-empty estruturado: icon 44px + title + sub', () => {
+    expect(modals).toMatch(/\.inv-empty-icon\s*\{[\s\S]*?font-size:\s*44px/);
+    expect(modals).toMatch(/\.inv-empty-title\s*\{/);
+    expect(modals).toMatch(/\.inv-empty-sub\s*\{/);
+  });
+});
+
 describe('O1/O2/O3 — ciclo 5 (combat hit + party coop + economy gasto)', () => {
   const combat = readCss('combat.css');
   const party = readCss('campaign-party.css');

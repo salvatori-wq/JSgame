@@ -51,7 +51,25 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
   }
 
   if (spellsByLevel.size === 0) {
-    spellsList.appendChild(el('div', { class: 'cs-modal-empty', text: '📜 Magias gastas. Descanso longo restaura o livro.' }));
+    // P4 — Empty state com CTA inline pra descanso longo (fecha loop sem
+    // exigir fechar modal → procurar dock → menu Mais → Descanso Longo).
+    spellsList.appendChild(el('div', { class: 'cs-modal-empty' }, [
+      el('div', { class: 'cs-modal-empty-icon', text: '📜' }),
+      el('div', { class: 'cs-modal-empty-title', text: 'Magias gastas' }),
+      el('div', { class: 'cs-modal-empty-sub', text: 'O grimório está em silêncio. Um descanso longo restaura todos os slots.' }),
+      el('button', {
+        class: 'cs-modal-empty-cta',
+        text: '🏕 Descansar 8h',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            socket.emit('longRest');
+            closeCastSpellModal();
+            onClose();
+          },
+        },
+      }),
+    ]));
   } else {
     const levels = [...spellsByLevel.keys()].sort();
     for (const lvl of levels) {

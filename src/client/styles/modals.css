@@ -74,13 +74,25 @@
   padding: 4px 10px;
   background: rgba(80, 50, 130, 0.5);
   border: 1px solid rgba(160, 120, 220, 0.4);
-  border-radius: 3px;
+  border-radius: 12px;
   font-family: monospace;
-  color: #d0b8ff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #e8d8ff;
+  /* P3 — Slot disponível ganha glow violeta sutil pra reforçar "tem slot, pode usar" */
+  box-shadow: 0 0 6px rgba(160, 120, 220, 0.18);
+  transition: box-shadow 0.2s;
 }
 .cs-modal-slot.is-empty {
-  opacity: 0.4;
-  background: rgba(30, 20, 40, 0.5);
+  opacity: 0.5;
+  background: rgba(30, 20, 40, 0.6);
+  border-color: rgba(100, 80, 130, 0.3);
+  /* P3 — Strike-through visual claro pra "esgotado" */
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  color: #8a7898;
+  box-shadow: none;
+  font-style: italic;
 }
 
 .cs-modal-list {
@@ -89,10 +101,55 @@
   flex: 1;
 }
 .cs-modal-empty {
-  padding: 24px;
+  padding: 36px 24px 28px;
   text-align: center;
   color: var(--ink-mute);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+/* P4 — Empty state estruturado: ícone grande, título, sub, CTA pra fechar loop */
+.cs-modal-empty-icon {
+  font-size: 44px;
+  line-height: 1;
+  opacity: 0.65;
+  filter: drop-shadow(0 0 12px rgba(160, 120, 220, 0.25));
+}
+.cs-modal-empty-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  color: var(--ink-warm);
+  margin-top: 4px;
+}
+.cs-modal-empty-sub {
   font-style: italic;
+  font-size: 13px;
+  max-width: 280px;
+  line-height: 1.45;
+  color: var(--ink-mute);
+}
+.cs-modal-empty-cta {
+  margin-top: 12px;
+  padding: 12px 22px;
+  background: linear-gradient(180deg, #6c8fbe, #3a5680);
+  border: 1px solid #8caedd;
+  border-radius: 6px;
+  color: #f5f0e8;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  min-height: 44px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(60, 90, 140, 0.3);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.cs-modal-empty-cta:hover {
+  box-shadow: 0 4px 18px rgba(108, 143, 190, 0.5);
+  transform: translateY(-1px);
 }
 .cs-modal-level-title {
   font-family: var(--font-heading);
@@ -375,10 +432,34 @@
   flex: 1;
 }
 .inv-empty {
-  padding: 24px;
+  padding: 36px 24px;
   text-align: center;
   color: var(--ink-mute);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+/* P5 — Inventory empty estruturado */
+.inv-empty-icon {
+  font-size: 44px;
+  line-height: 1;
+  opacity: 0.55;
+  filter: drop-shadow(0 0 12px rgba(212, 168, 87, 0.2));
+}
+.inv-empty-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  color: var(--ink-warm);
+  margin-top: 4px;
+}
+.inv-empty-sub {
   font-style: italic;
+  font-size: 13px;
+  max-width: 280px;
+  line-height: 1.45;
+  color: var(--ink-mute);
 }
 .inv-grid {
   display: grid;
@@ -500,6 +581,29 @@
   font-size: 10px;
   color: var(--ink-gold);
   padding: 4px 6px;
+}
+
+/* P1 — Acessorio attunement badges. Visual claro pra player saber se
+ * pode usar o item OU precisa pedir sintonia ao Mestre.
+ * .inv-attuned: dourado vivo (ativo, magia disponível)
+ * .inv-needs-attunement: fade + dica didática */
+.inv-badge.inv-attuned {
+  background: linear-gradient(180deg, rgba(244, 208, 127, 0.25), rgba(180, 141, 73, 0.18));
+  border: 1px solid rgba(244, 208, 127, 0.6);
+  border-radius: 12px;
+  padding: 4px 10px;
+  color: var(--ink-gold, #f4d07f);
+  letter-spacing: 0.06em;
+  box-shadow: 0 0 8px rgba(244, 208, 127, 0.25);
+}
+.inv-badge.inv-needs-attunement {
+  background: rgba(80, 60, 100, 0.25);
+  border: 1px dashed rgba(160, 130, 200, 0.5);
+  border-radius: 12px;
+  padding: 4px 10px;
+  color: #c8b0e0;
+  font-style: italic;
+  letter-spacing: 0.04em;
 }
 
 .camp-action-btn.is-inv {
