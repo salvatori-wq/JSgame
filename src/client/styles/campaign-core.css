@@ -883,6 +883,30 @@
   animation: rolling-pulse 0.8s ease-in-out infinite;
 }
 
+/* M1.2 — Botão "Pular este teste" — sutil link-like, hierarquia abaixo do roll
+ * principal. Não compete visualmente com 🎲 Rolar, mas existe pra player saber
+ * que tem opção de ignorar. Hover ganha sublinhado dourado. */
+.sc-skip-btn {
+  margin-top: 4px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: var(--ink-mute, #867758);
+  font-family: var(--font-body, serif);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-decoration: underline dotted rgba(160, 130, 70, 0.4);
+  text-underline-offset: 3px;
+  transition: color 0.15s, text-decoration-color 0.15s;
+  min-height: 32px;
+}
+.sc-skip-btn:hover {
+  color: var(--ink-gold, #f4d07f);
+  text-decoration-color: rgba(244, 208, 127, 0.7);
+}
+
 /* α.3 — Botão Inspiração (PHB pág 125): dourado pulsante */
 .sc-roll-btn.sc-roll-inspiration {
   margin-top: 6px;

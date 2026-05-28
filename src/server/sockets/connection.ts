@@ -423,6 +423,30 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
       }
     });
 
+    // ── M1.2 — skipPendingCheck: player desiste do teste pendente ──
+    // Caso de uso: cold-open com emboscada, mas player quer ignorar e seguir.
+    // Server limpa pendingCheck e emite narração discreta. NÃO chama DM (rápido).
+    socket.on('skipPendingCheck', async () => {
+      try {
+        if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
+        const camp = campaigns.get(activeCampaignId);
+        if (!camp) { socket.emit('error', 'campaign not found'); return; }
+        const cleared = camp.clearPendingCheck(activePlayerId);
+        if (!cleared) return; // não havia pending OU não era do player
+        const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+        io.to(camp.state.id).emit('dmNarration', {
+          text: `pula o teste e segue em frente — ${cleared.reason}`,
+          speaker: `🚶 ${myName}`,
+          mood: 'neutral',
+        });
+        broadcastState(camp);
+        await saveCampaign(camp.state);
+      } catch (err) {
+        console.error('[socket] skipPendingCheck error:', err);
+        socket.emit('error', `skip falhou: ${String(err)}`);
+      }
+    });
+
     // ── F27 — resolveSavingThrow: player rola ability save
     socket.on('resolveSavingThrow', async () => {
       try {

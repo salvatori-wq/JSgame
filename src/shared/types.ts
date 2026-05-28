@@ -451,6 +451,9 @@ export interface ClientToServerEvents {
   takeAction: (payload: { action: ExplorationAction; details?: string }) => void;
   // α.3 — useInspiration: gasta 1 inspiration pra advantage no roll (PHB pág 125)
   requestSkillCheck: (payload: { skill: SkillId; dc?: number; useInspiration?: boolean }) => void;
+  // M1.2 — Player escolhe NÃO rolar o teste pendente (ignora a emboscada/pista
+  // e segue jogando). Server limpa pendingCheck e emite narração breve.
+  skipPendingCheck: () => void;
   // F27 — Saving throw genérico (FOR/DES/CON/INT/SAB/CAR vs DC).
   resolveSavingThrow: () => void;
 

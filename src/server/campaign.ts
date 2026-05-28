@@ -583,6 +583,21 @@ export class Campaign {
     };
   }
 
+  /**
+   * M1.2 — Player desiste do skill check pendente (ignora a emboscada/pista e
+   * segue). Server limpa pendingCheck — DM continua normal no próximo turno.
+   * Só limpa se o playerId for owner do check (evita coop player B limpar
+   * check do A por engano). Retorna o reason limpo (pra echo de narração).
+   */
+  clearPendingCheck(playerId: string): { reason: string; skill: SkillId } | null {
+    const pending = this.state.pendingCheck;
+    if (!pending) return null;
+    if (pending.playerId !== playerId) return null;
+    const out = { reason: pending.reason, skill: pending.skill };
+    this.state.pendingCheck = null;
+    return out;
+  }
+
   // F27 — Resolve saving throw pendente. Mesma estrutura de resolveSkillCheck mas
   // pra ability save (FOR/DES/CON/INT/SAB/CAR). Proficiência se PJ tem em proficientSavingThrows.
   async resolveSavingThrow(playerId: string): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; dmResponse?: DMResponse } | null> {

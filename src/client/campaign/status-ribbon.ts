@@ -145,9 +145,12 @@ function renderExplorationBody(state: CampaignState, character: CharacterSheet |
   const slots = character ? totalAvailableSlots(character) : null;
   const xp = character ? `${character.xp}xp` : '';
 
+  // M1.3 — Location ganha .sr-loc com text-overflow:ellipsis fluido (CSS) +
+  // title attr com texto completo (tooltip desktop, accessible mobile).
+  // shorten() removido: layout flex distribui largura entre loc + stats.
   const items: (HTMLElement | null)[] = [
     el('span', { class: 'sr-glyph', text: glyphForLocation(loc) }),
-    el('span', { class: 'sr-mode-label', text: shorten(loc, 18) }),
+    el('span', { class: 'sr-mode-label sr-loc', text: loc, attrs: { title: loc, 'aria-label': loc } }),
   ];
 
   if (hp) {

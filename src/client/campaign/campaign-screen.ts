@@ -124,6 +124,8 @@ export class CampaignScreen {
   private currentOpenTab: BottomTabId | null = null;
   // ψ.5 — Combat turn duration tracking (start ts quando vira meu turno)
   private myTurnStartedAt = 0;
+  // M1.1 — Flag pra disparar pulse no dock SÓ na 1ª vez que tem conteúdo.
+  private dockAttentionFired = false;
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -771,12 +773,21 @@ export class CampaignScreen {
       bonus,
       inspirations: this.character.inspirations ?? 0,
     };
-    showPendingSkillCheck(this.skillCheckOverlay, (opts) => {
-      this.opts.socket.emit('requestSkillCheck', {
-        skill: pending.skill,
-        useInspiration: opts.useInspiration,
-      });
-    });
+    showPendingSkillCheck(
+      this.skillCheckOverlay,
+      (opts) => {
+        this.opts.socket.emit('requestSkillCheck', {
+          skill: pending.skill,
+          useInspiration: opts.useInspiration,
+        });
+      },
+      // M1.2 — Pular: limpa pendingCheck no server + fecha overlay imediatamente.
+      // skillCheckOverlay local também limpa pra não reabrir no próximo state.
+      () => {
+        this.skillCheckOverlay = null;
+        this.opts.socket.emit('skipPendingCheck');
+      },
+    );
   }
 
   /** Trilha medieval — escolhe mood baseado em estado completo do jogo.
@@ -925,6 +936,8 @@ export class CampaignScreen {
       this.replaceSlot(this.slots.party, null);
       return;
     }
+    // M1.1 — Solo (1 PJ) compacta o slot pra liberar 6vh ao narration.
+    this.slots.party.classList.toggle('is-solo', this.party.length === 1);
     this.replaceSlot(this.slots.party, this.renderPartyPanel());
   }
 
@@ -1012,6 +1025,18 @@ export class CampaignScreen {
       } else {
         this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
       }
+    }
+    // M1.1 — Dispara pulse no dock UMA VEZ por sessão (mobile + non-empty +
+    // primeira renderização útil). Chama atenção visual pra "interage aqui".
+    if (
+      !this.dockAttentionFired
+      && document.body.classList.contains('is-portrait-narrow')
+      && this.slots.mainContent.firstChild
+    ) {
+      this.dockAttentionFired = true;
+      const slot = this.slots.mainContent;
+      slot.classList.add('is-dock-attention');
+      window.setTimeout(() => slot.classList.remove('is-dock-attention'), 2000);
     }
   }
 

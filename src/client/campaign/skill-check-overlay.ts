@@ -33,6 +33,7 @@ const WATCHDOG_MS = 5000;
 export function showPendingSkillCheck(
   check: PendingCheck,
   onRoll: (opts: { useInspiration: boolean }) => void,
+  onSkip?: () => void,
 ): void {
   closeSkillCheck();
   const skill = SKILLS[check.skill];
@@ -116,6 +117,25 @@ export function showPendingSkillCheck(
       on: { click: () => rollAndDisable(true) },
     }) as HTMLButtonElement;
     stage.appendChild(inspBtn);
+  }
+
+  // M1.2 — Botão sutil "Pular este teste" — player ignora a oportunidade e
+  // segue jogando. Útil em cold-open de emboscada quando o player quer outra
+  // abordagem. Server limpa pendingCheck + emite narração breve.
+  if (onSkip) {
+    stage.appendChild(el('button', {
+      class: 'sc-skip-btn',
+      text: 'Pular este teste',
+      attrs: { type: 'button', title: 'Ignora a oportunidade e segue sem rolar' },
+      on: {
+        click: () => {
+          if (rolled) return;
+          rolled = true;
+          onSkip();
+          closeSkillCheck();
+        },
+      },
+    }));
   }
 
   overlay.appendChild(stage);

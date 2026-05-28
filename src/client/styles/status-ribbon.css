@@ -82,6 +82,16 @@ body.is-portrait-narrow .sr-mode-label {
   letter-spacing: 0.02em;
 }
 
+/* M1.3 — Location body ganha prioridade de largura. Stats (HP/slots/XP) ficam
+ * com flex-shrink: 0 (regras gerais abaixo). Ellipsis fluida via CSS — nada
+ * de shorten(loc, 18) no JS (cortava "Estrada sob chuva fina" pra 17 chars
+ * mesmo em viewports largos). title attr expõe o nome completo no hover. */
+body.is-portrait-narrow .sr-loc {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
 body.is-portrait-narrow .sr-sep {
   flex-shrink: 0;
   opacity: 0.4;
