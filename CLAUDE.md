@@ -82,7 +82,101 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo S — 3 commits, 1702→1731 tests +29)
+> Última atualização: 2026-05-29 (Ciclo T — 3 commits, 1731→1770 tests +39)
+
+### Ciclo T "Onboarding + Sheet + Rest UI + Dice Preview + Lobby" — entregue (3 commits, +39 tests)
+
+Audit visual cobrindo gaps anotados no handoff S. Áreas até então NÃO
+cobertas profundamente: onboarding tour, sheet detail (hierarquia interna),
+achievements (banner anon + hidden vs locked), lobby status, rest UI
+(picker visual + ritual narrativo), dice roll preview chips, login email.
+13 mudanças em 3 commits + 2 módulos novos + 4 tests files novos.
+
+#### Ciclo T1 — Crítico (`13216fb`) +9 tests
+- T1.1: Onboarding step 2 "Player's Handbook" → "Livro do Jogador (D&D 5e)"
+  (Henrique família — inglês na primeira impressão).
+- T1.2: Onboarding tour mobile landscape fix — ot-card vira flex column +
+  max-height 85vh; ot-body overflow-y auto; ot-actions margin-top auto
+  (pin no bottom). Antes actions caíam abaixo do fold em 380×600.
+- T1.3: Login email "Enviar link mágico" loading state (.is-loading +
+  texto "⏳ Enviando…" + requestAnimationFrame defer). Mesmo padrão S3.4.
+- T1.4: Achievements modal empty estruturado — 🏆 icon + título Cinzel +
+  sub explicativa com nome da categoria. Casa S3.2 e S3.3.
+- T1.5: Lobby player status 'selecting' visualmente distinto (tint azul-aço
+  rgba 40/70/110 + 120/160/220) — distingue de 'wizard' (roxo, criando do
+  zero) e 'ready' (verde).
+
+#### Ciclo T2 — Médio (`950e19b`) +12 tests
+- T2.1: Sheet "Saving Throws" → "🛡 Resistências" + sheet-saves-card visual
+  (bg/border distintos dos atributos). PT-BR consistente com
+  saving-throw-overlay e glossary.
+- T2.2: Sheet inventory groups com separator (border-bottom dotted gold +
+  padding-bottom + margin-bottom). sig-type ganha border-bottom próprio.
+  `:last-of-type` sem border.
+- T2.3: Achievements modal banner anônimo — "🔒 Sem login — conquistas
+  não salvam entre dispositivos. Click em 💾 Salvar (home) pra sincronizar."
+  Gradient gold sutil pra não competir com tabs.
+- T2.4: Lobby personality preview mobile-safe (max-width:100% +
+  word-break:break-word). Em mobile padding 10/14→8/10 + font 13→12.
+- T2.5: Short Rest visual picker NOVO (`short-rest-overlay.ts`). Chips
+  clicáveis 1..max + preview HP estimado (estimateShortRestHp fórmula PHB
+  pura testável: max(1, (faces+1)/2 + conMod) * dice).
+
+#### Ciclo T3 — Polish (`93b5b6e`) +18 tests
+- T3.1: `.ach-card.is-hidden` visual DISTINTO de `.is-locked` — hidden ganha
+  blur(0.6px) + tint roxo místico (border 160/110/200), locked mantém o
+  cinza apagado. Usuário diferencia "mistério" de "visto, bloqueado".
+- T3.2: Dice roll overlay preview com chips — parsePreviewParts quebra
+  "Ataque: d20+5 vs CA 13" em 4 spans coloridos (prefix italic + d20 gold
+  pill + bonus verde-vida + vs mute). Função pura exportada pra tests.
+  Fallback pra texto puro se padrão não bater.
+- T3.3: Long rest ritual visual NOVO (`long-rest-ritual.ts`). Overlay 1.8s
+  com 3 steps: 🌙 "A noite cai…" → ⭐ "O grupo descansa…" → ☀ "Amanhece".
+  Radial gradient noturno + icon-breath keyframe. reduced-motion: pula
+  callback direto sem overlay.
+
+### Arquivos novos/editados Ciclo T
+**Novos módulos:**
+- `src/client/campaign/short-rest-overlay.ts` — modal + estimateShortRestHp
+- `src/client/styles/short-rest.css` — bottom-sheet srm-* spec
+- `src/client/campaign/long-rest-ritual.ts` — overlay 3 steps
+- `src/client/styles/long-rest-ritual.css` — radial gradient + keyframes
+
+**Novos tests:**
+- `src/client/__tests__/onboarding-tour-content.test.ts` — 4 tests PT-BR
+- `src/client/campaign/__tests__/short-rest-overlay.test.ts` — 5 tests fórmula
+- `src/client/campaign/__tests__/long-rest-ritual.test.ts` — 6 tests sequence
+- `src/client/dice/__tests__/dice-roll-overlay-parse.test.ts` — 8 tests parse
+- `HANDOFF_2026-05-29_ciclo-T-onboarding-sheet-rest-done.md`
+
+**Editados (T1):**
+- `src/client/onboarding-tour.ts` — PT-BR "Livro do Jogador"
+- `src/client/styles/campaign-party.css` — ot-card flex column + max-height
+- `src/client/auth/login-screen.ts` — loading state submit
+- `src/client/styles/modals.css` — login-submit-btn is-loading
+- `src/client/campaign/achievements-modal.ts` — empty estruturado + isAnon
+- `src/client/styles/lobby.css` — is-status-selecting tint azul-aço
+
+**Editados (T2):**
+- `src/client/sheet/sheet-screen.ts` — "Resistências" + sheet-saves-card
+- `src/client/styles/sheet.css` — sheet-saves-card + sheet-inv-group separator
+- `src/client/styles/modals.css` — ach-anon-banner spec
+- `src/client/styles/lobby-personality-preview.css` — mobile-safe overflow
+- `src/client/campaign/campaign-screen.ts` — switch pra openShortRestPicker
+- `src/client/styles.css` — import short-rest.css
+
+**Editados (T3):**
+- `src/client/styles/modals.css` — ach-card.is-hidden roxo místico
+- `src/client/dice/dice-roll-overlay.ts` — parsePreviewParts + renderPreviewChips
+- `src/client/styles/dice.css` — dro-prev-* chip spec
+- `src/client/campaign/campaign-screen.ts` — playLongRestRitual antes do emit
+- `src/client/styles.css` — import long-rest-ritual.css
+
+**Cross:**
+- `src/client/__tests__/mobile-polish-css.test.ts` — +16 CSS snapshot guards
+  (T1×5, T2×7, T3×4)
+
+> Última atualização anterior: 2026-05-29 (Ciclo S — 3 commits, 1702→1731 tests +29)
 
 ### Ciclo S "Wizard + Tutoriais + Sticky + Empty States" — entregue (3 commits, +29 tests)
 
