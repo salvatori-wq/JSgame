@@ -14,14 +14,17 @@
 }
 
 .gl-search {
+  /* S2.5 — min-height 40 → 44px WCAG AAA (polegar mobile precisa de respiração).
+   * padding também sobe 8/12 → 10/14 + font-size 14 → 15px (acaba auto-zoom no
+   * iOS Safari quando fonte ≥16, mas 15 + accent visual mantém leitura ok). */
   width: 100%;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   background: rgba(10, 6, 8, 0.6);
   border: 1px solid rgba(244, 208, 127, 0.28);
   border-radius: 8px;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .gl-search:focus {

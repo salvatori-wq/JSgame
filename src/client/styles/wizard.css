@@ -954,8 +954,32 @@ body.is-portrait-narrow .cs-abilities {
   grid-template-columns: repeat(3, 1fr);
 }
 
+/* S2.1 — Wizard review cs-stats-grid em portrait-narrow.
+ * Default `auto-fit minmax(120px, 1fr)` em 375px - padding wrappear pra 2-col
+ * mas com sobra estranha. Forço 2x2 explícito + reduzo csb-value 24→18px
+ * + padding cs-stat-block 12→8 pra cabe HP/CA/Prof/Desloc bem proporcional. */
+body.is-portrait-narrow .cs-stats-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+body.is-portrait-narrow .cs-stat-block { padding: 8px 6px; }
+body.is-portrait-narrow .csb-value { font-size: 18px; }
+body.is-portrait-narrow .csb-label { font-size: 9px; letter-spacing: 0.1em; }
+
 body.is-portrait-narrow .character-sheet {
   padding: var(--gap-loose);
+}
+
+/* S2.2 — Slider point-buy em mobile: row-gap 4→8 + min-height ergonômico no
+ * input range pra polegar (Android/iOS slider thumb tem que respirar).
+ * grid-column: 1/-1 (full row) já dado em .ab-slider — aqui só ajusta
+ * espaço vertical pra não colar nos botões dec/inc acima. */
+body.is-portrait-narrow .ab-row {
+  row-gap: 8px;
+}
+body.is-portrait-narrow .ab-slider {
+  margin-top: 6px;
+  min-height: 28px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1327,6 +1351,13 @@ body.is-portrait-narrow .character-sheet {
 
 body.is-portrait-narrow .wlp-ab-grid { grid-template-columns: repeat(3, 1fr); }
 body.is-portrait-narrow .wlp-stats { flex-wrap: wrap; }
+
+/* S2.4 — Live-preview body em 375px ficava com padding 14 default, sobrando
+ * pouca largura pro grid 3-col + stats wrap. Reduz padding mobile + garante
+ * que não vaza overflow horizontal. */
+body.is-portrait-narrow .wiz-live-preview { padding: 0; }
+body.is-portrait-narrow .wlp-body { padding: 10px 8px; gap: 8px; }
+body.is-portrait-narrow .wlp-portrait { width: 60px; height: 60px; }
 
 /* ════════════════════════════════════════════════════════════════════════
    MP4 — Wizard mobile polish: step bar compacta + cards 1-col enxutos

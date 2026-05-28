@@ -200,12 +200,12 @@ describe('MP4 — lobby.css mobile (Sessão 4)', () => {
 describe('MP4 — campaign-party.css profile mobile (Sessão 4)', () => {
   const css = readCss('campaign-party.css');
 
-  it('profile-summary vira sticky top em mobile', () => {
-    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-summary\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0/);
+  it('profile-summary vira sticky em mobile (S2.3 offset 0 → 52, abaixo do header)', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-summary\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*52px/);
   });
 
-  it('profile-section-h vira sticky abaixo do summary', () => {
-    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-section-h\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*92px/);
+  it('profile-section-h vira sticky abaixo do summary (S2.3 offset 92 → 142)', () => {
+    expect(css).toMatch(/body\.is-portrait-narrow\s+\.profile-section-h\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*142px/);
   });
 });
 
@@ -538,6 +538,45 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
 
   it('N3.3 — drop-cap data-attr sm mobile reduz pra 28px', () => {
     expect(core).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\[data-drop-cap='sm'\]\s+\.cnn-text::first-letter\s*\{[^}]*font-size:\s*28px/);
+  });
+});
+
+describe('S2 — Ciclo S round 2 (médio mobile polish)', () => {
+  const wiz = readCss('wizard.css');
+  const party = readCss('campaign-party.css');
+  const gloss = readCss('glossary.css');
+
+  it('S2.1 — cs-stats-grid em portrait-narrow vira 2-col (era auto-fit minmax 120)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.cs-stats-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,\s*1fr\)/);
+  });
+
+  it('S2.1 — csb-value mobile 24 → 18px (compacta vital block)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.csb-value\s*\{[^}]*font-size:\s*18px/);
+  });
+
+  it('S2.2 — ab-row em portrait-narrow ganha row-gap:8 (slider respira)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.ab-row\s*\{[\s\S]*?row-gap:\s*8px/);
+  });
+
+  it('S2.2 — ab-slider mobile ganha min-height 28px (touch target)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.ab-slider\s*\{[\s\S]*?min-height:\s*28px/);
+  });
+
+  it('S2.3 — profile-screen > wiz-header vira sticky top:0 em portrait-narrow', () => {
+    expect(party).toMatch(/body\.is-portrait-narrow\s+\.profile-screen\s*>\s*\.wiz-header\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0/);
+  });
+
+  it('S2.3 — profile-summary mobile sticky offset 0 → 52 (abaixo do header)', () => {
+    expect(party).toMatch(/body\.is-portrait-narrow\s+\.profile-summary\s*\{[\s\S]*?top:\s*52px/);
+  });
+
+  it('S2.4 — wlp-body mobile padding 14 → 10/8 (live-preview respira)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wlp-body\s*\{[^}]*padding:\s*10px\s+8px/);
+  });
+
+  it('S2.5 — gl-search hit min-height 40 → 44px (WCAG AAA)', () => {
+    expect(gloss).toMatch(/\.gl-search\s*\{[\s\S]*?min-height:\s*44px/);
+    expect(gloss).toMatch(/\.gl-search\s*\{[\s\S]*?padding:\s*10px\s+14px/);
   });
 });
 

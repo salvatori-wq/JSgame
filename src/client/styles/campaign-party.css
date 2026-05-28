@@ -462,17 +462,32 @@
 body.is-portrait-narrow .profile-screen {
   padding: var(--m-padding-screen, 12px);
 }
+/* S2.3 — header "← Voltar / 🏆 Conquistas" reusa .wiz-header (sem sticky).
+ * Em mobile rolava junto com body, usuário perdia referência ao scrollar
+ * achievements + highlights + friends. Agora sticky top + bg fade gold.
+ * .profile-summary e .profile-section-h offsets ajustados pra ficarem
+ * abaixo do header (header altura ~52, summary cola em top:52). */
+body.is-portrait-narrow .profile-screen > .wiz-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: calc(-1 * var(--m-padding-screen, 12px)) calc(-1 * var(--m-padding-screen, 12px)) 8px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(20, 14, 8, 0.97) 60%, rgba(20, 14, 8, 0.85));
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(184, 128, 48, 0.25);
+}
 body.is-portrait-narrow .profile-summary {
   padding: 12px;
   position: sticky;
-  top: 0;
+  top: 52px;
   z-index: 4;
   background: linear-gradient(180deg, rgba(20, 14, 8, 0.97), rgba(20, 14, 8, 0.92));
   backdrop-filter: blur(4px);
 }
 body.is-portrait-narrow .profile-section-h {
   position: sticky;
-  top: 92px;
+  top: 142px;
   z-index: 3;
   margin: 14px -12px 6px;
   padding: 8px 12px;
