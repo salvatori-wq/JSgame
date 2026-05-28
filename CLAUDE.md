@@ -82,7 +82,124 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo V — 1 commit infra+fixes, 1794→1802 tests +8)
+> Última atualização: 2026-05-29 (Sprint W — 2 commits feature+test, 1802→1842 tests +40, **consultores aprovaram D&D 8.5/10 Mobile 8.0/10**)
+
+### Sprint W "Redesign Visceral" — entregue (2 commits, +40 tests, score 5.5→8.0)
+
+Plano `SPRINT_W_PLANO.md` executado integralmente + ajustes que os 2
+consultores (D&D sênior + UX Mobile RPG) fizeram na revisão prévia.
+Re-avaliação pós-execução confirmou objetivos atingidos. Sprint mais
+impactante até agora — em 12-16h subiu Mobile UX de 5.5 pra 8.0/10
+(objetivo era ≥7.5) e D&D Authenticity de implícito 5-6 pra 8.5/10.
+
+**Vereditos pós-Sprint W**:
+- **D&D**: *"O jogo agora PARECE D&D na primeira impressão e SUSTENTA a
+  ilusão em combate — falta só a alma fora do roll (sons, ambiente,
+  mistério persistente)."* (8.5/10)
+- **Mobile**: *"Sprint W transformou JSgame de 'engenharia premium com
+  hierarquia escondida' em 'D&D mobile que SE SENTE como D&D'."* (8.0/10)
+
+#### Commit 1: `feat(W)` — `4a314ec`
+**W1 Dado Protagonista** (6 mudanças):
+- W1.1 `.atk-die` CSS órfão removido (combat já usava showDiceRollOverlay
+  desde γ.1 via campaign-screen.ts:505)
+- W1.2 skill-check dado 80→**140px** mobile. `.sc-stage` flex column +
+  `.sc-row` grid 2-areas ("die die"/"chip-attr chip-dc"). Desktop 80→100px
+- W1.3 drama timing 1500→**2500ms** default / **4000ms** crit/fumble.
+  `.is-rolling` faz pointer-events:none até auto-close = drama silence
+- W1.4 watchdog skill-check 5→**10s** + msg humana "🎲 O Mestre está
+  pensando…"
+- W1.5 crit/fumble flash visceral (gradient gold/red 0.35) + dado scale
+  1.2× via `.die-crit-landed`/`.die-fumble-landed` keyframes
+- W1-Mobile screen dim 0.55→**0.72** + backdrop blur 3→**6px** em ambos
+  overlays (Marvel Snap-style)
+- W1.6 sound layered PULADO conforme consultores (iOS Safari risk)
+
+**W2 Mestre Narrativo** (5+1 mudanças):
+- W2.1 read-aloud box PHB-style em `.is-narration:not(.is-roll-echo)` —
+  gradient gold-warm + border-left 3px gold + Cardo serif 16px lh 1.6.
+  Drop-cap INTELIGENTE (primeiras 3 da cena + 1ª pós location change) via
+  `lastSceneLocation` + `narrationsInCurrentScene` tracker
+- W2.2 player echo (`▶ Nome`) detecta + `.is-player-echo` tint azul-aço
+  discreto. Distingue de Mestre (gold) e roll-echo (mute)
+- W2.3 chat absorvido. `partyMessage` cria entry `.is-party-message` com
+  avatar 28px + `classIcon(class)` REAL (12 classes mapeadas: ⚔ fighter
+  🧙 wizard 🥷 rogue 🪓 barbarian 🏹 ranger 🎵 bard 🌿 druid 👊 monk
+  🛡 paladin/cleric ✨ sorcerer 🔮 warlock). chat-sheet só pra envio
+- W2.4 combat log narrativo. Monospace 11px → Cardo serif italic 14px lh
+  1.5. Cores por kind reforçadas (crit gold uppercase, kill bold red+shadow)
+- W2.5 SYSTEM_PROMPT `suggest_actions` OPCIONAL. Critério (a) dilema
+  mecânico real, (b) player travado, (c) escolha tática. "RPG é mesa, não
+  menu japonês"
+- W2-Mobile thinking skeleton shimmer Disco Elysium-style. `.is-thinking`
+  ganha gradient horizontal animado via background-position
+
+**W3 Combate Target-First** (6+3+2 mudanças):
+- W3.1 enemy card SEM stats (CA/+atq/dano) E SEM HP numérico. Adjetivo
+  Cardo italic ("intacto"→"caído") cor por severidade. Stats completos só
+  via ℹ stat-block modal. `enemyHpAdjective()` em combat-screen-helpers
+- W3.2 `combat-target-sheet.ts` NOVO. Bottom-sheet com primary action
+  DOMINANTE 70% glow + min-height 64px + slide-up 260ms cubic-bezier.
+  `combatActionLabel()` mapeia 10 CombatActionKind → {icon, label, sub}
+- W3.3 action economy STICKY top + backdrop-filter blur. Renderizado
+  SEMPRE (entre turnos `.is-readonly` opacity 0.72)
+- W3.4 "AGORA É VOCÊ" `body.is-my-turn` + box-shadow inset 3px gold +
+  `turnEnterPulse` 600ms overshoot + haptic + toast "▶ Seu turno".
+  Tracker `lastMyTurnState` detecta transição
+- W3.5 cb-actions-grid MANTIDO opt-in (consultor D&D pediu)
+- W3.6 validator `suggest_actions` clamp 4→**3** + prompt "máx 3 chips"
+- W3-DnD iniciativa next-up SEMPRE: `findNextAliveAfter()` pula downed.
+  Glyph 🩸 enemy / 🤝 aliado / ▶ você. Cardo italic 12px
+- W3-DnD damage TAKEN visceral: `body.is-took-damage` (ou -crit) por 700ms
+  ativa screen-shake + flash vermelho inset. Crit variant mais intenso
+- W3-DnD concentração visível: `renderConcentrationChip` no status-ribbon
+  com "🧠 [Spell]" + tooltip CON save DC max(10, dano/2)
+- W3-Mobile targeting glow: `.cb-enemy-card.is-targeted` pulse 200ms +
+  scale 1.05 + haptic 15ms ANTES do sheet abrir
+- W3-Mobile vinheta combat-enter reforçada: opacity 0.55→**0.75** + zoom
+  1.10→1 + flash brightness/saturate breve + haptic burst `[30,40,30]`
+
+#### Commit 2: `test(W)` — `ef9d888`
+**Novos arquivos (4, 28 tests)**: `combat-target-sheet.test.ts` (13),
+`combat-screen-helpers.test.ts` (7), `class-icon.test.ts` (5),
+`status-ribbon-sprint-w.test.ts` (5).
+
+**Atualizados (5 legacy + 18 guards novos)**: mobile-polish-css M2.2→W1.2
+M3.2→W2.1 + 18 Sprint W guards. narration-log drop-cap location reset.
+initiative-ribbon next-up SEMPRE. suggest-actions clamp 4→3.
+
+### Aprendizados Sprint W
+
+- **Consultar consultores ANTES de executar = horas economizadas**.
+  Ajustes prévios (HP numérico escondido, drop-cap inteligente, avatar PJ
+  real, screen dim+blur, W1.6 pular, grid manter opt-in, critério binário
+  fallback W3.2) viraram pontos onde NÃO precisamos voltar atrás.
+- **Drop-cap SEMPRE era armadilha**. Consultor Mobile pegou no review.
+  Tracker location + counter por cena resolve.
+- **Layout grid 2-areas > flex column pra dado+chips mobile**. Permite
+  "die span 2 / chips lado a lado" sem mudar DOM.
+- **`is-rolling` class no overlay > bloquear chip-by-chip**. Drama silence
+  virou 1 CSS rule `pointer-events: none`.
+- **`originalToolCalls` snapshot do Ciclo V foi essencial pra W**. Sem ele,
+  narração mais rica (W2.5 opcional) sumiria toolCalls em retries.
+
+### Gaps remanescentes (próximo sprint X)
+
+**Convergência dos 2 consultores: som diegético** é gap #1.
+
+- **D&D #1**: Ambient loop tavern/dungeon + dice impact + page-turn no
+  read-aloud. iOS unlock-on-gesture.
+- **D&D #2**: Fog of war NARRATIVO — regra prompt "DM nunca cita HP/CA/DC
+  do oponente em texto, só adjetivos e sinais corporais".
+- **D&D #3**: `.last-scene-pin` sticky com última narração dobrável.
+  Player decide ação OLHANDO o que DM acabou de descrever.
+- **Mobile #1**: Colapsar `class-features-bar` em chips secundários no
+  target-sheet (ainda restam 2 sistemas de ação em combat).
+- **Mobile #2**: Init ribbon "passou pra você" animado entre turnos.
+- **Mobile #3**: `<audio>` impact.mp3 ≤50KB unlock-on-first-tap (Slay the
+  Spire-style). Fecha 3ª camada tátil do dado.
+
+> Última atualização anterior: 2026-05-29 (Ciclo V — 1 commit infra+fixes, 1794→1802 tests +8)
 
 ### Ciclo V "Infra deploy + tool retry + 4 micro-bugs" — descoberto via diagnóstico (1 commit, +8 tests)
 
