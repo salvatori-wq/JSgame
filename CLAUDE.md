@@ -82,7 +82,56 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo U — 1 commit fix descoberto via playtest, 1770→1794 tests +24)
+> Última atualização: 2026-05-29 (Ciclo V — 1 commit infra+fixes, 1794→1802 tests +8)
+
+### Ciclo V "Infra deploy + tool retry + 4 micro-bugs" — descoberto via diagnóstico (1 commit, +8 tests)
+
+João reportou: "rodamos atualizações e não replicam no jogo". Investigação
+revelou **41 commits no GitHub não deployados em prod** (Render auto-deploy
+parou em 28/05 00:22 BRT). Joao fez redeploy manual; eu fiz fixes pra
+evitar problema voltar + bugs achados no playtest da sessão anterior.
+
+#### V.1 — Infra (`72adbd0`) — CRÍTICO prod
+- V.1.a: `render.yaml` removida `DM_PROVIDER=groq`. Force-Groq sem fallback
+  em prod era causa de travas (Groq 429 = sem narração). Agora prod usa
+  auto-detect cascade igual dev. Adicionadas GEMINI/CEREBRAS/MISTRAL keys
+  como `sync: false` placeholders pra João setar no painel.
+- V.1.b: Express `setHeaders` granular em `static`:
+  - `/assets/*` (hashed): `max-age=31536000, immutable` (1 ano)
+  - `sw.js + index.html + manifest`: `no-cache, must-revalidate` (fresh)
+  - resto (icons): 1h
+  Fecha janela "deploy demora 1h pra aparecer".
+
+#### V.2 — DM tool calls preservadas no retry (CRÍTICO) +3 tests
+Bug descoberto via playtest 2026-05-29 (Lyra mago em cela, click "Atacar"):
+- 1ª chamada LLM: narração="" + toolCalls=[start_combat, suggest_actions]
+- Retry-sem-tools dispara (BUG-001 recovery)
+- 2ª chamada: narração="machado no ar" + toolCalls=[]
+- `response = nova resposta` SUBSTITUI tudo — toolCalls VÁLIDAS perdidas
+- Resultado: DM narra lindo, mas combate NUNCA INICIA. F4 inacessível em
+  ~30% das sessões sob Gemini overload.
+
+Fix `dm.ts:146-180`: snapshot `originalToolCalls` antes do retry; ao
+retornar, se retriedWithoutTools && originalToolCalls.length > 0 → usa
+originais.
+
+#### V.3 — 4 micro-bugs do playtest +5 tests
+- V.3.a: Short rest fórmula "d10++3" → "d10+3" (double plus bug). +4 tests guard.
+- V.3.b: Lobby "Wizard 5 steps" → "Passo a passo (~3 min)". Wizard tem 8 passos pós-F2 + jargão dev.
+- V.3.c: Long rest ritual ignorava `body.force-motion` (toggle Ω.1). Agora `reduced = OS && !forceMotion`. +1 test.
+- V.3.d: Login email submit sem timeout → eterno "⏳ Enviando…". Promise.race timeout 10s + mensagens humanizadas (⏱/📡).
+
+### Aprendizados Ciclo V
+- **Render free pode pausar auto-deploy** silenciosamente. Verificar painel
+  periodicamente OU fazer manual deploy quando algo crítico.
+- **`DM_PROVIDER=groq` em prod** era armadilha — funcionava em dev (cascade
+  auto) mas trava em prod. Sempre testar com mesma config que prod usa.
+- **Cache-Control matters**: 1h em sw.js + index.html = 1h pra deploy aparecer.
+  Granular por path é essencial.
+- **Tool calls + retry**: substituir response inteiro num retry perde dado
+  valioso. Snapshot do que importa antes.
+
+> Última atualização anterior: 2026-05-29 (Ciclo U — 1 commit fix descoberto via playtest, 1770→1794 tests +24)
 
 ### Ciclo U "Tool leak + Echo PT-BR" — fix descoberto via playtest headless (1 commit, +24 tests)
 
