@@ -337,6 +337,38 @@ describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   });
 });
 
+describe('R — ciclo cross-cutting (toast hits + attention + clearance)', () => {
+  const toasts = readCss('toasts.css');
+
+  it('R1 — toast-action-btn min-height 44px (era 32)', () => {
+    expect(toasts).toMatch(/\.toast-action-btn\s*\{[\s\S]*?min-height:\s*44px/);
+  });
+
+  it('R1 — toast-close-btn 36×36 (era 22×22)', () => {
+    expect(toasts).toMatch(/\.toast-close-btn\s*\{[\s\S]*?width:\s*36px/);
+    expect(toasts).toMatch(/\.toast-close-btn\s*\{[\s\S]*?height:\s*36px/);
+  });
+
+  it('R1 — toast-close-btn ganha border-radius 50% (target circular)', () => {
+    expect(toasts).toMatch(/\.toast-close-btn\s*\{[\s\S]*?border-radius:\s*50%/);
+  });
+
+  it('R2 — toast-error com keyframe attention-error one-shot', () => {
+    expect(toasts).toMatch(/\.toast-error\s*\{[\s\S]*?animation:\s*toast-attention-error/);
+    expect(toasts).toMatch(/@keyframes\s+toast-attention-error/);
+  });
+
+  it('R2 — toast-warn com keyframe attention-warn one-shot', () => {
+    expect(toasts).toMatch(/\.toast-warn\s*\{[\s\S]*?animation:\s*toast-attention-warn/);
+    expect(toasts).toMatch(/@keyframes\s+toast-attention-warn/);
+  });
+
+  it('R3 — toast-container mobile usa --m-toast-bottom-offset var', () => {
+    expect(toasts).toMatch(/--m-toast-bottom-offset/);
+    expect(toasts).toMatch(/body\.is-portrait-narrow\s+\.toast-container\s*\{[\s\S]*?bottom:\s*calc\(var\(--m-toast-bottom-offset/);
+  });
+});
+
 describe('Q — ciclo home polish (prefab compact + coop toggle + footer)', () => {
   const home = readCss('home-tavern.css');
 

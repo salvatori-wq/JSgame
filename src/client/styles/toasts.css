@@ -16,10 +16,18 @@
 }
 
 body.is-portrait-narrow .toast-container {
-  bottom: calc(80px + var(--m-safe-bottom, 0px)); /* acima do chat-bar/dock */
+  /* R3 — Clearance pro bottom-tab-bar (56px) + dock variable. Antes era 80
+   * fixo que ainda tampava dock em portrait em algumas situações. Usa
+   * --m-toast-bottom-offset com fallback 120px (56 tab + ~64 dock buffer). */
+  bottom: calc(var(--m-toast-bottom-offset, 120px) + var(--m-safe-bottom, 0px));
   right: 8px;
   left: 8px;
   max-width: none;
+}
+/* Solo (sem coop) chat-bar some — toast pode subir menos */
+body.is-portrait-narrow .camp-screen:not(.is-coop) ~ .toast-container,
+body.is-portrait-narrow .toast-container {
+  --m-toast-bottom-offset: 120px;
 }
 
 .toast {
@@ -82,13 +90,15 @@ body.is-portrait-narrow .toast-container {
 }
 
 .toast-action-btn {
-  min-height: 32px;
-  padding: 4px 10px;
-  background: rgba(244, 208, 127, 0.12);
-  border: 1px solid rgba(244, 208, 127, 0.35);
-  border-radius: 6px;
+  /* R1 — Hit 32→44px (WCAG AAA). Toast actions são decisões críticas
+   * (ex: "💉 Curar PJ caído" + "🎲 Death Save") — não pode errar tap. */
+  min-height: 44px;
+  padding: 8px 14px;
+  background: rgba(244, 208, 127, 0.15);
+  border: 1px solid rgba(244, 208, 127, 0.4);
+  border-radius: 8px;
   color: var(--gold);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 160ms ease, transform 100ms ease;
@@ -103,20 +113,25 @@ body.is-portrait-narrow .toast-container {
 }
 
 .toast-close-btn {
+  /* R1 — Hit 22→36px (compact mas tap-friendly). Não vai pra 44 pra não
+   * dominar visualmente, mas 36 já é hit confortável vs 22px painful. */
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
 }
 
 .toast-close-btn:hover {
   color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* ──────────────── Kind variations ──────────────── */
@@ -124,13 +139,28 @@ body.is-portrait-narrow .toast-container {
 .toast-error {
   border-color: rgba(200, 64, 50, 0.55);
   box-shadow: 0 6px 20px rgba(200, 64, 50, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4);
+  /* R2 — Pulse one-shot ao aparecer: shadow expand pra captar atenção */
+  animation: toast-attention-error 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) 1;
 }
 .toast-error .toast-icon { color: #ff7060; }
 
 .toast-warn {
   border-color: rgba(244, 180, 60, 0.55);
+  /* R2 — Pulse warn mais sutil que error */
+  animation: toast-attention-warn 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) 1;
 }
 .toast-warn .toast-icon { color: #f4b43c; }
+
+@keyframes toast-attention-error {
+  0%   { box-shadow: 0 6px 20px rgba(200, 64, 50, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4); }
+  30%  { box-shadow: 0 6px 28px rgba(200, 64, 50, 0.65), 0 0 0 3px rgba(200, 64, 50, 0.3); }
+  100% { box-shadow: 0 6px 20px rgba(200, 64, 50, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4); }
+}
+@keyframes toast-attention-warn {
+  0%   { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35); }
+  30%  { box-shadow: 0 6px 22px rgba(244, 180, 60, 0.45), 0 0 0 2px rgba(244, 180, 60, 0.25); }
+  100% { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35); }
+}
 
 .toast-info {
   border-color: rgba(120, 180, 220, 0.45);
