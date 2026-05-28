@@ -1,0 +1,206 @@
+/* Sprint Φ.4 — ItemCard visual D&D 5e autêntico.
+ * Cores oficiais DMG p.135 via tokens --dnd-rarity-* (Φ.1). Glow subtle
+ * proporcional à raridade (comum sem glow, lendário com pulsação dourada). */
+
+.ic-card {
+  --rarity-color: var(--dnd-rarity-common);
+  background: linear-gradient(180deg,
+    rgba(20, 12, 10, 0.95) 0%,
+    rgba(28, 18, 14, 0.92) 100%);
+  border: 1px solid color-mix(in srgb, var(--rarity-color) 35%, rgba(212, 168, 87, 0.18));
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+}
+
+/* Fita superior color rarity */
+.ic-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--rarity-color);
+  opacity: 0.85;
+}
+
+/* ─── Rarity → cor (override do --rarity-color) ──────────────────────────── */
+.ic-card.ic-rarity-comum       { --rarity-color: var(--dnd-rarity-common); }
+.ic-card.ic-rarity-incomum     { --rarity-color: var(--dnd-rarity-uncommon); }
+.ic-card.ic-rarity-raro        { --rarity-color: var(--dnd-rarity-rare); }
+.ic-card.ic-rarity-muito-raro  { --rarity-color: var(--dnd-rarity-very-rare); }
+.ic-card.ic-rarity-lendario    { --rarity-color: var(--dnd-rarity-legendary); }
+
+/* ─── Glow proporcional à raridade ───────────────────────────────────────── */
+/* Comum: nenhum glow (item banal) */
+.ic-card.ic-rarity-incomum {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rarity-color) 15%, transparent);
+}
+.ic-card.ic-rarity-raro {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--rarity-color) 25%, transparent);
+}
+.ic-card.ic-rarity-muito-raro {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--rarity-color) 35%, transparent);
+}
+.ic-card.ic-rarity-lendario {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--rarity-color) 45%, transparent);
+  animation: ic-legendary-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes ic-legendary-pulse {
+  0%, 100% { box-shadow: 0 0 14px color-mix(in srgb, var(--rarity-color) 35%, transparent); }
+  50%      { box-shadow: 0 0 24px color-mix(in srgb, var(--rarity-color) 60%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-card.ic-rarity-lendario {
+    animation: none;
+  }
+}
+
+.ic-card.is-equipped {
+  border-color: color-mix(in srgb, var(--rarity-color) 55%, var(--ink-gold));
+}
+
+.ic-card:hover {
+  transform: translateY(-1px);
+}
+
+/* ─── Header row (icon + name + gem) ─────────────────────────────────────── */
+.ic-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ic-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ic-name {
+  flex: 1;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-gold);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.ic-gem {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--rarity-color);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 0 6px color-mix(in srgb, var(--rarity-color) 55%, transparent);
+  flex-shrink: 0;
+}
+
+/* ─── Meta row (rarity · tipo · qty · attune badge) ─────────────────────── */
+.ic-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ic-rarity-label {
+  color: var(--rarity-color);
+  font-weight: 600;
+}
+
+.ic-meta-sep {
+  opacity: 0.55;
+}
+
+.ic-qty {
+  color: var(--ink-warm);
+  font-weight: 600;
+}
+
+/* ─── Attunement badge ───────────────────────────────────────────────────── */
+.ic-attune {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 9px;
+  background: rgba(212, 168, 87, 0.12);
+  color: var(--ink-gold);
+  border: 1px solid rgba(212, 168, 87, 0.35);
+  letter-spacing: 0.04em;
+}
+
+.ic-attune.is-active {
+  background: rgba(212, 168, 87, 0.28);
+  color: #fce5b0;
+  border-color: var(--ink-gold);
+  box-shadow: 0 0 6px rgba(212, 168, 87, 0.4);
+}
+
+/* ─── Description ─────────────────────────────────────────────────────────── */
+.ic-desc {
+  color: var(--ink-warm);
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 2px 0 0;
+}
+
+/* ─── Actions ─────────────────────────────────────────────────────────────── */
+.ic-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* ─── Loot-burst (item recém-recebido) — mantém compat com α.2 ──────────── */
+.ic-card.is-new {
+  animation: ic-loot-burst 700ms ease-out;
+}
+
+@keyframes ic-loot-burst {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+    box-shadow: 0 0 30px var(--rarity-color);
+  }
+  60% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--rarity-color) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-card.is-new {
+    animation: none;
+  }
+}
+
+/* ─── Mobile narrow tweaks ───────────────────────────────────────────────── */
+@media (max-width: 360px) {
+  .ic-card {
+    padding: 8px 10px;
+  }
+  .ic-name {
+    font-size: 13px;
+  }
+}

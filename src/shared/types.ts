@@ -206,6 +206,11 @@ export interface InventoryItem {
   // α.2 — Marker pra UI: item recém-recebido (animação loot-burst só uma vez).
   // Server seta ao criar via give_item; client limpa ao primeiro render.
   isNew?: boolean;
+  // Φ.4 — Magic item requires attunement (DMG p.138). UI mostra badge.
+  // Default false. DM seta via give_item quando aplica.
+  requiresAttunement?: boolean;
+  // Φ.4 — Quando attuned, badge muda pra estado ativado.
+  isAttuned?: boolean;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
