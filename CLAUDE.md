@@ -82,7 +82,113 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-27 (Sprint Ω entregue — 3 commits, 1431→1455 tests +24)
+> Última atualização: 2026-05-28 (Sprint Φ entregue — 6 commits, 1462→1559 tests +97)
+
+### Sprint Φ "Visual Authentic D&D" — entregue (6 commits, +97 tests)
+
+Plano executado a partir de `HANDOFF_2026-05-28_sprint-phi-plano.md`. Análise de 3 repos
+externos guiou decisões — extraído paleta + layout de `rpgtex/DND-5e-LaTeX-Template` (MIT),
+filosofia descartada do `Miserlou/dnd-tldr` (sem dataset estruturado), UX patterns ainda
+não absorvidos do `Anuken/Mindustry`.
+
+#### Φ.1 Design tokens D&D oficial (`213c8b2`) — +12 tests
+- Paleta oficial extraída de `lib/dndcolors.sty`:
+  - --dnd-title-red #58180D (sangue D&D)
+  - --dnd-title-gold #C9AD6A (régua de título)
+  - --dnd-rule-red #9C2B1B (régua triangular)
+  - --dnd-stat-ribbon #E69A28 (fita gold)
+  - --dnd-stat-bg #FDF1DC (fundo tan livro)
+  - --dnd-read-aloud / --dnd-page-gold / --dnd-contour-gray
+- 6 rarities oficiais DMG p.135 (--dnd-rarity-common→artifact)
+- 8 spell schools com cores temáticas (--dnd-school-*)
+- Namespace --dnd-* não regrediu tokens existentes (--ink-*, --accent-blood)
+
+#### Φ.2 StatBlock component (`88aaf2f`) — +29 tests
+- `src/client/components/stat-block.ts` NOVO + `stat-block.css` NOVO
+- StatBlockData interface completa (name/size/type/alignment/AC/HP/Speed/abilities/
+  saves/skills/dmg res/imm/vuln/senses/languages/CR+XP/traits/actions/reactions/legendary)
+- Layout autêntico livro: fundo tan, fitas gold top/bottom, título Cinzel
+  sangue D&D, régua triangular, abilities grid 6-col
+- helpers puros: abilityModifier, formatModifier, crToXp (mapa PHB 30 CRs), sizeLabel PT-BR
+- enemyToStatBlock(EnemySnapshot) — combat enemy detail (info button ℹ no card)
+- npcToStatBlock(NpcMemory) — NPC roster Met (footer "📋 Ficha")
+- `stat-block-modal.ts` NOVO — bottom-sheet mobile / centered desktop, ESC/backdrop/swipe-down
+
+#### Φ.3 SpellCard component (`32cdd4c`) — +22 tests
+- `src/client/components/spell-card.ts` + `spell-card.css` NOVOS
+- Fita superior colorida por escola (8 escolas) via --school-color CSS var
+- School badge com icon emoji + level chip (TRUQUE / Nv X)
+- Stats grid (Alcance / Componentes / Duração)
+- Tags Concentração (roxo) / Ritual (verde)
+- Upcast hint pra spells level ≥1 com upcastDice
+- 2 variants: compact (cast-spell-modal lista) / full (default, pra tooltips/details)
+- helpers: schoolLabel/schoolIcon/schoolToken/parseComponents (V/S/M + material)
+- Integração cast-spell-modal.ts via wrapper local (preserva flow)
+
+#### Φ.4 ItemCard com rarity glow (`f6c4b12`) — +18 tests
+- `src/client/components/item-card.ts` + `item-card.css` NOVOS
+- Glow proporcional à raridade: comum zero / incomum outline / raro 8px / muito-raro 12px
+- Lendário 18px + animação pulse 3.2s (reduced-motion respeitado)
+- Atunement badge: ◇ Sintonia (inactive) / ◈ Sintonizado (gold glow active)
+- Tipos InventoryItem novos: requiresAttunement?, isAttuned?
+- helpers: rarityLabel/rarityToken/typeLabel/iconFor sem default branch
+- Integração inventory-modal.ts: renderItemCard original delega ao componente,
+  mantém classes legacy (inv-item-card/rarity-*)
+- Loot-burst (α.2) preservado e movido pro item-card.css
+
+#### Φ.5 Typography + Microcopy (`de05968`) — +16 tests
+- `index.html`: Google Fonts Cinzel + Cardo via preconnect + display=swap (evita FOIT)
+- `_tokens.css`: --font-body inicia com 'Cardo' (era Cormorant Garamond)
+- stat-block.css usa var(--font-body) (alinhado com convenção do projeto)
+- Validado via preview_eval: Cardo + Cinzel `document.fonts.check()` true,
+  body computed Cardo first, bgColor #FDF1DC exato, nameColor #58180D exato
+- Tests cobrem: Google Fonts presente em index.html, --font-heading começa Cinzel,
+  --font-body começa Cardo, componentes usam vars (não hardcoded)
+
+#### Φ.6 Tests + handoff (`<este commit>`) — sem tests novos
+- Validação visual end-to-end via preview_eval
+- CLAUDE.md atualizado (Sprint Φ Estado Atual)
+- HANDOFF_2026-05-28_sprint-phi-done.md criado
+
+### Arquivos novos Sprint Φ
+**Components:**
+- `src/client/components/stat-block.ts` — renderStatBlock + StatBlockData + enemyToStatBlock + npcToStatBlock
+- `src/client/components/stat-block-modal.ts` — openStatBlockModal (bottom-sheet)
+- `src/client/components/spell-card.ts` — renderSpellCard + schoolLabel/Icon/Token + parseComponents
+- `src/client/components/item-card.ts` — renderItemCard + rarityLabel/Token/typeLabel/iconFor
+
+**Styles:**
+- `src/client/styles/stat-block.css` — fundo tan, fitas gold, regras triangular, modal wrapper
+- `src/client/styles/spell-card.css` — cores 8 escolas via --school-color, compact/full variants
+- `src/client/styles/item-card.css` — rarity glows, atunement badge, loot-burst animation
+
+**Tests:**
+- `src/client/__tests__/dnd-tokens.test.ts` — paleta oficial (12 tests)
+- `src/client/components/__tests__/stat-block.test.ts` — 29 tests
+- `src/client/components/__tests__/spell-card.test.ts` — 22 tests
+- `src/client/components/__tests__/item-card.test.ts` — 18 tests
+- `src/client/__tests__/typography.test.ts` — 16 tests (Google Fonts + tokens + comp delegation)
+
+**Editados:**
+- `src/client/styles/_tokens.css` — adicionado namespace --dnd-* + Cardo no --font-body
+- `index.html` — Google Fonts preconnect + Cinzel+Cardo stylesheet
+- `src/client/campaign/npc-roster-modal.ts` — footer "📋 Ficha" abre StatBlock modal
+- `src/client/combat/combat-screen.ts` — botão ℹ no enemy card abre StatBlock modal
+- `src/client/spells/cast-spell-modal.ts` — delega rendering ao SpellCard component
+- `src/client/inventory/inventory-modal.ts` — delega rendering ao ItemCard component
+- `src/shared/types.ts` — InventoryItem: requiresAttunement?/isAttuned? (Φ.4)
+- `src/client/styles.css` — imports stat-block.css + spell-card.css + item-card.css
+
+### Decisões Sprint Φ confirmadas
+- D1 NÃO absorver `dnd-tldr` (sem dataset estruturado)
+- D2 NÃO modding system Mindustry-style neste sprint (escopo grande)
+- D3 SIM Google Fonts (Cinzel + Cardo) — gratuito, display=swap, fallback robusto
+- D4 Onde usar StatBlock: NPC roster modal + combat enemy detail (info ℹ button)
+- D5 Onde usar SpellCard: cast-spell-modal existente
+- D6 Onde usar ItemCard: inventory-modal existente
+- D7 Rarity glow: SIM, sutil (comum zero, lendário pulse)
+
+> Última atualização anterior: 2026-05-27 (Sprint Ω entregue — 3 commits, 1431→1455 tests +24)
 
 ### Sprint Ω "Polimento Definitivo" — entregue (3 commits, +24 tests)
 
