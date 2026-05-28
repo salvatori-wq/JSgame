@@ -10,6 +10,7 @@ import type {
 import { SPELLS, type SpellId } from '../../dnd/spells';
 import { isSpellcaster } from '../../dnd/spell-slots';
 import { el, escapeHtml, onSwipeDown } from '../util';
+import { renderSpellCard } from '../components/spell-card';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -60,7 +61,7 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
       for (const id of ids) {
         const sp = SPELLS[id];
         const canCast = lvl === 0 || hasSlotFor(caster, lvl);
-        grid.appendChild(renderSpellCard(sp, canCast, () => {
+        grid.appendChild(renderSpellCardLocal(sp, canCast, () => {
           handleSpellSelection(sp, caster, party, combat, socket, () => { closeCastSpellModal(); onClose(); });
         }));
       }
@@ -106,23 +107,10 @@ function renderSlotsRow(caster: CharacterSheet): HTMLElement {
   return row;
 }
 
-function renderSpellCard(sp: typeof SPELLS[SpellId], canCast: boolean, onClick: () => void): HTMLElement {
-  const card = el('div', {
-    class: `cs-spell-card ${!canCast ? 'is-disabled' : ''}`,
-    on: canCast ? { click: onClick } : undefined,
-  }, [
-    el('div', { class: 'csc-head' }, [
-      el('span', { class: 'csc-name', text: sp.name }),
-      el('span', { class: 'csc-meta', text: `${sp.school} · ${sp.castingTime}` }),
-    ]),
-    el('div', { class: 'csc-desc', text: sp.description }),
-    el('div', { class: 'csc-tags' }, [
-      el('span', { class: 'csc-tag', text: sp.range }),
-      sp.concentration ? el('span', { class: 'csc-tag is-conc', text: 'Concentração' }) : null,
-      sp.ritual ? el('span', { class: 'csc-tag is-ritual', text: 'Ritual' }) : null,
-    ].filter(Boolean) as HTMLElement[]),
-  ]);
-  return card;
+// Φ.3 — Wrapper que delega ao componente novo SpellCard.
+// Mantém assinatura antiga pra não exigir alterações no caller (open flow).
+function renderSpellCardLocal(sp: typeof SPELLS[SpellId], canCast: boolean, onClick: () => void): HTMLElement {
+  return renderSpellCard(sp, { compact: true, canCast, onClick });
 }
 
 function hasSlotFor(caster: CharacterSheet, level: number): boolean {
