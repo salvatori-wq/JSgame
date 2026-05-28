@@ -60,6 +60,43 @@
   animation: irb-current-pulse 1.6s ease-in-out infinite;
 }
 
+/* X.B2 — "Passou pra você" transition cinematográfica.
+ * Quando body.is-my-turn vira true AND ribbon detecta nova currentTurnIndex,
+ * o node atual ganha .is-just-arrived → animação 700ms scale + glow ring
+ * expansivo. Sincroniza com toast "▶ Seu turno" do W3.4.
+ * Consultor Mobile: "Genshin/HSR fazem animação de transição entre turnos
+ * — falta a 'passada pro próximo' visceral".
+ */
+.irb-node.is-just-arrived .irb-avatar {
+  animation:
+    irb-current-pulse 1.6s ease-in-out infinite,
+    irb-just-arrived 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.irb-node.is-just-arrived::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 12px;
+  border: 2px solid var(--ink-gold);
+  pointer-events: none;
+  animation: irb-arrived-ring 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 1;
+}
+@keyframes irb-just-arrived {
+  0%   { transform: scale(1.15); }
+  35%  { transform: scale(1.45); filter: brightness(1.3); }
+  100% { transform: scale(1.15); filter: brightness(1); }
+}
+@keyframes irb-arrived-ring {
+  0%   { opacity: 1; transform: scale(0.9); box-shadow: 0 0 0 0 rgba(244, 208, 127, 0.55); }
+  60%  { opacity: 0.8; transform: scale(1.05); box-shadow: 0 0 24px 8px rgba(244, 208, 127, 0.35); }
+  100% { opacity: 0; transform: scale(1.2); box-shadow: 0 0 0 16px rgba(244, 208, 127, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .irb-node.is-just-arrived .irb-avatar { animation: irb-current-pulse 1.6s ease-in-out infinite; }
+  .irb-node.is-just-arrived::before { animation: none; opacity: 0; }
+}
+
 .irb-node.is-down {
   cursor: default;
 }

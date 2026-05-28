@@ -34,9 +34,19 @@ export type AmbientMood =
   | 'shop';
 
 const STORAGE_KEY_AMBIENT = 'jsgame.ambient.enabled';
+// Sprint X.A2 — default ON (era OFF/intrusivo). Consultores D&D + Mobile
+// convergiram em "som diegético = gap #1" pós Sprint W. Ambient procedural
+// já é baixo volume (gain via masterGain 0.35) e respeita scene mood
+// (exploration-calm / combat-skirmish / rest etc). Player que não gostar
+// muta em UX Settings → "🎵 Ambient" toggle. SFX dice + page-turn permanecem
+// independentes (jsgame.sfx.enabled — default ON desde sempre).
 let ambientEnabled = (() => {
-  try { return localStorage.getItem(STORAGE_KEY_AMBIENT) === '1'; } // default OFF (intrusivo)
-  catch { return false; }
+  try {
+    const v = localStorage.getItem(STORAGE_KEY_AMBIENT);
+    if (v === null) return true;  // primeira vez = ON
+    return v !== '0';              // explicit '0' = OFF
+  }
+  catch { return true; }
 })();
 
 export function isAmbientEnabled(): boolean { return ambientEnabled; }

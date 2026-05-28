@@ -21,6 +21,7 @@ import { enemyToStatBlock } from '../components/stat-block';
 import { openStatBlockModal } from '../components/stat-block-modal';
 import { enemyHpAdjective } from './combat-screen-helpers';
 import { hapticTap } from '../haptic';
+import { featuresForClass, type FeatureKey } from '../../dnd/class-features';
 
 export interface CombatTargetSheetOpts {
   enemy: EnemySnapshot;
@@ -31,6 +32,47 @@ export interface CombatTargetSheetOpts {
   onConfirm: (action: CombatActionKind) => void;
   /** Fechou sem confirmar — caller limpa pending state se houver. */
   onCancel?: () => void;
+  /** Sprint X.B1 — Caller dispara useClassFeature ao clicar num chip de feature.
+   * Features que requerem target (bardic-inspiration) são excluídas do sheet
+   * pra evitar nested picker — ficam acessíveis via class-features-bar fallback. */
+  onUseFeature?: (key: FeatureKey) => void;
+}
+
+/**
+ * X.B1 — Features que aparecem como chip no target-sheet (não precisam picker
+ * de target). Bardic-inspiration EXCLUÍDA pra evitar nested picker — fica na
+ * class-features-bar fallback. Exportado pra tests.
+ */
+export const TARGET_SHEET_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>([
+  'rage', 'action-surge', 'second-wind', 'channel-divinity', 'ki', 'wild-shape',
+]);
+
+interface FeatureChipData {
+  key: FeatureKey;
+  icon: string;
+  label: string;
+  usesLabel: string;
+}
+
+/**
+ * X.B1 — Computa chips de features applicable pro turno atual.
+ * Pula features exhausted (used >= max) e bardic-inspiration (precisa target).
+ * Exportado pra tests.
+ */
+export function buildTargetSheetFeatureChips(myChar: CharacterSheet): FeatureChipData[] {
+  const all = featuresForClass(myChar.classId, myChar.level);
+  const chips: FeatureChipData[] = [];
+  for (const def of all) {
+    if (!TARGET_SHEET_FEATURES.has(def.key)) continue;
+    const slot = myChar.classFeatureUses?.[def.key];
+    const max = slot?.max ?? 0;
+    const used = slot?.used ?? 0;
+    const remaining = Math.max(0, max - used);
+    if (remaining <= 0 && max > 0) continue; // exhausted
+    const usesLabel = max === 999 ? '∞' : `${remaining}/${max}`;
+    chips.push({ key: def.key, icon: def.icon, label: def.label, usesLabel });
+  }
+  return chips;
 }
 
 let currentEl: HTMLDivElement | null = null;
@@ -88,6 +130,44 @@ export function openCombatTargetSheet(opts: CombatTargetSheetOpts): void {
     ]),
   ]);
   sheet.appendChild(primaryBtn);
+
+  // Sprint X.B1 — Class feature chips secundários (rage, action-surge, second-wind etc).
+  // Mostra SÓ features applicable (remaining > 0) e que não exigem target.
+  // Mobile consultor: "colapsar class-features-bar em chips secundários no target-sheet
+  // pra chegar em 1 superfície de decisão". cb-actions-grid + features-bar do
+  // combat-screen permanecem como fallback opt-in.
+  const featureChips = buildTargetSheetFeatureChips(opts.myChar);
+  if (featureChips.length > 0 && opts.onUseFeature) {
+    const useFeature = opts.onUseFeature;
+    const featuresRow = el('div', {
+      class: 'cts-features-row',
+      attrs: { role: 'group', 'aria-label': 'Habilidades de classe disponíveis' },
+    });
+    featuresRow.appendChild(el('div', { class: 'cts-features-label', text: '✦ Habilidades' }));
+    const chipsWrap = el('div', { class: 'cts-features-chips' });
+    for (const chip of featureChips) {
+      const chipKey = chip.key;
+      chipsWrap.appendChild(el('button', {
+        class: 'cts-feature-chip',
+        attrs: {
+          type: 'button',
+          title: `${chip.label} — ${chip.usesLabel} usos`,
+        },
+        on: {
+          click: () => {
+            closeCombatTargetSheet();
+            useFeature(chipKey);
+          },
+        },
+      }, [
+        el('span', { class: 'cts-feature-icon', text: chip.icon, attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'cts-feature-label', text: chip.label }),
+        el('span', { class: 'cts-feature-uses', text: chip.usesLabel }),
+      ]));
+    }
+    featuresRow.appendChild(chipsWrap);
+    sheet.appendChild(featuresRow);
+  }
 
   // Footer — info + cancel
   sheet.appendChild(el('div', { class: 'cts-footer' }, [

@@ -163,10 +163,19 @@ export function playDiceRolling(): void {
   }
 }
 
-/** Dice land — thud baixo quando o dado para (180Hz sawtooth + noise). */
+/** Dice land — Sprint X.A1: 3 camadas simultâneas pra "Slay the Spire mobile-feel".
+ * Sub-bass thud (60Hz) + mid impact (180→60Hz sawtooth) + high crack (4kHz noise burst).
+ * Total ~250ms. Consultor convergente: dice precisa fechar 3ª camada tátil
+ * (haptic + visual já fechados em W1, faltava audio com peso real). */
 export function playDiceLand(): void {
-  tone({ freq: 180, freqEnd: 60, duration: 0.18, type: 'sawtooth', gain: 0.45 });
-  noise({ duration: 0.05, gain: 0.2, bandpass: { freq: 400, q: 1.5 } });
+  // Layer 1: sub-bass thud — pressão grave no impacto (60Hz fundo sine)
+  tone({ freq: 60, freqEnd: 35, duration: 0.22, type: 'sine', gain: 0.5 });
+  // Layer 2: mid impact — "tac" sawtooth descendente (mantém base γ.1)
+  tone({ freq: 180, freqEnd: 60, duration: 0.18, type: 'sawtooth', gain: 0.42 });
+  // Layer 3: high crack — noise burst agudo (madeira/osso batendo)
+  noise({ duration: 0.06, gain: 0.22, bandpass: { freq: 4000, q: 6 } });
+  // Layer 4 (existente): noise baixo pra textura
+  noise({ duration: 0.05, gain: 0.18, bandpass: { freq: 400, q: 1.5 }, delay: 0.01 });
 }
 
 /** Dice crit ting — chime ascendente triplo (separado de playCrit que é combat-only). */
@@ -223,6 +232,21 @@ export function playLevelUp(): void {
 export function playNpcSpeaks(): void {
   tone({ freq: 660, duration: 0.18, type: 'triangle', gain: 0.25 });
   tone({ freq: 880, duration: 0.18, type: 'triangle', gain: 0.2, delay: 0.06 });
+}
+
+/** Sprint X.A3 — Page-turn SFX no read-aloud (Mestre narração nova).
+ * Brushed noise rápido com bandpass alto (~3-5kHz) emula página de livro virando.
+ * Volume baixo (gain 0.18) — NÃO compete com TTS ou leitura. Duração ~240ms.
+ * Consultor D&D: "ambient + page-turn = ritual de mesa real, dado e leitura
+ * fluem juntos". Disparado em NarrationLog.appendNarration quando speaker
+ * é Mestre. Reduced-motion → caller skip. */
+export function playPageTurn(): void {
+  // Brushed noise inicial (parte alta da página deslizando)
+  noise({ duration: 0.12, gain: 0.18, bandpass: { freq: 4200, q: 2 } });
+  // Segunda camada um pouco mais baixa (peso do papel)
+  noise({ duration: 0.18, gain: 0.14, bandpass: { freq: 2400, q: 2.5 }, delay: 0.04 });
+  // Tail rápida (página assentando)
+  noise({ duration: 0.06, gain: 0.10, bandpass: { freq: 1200, q: 1.5 }, delay: 0.18 });
 }
 
 /** Damage taken (player) — bass thud + leve distorção. */

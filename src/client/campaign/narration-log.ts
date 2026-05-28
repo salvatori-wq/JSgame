@@ -14,6 +14,7 @@
 
 import { el, escapeHtml, renderNarrationText } from '../util';
 import { isVoiceTtsEnabled, speak as ttsSpeak } from '../voice-tts';
+import { playPageTurn } from '../audio';
 import { pickRandomTip, getThinkingPhase } from './thinking-tips';
 import { detectChipIcon } from './chip-icon-detector';
 
@@ -88,6 +89,17 @@ export class NarrationLog {
   private lastErrorEntryEl: HTMLElement | null = null;
   // α.1 — Container persistente dos chips de sugestão (sempre ÚLTIMO no log).
   private chipsEl: HTMLElement | null = null;
+  // Sprint X.B3 — Last scene pin: barra sticky no topo com última narração de
+  // Mestre. Player decide ação olhando o que DM acabou de descrever sem
+  // precisar scrollar log longo. Consultor D&D: "PHB tem boxed text que fica
+  // VISÍVEL durante decisão". Pin é dobrável (collapsed → preview / expanded
+  // → texto completo). Atualizado SÓ por narração do Mestre não-echo.
+  private scenePinEl: HTMLElement | null = null;
+  private scenePinPreviewEl: HTMLElement | null = null;
+  private scenePinFullEl: HTMLElement | null = null;
+  private scenePinExpanded = false;
+  private lastSceneText: string | null = null;
+  private lastSceneSpeaker: string | null = null;
   // W2.1 — Drop-cap inteligente: ajuste consultor Mobile. SEMPRE drop-cap em
   // log longo vira ruído visual. Drop-cap aparece SÓ nas primeiras 3 narrações
   // da cena E na 1ª após location change (cria "começo de capítulo" dramático
@@ -123,6 +135,7 @@ export class NarrationLog {
       },
     }) as HTMLButtonElement;
 
+    // X.B3 — Scene pin sticky no topo (criado lazy quando 1ª narração de Mestre chega)
     this.rootEl.appendChild(this.entriesEl);
     this.rootEl.appendChild(this.badgeEl);
 
@@ -253,8 +266,76 @@ export class NarrationLog {
       this.startTypewriter(entry, entryEl);
     }
 
+    // Sprint X.A3 — Page-turn SFX só quando narração nova de Mestre chega
+    // (não em restoreEntries, não em rejoin, não em party-message). Respeita
+    // reduced-motion. Volume já baixo (0.18) — não compete com TTS/narração.
+    if (isMasterNarration && !prefersReducedMotion()) {
+      try { playPageTurn(); } catch { /* silent */ }
+    }
+
+    // X.B3 — Atualiza scene pin com última narração de Mestre (não echo).
+    if (isMasterNarration) {
+      this.updateScenePin(payload.speaker, payload.text);
+    }
+
     this.afterAppend(entryEl);
   }
+
+  /**
+   * X.B3 — Cria (lazy) ou atualiza o pin sticky com a última narração de
+   * Mestre. Pin sempre RENDERIZADO ANTES de entriesEl no rootEl, com
+   * `position: sticky; top: 0`. Preserva estado expandido entre updates.
+   */
+  private updateScenePin(speaker: string, text: string): void {
+    this.lastSceneText = text;
+    this.lastSceneSpeaker = speaker;
+
+    if (!this.scenePinEl) {
+      // Cria estrutura inicial
+      this.scenePinEl = el('div', {
+        class: 'cn-scene-pin',
+        attrs: { 'aria-label': 'Última cena descrita pelo Mestre' },
+      });
+      const head = el('button', {
+        class: 'cn-scene-pin-head',
+        attrs: { type: 'button', 'aria-expanded': 'false' },
+        on: { click: () => this.toggleScenePin() },
+      }, [
+        el('span', { class: 'cn-scene-pin-glyph', text: '📜', attrs: { 'aria-hidden': 'true' } }),
+        el('span', { class: 'cn-scene-pin-title', text: 'Última cena' }),
+        el('span', { class: 'cn-scene-pin-toggle', text: '▾', attrs: { 'aria-hidden': 'true' } }),
+      ]);
+      const preview = el('div', { class: 'cn-scene-pin-preview' });
+      const full = el('div', { class: 'cn-scene-pin-full' });
+      this.scenePinEl.appendChild(head);
+      this.scenePinEl.appendChild(preview);
+      this.scenePinEl.appendChild(full);
+      this.scenePinPreviewEl = preview;
+      this.scenePinFullEl = full;
+      // Inserir ANTES de entriesEl pra ficar sticky no topo do rootEl
+      this.rootEl.insertBefore(this.scenePinEl, this.entriesEl);
+    }
+    if (this.scenePinPreviewEl) {
+      this.scenePinPreviewEl.textContent = previewText(text);
+    }
+    if (this.scenePinFullEl) {
+      this.scenePinFullEl.textContent = text;
+    }
+  }
+
+  private toggleScenePin(): void {
+    if (!this.scenePinEl) return;
+    this.scenePinExpanded = !this.scenePinExpanded;
+    this.scenePinEl.classList.toggle('is-expanded', this.scenePinExpanded);
+    const head = this.scenePinEl.querySelector('.cn-scene-pin-head');
+    head?.setAttribute('aria-expanded', String(this.scenePinExpanded));
+    const toggle = this.scenePinEl.querySelector('.cn-scene-pin-toggle');
+    if (toggle) toggle.textContent = this.scenePinExpanded ? '▴' : '▾';
+  }
+
+  /** X.B3 — Test helper: retorna o texto da última cena pinned (ou null). */
+  getLastSceneText(): string | null { return this.lastSceneText; }
+  getLastSceneSpeaker(): string | null { return this.lastSceneSpeaker; }
 
   /**
    * POLISH γ.4 — Adiciona narração degradada (DM tentou mas falhou) com error
@@ -801,6 +882,18 @@ export class NarrationLog {
 // ════════════════════════════════════════════════════════════════════════════
 // Pure helpers (testable sem JSDOM)
 // ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * X.B3 — Trunca texto pra preview do scene-pin (~120 chars + ellipsis).
+ * Quebra em palavra completa pra ficar legível. Exportado pra tests.
+ */
+export function previewText(text: string, maxChars = 120): string {
+  if (text.length <= maxChars) return text;
+  const cut = text.slice(0, maxChars);
+  const lastSpace = cut.lastIndexOf(' ');
+  const base = lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return base.trimEnd() + '…';
+}
 
 /**
  * Heurística pra detectar se uma narração veio do fallback degradado do server.

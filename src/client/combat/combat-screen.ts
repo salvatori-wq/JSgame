@@ -190,6 +190,12 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
             onConfirm: (action) => {
               socket.emit('combatAction', { action, targetId: enemyForClosure.id });
             },
+            // Sprint X.B1 — Chip de feature dispara useClassFeature direto.
+            // Features que precisam target (bardic-inspiration) caem na
+            // class-features-bar fallback (não aparecem aqui).
+            onUseFeature: (key) => {
+              socket.emit('useClassFeature', { feature: key });
+            },
           });
         }, 200);
       }, isMyTurn(combat, myCharacterId)));

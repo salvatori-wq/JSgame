@@ -379,6 +379,79 @@
   animation: narr-fade-in 0.4s ease-out;
 }
 
+/* X.B3 — Sprint X: Scene pin sticky topo do narration-log.
+ * Última narração do Mestre visível enquanto player decide ação. Consultor
+ * D&D: "PHB tem boxed text que fica VISÍVEL durante decisão. Player decide
+ * OLHANDO o que DM acabou de descrever, não rolando o log".
+ * Click no head → expande/colapsa (preview ↔ full).
+ */
+.cn-scene-pin {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 8px;
+  background: linear-gradient(180deg, rgba(38, 28, 14, 0.96) 0%, rgba(28, 18, 8, 0.94) 100%);
+  border: 1px solid rgba(244, 208, 127, 0.28);
+  border-left: 3px solid var(--ink-gold);
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: narr-fade-in 0.3s ease-out;
+}
+.cn-scene-pin-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(244, 208, 127, 0.85);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+.cn-scene-pin-glyph {
+  font-size: 16px;
+  filter: drop-shadow(0 0 4px rgba(244, 208, 127, 0.4));
+}
+.cn-scene-pin-title {
+  flex: 1 1 auto;
+  text-align: left;
+}
+.cn-scene-pin-toggle {
+  font-size: 14px;
+  color: rgba(244, 208, 127, 0.6);
+}
+.cn-scene-pin-preview {
+  padding: 0 14px 10px;
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.5;
+  color: rgba(232, 220, 196, 0.92);
+}
+.cn-scene-pin-full {
+  display: none;
+  padding: 0 14px 12px;
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-warm);
+  border-top: 1px solid rgba(244, 208, 127, 0.15);
+  margin-top: 4px;
+  padding-top: 10px;
+}
+.cn-scene-pin.is-expanded .cn-scene-pin-preview { display: none; }
+.cn-scene-pin.is-expanded .cn-scene-pin-full { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .cn-scene-pin { animation: none; }
+}
+
 /* W2.1 — Sprint W: READ-ALOUD BOX (estilo PHB) pras narrações de Mestre.
  * Consultor D&D: "PHB usa caixa cinza/cream destacada — narração do DM não
  * pode ser igual a chat". Aplicado SÓ a .is-narration NÃO-roll-echo.

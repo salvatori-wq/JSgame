@@ -14,16 +14,33 @@ export interface InitiativeRibbonContext {
   myCharacterId: string;
 }
 
+// Sprint X.B2 — Tracker module-level pra detectar transição currentTurnIndex
+// → meu turno. Combinado com lastMyTurnState do combat-screen, sincroniza a
+// animação "passou pra você" no node atual com o toast "▶ Seu turno".
+// Reset quando combat ativo termina.
+let lastRibbonTurnIndex = -1;
+let lastRibbonCombatRound = -1;
+
 /**
  * Renderiza ribbon de initiative em formato timeline.
  * Estados especiais:
  *  - current: scale + glow pulsante dourado
  *  - me: border dourado fixo
  *  - downed: grayscale + skull 💀 overlay
+ *  - just-arrived (X.B2): pulse cinematográfico 600ms ao virar meu turno
  */
 export function renderInitiativeRibbon(ctx: InitiativeRibbonContext): HTMLElement {
   const { combat, party, myCharacterId } = ctx;
   const root = el('div', { class: 'init-ribbon', attrs: { role: 'list', 'aria-label': 'Ordem de iniciativa' } });
+
+  // X.B2 — Detecta TRANSIÇÃO de turno PRA mim. Quando true, aplica
+  // .irb-just-arrived no node atual = keyframe cinematográfico.
+  const newCurrent = combat.initiativeOrder[combat.currentTurnIndex];
+  const isMyTurnArrival =
+    !!newCurrent && newCurrent.kind === 'player' && newCurrent.id === myCharacterId &&
+    (lastRibbonTurnIndex !== combat.currentTurnIndex || lastRibbonCombatRound !== combat.round);
+  lastRibbonTurnIndex = combat.currentTurnIndex;
+  lastRibbonCombatRound = combat.round;
 
   // Estado: qual avatar está expandido (id ou null)
   let expandedId: string | null = null;
@@ -39,7 +56,9 @@ export function renderInitiativeRibbon(ctx: InitiativeRibbonContext): HTMLElemen
       const isCurrent = idx === combat.currentTurnIndex;
       const isMe = p.kind === 'player' && p.id === myCharacterId;
       const downed = isDowned(p, combat, party);
-      const cls = `irb-node ${isCurrent ? 'is-current' : ''} ${isMe ? 'is-me' : ''} ${downed ? 'is-down' : ''} irb-${p.kind}`;
+      // X.B2 — Marca o NODE ATUAL como just-arrived quando a transição é PRA mim
+      const justArrived = isCurrent && isMyTurnArrival;
+      const cls = `irb-node ${isCurrent ? 'is-current' : ''} ${isMe ? 'is-me' : ''} ${downed ? 'is-down' : ''} ${justArrived ? 'is-just-arrived' : ''} irb-${p.kind}`;
 
       let avatar: HTMLElement;
       if (p.kind === 'player') {
