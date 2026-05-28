@@ -1336,13 +1336,31 @@ body.is-portrait-narrow .wlp-stats { flex-wrap: wrap; }
    Hoje wp-label já oculta (só número visível); aqui só refina padding/size. */
 body.is-portrait-narrow .wiz-progress {
   gap: 4px;
+  /* S1.3 — 8 steps comprimidos em 375px viewport (cada cabe ~36px) ficavam adjacentes
+   * demais — polegar tocava 2 steps. Agora: horizontal scroll com snap, cada step
+   * tem min-width fixo, e a row inteira é scrollável. Resto do header mantém. */
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  justify-content: flex-start;
+  scrollbar-width: none;
+  padding-bottom: 2px;
 }
+body.is-portrait-narrow .wiz-progress::-webkit-scrollbar { display: none; }
 body.is-portrait-narrow .wp-step {
   /* Sub-sprint A (Tiago/Beatriz) — hit 32→40 mobile (mantém label hidden em portrait
-   * narrow pra caber 8 steps em 375px viewport) */
+   * narrow pra caber 8 steps em 375px viewport).
+   * S1.3 — flex:1 viraria espremido + min-width fixo dá respiração ao toque + scroll. */
+  flex: 0 0 auto;
+  min-width: 44px;
   padding: 8px 2px;
   font-size: 10px;
   min-height: 40px;
+  scroll-snap-align: start;
+}
+body.is-portrait-narrow .wp-step.is-current {
+  /* Garante que o step atual fica visível quando o usuário avança */
+  scroll-snap-align: center;
 }
 body.is-portrait-narrow .wp-num {
   font-size: 14px;

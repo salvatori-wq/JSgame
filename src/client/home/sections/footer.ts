@@ -27,11 +27,14 @@ function renderTabLink(icon: string, label: string, onClick: () => void, title?:
 // Round 2 fix (Beatriz/Henrique) — labels reescritas:
 // "Entrar" no footer também → "Login" (mesmo motivo do header).
 // "Tela" → "Ajustes" (vago "TELA" → "AJUSTES" é nome real do que abre: UX settings).
+// S1.1 (Henrique) — Footer "🔑 Login" virou "💾 Salvar" pra casar com identity bar
+// (Q3). Antes: identity bar dizia "Salvar" e footer dizia "Login" na MESMA tela —
+// 2 nomes pra mesma ação confundia. Logado: footer mostra 👤 Perfil normal.
 export function renderHomeFooter(opts: HomeFooterOpts): HTMLElement {
   return el('footer', { class: 'home-footer', attrs: { 'aria-label': 'Navegação principal' } }, [
     opts.currentUser
       ? renderTabLink('👤', 'Perfil', opts.onProfileClick, opts.currentUser.email)
-      : renderTabLink('🔑', 'Login', opts.onLoginClick, 'Login / criar conta'),
+      : renderTabLink('💾', 'Salvar', opts.onLoginClick, 'Salvar progresso entre dispositivos (opcional)'),
     renderTabLink('📖', 'Glossário', () => openGlossaryModal(), 'Termos D&D pt-BR'),
     renderTabLink('⚙', 'Ajustes', () => openUxSettingsModal(), 'Densidade · fonte · animações'),
   ]);

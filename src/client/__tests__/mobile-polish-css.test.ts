@@ -540,3 +540,26 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
     expect(core).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\[data-drop-cap='sm'\]\s+\.cnn-text::first-letter\s*\{[^}]*font-size:\s*28px/);
   });
 });
+
+describe('S1 — Ciclo S round 1 (crítico)', () => {
+  const wiz = readCss('wizard.css');
+
+  it('S1.3 — wiz-progress vira horizontal scroll-snap em portrait-narrow', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress\s*\{[\s\S]*?overflow-x:\s*auto/);
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress\s*\{[\s\S]*?scroll-snap-type:\s*x\s+mandatory/);
+  });
+
+  it('S1.3 — wp-step mobile ganha flex:0 0 auto + min-width:44 (cabe scroll)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wp-step\s*\{[\s\S]*?flex:\s*0\s+0\s+auto/);
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wp-step\s*\{[\s\S]*?min-width:\s*44px/);
+  });
+
+  it('S1.3 — wp-step.is-current ganha scroll-snap-align:center (centraliza atual)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wp-step\.is-current\s*\{[^}]*scroll-snap-align:\s*center/);
+  });
+
+  it('S1.3 — scrollbar hidden no wiz-progress mobile (clean look)', () => {
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress\s*\{[\s\S]*?scrollbar-width:\s*none/);
+    expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress::-webkit-scrollbar\s*\{\s*display:\s*none/);
+  });
+});

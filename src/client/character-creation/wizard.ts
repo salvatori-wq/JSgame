@@ -109,6 +109,14 @@ export class CharacterWizard {
       stepArea,
     ]);
     this.container.appendChild(root);
+
+    // S1.3 — Em portrait-narrow .wiz-progress é horizontal-scroll. Garante que
+    // o step atual fica visível quando o usuário avança/volta. inline:'center' +
+    // block:'nearest' evita scroll vertical inesperado da página.
+    const current = root.querySelector('.wp-step.is-current') as HTMLElement | null;
+    if (current && document.body.classList.contains('is-portrait-narrow')) {
+      current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
   }
 
   private renderHeader(): HTMLElement {

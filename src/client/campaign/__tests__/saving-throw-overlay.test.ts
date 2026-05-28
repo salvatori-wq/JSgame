@@ -116,4 +116,26 @@ describe('renderSavingThrowFormula η.6', () => {
     const mod = el.querySelector('.sfb-mod');
     expect(mod?.textContent).toBe('-1');
   });
+
+  it('S1.4 — header diz "Save de SAB" (era "Save SAB", alinha com glossary PT-BR)', () => {
+    const el = renderSavingThrowFormula({
+      character: makeChar(),
+      ability: 'sab', dc: 14, reason: '',
+      onRoll: () => {},
+    });
+    const title = el.querySelector('.sfb-title');
+    expect(title?.textContent).toBe('Save de SAB');
+  });
+
+  it('S1.4 — tutorial não-proficiente usa "atributo" (era "ability")', () => {
+    const el = renderSavingThrowFormula({
+      character: makeChar(),
+      ability: 'for', // não proficiente
+      dc: 14, reason: '',
+      onRoll: () => {},
+    });
+    const tut = el.querySelector('.sfb-tutorial');
+    expect(tut?.textContent).toContain('atributo');
+    expect(tut?.textContent).not.toContain('ability');
+  });
 });

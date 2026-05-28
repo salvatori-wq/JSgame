@@ -43,11 +43,16 @@ export function renderPlayNow(opts: PlayNowOpts): HTMLElement {
   }
   section.appendChild(grid);
 
-  // Link discreto pro wizard (D3 — power user descobre mas não polui home)
+  // Link discreto pro wizard (D3 — power user descobre mas não polui home).
+  // S1.2 (Henrique) — "Wizard" era jargão dev (família pensava "preciso ser bruxo?").
+  // Substituído por "modo detalhado" + title explicando passos + tempo estimado.
   section.appendChild(el('button', {
     class: 'home-wizard-link',
-    text: '✎ Criar PJ do zero (Wizard avançado)',
-    attrs: { type: 'button' },
+    text: '✎ Criar PJ no detalhe',
+    attrs: {
+      type: 'button',
+      title: 'Escolhe raça, classe, atributos e perícias passo a passo (~3 min)',
+    },
     on: {
       click: () => {
         if (!getOwnerName().trim()) {

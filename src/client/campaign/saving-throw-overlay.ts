@@ -30,10 +30,11 @@ export function renderSavingThrowFormula(ctx: SavingThrowFormulaContext): HTMLEl
 
   const root = el('div', { class: 'save-formula-banner', attrs: { role: 'region', 'aria-label': 'Teste de Resistência' } });
 
-  // Header
+  // Header — S1.4: "Save SAB" → "Save de SAB" alinha com tutorial body
+  // (line 73-74) e com glossary "Save Throw" PT-BR. Mais conversacional.
   root.appendChild(el('div', { class: 'sfb-header' }, [
     el('span', { class: 'sfb-icon', text: '🛡' }),
-    el('span', { class: 'sfb-title', text: `Save ${ABILITY_SHORT[ability]}` }),
+    el('span', { class: 'sfb-title', text: `Save de ${ABILITY_SHORT[ability]}` }),
     el('span', { class: 'sfb-dc', text: `DC ${dc}` }),
   ]));
 
@@ -70,8 +71,8 @@ export function renderSavingThrowFormula(ctx: SavingThrowFormulaContext): HTMLEl
       el('span', { class: 'sfb-tip-icon', text: '💡' }),
       el('span', {
         text: proficient
-          ? `Save de ${ABILITY_SHORT[ability]} é uma habilidade sua — soma mod (${formatModifier(abMod)}) + bônus de proficiência (+${pb}) por ser proficiente.`
-          : `Save de ${ABILITY_SHORT[ability]} usa o mod do atributo (${formatModifier(abMod)}). Você não é proficiente em saves dessa ability.`,
+          ? `Save de ${ABILITY_SHORT[ability]} é uma habilidade sua — soma o modificador (${formatModifier(abMod)}) + bônus de proficiência (+${pb}) por ser proficiente.`
+          : `Save de ${ABILITY_SHORT[ability]} usa o modificador do atributo (${formatModifier(abMod)}). Você não é proficiente em saves desse atributo.`,
       }),
     ]));
     try { localStorage.setItem(TUTORIAL_FLAG, '1'); } catch { /* ignore */ }

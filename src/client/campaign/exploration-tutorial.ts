@@ -39,36 +39,41 @@ interface Card {
   text: string;
 }
 
-const CARDS: Card[] = [
+// S1.5 — Reescrita PT-BR família (Henrique): "skill check" → "teste de perícia",
+// "overlay" → "tela do d20", "pivota" → "vira", "memória RAG" → "memória do
+// Mestre", "party" → "amigos" (mantém "party" quando termo do jogo é claro).
+// Mariana mantém precisão (Nat 20 / Nat 1 são termos D&D conhecidos).
+// Exportado pra tests; consumido localmente como EXPLORATION_TUTORIAL_CARDS.
+export const EXPLORATION_TUTORIAL_CARDS: Card[] = [
   {
     icon: '🎲',
     title: 'O Mestre é uma IA',
-    text: 'Tudo que aparece em "Mestre" é gerado por IA D&D 5e. Pede skill check quando há incerteza. Pivota pra combate quando você diz "atacar". Tem persona — pode ser sombrio, épico, cômico, noir ou pulp (escolha no lobby).',
+    text: 'Tudo em "Mestre" é gerado por IA seguindo D&D 5e. Ele pede testes quando há incerteza, vira combate quando você diz "atacar", e tem uma persona — sombrio, épico, cômico, noir ou pulp (escolhe no lobby).',
   },
   {
     icon: '▶',
-    title: 'Ações de Exploração',
-    text: 'Os botões abaixo do log (explorar / falar / procurar / atacar / descansar / etc) são sugestões rápidas. Você pode misturar: "atacar" abre combate. "falar" + nome de NPC abre interação.',
+    title: 'Ações rápidas',
+    text: 'Os botões abaixo da história (explorar / falar / procurar / atacar / descansar) são atalhos. Você pode misturar: "atacar" começa combate, "falar [NPC]" abre conversa.',
   },
   {
     icon: '✍',
     title: 'Ação livre por texto',
-    text: 'Quer fazer algo único? Digite no campo "Ou digite uma ação livre" (ex: "subo na árvore pra ver longe", "tento abrir a porta com gancho"). O Mestre interpreta e pede skill check se precisar.',
+    text: 'Quer fazer algo único? Digite no campo "Ou digite uma ação livre" (ex: "subo na árvore pra ver longe", "tento abrir a porta com gancho"). O Mestre interpreta e pede teste se for o caso.',
   },
   {
     icon: '🎯',
-    title: 'Skill checks',
-    text: 'Quando o Mestre pede teste de perícia, aparece overlay com d20. Você rola, ele narra a consequência. Nat 20 = info bônus. Nat 1 = complicação extra (não só falha — algo pior).',
+    title: 'Testes de perícia',
+    text: 'Quando o Mestre pede um teste, aparece a tela do d20. Você rola e ele narra o resultado. Tirou 20 natural? Sucesso épico + bônus. Tirou 1 natural? Não é só falha — algo pior acontece.',
   },
   {
     icon: '💬',
-    title: 'Chat livre com a party',
-    text: 'No coop, há campo "Falar pra party (Enter pra enviar)" — chat lateral pra coordenar fora da narrativa. Aparece em todos os players da sessão.',
+    title: 'Chat com seus amigos',
+    text: 'No coop, há um campo "Falar pra party (Enter pra enviar)" — chat à parte pra combinar coisas fora da história. Todos os amigos da sessão veem.',
   },
   {
     icon: '🧠',
     title: 'O mundo lembra',
-    text: 'Cada NPC, local e promessa fica na memória RAG da campanha. Sessão 2+ começa com recap automático dos eventos importantes. O Mestre não inventa NPCs novos quando já conhece um — usa os existentes.',
+    text: 'Cada NPC, lugar e promessa fica na memória do Mestre. Da sessão 2 em diante, ele começa recapitulando o importante e usa os NPCs que já conhece — não inventa novos do nada.',
   },
 ];
 
@@ -86,8 +91,8 @@ export function openExplorationTutorial(): void {
 
   const renderCard = (): void => {
     modal.innerHTML = '';
-    const c = CARDS[currentIdx]!;
-    modal.appendChild(el('div', { class: 'ct-progress', text: `${currentIdx + 1} / ${CARDS.length}` }));
+    const c = EXPLORATION_TUTORIAL_CARDS[currentIdx]!;
+    modal.appendChild(el('div', { class: 'ct-progress', text: `${currentIdx + 1} / ${EXPLORATION_TUTORIAL_CARDS.length}` }));
     modal.appendChild(el('div', { class: 'ct-icon', text: c.icon }));
     modal.appendChild(el('h2', { class: 'ct-title', text: c.title }));
     modal.appendChild(el('p', { class: 'ct-text', text: c.text }));
@@ -100,7 +105,7 @@ export function openExplorationTutorial(): void {
         on: { click: () => { currentIdx--; renderCard(); } },
       }));
     }
-    if (currentIdx < CARDS.length - 1) {
+    if (currentIdx < EXPLORATION_TUTORIAL_CARDS.length - 1) {
       nav.appendChild(el('button', {
         class: 'ct-btn ct-btn-next',
         text: 'Próximo →',
@@ -131,7 +136,7 @@ export function openExplorationTutorial(): void {
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') close();
-    if (e.key === 'ArrowRight' && currentIdx < CARDS.length - 1) { currentIdx++; renderCard(); }
+    if (e.key === 'ArrowRight' && currentIdx < EXPLORATION_TUTORIAL_CARDS.length - 1) { currentIdx++; renderCard(); }
     if (e.key === 'ArrowLeft' && currentIdx > 0) { currentIdx--; renderCard(); }
   };
   document.addEventListener('keydown', onKey);
