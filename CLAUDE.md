@@ -82,7 +82,68 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo O "Combat + Coop + Economy" — 1 commit, 1657→1676 tests +19)
+> Última atualização: 2026-05-29 (Ciclos P + Q + R — 3 commits, 1676→1702 tests +26)
+
+### Ciclos P, Q, R "Modais + Home + Cross-cutting" — entregues (3 commits, +26 tests)
+
+3 ciclos seguidos pós-Ciclo O. Cobertura ampliada: P modais centrais (spell/inv),
+Q home (prefab compact + coop toggle + Salvar label + footer), R cross-cutting
+(toast hits + attention pulse + clearance bottom-tab).
+
+#### Ciclo P — Modais (`d69bbcf`) — +13 tests
+- P1: Inventory acessorio com requiresAttunement ganha badge ✨ Sintonizado /
+  ◇ Pede pra sintonizar (com tooltip didático). Anel raro não fica mais inerte.
+- P2: SpellCard compact ganha `.sc-cta-btn` visível "🪄 Castar" (gold gradient)
+  ou "— Sem slot —" (italic dim). Affordance clara.
+- P3: cs-modal-slot is-empty ganha line-through + italic + cor fade; disponível
+  ganha box-shadow violet glow. Distinção visual gasto/disponível.
+- P4: cs-modal-empty estruturado: icon 44px + title + sub italic + CTA "🏕
+  Descansar 8h" (emit longRest direto). Fecha loop sem fechar modal.
+- P5: inv-empty estruturado: icon 44 + title "Bolsa vazia" + sub didática.
+
+#### Ciclo Q — Home polish (`1958757`) — +7 tests
+- Q1: home-prefab-teaser hidden em portrait-narrow (3 cards 136 → ~100px,
+  section play-now 506 → ~380px). Label + archetype mantém.
+- Q2: home-coop-input.is-hidden por default (max-height 0). Click no btn
+  "🔗 Entrar na Sala" expande input + foca; 2° click submete; Enter submete.
+- Q3: Identity "Login" → "💾 Salvar" (Henrique família — Login confundia
+  com cadastro obrigatório). Title atualizado.
+- Q4: home-footer hit 50→48px + icon 24→22 + label 11→10 (compact alinhado
+  com bottom-tab-bar). Footer total 73 → ~62px.
+
+#### Ciclo R — Cross-cutting (`5e44cc3`) — +6 tests
+- R1: toast-action-btn min-height 32 → 44px (WCAG AAA); toast-close-btn
+  22×22 → 36×36 + border-radius 50% + bg hover (target circular claro).
+- R2: toast-error / toast-warn ganham keyframe one-shot pulse 0.9s ao
+  aparecer (shadow expand + ring). Captura olho sem intrusão.
+- R3: --m-toast-bottom-offset var (120px = 56 tab + 64 buffer dock) +
+  safe-bottom. Toast nunca tampa bottom-tab-bar.
+
+### Arquivos novos/editados Ciclos P+Q+R
+**Novos:**
+- `src/client/components/__tests__/spell-card-cta.test.ts` — 5 tests CTA
+- `HANDOFF_2026-05-29_ciclos-PQR-modais-home-cross-cutting-done.md`
+
+**Editados (P):**
+- `src/client/components/spell-card.ts` — CTA visível compact variant
+- `src/client/spells/cast-spell-modal.ts` — empty state CTA descanso
+- `src/client/inventory/inventory-modal.ts` — acessorio attunement badge + empty estruturado
+- `src/client/styles/spell-card.css` — sc-cta-btn castable/no-slot
+- `src/client/styles/modals.css` — slot visual + empty estrutura + inv-attuned/needs
+
+**Editados (Q):**
+- `src/client/home/sections/coop.ts` — input is-hidden toggle
+- `src/client/home/sections/identity-bar.ts` — "💾 Salvar" label
+- `src/client/styles/home-tavern.css` — prefab teaser hidden + coop input transition + footer compact
+- `src/client/home/__tests__/identity-bar.test.ts` — assert "Salvar"
+
+**Editados (R):**
+- `src/client/styles/toasts.css` — action-btn 44 + close-btn 36 + attention keyframes + clearance var
+
+**Cross:**
+- `src/client/__tests__/mobile-polish-css.test.ts` — +21 CSS snapshot guards (8 P + 7 Q + 6 R)
+
+### Ciclo O "Combat + Coop + Economy" — entregue (1 commit, 1657→1676 tests +19)
 
 ### Ciclo O "Combat + Coop + Economy" — entregue (1 commit, +19 tests)
 
