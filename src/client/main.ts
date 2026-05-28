@@ -25,6 +25,7 @@ import { initA11yEnhancements, initEscapeKeyHandler, initGlobalErrorBoundary } f
 import { installConnectionStatusBanner } from './connection-status';
 import { initUxPrefs } from './ux-prefs';
 import { mountHomeScreen } from './home/home-screen';
+import { initInstallBanner } from './install-banner';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app não existe no DOM');
@@ -61,6 +62,11 @@ initGlobalErrorBoundary();
 
 // ο.8 — UX Preferences: load + apply ANTES de qualquer render pra evitar FOUC.
 initUxPrefs();
+
+// Ω.7 — PWA install banner: aparece em mobile browser (não standalone).
+// João pediu "toda vez que entramos no jogo pelo celular sem ser pelo app".
+// Dismiss válido só por sessão (sessionStorage) — banner reaparece na próxima visita.
+initInstallBanner();
 
 // === Service Worker (PWA — só em prod, evita conflito com HMR do Vite) ===
 // Ω.3 — Detecção de update: se SW novo virar waiting, força skipWaiting + recarrega
