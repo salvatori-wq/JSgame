@@ -82,7 +82,61 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-28 (3 rounds polish audit equipe — 3 commits, 1559 tests mantido)
+> Última atualização: 2026-05-28 (Sub-sprints A/B/C próximos passos — 3 commits, 1559→1576 tests +17)
+
+### Próximos passos da equipe (A/B/C) — entregue (3 commits, +17 tests)
+
+Continuação dos 3 rounds polish do audit das 4 personas. Foco nos 4 próximos
+passos sugeridos: wizard, combat-screen mobile, coop errors, cold-open.
+Agrupados em A/B/C com 4 personas reutilizadas.
+
+#### A — Wizard polish (`30bcaa0`)
+- Hit targets: cancel btn 16→44, randomizar 36→44, wp-step mobile 32→40
+- Label step 7 "Nv 4" → "Talento" (Henrique entende, Mariana sabe a regra ASI/Feat)
+- Step Atributos intro denso → lead + 3 bullets visuais (◆) explicativos
+- 8 progress steps com tooltip + aria-label completos (Beatriz/a11y)
+- Race cards: "⊳ 30 ft" → "⊳ 9m" PT-BR + tooltip "(1 quadrado = 1.5m)"
+
+#### B — Combat mobile (`66dd5dd`)
+- cb-action-btn min-height: 50px garantido
+- "Atacar" .is-primary com border dourado + glow sutil sangue (90%+ turnos)
+- "Disparada" → "Disparar" em 4 arquivos (PHB PT-BR consistente)
+- Glossary Movimento: "30ft" → "9m / 30ft" (métrica primeiro)
+- Hints didáticos reescritos pra dar contexto mecânico claro
+
+#### C — Coop errors + cold-open dramático (`203e583`) — +17 tests
+- `src/client/humanize-error.ts` NOVO — traduz erros técnicos do servidor
+  em mensagens family-friendly (9 padrões cobertos: timeout/provider-fail/
+  network/500/503/not-your-turn/SQLITE_BUSY/lobby-closed/lobby-full)
+- Wire em campaign-screen onError: toastError(humanizeServerError(msg))
+- Heurística fallback esconde stacktrace + prefixa "🌙 " pra tom narrativo
+- NarrationLog: primeira narração ganha `.is-first-narration` + keyframe
+  `narr-first-reveal` 1.4s dramático com glow dourado (cold-open = moment of truth)
+- prefers-reduced-motion: cai pra narr-fade-in 400ms normal
+- +14 tests humanize-error + 3 tests first-narration class
+
+### Arquivos editados Sub-sprints A/B/C
+**Novos:**
+- `src/client/humanize-error.ts` — 9 patterns + heurística fallback
+- `src/client/__tests__/humanize-error.test.ts` — 14 tests
+- `HANDOFF_2026-05-28_proximos-passos-equipe.md`
+
+**Editados:**
+- `src/client/character-creation/wizard.ts` — labels + stepHints + aria-label
+- `src/client/character-creation/step-abilities.ts` — intro reorganizado
+- `src/client/character-creation/step-race.ts` — ft→m + tooltips
+- `src/client/styles/wizard.css` — hit targets + intro-rules CSS
+- `src/client/combat/combat-screen.ts` — is-primary + hints + Disparar
+- `src/client/combat/combat-tutorial.ts` — Disparar (era Disparada)
+- `src/client/campaign/action-dock-topics.ts` — Disparar (era Disparada)
+- `src/dnd/glossary.ts` — "9m / 30ft" + Disparar
+- `src/client/styles/combat.css` — is-primary visual + min-height
+- `src/client/campaign/narration-log.ts` — is-first-narration class
+- `src/client/styles/campaign-core.css` — narr-first-reveal keyframe
+- `src/client/campaign/campaign-screen.ts` — humanizeServerError wire
+- `src/client/campaign/__tests__/narration-log.test.ts` — 3 tests + happy-dom env
+
+> Última atualização anterior: 2026-05-28 (3 rounds polish audit equipe — 3 commits, 1559 tests mantido)
 
 ### Polish "Audit 4 Personas" — entregue (3 commits, 0 net tests, zero regressão)
 
