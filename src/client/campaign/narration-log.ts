@@ -15,6 +15,7 @@
 import { el, escapeHtml, renderNarrationText } from '../util';
 import { isVoiceTtsEnabled, speak as ttsSpeak } from '../voice-tts';
 import { pickRandomTip, getThinkingPhase } from './thinking-tips';
+import { detectChipIcon } from './chip-icon-detector';
 
 export interface NarrationEntry {
   id: string;
@@ -473,15 +474,19 @@ export class NarrationLog {
       // Sub-sprint D1 — chips com hint = ação com skill check (rolará dado).
       // Marca .is-skill pra ganhar destaque visual (border dourado + 🎲 prefix).
       const isSkill = !!chip.hint;
+      // M2.1 — Chips não-skill ganham emoji prefix detectado pelo verbo inicial
+      // (🗣 falar, 🚶 seguir, ⚔ atacar, etc). Skill chips mantêm 🎲 — não acumula.
+      const actionIcon = isSkill ? null : detectChipIcon(chip.label);
       const tooltipBase = chip.hint
         ? `🎲 Rola ${chip.hint} (d20 + bônus)`
         : chip.label;
       const btn = el('button', {
-        class: `cn-chip${chip.variant === 'combat' ? ' is-combat' : ''}${isSkill ? ' is-skill' : ''}`,
+        class: `cn-chip${chip.variant === 'combat' ? ' is-combat' : ''}${isSkill ? ' is-skill' : ''}${actionIcon ? ' has-action-icon' : ''}`,
         attrs: { type: 'button', title: tooltipBase, 'aria-label': tooltipBase },
         on: { click: () => chip.onClick() },
       }, [
         isSkill ? el('span', { class: 'cn-chip-dice', text: '🎲', attrs: { 'aria-hidden': 'true' } }) : null,
+        actionIcon ? el('span', { class: 'cn-chip-action-icon', text: actionIcon, attrs: { 'aria-hidden': 'true' } }) : null,
         el('span', { class: 'cn-chip-label', text: chip.label }),
         chip.hint ? el('span', { class: 'cn-chip-hint', text: chip.hint }) : null,
       ].filter(Boolean) as HTMLElement[]);
@@ -551,8 +556,15 @@ export class NarrationLog {
   // ════════════════════════════════════════════════════════════════════════
 
   private buildEntryEl(entry: NarrationEntry, extraClass: string): HTMLElement {
+    // M2.3 — Echo de roll ("🎲 Borin: percepcao DC 12 → SUCESSO") + save echo
+    // ("🛡 Borin: save DEX...") vem do server como speaker iniciando com 🎲 ou 🛡.
+    // Detecta + aplica .is-roll-echo pra estilo cinza/menor que diferencia
+    // do corpo narrado pelo Mestre (visual claro: "isso é mecânica, não cena").
+    const isRollEcho = entry.kind === 'narration'
+      && (entry.speaker.startsWith('🎲 ') || entry.speaker.startsWith('🛡 ') || entry.speaker.startsWith('🚶 '));
+    const echoClass = isRollEcho ? ' is-roll-echo' : '';
     const entryEl = el('div', {
-      class: `camp-narr-entry ${extraClass}`,
+      class: `camp-narr-entry ${extraClass}${echoClass}`,
       attrs: { 'data-id': entry.id, 'data-kind': entry.kind },
     });
     // QW-2: renderNarrationText escapa HTML ANTES de aplicar markdown leve.

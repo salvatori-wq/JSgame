@@ -153,3 +153,52 @@ describe('NarrationLog — is-first-narration (DOM)', async () => {
     log.destroy();
   });
 });
+
+// M2.3 — Echo do roll/save/skip ganha class .is-roll-echo pra styling distinto.
+describe('NarrationLog — M2.3 is-roll-echo', async () => {
+  if (typeof document === 'undefined') {
+    it.skip('skip — não tem DOM', () => {});
+    return;
+  }
+  const { NarrationLog } = await import('../narration-log');
+
+  it('echo de skill-check ("🎲 Borin: ...") ganha .is-roll-echo', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🎲 Borin Forjarocha', text: 'percepcao (DC 12): rolou 15 → SUCESSO' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo')).toBe(true);
+    log.destroy();
+  });
+
+  it('echo de save ("🛡 Borin: ...") ganha .is-roll-echo', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🛡 Borin Forjarocha', text: 'Save DEX (DC 13): rolou 18 → SUCESSO' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo')).toBe(true);
+    log.destroy();
+  });
+
+  it('echo de skip ("🚶 Borin: ...") ganha .is-roll-echo', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🚶 Borin Forjarocha', text: 'pula o teste e segue em frente' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo')).toBe(true);
+    log.destroy();
+  });
+
+  it('narração normal do Mestre NÃO ganha .is-roll-echo', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'A chuva fina cai sobre a estrada.' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo')).toBe(false);
+    log.destroy();
+  });
+
+  it('NPC speaker ("Borin" sem prefix de dado) NÃO ganha .is-roll-echo', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Forjarocha', text: 'Quem vem lá?' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo')).toBe(false);
+    log.destroy();
+  });
+});

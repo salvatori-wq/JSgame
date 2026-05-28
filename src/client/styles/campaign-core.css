@@ -297,6 +297,20 @@
   }
 }
 
+/* M2.1 — Ícone de ação (🗣 / 🚶 / ⚔ / 🔮 etc) detectado pelo verbo inicial.
+ * Aplicado SÓ em chips não-skill. Tamanho menor que o 🎲 das skill chips
+ * (12 vs 16) e sem animação pra não competir com o dado dourado.
+ * Drop-shadow leve pra contrast em hover. */
+.cn-chip-action-icon {
+  font-size: 13px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  opacity: 0.88;
+}
+.cn-chip.has-action-icon:hover .cn-chip-action-icon {
+  opacity: 1;
+}
+
 /* Badge "Percepção" agora pill dourada destacada, não italic pequeno */
 .cn-chip.is-skill .cn-chip-hint {
   background: linear-gradient(135deg, var(--ink-gold), #b48d49);
@@ -383,6 +397,38 @@
   font-size: 15px;
   line-height: 1.5;
   color: var(--ink-warm);
+}
+
+/* M2.3 — Echo do roll ("🎲 Borin: percepcao DC 12 → SUCESSO") + save echo
+ * ("🛡 Borin: save DEX...") + skip echo ("🚶 Borin: pula o teste").
+ * Estilo diferenciado: cinza menor + mono + linha discreta — mostra
+ * claramente "isso é mecânica do dado, não narração do Mestre". Mantém
+ * acessibilidade (cor ainda legível) mas sem competir visualmente com a
+ * cena narrada. Border-left some — não usa o sangue+rune visual. */
+.camp-narr-entry.is-roll-echo {
+  background: rgba(20, 12, 8, 0.32);
+  border-left-color: rgba(160, 130, 70, 0.35);
+  border-left-width: 2px;
+  padding: 4px 12px 4px 10px;
+  margin: 2px 0;
+  opacity: 0.78;
+}
+.camp-narr-entry.is-roll-echo .cnn-speaker {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgba(212, 168, 87, 0.55);
+  margin-bottom: 1px;
+}
+.camp-narr-entry.is-roll-echo .cnn-text {
+  font-family: 'Cardo', Georgia, serif;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-mute, #867758);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.camp-narr-entry.is-roll-echo:hover {
+  opacity: 1;
 }
 
 .camp-narr-thinking {
@@ -1007,28 +1053,78 @@ body.is-portrait-narrow .camp-action-btn {
   min-height: var(--m-hit-comfortable, 44px);
 }
 
-/* MP2 — Skill-check overlay com m-stack vertical, dado proeminente */
+/* MP2 — Skill-check overlay com m-stack vertical, dado proeminente.
+ * M2.2 — Layout 2-col em portrait-narrow:
+ *   ┌─────────────────────┐
+ *   │ Label       ┌─────┐ │
+ *   │ Sub italic  │ d20 │ │  ← info esquerda, dado direita
+ *   │             │ DC  │ │
+ *   ├─────────────┴─────┤
+ *   │ [tutorial inline] │  ← full-width abaixo
+ *   │ verdict           │
+ *   │ 🎲 Rolar          │
+ *   │ Pular este teste  │
+ *   └─────────────────────┘
+ * Reduz altura total ~25% em mobile — texto sub não esmaga mais. */
 body.is-portrait-narrow .sc-stage {
   min-width: 280px;
   padding: 20px 18px;
   width: 100%;
   max-width: 100vw;
   box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 14px;
+  row-gap: 10px;
+  text-align: left;
 }
+body.is-portrait-narrow .sc-label {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: left;
+}
+body.is-portrait-narrow .sc-sub {
+  grid-column: 1;
+  grid-row: 2;
+  text-align: left;
+  margin: 0;
+}
+/* sc-row contém chip-attr + dado + chip-dc — em portrait-narrow vira coluna
+ * vertical à direita, ocupando 2 rows do grid pra centralizar com label/sub.
+ * Override padding-top: 50px do dice.css (era buffer pra drop-in landscape),
+ * em column layout o dado cai DO TOPO do grid pai naturalmente. */
 body.is-portrait-narrow .sc-row {
-  flex-wrap: wrap;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-top: 20px; /* curto buffer pra drop-in --die-drop-y: -60px */
+  align-self: center;
   justify-content: center;
-  gap: 10px;
 }
 body.is-portrait-narrow .sc-die {
   width: 72px;
   height: 72px;
   font-size: 30px;
 }
+/* Tutorial + verdict + botões: full-width abaixo (col 1 / -1) */
+body.is-portrait-narrow .sc-tutorial,
+body.is-portrait-narrow .sc-verdict,
+body.is-portrait-narrow .sc-roll-btn,
+body.is-portrait-narrow .sc-skip-btn {
+  grid-column: 1 / -1;
+}
 body.is-portrait-narrow .sc-roll-btn {
   min-height: var(--m-hit-comfortable, 44px);
   width: 100%;
   max-width: 280px;
+  margin: 4px auto 0;
+  justify-self: center;
+}
+body.is-portrait-narrow .sc-skip-btn {
+  justify-self: center;
+  min-height: 36px;
 }
 
 /* FIX coop-3 — Chat bar player→party (só aparece se party.length > 1) */
