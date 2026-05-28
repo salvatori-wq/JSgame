@@ -120,8 +120,22 @@ export class CharacterWizard {
       abilities: 'Atributos',
       background: 'Antecedente',
       personality: 'Personalidade',
-      level4: 'Nv 4',
+      // Sub-sprint A (Henrique) — "Nv 4" → "Talento" (mais auto-explicativo pra
+      // novatos). Mariana sabe que é a escolha ASI/Feat de nível 4 PHB.
+      level4: 'Talento',
       review: 'Revisão',
+    };
+    // Sub-sprint A (Beatriz) — tooltip explicativo em cada step pro user saber
+    // o que esperar antes de chegar.
+    const stepHints: Record<WizardStep, string> = {
+      race: 'Escolha a raça do herói (bônus de atributo + traços)',
+      class: 'Escolha a classe (combate, magia, perícias)',
+      subclass: 'Especialização da classe (no nível 1 ou 3)',
+      abilities: 'Distribua 27 pontos entre os 6 atributos',
+      background: 'Origem do herói (perícias + idiomas + idéia)',
+      personality: 'Traços, ideais, vínculos e fraquezas (opcional)',
+      level4: 'Escolha pré-planejada pro nível 4 (atributo +2 ou Talento)',
+      review: 'Confira tudo e dê nome ao herói',
     };
 
     return el('header', { class: 'wiz-header' }, [
@@ -165,7 +179,14 @@ export class CharacterWizard {
           const isClickable = isDone;  // só permite voltar pra steps já feitos
           return el('button', {
             class: `wp-step ${isCurrent ? 'is-current' : ''} ${isDone ? 'is-done' : ''}`,
-            attrs: { type: 'button', disabled: !isClickable && !isCurrent },
+            attrs: {
+              type: 'button',
+              disabled: !isClickable && !isCurrent,
+              // Sub-sprint A (Beatriz) — tooltip + aria-label dão contexto
+              // mesmo quando label visual oculto em portrait-narrow.
+              title: `${i + 1}. ${stepLabels[s]} — ${stepHints[s]}`,
+              'aria-label': `Passo ${i + 1} de ${STEP_ORDER.length}: ${stepLabels[s]} — ${stepHints[s]}`,
+            },
             on: isClickable ? { click: () => { this.state.step = s; this.render(); } } : {},
           }, [
             el('span', { class: 'wp-num', text: String(i + 1) }),

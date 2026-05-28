@@ -76,8 +76,8 @@ function renderRaceCard(
     <div class="wc-bonus">${bonusEntries}</div>
     <div class="wc-desc">${escapeHtml(race.description)}</div>
     <div class="wc-meta">
-      <span class="wc-meta-item">⊳ ${race.speed} ft</span>
-      ${race.darkvision ? `<span class="wc-meta-item">👁 ${race.darkvision} ft</span>` : ''}
+      <span class="wc-meta-item" title="Deslocamento por turno (1 quadrado = 1.5m)">⊳ ${Math.round(race.speed * 0.3)}m</span>
+      ${race.darkvision ? `<span class="wc-meta-item" title="Visão no escuro">👁 ${Math.round(race.darkvision * 0.3)}m</span>` : ''}
       <span class="wc-meta-item">${race.size === 'pequeno' ? 'Pequeno' : 'Médio'}</span>
     </div>
     <ul class="wc-traits">

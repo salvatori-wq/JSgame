@@ -17,7 +17,16 @@ export function renderAbilitiesStep(
 ): HTMLElement {
   const container = el('div', { class: 'wiz-step wiz-step-abilities' });
   container.appendChild(el('h2', { class: 'wiz-h2', text: 'Distribua seus Atributos' }));
-  container.appendChild(el('p', { class: 'wiz-intro', text: `Você tem ${POINT_BUY_BUDGET} pontos pra distribuir. Cada atributo começa em 8 (custa 0). Subir até 13 custa 1pt por nível. De 14-15 custa 2pts por nível.` }));
+  // Sub-sprint A (Mariana/Henrique) — intro reorganizado em bullets visuais.
+  // Mariana ganha precisão técnica (custos PHB); Henrique ganha dica do randomizar.
+  container.appendChild(el('div', { class: 'wiz-intro' }, [
+    el('p', { class: 'ab-intro-lead', text: `Compre seus ${POINT_BUY_BUDGET} pontos (regra "Point Buy" do PHB):` }),
+    el('ul', { class: 'ab-intro-rules' }, [
+      el('li', { text: 'Cada atributo começa em 8 (grátis). Limite: 15 antes dos bônus raciais.' }),
+      el('li', { text: 'Score 9–13 → 1pt por ponto. Score 14–15 → 2pts por ponto.' }),
+      el('li', { text: 'Sem pressa? Use 🎲 Randomizar tudo no topo pra começar logo.' }),
+    ]),
+  ]));
 
   // Re-render quando ability score muda
   const renderScores = (): HTMLElement => {

@@ -24,8 +24,9 @@
 /* POLISH α.3 — Botão randomizar tudo no header do wizard */
 .wiz-randomize { align-self: flex-end; margin-top: -28px; }
 .wiz-randomize-btn {
-  padding: 6px 14px;
-  min-height: 36px;
+  /* Sub-sprint A (Tiago) — hit 36→44 (WCAG AAA polegar) */
+  padding: 10px 14px;
+  min-height: 44px;
   background: linear-gradient(180deg, rgba(80, 60, 30, 0.7), rgba(50, 36, 18, 0.7));
   border: 1px solid var(--accent-rune);
   border-radius: var(--r-full);
@@ -42,11 +43,14 @@
 }
 
 .wiz-back-btn {
+  /* Sub-sprint A (Tiago) — texto era 16px alt, agora wrapper com hit 44px */
   background: none;
   border: none;
   color: var(--ink-mute);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
+  padding: 10px 12px;
+  min-height: 44px;
   cursor: pointer;
 }
 
@@ -140,6 +144,38 @@
   color: var(--ink-warm);
   max-width: 640px;
   margin: 0 auto;
+}
+
+/* Sub-sprint A (Mariana/Henrique) — intro estruturado pro step atributos:
+ * lead + regras em bullets visuais. Tipo "tutorial inline" sem ser pesado. */
+.ab-intro-lead {
+  font-style: normal;
+  margin: 0 0 8px;
+  color: var(--ink-gold);
+  font-weight: 600;
+}
+.ab-intro-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  display: inline-block;
+  font-style: normal;
+}
+.ab-intro-rules li {
+  padding: 4px 0 4px 18px;
+  position: relative;
+  font-size: 13px;
+  color: var(--ink-warm);
+  line-height: 1.4;
+}
+.ab-intro-rules li::before {
+  content: '◆';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  color: var(--accent-rune);
+  font-size: 10px;
 }
 
 .wiz-grid {
@@ -1302,9 +1338,11 @@ body.is-portrait-narrow .wiz-progress {
   gap: 4px;
 }
 body.is-portrait-narrow .wp-step {
+  /* Sub-sprint A (Tiago/Beatriz) — hit 32→40 mobile (mantém label hidden em portrait
+   * narrow pra caber 8 steps em 375px viewport) */
   padding: 8px 2px;
   font-size: 10px;
-  min-height: 32px;
+  min-height: 40px;
 }
 body.is-portrait-narrow .wp-num {
   font-size: 14px;
