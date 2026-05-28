@@ -83,8 +83,12 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
     for (const t of topics) {
       if (!t.visible) continue;
       const isActive = dockState.currentTopic === t.id;
+      // O1.1 — Topics com 1 sub-ação só → click direct-action (sem drill).
+      // Casos típicos: "Combate" fora-de-combate (só "Atacar"), "Social"
+      // (só "Falar"). Drill com 1 botão é overhead inútil.
+      const directAction = directActionFor(t.id, ctx);
       cardsRow.appendChild(el('button', {
-        class: `adt-card ${isActive ? 'is-active' : ''}`,
+        class: `adt-card ${isActive ? 'is-active' : ''}${directAction ? ' is-direct' : ''}`,
         attrs: { type: 'button', title: t.label, 'aria-pressed': String(isActive) },
         on: {
           click: () => {
@@ -97,6 +101,11 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
             // Sub-sprint D2 — 'dice' (Tentar algo) abre picker direto, sem drill
             if (t.id === 'dice') {
               ctx.onRollDice?.();
+              return;
+            }
+            // O1.1 — Direct-action: dispara ação sem abrir drill
+            if (directAction) {
+              directAction();
               return;
             }
             dockState.currentTopic = isActive ? null : t.id;
@@ -199,6 +208,24 @@ function subActionsFor(topic: TopicId, ctx: ActionDockContext): SubAction[] {
     return combatSubActions(topic, ctx);
   }
   return explorationSubActions(topic, ctx);
+}
+
+/**
+ * O1.1 — Topics com EXATAMENTE 1 sub-ação devolvem o handler dela direto.
+ * Caller usa pra evitar drill com 1 botão (UI overhead inútil). Quando há
+ * 2+ sub-actions OU 0, devolve null (drill normal ou ignora).
+ *
+ * Exclui 'more' (sempre múltiplo), 'magic' (drill mostra apenas 1 mas é
+ * cast-spell complexo via modal), 'custom' (já tem fast-path), 'dice'
+ * (já tem fast-path).
+ */
+export function directActionFor(topic: TopicId, ctx: ActionDockContext): (() => void) | null {
+  if (topic === 'custom' || topic === 'dice' || topic === 'more' || topic === 'magic') return null;
+  const subs = subActionsFor(topic, ctx);
+  if (subs.length !== 1) return null;
+  const sub = subs[0]!;
+  if (sub.disabled) return null;
+  return () => sub.onClick();
 }
 
 function explorationSubActions(topic: TopicId, ctx: ActionDockContext): SubAction[] {

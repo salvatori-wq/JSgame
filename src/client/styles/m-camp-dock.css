@@ -64,6 +64,44 @@ body.is-portrait-narrow .ch-slot-party.is-solo {
   padding: 4px var(--m-padding-screen);
 }
 
+/* O2.2 — Em coop (2+ PJs) mobile, party vira scroll-x horizontal com snap.
+ * Cada PJ vira card 200px wide em vez de empilhar vertical (que squeezia
+ * 3 PJs em 179px = só 1.5 visíveis). Cards menores mas TODOS legíveis.
+ * Solo mantém vertical full (já tem .is-solo override acima). */
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop::-webkit-scrollbar {
+  display: none;
+}
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj {
+  flex: 0 0 auto;
+  width: 200px;
+  scroll-snap-align: start;
+  padding: 6px 8px;
+}
+/* "Você" sempre PRIMEIRO + ligeiramente maior pra destacar */
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj.is-me {
+  width: 220px;
+  order: -1;
+}
+/* Compacta meta em coop pra caber */
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj-meta {
+  font-size: 9px;
+}
+body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj-name {
+  font-size: 12px;
+}
+
 /* DEATH BANNER — sticky logo abaixo do header, drama máximo */
 body.is-portrait-narrow .ch-slot-death-banner {
   flex-shrink: 0;

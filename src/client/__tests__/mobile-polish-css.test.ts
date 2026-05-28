@@ -337,6 +337,55 @@ describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   });
 });
 
+describe('O1/O2/O3 — ciclo 5 (combat hit + party coop + economy gasto)', () => {
+  const combat = readCss('combat.css');
+  const party = readCss('campaign-party.css');
+  const dock = readCss('m-camp-dock.css');
+
+  it('O1.2 — cb-tab-btn min-height 44px em portrait-narrow', () => {
+    expect(combat).toMatch(/body\.is-portrait-narrow\s+\.cb-tab-btn\s*\{[^}]*min-height:\s*44px/);
+  });
+
+  it('O1.3 — cdb-roll-btn min-height 48px + animação urgency', () => {
+    expect(party).toMatch(/\.cdb-roll-btn\s*\{[^}]*min-height:\s*48px/);
+    expect(party).toMatch(/@keyframes\s+cdb-roll-urgency/);
+    expect(party).toMatch(/\.cdb-roll-btn\s*\{[^}]*animation:\s*cdb-roll-urgency/);
+  });
+
+  it('O1.3 — reduced-motion override pra cdb-roll-btn urgency', () => {
+    expect(party).toMatch(/prefers-reduced-motion[^}]+\.cdb-roll-btn/);
+  });
+
+  it('O2.2 — cp-list.is-coop vira flex horizontal scroll-x em mobile', () => {
+    expect(dock).toMatch(/\.cp-list\.is-coop\s*\{[^}]*display:\s*flex/);
+    expect(dock).toMatch(/\.cp-list\.is-coop\s*\{[^}]*flex-direction:\s*row/);
+    expect(dock).toMatch(/\.cp-list\.is-coop\s*\{[^}]*scroll-snap-type:\s*x\s+mandatory/);
+  });
+
+  it('O2.2 — cp-pj em coop ganha width 200px + scroll-snap-align', () => {
+    expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\s*\{[^}]*width:\s*200px/);
+    expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\s*\{[^}]*scroll-snap-align:\s*start/);
+  });
+
+  it('O2.2 — cp-pj.is-me em coop ganha order -1 (sempre primeiro)', () => {
+    expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\.is-me\s*\{[^}]*order:\s*-1/);
+  });
+
+  it('O3.1 — cb-eco-slot.is-avail ganha box-shadow gold sutil', () => {
+    expect(combat).toMatch(/\.cb-eco-slot\.is-avail\s*\{[\s\S]*?box-shadow:[^;]*rgba\(244,\s*208,\s*127/);
+  });
+
+  it('O3.1 — cb-eco-slot.is-used ganha grayscale filter + bg escurecido', () => {
+    expect(combat).toMatch(/\.cb-eco-slot\.is-used\s*\{[\s\S]*?filter:\s*grayscale/);
+  });
+
+  it('O3.2 — cb-tab-badge pill dourada com font-size 10 + min-width 18', () => {
+    expect(combat).toMatch(/\.cb-tab-badge\s*\{[\s\S]*?min-width:\s*18px/);
+    expect(combat).toMatch(/\.cb-tab-badge\s*\{[\s\S]*?font-size:\s*10px/);
+    expect(combat).toMatch(/\.cb-tab-badge\s*\{[\s\S]*?background:\s*linear-gradient[^;]*--ink-gold/);
+  });
+});
+
 describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => {
   const core = readCss('campaign-core.css');
   const ribbon = readCss('status-ribbon.css');

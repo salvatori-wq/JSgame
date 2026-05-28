@@ -61,13 +61,15 @@ describe('renderActionDockTopics — exploration', () => {
   });
 
   it('re-click em topic fecha drill', () => {
+    // O1.1 — "Social" agora é direct-action (só "Falar") não abre drill.
+    // Usa "Explorar" (4 sub-actions) pra testar toggle drill.
     const el = renderActionDockTopics(baseCtx());
-    const findSocial = () => Array.from(el.querySelectorAll('.adt-card'))
-      .find((c) => c.textContent?.includes('Social')) as HTMLButtonElement;
-    findSocial().click();
+    const findExplorar = () => Array.from(el.querySelectorAll('.adt-card'))
+      .find((c) => c.textContent?.includes('Explorar')) as HTMLButtonElement;
+    findExplorar().click();
     expect(el.querySelector('.adt-drill-panel')).toBeTruthy();
     // após rerender DOM foi recriado, re-pegar referência
-    findSocial().click();
+    findExplorar().click();
     expect(el.querySelector('.adt-drill-panel')).toBeNull();
   });
 

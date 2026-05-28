@@ -49,25 +49,33 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   const root = el('section', { class: 'combat-screen', attrs: { 'data-active-tab': activeTab } });
 
   // C1 — Tab strip (mobile only via CSS; desktop hide via .cb-tabs { display: none })
+  // O3.2 — Counts extraídos pra .cb-tab-badge dourado destacado (não inline)
+  const enemyCount = combat.enemies.filter((e) => e.currentHp > 0).length;
+  const logCount = combatLog.length;
   const tabStrip = el('div', { class: 'cb-tabs' }, [
     el('button', {
       class: `cb-tab-btn ${activeTab === 'enemies' ? 'is-active' : ''}`,
-      text: `⚔ Inimigos (${combat.enemies.filter((e) => e.currentHp > 0).length})`,
       attrs: { type: 'button', 'data-tab': 'enemies' },
       on: { click: () => setActiveTab('enemies') },
-    }),
+    }, [
+      el('span', { class: 'cb-tab-label', text: '⚔ Inimigos' }),
+      enemyCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(enemyCount) }) : null,
+    ].filter(Boolean) as HTMLElement[]),
     el('button', {
       class: `cb-tab-btn ${activeTab === 'actions' ? 'is-active' : ''}`,
-      text: '🎲 Ações',
       attrs: { type: 'button', 'data-tab': 'actions' },
       on: { click: () => setActiveTab('actions') },
-    }),
+    }, [
+      el('span', { class: 'cb-tab-label', text: '🎲 Ações' }),
+    ]),
     el('button', {
       class: `cb-tab-btn ${activeTab === 'log' ? 'is-active' : ''}`,
-      text: `📜 Log${combatLog.length > 0 ? ` (${combatLog.length})` : ''}`,
       attrs: { type: 'button', 'data-tab': 'log' },
       on: { click: () => setActiveTab('log') },
-    }),
+    }, [
+      el('span', { class: 'cb-tab-label', text: '📜 Log' }),
+      logCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(logCount) }) : null,
+    ].filter(Boolean) as HTMLElement[]),
   ]);
   root.appendChild(tabStrip);
 
@@ -110,7 +118,7 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       root.appendChild(el('div', { class: 'cb-economy', attrs: { title: 'Economia de ações PHB pág 189' } }, [
         el('span', { class: `cb-eco-slot ${ec.action ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação principal (attack, dash, dodge, cast)' }, text: ec.action ? '🎯 Ação' : '— Ação' }),
         el('span', { class: `cb-eco-slot ${ec.bonusAction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Ação bônus (1 por turno SE você tem feature/spell que dá)' }, text: ec.bonusAction ? '✨ Bônus' : '— Bônus' }),
-        el('span', { class: `cb-eco-slot ${ec.movement > 0 ? 'is-avail' : 'is-used'}`, attrs: { title: 'Movimento restante (em pés)' }, text: `👟 ${ec.movement}ft` }),
+        el('span', { class: `cb-eco-slot ${ec.movement > 0 ? 'is-avail' : 'is-used'}`, attrs: { title: `Movimento restante — ${Math.round(ec.movement * 0.3 * 10) / 10}m / ${ec.movement}ft (1 quadrado = 1.5m = 5ft)` }, text: `👟 ${Math.round(ec.movement * 0.3 * 10) / 10}m` }),
         el('span', { class: `cb-eco-slot ${ec.reaction ? 'is-avail' : 'is-used'}`, attrs: { title: 'Reação (1 por round) — opportunity attack, counterspell, shield' }, text: ec.reaction ? '🛡 Reação' : '— Reação' }),
       ]));
     }

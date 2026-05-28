@@ -1503,7 +1503,9 @@ export class CampaignScreen {
   private renderPartyPanel(): HTMLElement {
     const panel = el('section', { class: 'camp-party' });
     panel.appendChild(el('div', { class: 'cp-title', text: '🛡 Party' }));
-    const list = el('div', { class: 'cp-list' });
+    // O2.2 — Em coop (2+ PJs), .cp-list ganha is-coop pra ativar layout
+    // horizontal scroll-snap em mobile (cada PJ vira card compact 200px).
+    const list = el('div', { class: `cp-list${this.party.length > 1 ? ' is-coop' : ''}` });
     for (const p of this.party) {
       const isMe = p.id === this.opts.characterId;
       const isDown = p.currentHp <= 0;

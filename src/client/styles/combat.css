@@ -735,13 +735,17 @@ body.is-portrait-narrow .cb-tabs {
 body.is-portrait-narrow .cb-tab-btn {
   flex: 1;
   min-width: 90px;
-  padding: 8px 6px;
+  /* O1.2 — Hit 33 → 44px (WCAG AAA polegar). Tab é navegação principal
+   * em combat — não pode ser fácil errar. Padding ajustado pra caber
+   * label + count em 1 linha. */
+  min-height: 44px;
+  padding: 10px 8px;
   background: rgba(40, 16, 16, 0.5);
   border: 1px solid rgba(180, 60, 50, 0.3);
   border-radius: 4px;
   color: var(--ink-warm, #e4c896);
   font-family: var(--font-ui);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
@@ -754,6 +758,39 @@ body.is-portrait-narrow .cb-tab-btn.is-active {
   color: var(--ink-gold, #d4af5a);
   font-weight: 600;
   box-shadow: 0 0 8px rgba(212, 175, 90, 0.3);
+}
+
+/* O3.2 — Tab badge dourado pra counts (Inimigos N, Log N). Substitui
+ * "(N)" inline com pill destacada. Visual mais escaneável. */
+body.is-portrait-narrow .cb-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+body.is-portrait-narrow .cb-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+body.is-portrait-narrow .cb-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: linear-gradient(180deg, var(--ink-gold, #f4d07f), #b48d49);
+  color: #1a0e04;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  border-radius: 9px;
+  box-shadow: 0 0 6px rgba(244, 208, 127, 0.35);
+}
+body.is-portrait-narrow .cb-tab-btn.is-active .cb-tab-badge {
+  box-shadow: 0 0 8px rgba(244, 208, 127, 0.55);
 }
 
 /* Filtra sections em mobile: cada tab esconde a que não é a ativa */
@@ -795,11 +832,18 @@ body.is-portrait-narrow .combat-screen { touch-action: pan-y; }
   background: rgba(80, 60, 30, 0.7);
   border-color: var(--ink-gold);
   color: var(--ink-gold);
+  /* O3.1 — Sutil glow dourado pra reforçar "disponível, pode usar" */
+  box-shadow: inset 0 0 0 1px rgba(244, 208, 127, 0.18),
+              0 0 6px rgba(244, 208, 127, 0.12);
 }
 .cb-eco-slot.is-used {
   opacity: 0.4;
   text-decoration: line-through;
   text-decoration-thickness: 1px;
+  /* O3.1 — Reforça "gasto" — sem border destaque, fundo mais escuro */
+  background: rgba(40, 28, 18, 0.4);
+  border-color: rgba(120, 100, 70, 0.2);
+  filter: grayscale(0.5);
 }
 
 /* β.4 V2 — Combat action button blocked (economy spent) */

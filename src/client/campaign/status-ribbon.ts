@@ -111,8 +111,9 @@ function renderEconomyGlyphs(economy: { action: boolean; bonusAction: boolean; r
   const a = economy.action ? '⚡' : '·';
   const b = economy.bonusAction ? '✦' : '·';
   const r = economy.reaction ? '↩️' : '·';
-  const move = economy.movement > 0 ? `${economy.movement}ft` : '';
-  return el('span', { class: 'sr-economy', text: `${a}${b}${r} ${move}` });
+  // O2.1 — Metros primeiro (PT-BR). 1 quadrado = 1.5m = 5ft (glossary alinhado).
+  const moveM = economy.movement > 0 ? `${Math.round(economy.movement * 0.3 * 10) / 10}m` : '';
+  return el('span', { class: 'sr-economy', text: `${a}${b}${r} ${moveM}` });
 }
 
 function renderRestBody(state: CampaignState, character: CharacterSheet | null): HTMLElement {
