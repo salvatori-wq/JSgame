@@ -82,7 +82,98 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclos P + Q + R — 3 commits, 1676→1702 tests +26)
+> Última atualização: 2026-05-29 (Ciclo S — 3 commits, 1702→1731 tests +29)
+
+### Ciclo S "Wizard + Tutoriais + Sticky + Empty States" — entregue (3 commits, +29 tests)
+
+Audit visual amplo via leitura de código + preview runtime (375×812). Áreas
+até agora NÃO cobertas profundamente pelos ciclos M+N+O+P+Q+R: wizard
+header/slider/live-preview, profile sticky, sheet vitals review, saving throw
+PT-BR, exploration tutorial PT-BR família, glossary/quest empty states, login
+loading. 14 mudanças em 3 commits.
+
+#### Ciclo S1 — Crítico (`80b2992`) +17 tests
+- S1.1: Home footer "🔑 Login" → "💾 Salvar" (casa identity bar Q3 — mesma
+  ação tinha 2 nomes na MESMA tela). Logado mantém "👤 Perfil".
+- S1.2: Wizard CTA "(Wizard avançado)" → "Criar PJ no detalhe" + title
+  "Escolhe raça/classe/atributos/perícias passo a passo (~3 min)". "Wizard"
+  era jargão dev (Henrique família).
+- S1.3: Wizard 8 progress steps overflow-x scroll em portrait-narrow.
+  Antes: flex:1 espremido (cada step ~36px), polegar tocava 2.
+  Agora: flex:0 0 auto + min-width:44 + scroll-snap mandatory + scrollbar
+  hidden. Step atual ganha scroll-snap-align:center. wizard.ts faz
+  scrollIntoView({inline:'center'}) quando step muda em mobile.
+- S1.4: Saving throw "Save SAB" → "Save de SAB" (alinha tutorial body PT-BR
+  e glossary). Tutorial não-proficiente: "ability" → "atributo".
+- S1.5: Exploration tutorial 6 cards reescritos PT-BR família — "skill check"
+  → "teste de perícia", "overlay" → "tela do d20", "pivota pra combate" →
+  "vira combate", "memória RAG" → "memória do Mestre", "party" → "amigos".
+  Nat 20/1 mantidos (precisão Mariana). CARDS exportado como
+  EXPLORATION_TUTORIAL_CARDS pra tests.
+
+#### Ciclo S2 — Médio mobile polish (`2a79f97`) +8 tests
+- S2.1: cs-stats-grid (wizard review) em portrait-narrow vira repeat(2, 1fr)
+  explícito (era auto-fit minmax 120 inconsistente) + csb-value 24→18 +
+  cs-stat-block padding 12→8.
+- S2.2: ab-row (step-abilities) slider respira mobile — row-gap 4→8 +
+  ab-slider min-height 28px (touch ergonômico Android/iOS).
+- S2.3: Profile screen header sticky em mobile. Cascade sticky agora:
+  .profile-screen > .wiz-header top:0 (z:5) → .profile-summary top:52 (z:4)
+  → .profile-section-h top:142 (z:3). bg gradient gold fade + backdrop blur.
+- S2.4: Live-preview wizard padding mobile — wlp-body 10/8 + gap 8 +
+  portrait 72→60px (sidebar expandida em 375px sobrava 0 respiração).
+- S2.5: Glossary search input min-height 40 → 44px (WCAG AAA) + padding
+  8/12 → 10/14 + font 14 → 15 (evita iOS Safari auto-zoom).
+
+#### Ciclo S3 — Polish (`2b4f336`) +4 tests
+- S3.1: Home prefab archetype mobile uniforme 24px. Card 1 "Lutador Anão"
+  cabia em 1 linha (12px), cards 2/3 em 2 linhas (24px) — cards de altura
+  diferente. min-height:24 + flex center: card 1 cresce visualmente pro
+  nível dos outros 2. **Validado runtime — 3 cards = 24px exatos.**
+- S3.2: Glossary modal empty estruturado — 🔍 icon 36 + título Cinzel +
+  sub "Tente outra busca ou veja todos os N termos." + CTA "← Ver todos
+  (N termos)" (limpa search + refoca input). Hit 44px.
+- S3.3: Quest log empty com hints — 📜 icon + título "Nenhuma missão ainda"
+  + duas vias claras (💬 Falar com NPCs / 🗺 Explorar lugares novos).
+- S3.4: Login anon button loading state — click → adiciona .is-loading +
+  disabled + troca pra "⏳ Carregando…" + requestAnimationFrame defer pra
+  DOM pintar antes do callback. CSS dim 0.6 + cursor:wait + pointer-events:none.
+
+### Arquivos novos/editados Ciclo S
+**Novos:**
+- `src/client/home/__tests__/footer.test.ts` — 4 tests slot 1 anônimo/logado
+- `HANDOFF_2026-05-29_ciclo-S-wizard-tutorials-sticky-empty-done.md`
+
+**Editados (S1):**
+- `src/client/home/sections/footer.ts` — slot 1 anônimo "Salvar"
+- `src/client/home/sections/play-now.ts` — wizard link microcopy
+- `src/client/styles/wizard.css` — wiz-progress overflow-x scroll mobile
+- `src/client/character-creation/wizard.ts` — scrollIntoView no current step
+- `src/client/campaign/saving-throw-overlay.ts` — "Save de" header + "atributo"
+- `src/client/campaign/exploration-tutorial.ts` — 6 cards PT-BR família +
+  export EXPLORATION_TUTORIAL_CARDS
+
+**Editados (S2):**
+- `src/client/styles/wizard.css` — cs-stats-grid 2x2 mobile + ab-row slider
+  + wlp-body padding
+- `src/client/styles/campaign-party.css` — profile cascade sticky
+- `src/client/styles/glossary.css` — gl-search hit 44 + font 15
+
+**Editados (S3):**
+- `src/client/styles/home-tavern.css` — prefab archetype uniforme 24px
+- `src/client/glossary-modal.ts` — empty estruturado + CTA "Ver todos"
+- `src/client/styles/glossary.css` — gl-empty-* sub-classes
+- `src/client/campaign/quest-log-modal.ts` — empty com hints estruturado
+- `src/client/styles/campaign-party.css` — qlm-empty-* sub-classes
+- `src/client/auth/login-screen.ts` — anon button loading state
+- `src/client/styles/modals.css` — login-anon-btn.is-loading
+
+**Cross:**
+- `src/client/__tests__/mobile-polish-css.test.ts` — +17 CSS snapshot guards
+  (S1.3×5, S2.1-5×8, S3.1-4×4) + ajuste 2 tests MP4 antigos pra nova
+  cascade sticky profile
+
+> Última atualização anterior: 2026-05-29 (Ciclos P + Q + R — 3 commits, 1676→1702 tests +26)
 
 ### Ciclos P, Q, R "Modais + Home + Cross-cutting" — entregues (3 commits, +26 tests)
 
