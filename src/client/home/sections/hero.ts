@@ -10,21 +10,24 @@ export function renderHero(health: ApiHealth | { ok: false }): HTMLElement {
   const hasProvider = !!(fullHealth?.hasGemini || fullHealth?.hasGroq || fullHealth?.hasAnthropic);
   const providerName = fullHealth?.dmProvider;
 
+  // Round 2 fix (Beatriz/Mariana) — tagline mais concreta: "Mestre IA" abstrato
+  // virou "IA narra a história". Status chips ficam discretos no canto.
+  // Sem provider name visível (gemini/groq é detalhe técnico) — só ✓/⚠.
   return el('header', { class: 'home-hero' }, [
     el('div', { class: 'home-hero-brand' }, [
       el('h1', { class: 'home-hero-title', text: 'JSGAME' }),
-      el('p', { class: 'home-hero-tagline', text: 'D&D 5e · Mestre IA · 30min · até 3 amigos' }),
+      el('p', { class: 'home-hero-tagline', text: 'D&D 5e · IA narra a história · sessões de 30min · até 3 amigos' }),
     ]),
     el('div', { class: 'home-hero-status' }, [
       el('span', {
         class: `home-hero-chip ${isHealthOk ? 'is-ok' : 'is-fail'}`,
         attrs: { title: isHealthOk ? 'Servidor online' : 'Servidor offline — tente recarregar' },
-        text: isHealthOk ? '● online' : '○ offline',
+        text: isHealthOk ? '● on' : '○ off',
       }),
       el('span', {
         class: `home-hero-chip ${hasProvider ? 'is-ok' : 'is-warn'}`,
-        attrs: { title: hasProvider ? `IA ativa: ${providerName}` : 'Nenhum provider de IA disponível' },
-        text: hasProvider ? `🧠 ${providerName}` : '⚠ IA off',
+        attrs: { title: hasProvider ? `Mestre IA ativo (${providerName})` : 'Mestre IA offline — sessão indisponível' },
+        text: hasProvider ? '🧠 ok' : '⚠ ia',
       }),
     ]),
   ]);

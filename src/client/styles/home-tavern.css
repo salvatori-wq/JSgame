@@ -42,10 +42,13 @@
   gap: 3px;
 }
 .home-hero-title {
+  /* Round 2 fix (Beatriz) — título 26→22px desktop, 22→20 mobile portrait-narrow.
+   * Reduz peso competindo com tagline + identity bar logo abaixo. Hero objetivo:
+   * dar contexto, não dominar tela. */
   font-family: 'Cinzel', serif, system-ui;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: 3px;
+  letter-spacing: 2.4px;
   margin: 0;
   color: var(--home-gold);
   text-shadow:
@@ -67,14 +70,17 @@
   flex-shrink: 0;
 }
 .home-hero-chip {
-  font-size: 10px;
+  /* Round 2 fix (Beatriz) — chips menos invasivas: 10→9px, padding leve.
+   * Função informativa (status) deve ser discreta, não competir com hero/CTA. */
+  font-size: 9px;
   letter-spacing: 0.4px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
-  border: 1px solid rgba(180, 150, 90, 0.25);
-  background: rgba(20, 16, 12, 0.6);
-  color: var(--home-ink);
+  border: 1px solid rgba(180, 150, 90, 0.2);
+  background: rgba(20, 16, 12, 0.45);
+  color: var(--home-ink-soft);
   white-space: nowrap;
+  opacity: 0.85;
 }
 .home-hero-chip.is-ok    { color: #8de89b; border-color: rgba(141, 232, 155, 0.35); }
 .home-hero-chip.is-warn  { color: #ffd388; border-color: rgba(255, 211, 136, 0.35); }
@@ -83,13 +89,15 @@
 /* ═══════════════════ Identity bar sticky ═══════════════════ */
 
 .home-identity {
+  /* Round 2 fix (Beatriz) — Identity bar agora "pill" mais alta acomodando hit
+   * 44px (gap 10→8 mais coeso, padding 8/12 → 6/10 vert/hor). */
   position: sticky;
   top: 0;
   z-index: 8;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(28, 22, 16, 0.95) 0%, rgba(20, 14, 10, 0.98) 100%);
   backdrop-filter: blur(8px);
@@ -97,9 +105,10 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 .home-id-avatar {
-  font-size: 18px;
-  width: 30px;
-  height: 30px;
+  /* Round 2 fix (Beatriz) — avatar 30→36px alinha com input/btn 44px */
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,12 +324,16 @@
   gap: 10px;
 }
 .home-prefab-card {
+  /* Round 2 fix (Beatriz/Tiago) — card mais denso: padding 14→12, gap 14→10,
+   * min-height 88→72px. 3 cards somam ~360px desktop (era 415) — caem
+   * "above-the-fold" + coop visível no scroll inicial.
+   * Hit target permanece confortável (card todo é o button). */
   display: grid;
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: 56px 1fr auto;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  min-height: 88px;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 72px;
   background: var(--home-bg-card);
   border: 1px solid rgba(180, 150, 90, 0.3);
   border-radius: var(--home-card-radius);
@@ -363,10 +376,14 @@
   pointer-events: none;
 }
 .home-prefab-icon {
-  font-size: 44px;
+  /* Round 2 fix (Beatriz) — icon agora ocupa coluna inteira (grid-row 1/-1)
+   * em vez de forçar row 1 a ser 50-56px. Texto label/archetype/teaser
+   * empilha em rows 1/2/3 e o card colapsa pra altura real do texto.
+   * Cards de 140→~100px na portrait-narrow. */
+  font-size: 32px;
   line-height: 1;
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -375,6 +392,9 @@
   border: 1px solid rgba(212, 168, 74, 0.3);
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
   flex-shrink: 0;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
 }
 .home-prefab-card > div:nth-child(2),
 .home-prefab-card > .home-prefab-label {
@@ -391,7 +411,9 @@
   grid-row: 1;
 }
 .home-prefab-archetype {
+  /* Round 2 fix (Beatriz) — line-height 1 (era default 1.5) reduz row 2 de 28→14 */
   font-size: 10px;
+  line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--home-ink-faint);
@@ -400,14 +422,16 @@
   margin-top: 2px;
 }
 .home-prefab-teaser {
+  /* Round 2 fix (Beatriz) — teaser 1-line clamp (era 2) — encaixe com card denso.
+   * Frase reescrita em Round 1 fica curta o suficiente pra 1-line ler tudo. */
   font-size: 12px;
   line-height: 1.35;
   color: var(--home-ink-soft);
   grid-column: 2;
   grid-row: 3;
-  margin-top: 4px;
+  margin-top: 2px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -900,18 +924,21 @@
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
 }
 .home-footer-link {
+  /* Round 2 fix (Beatriz) — tab bar mais respirável: padding 8→10, gap 2→4,
+   * label legível 9→11. Hit area 50→58px. */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 8px 4px;
-  font-size: 10px;
+  gap: 4px;
+  padding: 10px 4px;
+  font-size: 11px;
   letter-spacing: 0.6px;
   color: var(--home-ink-faint);
   background: transparent;
   border: none;
   cursor: pointer;
+  min-height: 56px;
   min-height: 50px;
   transition: color 160ms;
   text-transform: uppercase;
@@ -922,12 +949,16 @@
   outline: none;
 }
 .home-footer-link-icon {
-  font-size: 20px;
+  /* Round 2 fix (Beatriz) — glyph 20→24px (peso visual + legibilidade) */
+  font-size: 24px;
   line-height: 1;
 }
 .home-footer-link-label {
-  font-size: 9px;
-  letter-spacing: 0.5px;
+  /* Round 2 fix (Beatriz) — label 9→11px UPPERCASE pra hierarquia clara */
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 /* Desktop wide — max 720px width centered */
@@ -959,15 +990,16 @@ body.is-portrait-narrow .home-continue-inner { padding: 16px 14px 18px; }
 body.is-portrait-narrow .home-continue-title { font-size: 17px; }
 body.is-portrait-narrow .home-continue-cta { font-size: 14px; padding: 13px 16px; min-height: 46px; }
 body.is-portrait-narrow .home-prefab-card {
-  grid-template-columns: 56px 1fr auto;
-  min-height: 80px;
-  padding: 12px 14px;
-  gap: 12px;
+  /* Round 2 fix — alinhado com card denso geral */
+  grid-template-columns: 50px 1fr auto;
+  min-height: 64px;
+  padding: 10px 12px;
+  gap: 10px;
 }
 body.is-portrait-narrow .home-prefab-icon {
-  width: 56px;
-  height: 56px;
-  font-size: 36px;
+  width: 50px;
+  height: 50px;
+  font-size: 30px;
 }
 body.is-portrait-narrow .home-prefab-cta {
   padding: 8px 12px;

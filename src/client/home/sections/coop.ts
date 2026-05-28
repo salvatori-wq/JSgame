@@ -66,10 +66,11 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
 
   section.appendChild(buttons);
 
-  // Link colapsável: joinar crônica em andamento (avançado, input ID longo)
+  // Round 2 fix (Beatriz) — wording mais claro: "tenho um código longo".
+  // Diferencia da Sala (código 8 chars) — aqui é o ID interno da crônica.
   const advancedToggle = el('button', {
     class: 'home-coop-advanced-toggle',
-    text: '↓ Joinar crônica em andamento (com ID)',
+    text: '↓ Tenho o ID de uma crônica antiga',
     attrs: { type: 'button', 'aria-expanded': 'false', 'aria-controls': 'home-coop-advanced' },
   });
   const advancedBody = el('div', {
@@ -78,11 +79,11 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
   });
   const chronicleInput = el('input', {
     class: 'home-coop-input',
-    attrs: { type: 'text', placeholder: 'Cole o ID da crônica', maxlength: '64', 'aria-label': 'ID da crônica' },
+    attrs: { type: 'text', placeholder: 'Cole o ID longo da crônica aqui', maxlength: '64', 'aria-label': 'ID da crônica' },
   }) as HTMLInputElement;
   const chronicleBtn = el('button', {
     class: 'home-coop-btn-advanced',
-    text: 'Joinar Crônica',
+    text: 'Entrar na Crônica',
     attrs: { type: 'button' },
     on: {
       click: () => {
@@ -104,7 +105,7 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     const open = advancedToggle.getAttribute('aria-expanded') === 'true';
     const next = !open;
     advancedToggle.setAttribute('aria-expanded', String(next));
-    advancedToggle.textContent = next ? '↑ Joinar crônica em andamento (com ID)' : '↓ Joinar crônica em andamento (com ID)';
+    advancedToggle.textContent = next ? '↑ Tenho o ID de uma crônica antiga' : '↓ Tenho o ID de uma crônica antiga';
     advancedBody.setAttribute('aria-hidden', String(!next));
     advancedBody.classList.toggle('is-open', next);
   });

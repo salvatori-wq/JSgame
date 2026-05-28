@@ -24,12 +24,15 @@ function renderTabLink(icon: string, label: string, onClick: () => void, title?:
   ]);
 }
 
+// Round 2 fix (Beatriz/Henrique) — labels reescritas:
+// "Entrar" no footer também → "Login" (mesmo motivo do header).
+// "Tela" → "Ajustes" (vago "TELA" → "AJUSTES" é nome real do que abre: UX settings).
 export function renderHomeFooter(opts: HomeFooterOpts): HTMLElement {
   return el('footer', { class: 'home-footer', attrs: { 'aria-label': 'Navegação principal' } }, [
     opts.currentUser
       ? renderTabLink('👤', 'Perfil', opts.onProfileClick, opts.currentUser.email)
-      : renderTabLink('🔑', 'Entrar', opts.onLoginClick, 'Login / criar conta'),
+      : renderTabLink('🔑', 'Login', opts.onLoginClick, 'Login / criar conta'),
     renderTabLink('📖', 'Glossário', () => openGlossaryModal(), 'Termos D&D pt-BR'),
-    renderTabLink('⚙', 'Tela', () => openUxSettingsModal(), 'Densidade · fonte · animações'),
+    renderTabLink('⚙', 'Ajustes', () => openUxSettingsModal(), 'Densidade · fonte · animações'),
   ]);
 }
