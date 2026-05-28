@@ -113,9 +113,11 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 8px 12px; /* M3.1 — hit 32→40px (era 4 6) */
   border-radius: 6px;
   transition: color 160ms ease, background 160ms ease;
+  min-height: 36px;
+  min-width: 44px;
 }
 
 .dt-skip:hover {
@@ -202,20 +204,39 @@
   color: rgba(20, 12, 8, 0.95);
 }
 
-/* Mobile portrait-narrow ajustes */
+/* Mobile portrait-narrow ajustes.
+ * M3.1 — Padding maior (12/10 → 18/16) pra texto respirar em telas pequenas.
+ * Hit "Pula" sobe pra 44px (WCAG AAA polegar) + Próximo/Voltar 44px. */
 @media (max-width: 480px) {
   .dt-tooltip {
-    width: calc(100vw - 24px);
-    padding: 12px 14px 10px;
+    width: calc(100vw - 20px);
+    padding: 18px 18px 16px;
   }
   .dt-tooltip-glyph {
-    font-size: 32px;
+    font-size: 36px;
+    margin: 6px 0 10px;
   }
   .dt-tooltip-title {
-    font-size: 16px;
+    font-size: 17px;
+    margin: 0 0 10px;
   }
   .dt-tooltip-text {
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0 0 18px;
+  }
+  .dt-tooltip-header {
+    margin-bottom: 10px;
+  }
+  .dt-skip {
     font-size: 13px;
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+  .dt-nav-btn {
+    min-height: 44px;
+    font-size: 14px;
+    padding: 10px 18px;
   }
 }
 

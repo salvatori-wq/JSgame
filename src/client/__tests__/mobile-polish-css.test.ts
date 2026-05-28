@@ -262,3 +262,77 @@ describe('MP2 — modals.css combat mobile', () => {
     expect(css).toMatch(/body\.is-portrait-narrow\s+\.cb-enemy-desc\s*\{[^}]*-webkit-line-clamp:\s*2/);
   });
 });
+
+describe('M1 — m-camp-dock + status-ribbon + campaign-core CSS', () => {
+  const dock = readCss('m-camp-dock.css');
+  const ribbon = readCss('status-ribbon.css');
+  const core = readCss('campaign-core.css');
+
+  it('M1.1 — slot party.is-solo tem max-height reduzido pra 16vh', () => {
+    expect(dock).toMatch(/\.ch-slot-party\.is-solo\s*\{[^}]*max-height:\s*16vh/);
+  });
+
+  it('M1.1 — dock-attention keyframe + classe pulse one-shot', () => {
+    expect(dock).toMatch(/@keyframes\s+dock-attention-once/);
+    expect(dock).toMatch(/\.ch-slot-main-content\.is-dock-attention\s*\{[^}]*animation:\s*dock-attention-once/);
+  });
+
+  it('M1.1 — prefers-reduced-motion override dock-attention', () => {
+    expect(dock).toMatch(/prefers-reduced-motion[^}]+\.ch-slot-main-content\.is-dock-attention/);
+  });
+
+  it('M1.3 — .sr-loc com flex 1 1 auto + min-width 0 pra truncate fluido', () => {
+    expect(ribbon).toMatch(/\.sr-loc\s*\{[^}]*flex:\s*1\s+1\s+auto/);
+    expect(ribbon).toMatch(/\.sr-loc\s*\{[^}]*min-width:\s*0/);
+  });
+
+  it('M1.2 — .sc-skip-btn estilo sutil link-like', () => {
+    expect(core).toMatch(/\.sc-skip-btn\s*\{[^}]*font-style:\s*italic/);
+    expect(core).toMatch(/\.sc-skip-btn\s*\{[^}]*text-decoration:\s*underline\s+dotted/);
+  });
+
+  it('M2.1 — .cn-chip-action-icon estilo distinto do dado', () => {
+    expect(core).toMatch(/\.cn-chip-action-icon\s*\{[^}]*font-size:\s*13px/);
+  });
+
+  it('M2.2 — sc-stage em portrait-narrow vira grid 2-col', () => {
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[^}]*display:\s*grid/);
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[^}]*grid-template-columns:\s*1fr\s+auto/);
+  });
+
+  it('M2.2 — sc-row em portrait-narrow vira flex-direction:column (col 2)', () => {
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-row\s*\{[^}]*flex-direction:\s*column/);
+  });
+
+  it('M2.3 — .is-roll-echo styling distinto (italic + opacity baixa)', () => {
+    expect(core).toMatch(/\.camp-narr-entry\.is-roll-echo\s*\{[^}]*opacity:\s*0\.78/);
+    expect(core).toMatch(/\.is-roll-echo\s+\.cnn-text\s*\{[^}]*font-style:\s*italic/);
+  });
+
+  it('M3.2 — drop-cap pseudo-element na primeira narração', () => {
+    expect(core).toMatch(/\.camp-narr-entry\.is-first-narration\s+\.cnn-text::first-letter\s*\{/);
+    expect(core).toMatch(/\.is-first-narration\s+\.cnn-text::first-letter\s*\{[^}]*float:\s*left/);
+  });
+
+  it('M3.3 — textura pergaminho via SVG noise no .camp-screen::before', () => {
+    expect(core).toMatch(/\.camp-screen::before\s*\{[\s\S]*?opacity:\s*0\.05/);
+    expect(core).toMatch(/\.camp-screen::before\s*\{[\s\S]*?mix-blend-mode:\s*overlay/);
+    expect(core).toMatch(/\.camp-screen::before\s*\{[\s\S]*?data:image\/svg\+xml/);
+  });
+});
+
+describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
+  const css = readCss('duolingo-tutorial.css');
+
+  it('mobile tooltip padding maior (18px) — texto respira', () => {
+    expect(css).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.dt-tooltip\s*\{[^}]*padding:\s*18px/);
+  });
+
+  it('mobile .dt-skip hit 44px (WCAG AAA polegar)', () => {
+    expect(css).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.dt-skip\s*\{[^}]*min-height:\s*44px/);
+  });
+
+  it('mobile .dt-nav-btn hit 44px (Voltar/Próximo)', () => {
+    expect(css).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.dt-nav-btn\s*\{[^}]*min-height:\s*44px/);
+  });
+});
