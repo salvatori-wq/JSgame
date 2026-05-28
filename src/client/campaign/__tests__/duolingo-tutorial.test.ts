@@ -78,25 +78,25 @@ describe('Duolingo Tutorial', () => {
     const back = document.querySelector('.dt-back');
     expect(back).not.toBeNull(); // a partir do step 2 tem voltar
     const progress = document.querySelector('.dt-progress');
-    expect(progress?.textContent).toBe('2 / 6');
+    expect(progress?.textContent).toBe('2 / 7');
   });
 
   it('botão "Voltar" volta um step', () => {
     openDuolingoTutorial();
     (document.querySelector('.dt-next') as HTMLButtonElement).click();
     (document.querySelector('.dt-next') as HTMLButtonElement).click();
-    expect(document.querySelector('.dt-progress')?.textContent).toBe('3 / 6');
+    expect(document.querySelector('.dt-progress')?.textContent).toBe('3 / 7');
     (document.querySelector('.dt-back') as HTMLButtonElement).click();
-    expect(document.querySelector('.dt-progress')?.textContent).toBe('2 / 6');
+    expect(document.querySelector('.dt-progress')?.textContent).toBe('2 / 7');
   });
 
   it('último step mostra botão "Bora jogar" + sem skip', () => {
     openDuolingoTutorial();
-    // Avança até o final (6 steps total, 5 clicks)
-    for (let i = 0; i < 5; i++) {
+    // Sub-sprint D3 — Agora 7 steps total (era 6, +1 sobre dado)
+    for (let i = 0; i < 6; i++) {
       (document.querySelector('.dt-next') as HTMLButtonElement).click();
     }
-    expect(document.querySelector('.dt-progress')?.textContent).toBe('6 / 6');
+    expect(document.querySelector('.dt-progress')?.textContent).toBe('7 / 7');
     const done = document.querySelector('.dt-done');
     expect(done).not.toBeNull();
     const skip = document.querySelector('.dt-skip');
@@ -114,7 +114,8 @@ describe('Duolingo Tutorial', () => {
 
   it('botão "Bora jogar" no último step fecha + marca done', () => {
     openDuolingoTutorial();
-    for (let i = 0; i < 5; i++) {
+    // Sub-sprint D3 — Agora 7 steps total (6 clicks pra chegar no último)
+    for (let i = 0; i < 6; i++) {
       (document.querySelector('.dt-next') as HTMLButtonElement).click();
     }
     const done = document.querySelector('.dt-done') as HTMLButtonElement;
@@ -126,9 +127,9 @@ describe('Duolingo Tutorial', () => {
   it('tecla ArrowRight avança, ArrowLeft volta', () => {
     openDuolingoTutorial();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(document.querySelector('.dt-progress')?.textContent).toBe('2 / 6');
+    expect(document.querySelector('.dt-progress')?.textContent).toBe('2 / 7');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-    expect(document.querySelector('.dt-progress')?.textContent).toBe('1 / 6');
+    expect(document.querySelector('.dt-progress')?.textContent).toBe('1 / 7');
   });
 
   it('tecla Escape fecha tutorial + marca done', () => {

@@ -214,3 +214,36 @@ describe('detectImpliedSkillCheck', () => {
     });
   });
 });
+
+// Sub-sprint D3 — Patterns adicionais (verbos comuns que faltavam)
+describe('D3 — Patterns expandidos (verbos sensoriais + físicos)', () => {
+  it('"cheirar o ar" → percepção', () => {
+    expect(detectImpliedSkillCheck('explore', 'Cheiro o ar com cuidado'))
+      .toMatchObject({ skill: 'percepcao' });
+  });
+
+  it('"sentir presença" → percepção', () => {
+    expect(detectImpliedSkillCheck('explore', 'Sinto uma presença estranha aqui'))
+      .toMatchObject({ skill: 'percepcao' });
+  });
+
+  it('"me aproximo devagar" → percepção', () => {
+    expect(detectImpliedSkillCheck('explore', 'Me aproximo devagar do altar'))
+      .toMatchObject({ skill: 'percepcao' });
+  });
+
+  it('"empurrar a porta" → atletismo', () => {
+    expect(detectImpliedSkillCheck('explore', 'Empurro a porta com força'))
+      .toMatchObject({ skill: 'atletismo' });
+  });
+
+  it('"levantar o baú" → atletismo', () => {
+    expect(detectImpliedSkillCheck('explore', 'Levanto o baú pesado'))
+      .toMatchObject({ skill: 'atletismo' });
+  });
+
+  it('"abrir o baú com força" → atletismo (força bruta)', () => {
+    expect(detectImpliedSkillCheck('explore', 'Abro o baú com força bruta'))
+      .toMatchObject({ skill: 'atletismo' });
+  });
+});

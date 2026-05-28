@@ -70,6 +70,16 @@ const STEPS: Step[] = [
     text: 'Escolha um tópico (Combate · Explorar · Social · Magia) ou escreva uma ação livre. O Mestre interpreta tudo.',
   },
   {
+    // Sub-sprint D3 — Step novo focado em como rolar dado (era invisível
+    // pra Henrique). Aponta pra qualquer chip-skill (.is-skill) se houver;
+    // senão fallback no slot main-content.
+    targetSelector: '.cn-chip.is-skill, .ch-slot-main-content',
+    position: 'top',
+    glyph: '🎲',
+    title: 'Como rolar o dado?',
+    text: 'Chips com 🎲 e badge dourado rolam d20 (ex: "Observar 🔸PERCEPÇÃO"). Sem chip à mão? Use o slot "🎲 Tentar" no dock pra escolher qual perícia rolar.',
+  },
+  {
     targetSelector: '.ch-slot-party',
     position: 'bottom',
     glyph: '🛡',
