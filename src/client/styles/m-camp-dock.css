@@ -35,15 +35,17 @@ body.is-portrait-narrow .camp-screen {
   max-width: 100%;
 }
 
-/* HEADER — sticky top, fundo opaco pra não vazar narration */
+/* HEADER — sticky top, fundo opaco pra não vazar narration.
+ * Ω.9 — z-index 50 (era 12) — garante NUNCA é coberto por dock expandido. */
 body.is-portrait-narrow .ch-slot-header {
   flex-shrink: 0;
   position: sticky;
   top: 0;
-  z-index: 12;
-  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(10, 6, 8, 0.94) 100%);
-  border-bottom: 1px solid rgba(244, 208, 127, 0.15);
+  z-index: 50;
+  background: linear-gradient(180deg, var(--bg-deep) 0%, rgba(10, 6, 8, 0.96) 100%);
+  border-bottom: 1px solid rgba(244, 208, 127, 0.25);
   padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* PARTY — compacto + scroll-x se múltiplos PJs (coop) */
@@ -63,14 +65,18 @@ body.is-portrait-narrow .ch-slot-death-banner {
   z-index: 11;
 }
 
-/* NARRATION HOST — grow + scroll interno (KEY DA DOCK STYLE!) */
+/* NARRATION HOST — grow + scroll interno (KEY DA DOCK STYLE!).
+ * Ω.9 — padding-bottom 80px (era 8) garante última narração visível ACIMA
+ * do dock + tab bar somados (~136-160px). scroll-padding-bottom 100px pra
+ * scroll automático parar antes do dock. */
 body.is-portrait-narrow .ch-narration-host {
   flex: 1 1 auto;
   min-height: 0;  /* essential pra flex child scroll funcionar */
   overflow-y: auto;
-  padding: 8px var(--m-padding-screen);
-  /* Scroll-padding bottom pra última narração não ficar tampada pela dock */
-  scroll-padding-bottom: 24px;
+  padding: 8px var(--m-padding-screen) 80px;
+  scroll-padding-bottom: 100px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* PENDING CHECK — sticky no fim da narration (acima da dock) */
@@ -84,15 +90,16 @@ body.is-portrait-narrow .ch-slot-pending-check {
   border-top: 1px solid rgba(244, 208, 127, 0.15);
 }
 
-/* MAIN CONTENT (ações/combat) — DOCK fixed bottom acima do chat + tab bar (π.4) */
+/* MAIN CONTENT (ações/combat) — DOCK fixed bottom acima do chat + tab bar.
+ * Ω.9 — max-height REDUZIDO 48vh → 35vh. Dock ainda comporta drill-down de
+ * sub-actions (8 botões max no combat) mas NÃO TOMA mais que 35% da viewport.
+ * Narração tem ~50%+ pra respirar. "Livre" agora abre modal — não usa dock. */
 body.is-portrait-narrow .ch-slot-main-content:empty {
   display: none;
 }
 body.is-portrait-narrow .ch-slot-main-content {
   flex-shrink: 0;
-  /* π.4 — Max 48vh (era 55vh) — abre 56px pro Bottom Tab Bar abaixo.
-   * Se combat-screen for grande, scroll interno cuida. */
-  max-height: 48vh;
+  max-height: 35vh;
   overflow-y: auto;
   background: linear-gradient(180deg, rgba(20, 12, 8, 0.96) 0%, rgba(10, 6, 8, 0.99) 100%);
   border-top: 2px solid rgba(244, 208, 127, 0.35);

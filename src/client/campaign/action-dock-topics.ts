@@ -7,6 +7,7 @@
 
 import type { ExplorationAction } from '../../shared/types';
 import { el } from '../util';
+import { inputDialog } from '../ui-modal';
 
 type TopicId = 'combat' | 'explore' | 'social' | 'magic' | 'more' | 'custom';
 
@@ -85,6 +86,12 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
         attrs: { type: 'button', title: t.label, 'aria-pressed': String(isActive) },
         on: {
           click: () => {
+            // Ω.9 — 'custom' (Livre) NÃO expande drill inline (tampava narração).
+            // Abre modal bottom-sheet via inputDialog multiline.
+            if (t.id === 'custom') {
+              openCustomActionModal(ctx);
+              return;
+            }
             dockState.currentTopic = isActive ? null : t.id;
             rerender();
           },
@@ -95,14 +102,11 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
       ]));
     }
 
-    if (dockState.currentTopic) {
+    if (dockState.currentTopic && dockState.currentTopic !== 'custom') {
       drillArea.appendChild(renderDrill(
         dockState.currentTopic,
         ctx,
         () => { dockState.currentTopic = null; rerender(); },
-        () => { dockState.customDetails = ''; rerender(); },
-        dockState.customDetails,
-        (v) => { dockState.customDetails = v; },
       ));
     }
 
@@ -152,9 +156,6 @@ function renderDrill(
   topic: TopicId,
   ctx: ActionDockContext,
   onBack: () => void,
-  onClearCustom: () => void,
-  customValue: string,
-  setCustomValue: (v: string) => void,
 ): HTMLElement {
   const drill = el('div', { class: 'adt-drill-panel' });
   drill.appendChild(el('button', {
@@ -164,10 +165,7 @@ function renderDrill(
     on: { click: onBack },
   }));
 
-  if (topic === 'custom') {
-    drill.appendChild(renderCustomForm(ctx, customValue, setCustomValue));
-    return drill;
-  }
+  // Ω.9 — 'custom' nunca chega aqui (abre via openCustomActionModal direto do card)
 
   const subActions = subActionsFor(topic, ctx);
   const grid = el('div', { class: 'adt-sub-grid' });
@@ -261,45 +259,32 @@ function combatSubActions(topic: TopicId, ctx: ActionDockContext): SubAction[] {
   }
 }
 
-function renderCustomForm(ctx: ActionDockContext, initial: string, setValue: (v: string) => void): HTMLElement {
-  const wrap = el('div', { class: 'adt-custom-form' });
-  wrap.appendChild(el('label', { class: 'adt-custom-label', text: '✎ Ação livre (descreva o que faz)' }));
-  const textarea = el('textarea', {
-    class: 'adt-custom-textarea',
-    attrs: {
-      placeholder: 'ex: "abro o baú devagar olhando pra ver se tem trap"',
-      maxlength: '500',
-      rows: '3',
-    },
-  }) as HTMLTextAreaElement;
-  textarea.value = initial;
-  const counter = el('span', { class: 'adt-custom-counter', text: `${initial.length}/500` });
-  textarea.addEventListener('input', () => {
-    counter.textContent = `${textarea.value.length}/500`;
-    setValue(textarea.value);
+// Ω.9 — "Livre" abre modal bottom-sheet em vez de drill inline.
+// Inline tampava a narração em portrait-narrow. Modal usa altura controlada,
+// fecha com swipe-down/ESC, libera dock pra ações rápidas.
+async function openCustomActionModal(ctx: ActionDockContext): Promise<void> {
+  if (ctx.isDmThinking) return;
+  const result = await inputDialog({
+    title: '✎ Ação livre',
+    text: 'Descreva o que seu personagem faz. O Mestre interpreta e responde.',
+    placeholder: 'ex: "abro o baú devagar olhando pra ver se tem trap"',
+    initialValue: dockState.customDetails,
+    maxLength: 500,
+    multiline: true,
+    confirmText: 'Enviar ação',
+    cancelText: 'Cancelar',
+    validator: (v) => v.trim().length === 0 ? 'Descreva o que você faz.' : null,
   });
-  const sendBtn = el('button', {
-    class: 'adt-custom-send',
-    attrs: { type: 'button', disabled: ctx.isDmThinking },
-    text: 'Enviar ação',
-    on: {
-      click: () => {
-        const v = textarea.value.trim();
-        if (v) {
-          ctx.onCustomAction(v);
-          textarea.value = '';
-          setValue('');
-        }
-      },
-    },
-  });
-  textarea.addEventListener('keydown', (ev) => {
-    // Ctrl/Cmd+Enter dispara enviar
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
-      sendBtn.click();
+  if (result !== null && result.trim().length > 0) {
+    dockState.customDetails = '';
+    ctx.onCustomAction(result.trim());
+  } else {
+    // Cancelou — guarda rascunho pra próxima abertura
+    if (result === null) {
+      // Cancelou via backdrop/ESC — não muda rascunho
+    } else {
+      // Submit vazio — limpa
+      dockState.customDetails = '';
     }
-  });
-  wrap.appendChild(textarea);
-  wrap.appendChild(el('div', { class: 'adt-custom-row' }, [counter, sendBtn]));
-  return wrap;
+  }
 }
