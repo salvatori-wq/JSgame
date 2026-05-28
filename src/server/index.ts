@@ -32,9 +32,20 @@ function buildDM(): DMInterface {
   const provider = buildProviderFromEnv(process.env as Record<string, string | undefined>);
   if (provider) {
     console.log(`[dm] provider ativo: ${provider.name}`);
+    // BUG-Ω.4 — Avisos explícitos em PROD pro João detectar fragilidade no boot.
+    // Se só 1 provider, não tem fallback se ele falhar (Gemini sem quota = jogo trava).
+    const providerCount = provider.name.startsWith('cascade(')
+      ? (provider.name.match(/→/g)?.length ?? 0) + 1
+      : 1;
+    if (providerCount < 3) {
+      console.warn(`[dm] ⚠ APENAS ${providerCount} provider(s) no cascade. Recomendado 3+ pra resiliência.`);
+      console.warn(`[dm] ⚠ Free tier adicionais: CEREBRAS_API_KEY (Llama 3.3 70B, 1M tok/dia), MISTRAL_API_KEY (Mistral Small, 500K/dia)`);
+      console.warn(`[dm] ⚠ Setup: cloud.cerebras.ai (gratuito) + console.mistral.ai (gratuito) → add no Render env vars`);
+    }
     return new DungeonMaster(provider);
   }
   console.log('[dm] sem provider — usando FallbackDM offline');
+  console.warn('[dm] ⚠ NENHUM provider configurado. Sem GEMINI_API_KEY/GROQ_API_KEY/etc o DM degrada sempre.');
   return new FallbackDM();
 }
 

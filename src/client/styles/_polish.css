@@ -388,6 +388,28 @@ body.is-player-dead::before {
   display: none;
 }
 
+/* BUG-Ω.4 — Tip actionable quando rate_limit. Dica clara pro João resolver. */
+.cn-error-tip {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(255, 184, 77, 0.10), rgba(255, 184, 77, 0.04));
+  border: 1px solid rgba(255, 184, 77, 0.32);
+  border-radius: 8px;
+}
+.cn-tip-icon {
+  font-size: 16px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.cn-tip-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 211, 136, 0.95);
+}
+
 .cn-err-row {
   display: flex;
   gap: 8px;

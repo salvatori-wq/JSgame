@@ -879,10 +879,16 @@ body.is-portrait-narrow .camp-hp {
   justify-content: space-between;
 }
 
-/* MP2 — Narration cresce com viewport (não fixa 55vh) */
+/* MP2 — Narration cresce com viewport (não fixa 55vh).
+ * BUG-Ω.4 — Em portrait-narrow, REMOVE overflow-y:auto pra não competir com
+ * o pai `.ch-narration-host` (que tem o real scroll). NarrationLog
+ * (narration-log.ts) detecta ancestor scroll container dinamicamente. */
 body.is-portrait-narrow .camp-narration {
   max-height: none;
   min-height: 200px;
+  overflow-y: visible;
+  border: none;
+  border-radius: 0;
 }
 
 body.is-portrait-narrow .camp-actions-grid {

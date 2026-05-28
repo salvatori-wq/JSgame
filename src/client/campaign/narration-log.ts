@@ -108,8 +108,51 @@ export class NarrationLog {
     // Empty state inicial
     this.renderEmptyState();
 
-    // Scroll detection — passive pra perf
+    // Scroll detection — listener no rootEl (desktop scroll container)
     this.rootEl.addEventListener('scroll', () => this.handleScroll(), { passive: true });
+    // BUG-Ω.4 — em mobile portrait-narrow o scroll real está no `.ch-narration-host`
+    // PAI (overflow-y: auto), não no `.camp-narration`. Listener no ancestor é
+    // attached lazily (precisa estar no DOM). bindAncestorScroll() é chamado em
+    // afterAppend (já garantido estar attached) — idempotente.
+  }
+
+  // BUG-Ω.4 — Detecta o real scroll container. Em desktop, `.camp-narration`
+  // tem overflow-y: auto + max-height: 55vh → ele mesmo scrolla. Em mobile
+  // portrait-narrow, `.camp-narration` tem max-height: none + cresce, daí
+  // o scroll real é no `.ch-narration-host` ancestor.
+  private getScrollContainer(): HTMLElement {
+    // Self é scrollable?
+    if (this.isElementScrollable(this.rootEl)) return this.rootEl;
+    // Sobe pelos ancestrais até achar um scrollable.
+    let parent = this.rootEl.parentElement;
+    while (parent && parent !== document.body) {
+      if (this.isElementScrollable(parent)) return parent;
+      parent = parent.parentElement;
+    }
+    // Fallback: rootEl mesmo (pelo menos não throw).
+    return this.rootEl;
+  }
+
+  private isElementScrollable(el: HTMLElement): boolean {
+    const style = getComputedStyle(el);
+    if (style.overflowY !== 'auto' && style.overflowY !== 'scroll') return false;
+    // Tem conteúdo overflowing? scrollHeight > clientHeight indica scrollable.
+    // Mas também precisa ser true se clientHeight ainda não foi medido (layout pending).
+    // Em mobile durante boot, clientHeight pode ser 0 → ainda assim consideramos scrollable.
+    return true;
+  }
+
+  private ancestorScrollBound = false;
+  private bindAncestorScrollOnce(): void {
+    if (this.ancestorScrollBound) return;
+    const container = this.getScrollContainer();
+    if (container === this.rootEl) {
+      // Self é o scroll, listener já bound no construtor.
+      this.ancestorScrollBound = true;
+      return;
+    }
+    container.addEventListener('scroll', () => this.handleScroll(), { passive: true });
+    this.ancestorScrollBound = true;
   }
 
   get element(): HTMLElement {
@@ -248,6 +291,16 @@ export class NarrationLog {
     });
     entryEl.appendChild(toggleBtn);
     entryEl.appendChild(detailsContent);
+
+    // BUG-Ω.4 — Dica actionable quando errorKind=rate_limit. Quota esgotada =
+    // único fix real é mais providers. Sem isso, jogo trava cada vez que LLM
+    // free tier do dia acaba.
+    if (payload.errorMeta.errorKind === 'rate_limit') {
+      entryEl.appendChild(el('div', { class: 'cn-error-tip' }, [
+        el('span', { class: 'cn-tip-icon', text: '💡' }),
+        el('span', { class: 'cn-tip-text', text: 'Quota free esgotou. Setup gratuito Cerebras (Llama 3.3, 1M tok/dia) em 2min: cloud.cerebras.ai → API Key → Render env var CEREBRAS_API_KEY' }),
+      ]));
+    }
 
     // Retry button (só se canRetry e callback fornecido)
     if (payload.errorMeta.canRetry && payload.onRetry) {
@@ -437,7 +490,9 @@ export class NarrationLog {
    */
   scrollToBottom(_behavior: ScrollBehavior = 'auto'): void {
     if (this.destroyed) return;
-    this.rootEl.scrollTop = this.rootEl.scrollHeight;
+    // BUG-Ω.4 — Scrolla o real container (self em desktop, ancestor em mobile).
+    const container = this.getScrollContainer();
+    container.scrollTop = container.scrollHeight;
   }
 
   /**
@@ -529,9 +584,10 @@ export class NarrationLog {
       i = Math.min(fullText.length, i + charsPerTick);
       // Preserva quebras de linha como <br> + escape
       textEl.textContent = fullText.slice(0, i);
-      // Mantém scroll seguindo enquanto digita
+      // Mantém scroll seguindo enquanto digita (real container — ancestor em mobile)
       if (this.isPinnedToBottom) {
-        this.rootEl.scrollTop = this.rootEl.scrollHeight;
+        const c = this.getScrollContainer();
+        c.scrollTop = c.scrollHeight;
       }
       if (i >= fullText.length) finish();
     }, tickMs);
@@ -573,7 +629,9 @@ export class NarrationLog {
 
   // Detecta se user está perto do fim (threshold). Atualiza isPinnedToBottom + badge.
   private handleScroll(): void {
-    const distanceFromBottom = this.rootEl.scrollHeight - this.rootEl.scrollTop - this.rootEl.clientHeight;
+    // BUG-Ω.4 — Usa o real scroll container (pode ser ancestor em mobile).
+    const c = this.getScrollContainer();
+    const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
     const wasPinned = this.isPinnedToBottom;
     this.isPinnedToBottom = distanceFromBottom <= this.opts.bottomThresholdPx;
     if (this.isPinnedToBottom) {
@@ -586,6 +644,8 @@ export class NarrationLog {
   }
 
   private afterAppend(_entryEl: HTMLElement): void {
+    // BUG-Ω.4 — Garante listener no ancestor scrollable (mobile). Idempotente.
+    this.bindAncestorScrollOnce();
     if (this.isPinnedToBottom) {
       // Scroll suave (CSS faz a animação) segue a nova entry.
       // Faz duas vezes: imediato (DOM já atualizado) + após rAF (caso layout

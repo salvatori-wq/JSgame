@@ -137,14 +137,8 @@ body.is-portrait-narrow .sr-attitude.attitude-amigavel { color: var(--life, #6ec
 body.is-portrait-narrow .sr-attitude.attitude-hostil { color: var(--accent-blood, #c84030); }
 body.is-portrait-narrow .sr-attitude.attitude-misterioso { color: #b08acc; }
 
-body.is-portrait-narrow .sr-expand-glyph {
-  flex-shrink: 0;
-  font-size: 14px;
-  color: var(--gold);
-  opacity: 0.55;
-  padding: 0 4px;
-  letter-spacing: 0.15em;
-}
+/* BUG-Ω.4 — .sr-expand-glyph removido do DOM. Selector mantido vazio
+ * pra histórico; pode ser deletado em refactor futuro. */
 
 /* Mode-specific border glow */
 body.is-portrait-narrow .status-ribbon-combat {

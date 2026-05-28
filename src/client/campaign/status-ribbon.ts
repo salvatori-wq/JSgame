@@ -48,8 +48,10 @@ export function renderStatusRibbon(ctx: RibbonContext): HTMLElement {
 
   root.appendChild(body);
 
-  // Indicador "expand" sutil
-  root.appendChild(el('span', { class: 'sr-expand-glyph', text: '⋯', attrs: { 'aria-hidden': 'true' } }));
+  // BUG-Ω.4 — Removido `sr-expand-glyph` "⋯" (decorativo, sem click handler,
+  // era IRMÃO de .sr-body em vez de filho). Player tap nele esperando abrir
+  // menu, nada acontecia. O menu "Mais" funcional já existe no slot 5 do
+  // bottom-tab-bar. Toda ribbon agora é a área clicável via .sr-body.
 
   return root;
 }
