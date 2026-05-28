@@ -103,10 +103,18 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
     });
   }
 
-  // Auto-detect cascade — ordem priorizando latência+qualidade+free tier:
-  //   Cerebras (2000 tok/s, 1M/dia) → Gemini (narrativa premium) →
-  //   Groq (14.4K/dia) → Cloudflare (10K neurons/dia) → Mistral (500K/dia) →
-  //   Anthropic (pago opcional)
+  // Auto-detect cascade — ordem priorizando latência+quota free:
+  //   2026-05-29 reordenado: Groq primeiro (latência 1-2s + 14.4K req/dia) >
+  //   Gemini (3-5s + 1.5K req/dia). Pra sessões longas à noite, Groq dá
+  //   ~20x mais headroom de quota e é mais rápido.
+  //   Cerebras (se configurado) ainda fica em 1° pq tem 1M tok/dia + <1s.
+  //
+  //   1. Cerebras Llama 3.3 70B   (<1s, 1M tokens/dia free) — se configurado
+  //   2. Groq Llama 3.3 70B       (1-2s, 14.4K req/dia free) — PRIMARY default
+  //   3. Gemini 2.5 Flash         (3-5s, 1.5K req/dia + 1M tok/dia) — qualidade
+  //   4. Cloudflare Workers AI    (10K neurons/dia)
+  //   5. Mistral Small            (500K/dia)
+  //   6. Anthropic Haiku          (pago opcional)
   const available: DMProvider[] = [];
   if (env.CEREBRAS_API_KEY) {
     available.push(new CerebrasProvider({
@@ -114,16 +122,16 @@ export function buildProviderFromEnv(env: ProviderEnv): DMProvider | null {
       model: env.CEREBRAS_MODEL ?? 'llama-3.3-70b',
     }));
   }
-  if (env.GEMINI_API_KEY) {
-    available.push(new GeminiProvider({
-      apiKey: env.GEMINI_API_KEY,
-      model: env.GEMINI_MODEL ?? 'gemini-2.5-flash',
-    }));
-  }
   if (env.GROQ_API_KEY) {
     available.push(new GroqProvider({
       apiKey: env.GROQ_API_KEY,
       model: pickGroqModel(env.GROQ_MODEL),
+    }));
+  }
+  if (env.GEMINI_API_KEY) {
+    available.push(new GeminiProvider({
+      apiKey: env.GEMINI_API_KEY,
+      model: env.GEMINI_MODEL ?? 'gemini-2.5-flash',
     }));
   }
   if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
