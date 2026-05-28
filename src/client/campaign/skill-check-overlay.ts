@@ -72,14 +72,28 @@ export function showPendingSkillCheck(
   row.appendChild(el('span', {
     class: 'sc-chip sc-chip-attr',
     text: `${ABILITY_SHORT[skill.ability]} ${check.bonus >= 0 ? '+' : ''}${check.bonus}`,
+    attrs: { title: `Bônus de ${skill.name} — atributo ${ABILITY_SHORT[skill.ability]} ${check.bonus >= 0 ? '+' : ''}${check.bonus}` },
   }));
   const die = renderDie({ kind: 'd20', value: '?' });
   die.classList.add('sc-die-slot');
   row.appendChild(die);
-  row.appendChild(el('span', { class: 'sc-chip sc-chip-dc', text: `DC ${check.dc}` }));
+  // N1.1 + N2.3 — Chip DC ganha tooltip educacional. Player vê em hover/long-press:
+  // "DC X = [muito fácil / fácil / média / difícil / muito difícil]" (PHB DMG p.238).
+  row.appendChild(el('span', {
+    class: 'sc-chip sc-chip-dc',
+    text: `DC ${check.dc}`,
+    attrs: { title: dcDifficultyLabel(check.dc) },
+  }));
   stage.appendChild(row);
 
-  const verdict = el('div', { class: 'sc-verdict sc-verdict-idle', text: 'Clique pra rolar o d20' });
+  // N1.1 — Verdict idle agora EDUCACIONAL: mostra fórmula d20 + bônus vs DC
+  // em vez de "Clique pra rolar o d20". Newbie aprende a mecânica enquanto
+  // joga. Tom didático mas curto pra não distrair.
+  const bonusStr = check.bonus >= 0 ? `+ ${check.bonus}` : `− ${Math.abs(check.bonus)}`;
+  const verdict = el('div', {
+    class: 'sc-verdict sc-verdict-idle',
+    text: `d20 ${bonusStr} vs DC ${check.dc} — toque pra rolar`,
+  });
   stage.appendChild(verdict);
 
   let rolled = false;
@@ -119,14 +133,14 @@ export function showPendingSkillCheck(
     stage.appendChild(inspBtn);
   }
 
-  // M1.2 — Botão sutil "Pular este teste" — player ignora a oportunidade e
-  // segue jogando. Útil em cold-open de emboscada quando o player quer outra
-  // abordagem. Server limpa pendingCheck + emite narração breve.
+  // M1.2 + N1.3 — Botão sutil de skip — player ignora a oportunidade e segue
+  // jogando. Texto agora clarifica que skip NÃO cancela a cena, só segue sem
+  // rolar (Henrique família: "vai pular pra outro teste? cancela?").
   if (onSkip) {
     stage.appendChild(el('button', {
       class: 'sc-skip-btn',
-      text: 'Pular este teste',
-      attrs: { type: 'button', title: 'Ignora a oportunidade e segue sem rolar' },
+      text: 'Pular — segue sem rolar',
+      attrs: { type: 'button', title: 'Não rola o dado. O Mestre continua a cena assumindo que você não percebeu/conseguiu.' },
       on: {
         click: () => {
           if (rolled) return;
@@ -254,6 +268,18 @@ function handleWatchdogTimeout(rollBtn: HTMLButtonElement, inspBtn: HTMLButtonEl
 
 function formatMod(n: number): string {
   return n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`;
+}
+
+// N1.1 + N2.3 — Tabela DC referência PHB DMG p.238. Usado em tooltip pro
+// player iniciante aprender o que significa cada DC sem abrir glossário.
+// Exposto pra tests (puro).
+export function dcDifficultyLabel(dc: number): string {
+  if (dc <= 5) return `DC ${dc} — Muito fácil (qualquer um passa)`;
+  if (dc <= 10) return `DC ${dc} — Fácil (treinado quase sempre passa)`;
+  if (dc <= 14) return `DC ${dc} — Média (50/50 pra mediano)`;
+  if (dc <= 19) return `DC ${dc} — Difícil (precisa rolar bem ou bônus alto)`;
+  if (dc <= 24) return `DC ${dc} — Muito difícil (heroico)`;
+  return `DC ${dc} — Quase impossível (lendário)`;
 }
 
 // POLISH α.4 — Tutorial seen flag em localStorage. Persiste entre sessões pro

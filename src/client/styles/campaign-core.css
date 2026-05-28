@@ -77,6 +77,16 @@
   background-repeat: repeat;
 }
 
+/* N2.1 — Mobile compensa brightness alta com 7% opacidade + tom gold-warm
+ * mais quente (matrix 0.88, 0.74, 0.45 vs 0.82, 0.7, 0.42). Em desktop fica
+ * sutil; mobile fica visível mas ainda elegante. */
+@media (max-width: 480px) {
+  .camp-screen::before {
+    opacity: 0.07;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.88 0 0 0 0 0.74 0 0 0 0 0.45 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+}
+
 .camp-header {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -386,6 +396,11 @@
 .camp-narr-entry.is-first-narration .cnn-speaker {
   color: var(--ink-gold);
   text-shadow: 0 0 8px rgba(212, 168, 87, 0.4);
+  /* N1.2 — Hierarquia: speaker "MESTRE" 10→13px com letter-spacing maior
+   * pra marcar "começo da história" sem competir com drop-cap. */
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  margin-bottom: 6px;
 }
 
 /* M3.2 — Drop-cap na 1ª letra da primeira narração (Cinzel dourado,
@@ -393,7 +408,9 @@
  * antigo D&D. Aplica SÓ na primeira entry da sessão. Tamanho aumentado
  * vs corpo (15px → 38px) com line-height ajustada pra wrap natural.
  *
- * Mobile (≤480px) reduz pra 32px proporcional. */
+ * Mobile (≤480px) reduz pra 32px proporcional.
+ * N3.3 — Responsivo: narrações curtas (data-drop-cap=sm) usam 32px desktop /
+ * 28px mobile pra não dominar visualmente. Padrão (md) 38/32. */
 .camp-narr-entry.is-first-narration .cnn-text::first-letter {
   font-family: var(--font-heading);
   font-size: 38px;
@@ -407,10 +424,18 @@
                0 2px 4px rgba(0, 0, 0, 0.6);
   letter-spacing: 0.02em;
 }
+.camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter {
+  font-size: 32px;
+  margin: 3px 7px 0 0;
+}
 @media (max-width: 480px) {
   .camp-narr-entry.is-first-narration .cnn-text::first-letter {
     font-size: 32px;
     margin: 3px 6px 0 0;
+  }
+  .camp-narr-entry.is-first-narration[data-drop-cap='sm'] .cnn-text::first-letter {
+    font-size: 28px;
+    margin: 2px 5px 0 0;
   }
 }
 
@@ -473,6 +498,29 @@
 }
 .camp-narr-entry.is-roll-echo:hover {
   opacity: 1;
+}
+
+/* N2.2 — Separator visual sutil ABAIXO do echo — linha gold 1px com gradiente
+ * que vai pra transparent nas pontas. Indica claramente "isso é mecânica,
+ * agora volta cena narrada". Não aplica em sequência de echos (só após o
+ * último de cada grupo). */
+.camp-narr-entry.is-roll-echo + .camp-narr-entry:not(.is-roll-echo) {
+  position: relative;
+  margin-top: 14px;
+}
+.camp-narr-entry.is-roll-echo + .camp-narr-entry:not(.is-roll-echo)::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(244, 208, 127, 0.28) 30%,
+    rgba(244, 208, 127, 0.28) 70%,
+    transparent 100%);
+  pointer-events: none;
 }
 
 .camp-narr-thinking {
@@ -973,24 +1021,24 @@
   animation: rolling-pulse 0.8s ease-in-out infinite;
 }
 
-/* M1.2 — Botão "Pular este teste" — sutil link-like, hierarquia abaixo do roll
- * principal. Não compete visualmente com 🎲 Rolar, mas existe pra player saber
- * que tem opção de ignorar. Hover ganha sublinhado dourado. */
+/* M1.2 + N1.3 — Botão sutil de skip — link-like, hierarquia abaixo do roll.
+ * Gap pra 🎲 Rolar maior (margin-top 4 → 14) — polegar gordo não tap acidental.
+ * Font 12 → 13px, padding maior, min-height sobe 32 → 38 desktop. */
 .sc-skip-btn {
-  margin-top: 4px;
-  padding: 8px 14px;
+  margin-top: 14px;
+  padding: 10px 16px;
   background: transparent;
   border: none;
   color: var(--ink-mute, #867758);
   font-family: var(--font-body, serif);
-  font-size: 12px;
+  font-size: 13px;
   font-style: italic;
   letter-spacing: 0.04em;
   cursor: pointer;
-  text-decoration: underline dotted rgba(160, 130, 70, 0.4);
+  text-decoration: underline dotted rgba(160, 130, 70, 0.5);
   text-underline-offset: 3px;
   transition: color 0.15s, text-decoration-color 0.15s;
-  min-height: 32px;
+  min-height: 38px;
 }
 .sc-skip-btn:hover {
   color: var(--ink-gold, #f4d07f);
@@ -1168,7 +1216,8 @@ body.is-portrait-narrow .sc-roll-btn {
 }
 body.is-portrait-narrow .sc-skip-btn {
   justify-self: center;
-  min-height: 36px;
+  min-height: 44px; /* N1.3 — hit polegar WCAG AAA em mobile */
+  font-size: 13px;
 }
 
 /* FIX coop-3 — Chat bar player→party (só aparece se party.length > 1) */

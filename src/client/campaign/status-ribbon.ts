@@ -145,11 +145,20 @@ function renderExplorationBody(state: CampaignState, character: CharacterSheet |
   const slots = character ? totalAvailableSlots(character) : null;
   const xp = character ? `${character.xp}xp` : '';
 
+  // N3.1 — Quando há pendingCheck ativo PRO PLAYER, glyph troca pra 🎲 +
+  // ribbon ganha class .is-pending-roll (border pulse dourado). Sinaliza
+  // "tem teste rolando, não esqueci de você". Saving throw também aciona.
+  const hasPendingForMe = !!(
+    (state.pendingCheck && state.pendingCheck.playerId === character?.id) ||
+    (state.pendingSave && state.pendingSave.playerId === character?.id)
+  );
+  const glyph = hasPendingForMe ? '🎲' : glyphForLocation(loc);
+
   // M1.3 — Location ganha .sr-loc com text-overflow:ellipsis fluido (CSS) +
   // title attr com texto completo (tooltip desktop, accessible mobile).
   // shorten() removido: layout flex distribui largura entre loc + stats.
   const items: (HTMLElement | null)[] = [
-    el('span', { class: 'sr-glyph', text: glyphForLocation(loc) }),
+    el('span', { class: `sr-glyph${hasPendingForMe ? ' is-pending-roll' : ''}`, text: glyph }),
     el('span', { class: 'sr-mode-label sr-loc', text: loc, attrs: { title: loc, 'aria-label': loc } }),
   ];
 

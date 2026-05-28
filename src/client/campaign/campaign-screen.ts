@@ -124,8 +124,13 @@ export class CampaignScreen {
   private currentOpenTab: BottomTabId | null = null;
   // ψ.5 — Combat turn duration tracking (start ts quando vira meu turno)
   private myTurnStartedAt = 0;
-  // M1.1 — Flag pra disparar pulse no dock SÓ na 1ª vez que tem conteúdo.
-  private dockAttentionFired = false;
+  // M1.1 + N3.2 — Dock attention pulse. Antes era one-shot (1ª vez por sessão).
+  // Agora dispara em momentos chave: (a) primeira renderização, (b) quando
+  // skill-check/save é fechado (overlay sai, dock fica disponível de novo),
+  // (c) quando DM terminou (dmDone) e player precisa decidir próxima ação.
+  // Throttled — não pode disparar 2x em <3s pra não virar epileptic flicker.
+  private lastDockAttentionAt = 0;
+  private readonly DOCK_ATTENTION_THROTTLE_MS = 3000;
 
   constructor(container: HTMLElement, opts: CampaignScreenOpts) {
     this.container = container;
@@ -639,6 +644,9 @@ export class CampaignScreen {
     const onDone = (): void => {
       clearThinking();
       this.updateMainContent();
+      // N3.2 — DM terminou de narrar → dock fica disponível de novo. Pulse
+      // chama atenção (throttled internamente — não vira flicker).
+      this.fireDockAttention();
     };
     s.on('dmDone', onDone);
     this.socketCleanups.push(() => s.off('dmDone', onDone));
@@ -1026,18 +1034,26 @@ export class CampaignScreen {
         this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
       }
     }
-    // M1.1 — Dispara pulse no dock UMA VEZ por sessão (mobile + non-empty +
-    // primeira renderização útil). Chama atenção visual pra "interage aqui".
-    if (
-      !this.dockAttentionFired
-      && document.body.classList.contains('is-portrait-narrow')
-      && this.slots.mainContent.firstChild
-    ) {
-      this.dockAttentionFired = true;
-      const slot = this.slots.mainContent;
-      slot.classList.add('is-dock-attention');
-      window.setTimeout(() => slot.classList.remove('is-dock-attention'), 2000);
+    // M1.1 + N3.2 — Dispara pulse no dock se já passou throttle desde último
+    // disparo. Chamado em primeira renderização + via fireDockAttention() em
+    // eventos chave (dmDone, skill check fechado). Limita ruído visual.
+    if (this.lastDockAttentionAt === 0) {
+      this.fireDockAttention();
     }
+  }
+
+  /** N3.2 — Dispara pulse no dock se mobile + não throttled. Idempotente. */
+  private fireDockAttention(): void {
+    if (!this.slots || !document.body.classList.contains('is-portrait-narrow')) return;
+    if (!this.slots.mainContent.firstChild) return;
+    const now = Date.now();
+    if (now - this.lastDockAttentionAt < this.DOCK_ATTENTION_THROTTLE_MS) return;
+    this.lastDockAttentionAt = now;
+    const slot = this.slots.mainContent;
+    slot.classList.remove('is-dock-attention');
+    void slot.offsetWidth; // force reflow pra reiniciar anim
+    slot.classList.add('is-dock-attention');
+    window.setTimeout(() => slot.classList.remove('is-dock-attention'), 2000);
   }
 
   private renderActionDockTopics(): HTMLElement {

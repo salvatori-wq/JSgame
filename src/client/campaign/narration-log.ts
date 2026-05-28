@@ -191,8 +191,14 @@ export class NarrationLog {
     };
     this.entries.push(entry);
 
+    // N3.3 — Drop-cap responsivo: narrações curtas (<100 chars) → drop-cap
+    // menor pra não dominar visualmente o conteúdo. Narrações médias/longas
+    // → drop-cap padrão. Aplicado via data-attr lido pelo CSS.
+    let dropCapSize: 'sm' | 'md' = 'md';
+    if (isFirstNarration && payload.text.length < 100) dropCapSize = 'sm';
     const extraClass = `is-narration${isFirstNarration ? ' is-first-narration' : ''}`;
     const entryEl = this.buildEntryEl(entry, extraClass);
+    if (isFirstNarration) entryEl.dataset.dropCap = dropCapSize;
     this.entriesEl.appendChild(entryEl);
 
     // Typewriter visual nas narrações de Mestre (não em chat/echo).

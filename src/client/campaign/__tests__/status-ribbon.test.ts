@@ -199,4 +199,49 @@ describe('renderStatusRibbon', () => {
     body.click();
     expect(expandCount).toBe(1);
   });
+
+  // N3.1 — Glyph troca pra 🎲 + class .is-pending-roll quando há check pendente
+  // pro player. Saving throw também aciona.
+  it('N3.1 — pendingCheck pro player faz glyph virar 🎲 + .is-pending-roll', () => {
+    const character = makeCharacter();
+    const state = makeState({
+      pendingCheck: { playerId: 'pc-1', skill: 'percepcao', dc: 12, reason: 'Notar emboscada' },
+    });
+    const el = renderStatusRibbon({
+      state, character,
+      onExpand: () => {}, onExit: () => {},
+    });
+    const glyph = el.querySelector('.sr-glyph');
+    expect(glyph?.textContent).toBe('🎲');
+    expect(glyph?.classList.contains('is-pending-roll')).toBe(true);
+  });
+
+  it('N3.1 — pendingSave pro player também troca pra 🎲', () => {
+    const character = makeCharacter();
+    const state = makeState({
+      pendingSave: { playerId: 'pc-1', ability: 'des', dc: 14, reason: 'Esquiva' },
+    });
+    const el = renderStatusRibbon({
+      state, character,
+      onExpand: () => {}, onExit: () => {},
+    });
+    const glyph = el.querySelector('.sr-glyph');
+    expect(glyph?.textContent).toBe('🎲');
+    expect(glyph?.classList.contains('is-pending-roll')).toBe(true);
+  });
+
+  it('N3.1 — pendingCheck de OUTRO player NÃO troca o glyph (mantém location)', () => {
+    const character = makeCharacter();
+    const state = makeState({
+      currentLocation: 'Floresta de Andumal',
+      pendingCheck: { playerId: 'pc-OUTRO', skill: 'arcanismo', dc: 15, reason: 'Decifrar' },
+    });
+    const el = renderStatusRibbon({
+      state, character,
+      onExpand: () => {}, onExit: () => {},
+    });
+    const glyph = el.querySelector('.sr-glyph');
+    expect(glyph?.textContent).toBe('🌲'); // floresta — glyphForLocation
+    expect(glyph?.classList.contains('is-pending-roll')).toBe(false);
+  });
 });

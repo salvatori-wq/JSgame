@@ -72,6 +72,22 @@ body.is-portrait-narrow .sr-glyph {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
 }
 
+/* N3.1 — Glyph pulsa dourado quando há skill check pendente do player.
+ * Sinal claro "tem teste rolando, atenção!". Respeita reduced-motion. */
+body.is-portrait-narrow .sr-glyph.is-pending-roll {
+  animation: sr-roll-pulse 1.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(244, 208, 127, 0.7));
+}
+@keyframes sr-roll-pulse {
+  0%, 100% { transform: scale(1) rotate(0); }
+  50%      { transform: scale(1.18) rotate(-6deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.is-portrait-narrow .sr-glyph.is-pending-roll {
+    animation: none;
+  }
+}
+
 body.is-portrait-narrow .sr-mode-label {
   flex-shrink: 1;
   min-width: 0;

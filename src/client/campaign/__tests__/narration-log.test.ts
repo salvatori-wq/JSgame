@@ -202,3 +202,38 @@ describe('NarrationLog — M2.3 is-roll-echo', async () => {
     log.destroy();
   });
 });
+
+// N3.3 — Drop-cap responsivo via data-attr (sm pra narração <100 chars, md default).
+describe('NarrationLog — N3.3 drop-cap responsivo', async () => {
+  if (typeof document === 'undefined') {
+    it.skip('skip — não tem DOM', () => {});
+    return;
+  }
+  const { NarrationLog } = await import('../narration-log');
+
+  it('primeira narração CURTA (<100 chars) recebe data-drop-cap="sm"', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'A chuva começa.' }); // 16 chars
+    const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
+    expect(entry?.dataset.dropCap).toBe('sm');
+    log.destroy();
+  });
+
+  it('primeira narração LONGA (>100 chars) recebe data-drop-cap="md"', () => {
+    const log = new NarrationLog();
+    const longText = 'Chuva fina cai sobre a estrada. Borin Forjarocha reconhece o caminho — passou por aqui há anos, em outra vida.';
+    log.appendNarration({ speaker: 'Mestre', text: longText });
+    const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
+    expect(entry?.dataset.dropCap).toBe('md');
+    log.destroy();
+  });
+
+  it('narrações subsequentes NÃO recebem data-drop-cap (não são first)', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Primeira.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Segunda.' });
+    const entries = log.element.querySelectorAll('.camp-narr-entry');
+    expect((entries[1] as HTMLElement)?.dataset.dropCap).toBeUndefined();
+    log.destroy();
+  });
+});

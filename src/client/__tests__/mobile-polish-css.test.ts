@@ -336,3 +336,48 @@ describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.dt-nav-btn\s*\{[^}]*min-height:\s*44px/);
   });
 });
+
+describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => {
+  const core = readCss('campaign-core.css');
+  const ribbon = readCss('status-ribbon.css');
+
+  it('N1.2 — first-narration speaker 13px com letter-spacing 0.18em', () => {
+    expect(core).toMatch(/\.is-first-narration\s+\.cnn-speaker\s*\{[\s\S]*?font-size:\s*13px/);
+    expect(core).toMatch(/\.is-first-narration\s+\.cnn-speaker\s*\{[\s\S]*?letter-spacing:\s*0\.18em/);
+  });
+
+  it('N1.3 — .sc-skip-btn margin-top 14 + min-height 38 (gap maior)', () => {
+    expect(core).toMatch(/\.sc-skip-btn\s*\{[^}]*margin-top:\s*14px/);
+    expect(core).toMatch(/\.sc-skip-btn\s*\{[^}]*min-height:\s*38px/);
+  });
+
+  it('N1.3 — skip btn mobile hit 44px', () => {
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-skip-btn\s*\{[^}]*min-height:\s*44px/);
+  });
+
+  it('N2.1 — textura mobile opacity 0.07 (era 0.05 default)', () => {
+    expect(core).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.camp-screen::before\s*\{[\s\S]*?opacity:\s*0\.07/);
+  });
+
+  it('N2.2 — separator visual após echo entry (gradient gold-28)', () => {
+    expect(core).toMatch(/\.is-roll-echo\s*\+\s*\.camp-narr-entry:not\(\.is-roll-echo\)::before/);
+    expect(core).toMatch(/rgba\(244,\s*208,\s*127,\s*0\.28\)/);
+  });
+
+  it('N3.1 — ribbon .is-pending-roll com sr-roll-pulse keyframe', () => {
+    expect(ribbon).toMatch(/\.sr-glyph\.is-pending-roll\s*\{[^}]*animation:\s*sr-roll-pulse/);
+    expect(ribbon).toMatch(/@keyframes\s+sr-roll-pulse/);
+  });
+
+  it('N3.1 — reduced-motion override pra ribbon pending roll', () => {
+    expect(ribbon).toMatch(/prefers-reduced-motion[^}]+\.sr-glyph\.is-pending-roll/);
+  });
+
+  it('N3.3 — drop-cap data-attr sm reduz pra 32px', () => {
+    expect(core).toMatch(/\[data-drop-cap='sm'\]\s+\.cnn-text::first-letter\s*\{[^}]*font-size:\s*32px/);
+  });
+
+  it('N3.3 — drop-cap data-attr sm mobile reduz pra 28px', () => {
+    expect(core).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\[data-drop-cap='sm'\]\s+\.cnn-text::first-letter\s*\{[^}]*font-size:\s*28px/);
+  });
+});
