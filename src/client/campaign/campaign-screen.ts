@@ -1152,7 +1152,7 @@ export class CampaignScreen {
   private async shareCampaignId(campId: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(campId);
-      this.flashToast('ID copiado! Cole no Home → Joinar.');
+      this.flashToast('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
     } catch {
       prompt('Copie o ID:', campId);
     }
@@ -1310,7 +1310,7 @@ export class CampaignScreen {
             click: async () => {
               try {
                 await navigator.clipboard.writeText(campId);
-                this.flashToast('ID copiado! Cole no Home → Joinar.');
+                this.flashToast('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
               } catch {
                 prompt('Copie o ID:', campId);
               }

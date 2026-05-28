@@ -82,7 +82,56 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-28 (Sprint Φ entregue — 6 commits, 1462→1559 tests +97)
+> Última atualização: 2026-05-28 (3 rounds polish audit equipe — 3 commits, 1559 tests mantido)
+
+### Polish "Audit 4 Personas" — entregue (3 commits, 0 net tests, zero regressão)
+
+João pediu rodar testes no jogo com **equipe de 4 personas** + **3 rounds de correções
+com profundidade**. Audit via preview_eval (sem gastar créditos LLM). Personas:
+- **Mariana** DM 10+a (PHB/regras), **Tiago** mobile casual (hit targets),
+  **Beatriz** UX (hierarquia), **Henrique** pai+filho 12a (family-friendly).
+
+#### R1 — Críticos UX (`11c1efb`)
+- Hit targets 32→44px: `.home-id-owner-input`, `.home-id-btn`, `.home-coop-advanced-toggle` (32→40)
+- Microcopy D&D PHB nos prefabs: "TANK · BATE FORTE" → "Lutador Anão · Linha de frente"
+  (Borin/Lyra/Sina archetypes refeitos com classe+raça oficial)
+- Family-friendly: "Cemitério 💀" → "Heróis Caídos 🪦"; "Lobby" → "Sala"
+- Resilience erro 500: "Erro listando crônicas: 500 Internal Server Error" exposto
+  → "🌙 Não consegui falar com o servidor. Tente abrir de novo em alguns segundos."
+- "Entrar" header → "Login" + placeholder input "Digite seu nome e jogue agora"
+  (deixa claro: sem cadastro)
+
+#### R2 — Hierarquia + jogabilidade (`8c07304`)
+- Hero título 26→22px, chips 10→9px + opacity 0.85 (discreto)
+- Tagline concreta: "D&D 5e · IA narra a história · sessões de 30min · até 3 amigos"
+- Identity bar avatar 30→36px (alinha com input 44), gap coeso
+- Footer: glyph 20→24, label 9→11 UPPERCASE, hit 50→58, "Tela"→"Ajustes"
+- Prefab cards: padding/gap reduzidos, icon grid-row 1/-1, **card 155→136px (-12%)**
+- Coop wording: "↓ Joinar crônica em andamento (com ID)" → "↓ Tenho o ID de uma crônica antiga"
+
+#### R3 — Refino final (`<este>`)
+- Boot splash: "Carregando o multiverso…" → "Convocando o Mestre…" (D&D, não Marvel)
+- Onboarding tour reescrito: "Bem-vindo a JSgame" → "Bem-vindo à mesa", "PJ" → "herói",
+  textos narrativos (não listagem técnica)
+- Joinar remanescentes: "🤝 Joinar" → "🤝 Entrar" no card crônica
+- Toast share campaign ID atualizado pra novo wording R2
+
+### Arquivos editados Polish 3 rounds
+- `src/client/home/sections/play-now.ts` — prefab archetypes PHB
+- `src/client/home/sections/identity-bar.ts` — Login + placeholder
+- `src/client/home/sections/coop.ts` — Sala/Entrar/ID crônica
+- `src/client/home/sections/graveyard.ts` — Heróis Caídos
+- `src/client/home/sections/my-chronicles.ts` — empty state amigável
+- `src/client/home/sections/my-characters.ts` — "seus heróis aparecem aqui"
+- `src/client/home/sections/footer.ts` — Login/Ajustes labels
+- `src/client/home/sections/hero.ts` — tagline IA narra
+- `src/client/onboarding-tour.ts` — 4 steps reescritos
+- `src/client/campaign/campaign-screen.ts` — toast share ID
+- `src/client/styles/home-tavern.css` — hit targets + hero + footer + prefab CSS
+- `index.html` — boot tagline
+- `src/client/home/__tests__/identity-bar.test.ts` — atualizado Entrar→Login
+
+> Última atualização anterior: 2026-05-28 (Sprint Φ entregue — 6 commits, 1462→1559 tests +97)
 
 ### Sprint Φ "Visual Authentic D&D" — entregue (6 commits, +97 tests)
 

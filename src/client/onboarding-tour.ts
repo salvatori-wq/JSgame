@@ -11,26 +11,29 @@ interface Step {
   icon: string;
 }
 
+// Round 3 fix (Mariana/Henrique) — microcopy mais cinematográfica + family-friendly:
+// "cemitério" → "Heróis Caídos", "wizard" inglês mantido como termo D&D (livro mago),
+// adicionado verbos vivos ao invés de listagem técnica.
 const STEPS: Step[] = [
   {
     icon: '⚔',
-    title: 'Bem-vindo a JSgame',
-    text: 'D&D 5e online com Mestre IA. Crie um PJ, comece uma crônica e jogue solo ou em coop com amigos.',
+    title: 'Bem-vindo à mesa',
+    text: 'D&D 5e online com Mestre IA que narra. Crie um herói, viva uma crônica de 30 minutos — sozinho ou com até 3 amigos.',
   },
   {
     icon: '🎭',
-    title: 'Crie seu Personagem',
-    text: 'Wizard de 5 passos: raça, classe, atributos (point buy 27), antecedente, identidade. Tudo PHB autêntico.',
+    title: 'Crie seu Herói',
+    text: 'Cinco passos: raça, classe, atributos (point buy 27), antecedente, identidade. Tudo direto do Player\'s Handbook.',
   },
   {
     icon: '🎲',
-    title: 'O Mestre Narra',
-    text: 'Você descreve a ação ("explorar caverna"). O Mestre IA narra consequência e pede testes (d20+modifier vs DC) quando há incerteza.',
+    title: 'O Mestre conduz',
+    text: 'Você descreve sua ação ("invado a caverna"). O Mestre IA narra o que acontece e pede testes (d20 + modificador vs CD) quando o resultado é incerto.',
   },
   {
     icon: '🏆',
-    title: 'Progresso Persistente',
-    text: 'Combata, vença, ganhe XP → suba de nível. Faça login (magic link) pra ter conquistas, streak diário e cemitério dos seus PJs caídos.',
+    title: 'Tudo persiste',
+    text: 'Cada vitória vira XP. Faça login com magic link e seus heróis, conquistas e os caídos ficam salvos entre dispositivos.',
   },
 ];
 

@@ -98,7 +98,7 @@ function renderChronicleCard(
     el('div', { class: 'hcamp-body' }, bodyChildren.filter(Boolean) as HTMLElement[]),
     el('button', {
       class: 'hcamp-join-btn',
-      text: '🤝 Joinar',
+      text: '🤝 Entrar',
       on: {
         click: () => {
           const charId = opts.selectedCharGetter();
