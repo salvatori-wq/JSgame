@@ -52,8 +52,8 @@ const STEPS: Step[] = [
     targetSelector: null,
     position: 'center',
     glyph: '🌒',
-    title: 'Bem-vindo a JSgame',
-    text: 'D&D 5e online com Mestre IA. Vou te mostrar a tela em 4 passos rápidos. Pula a qualquer momento.',
+    title: 'Bem-vindo à mesa',
+    text: 'D&D 5e com Mestre IA. Vou te mostrar a tela rapidinho — pula quando quiser.',
   },
   {
     targetSelector: '.ch-narration-host',

@@ -60,7 +60,7 @@ describe('Duolingo Tutorial', () => {
   it('primeiro step mostra welcome + sem skip (último step é "✓ Bora jogar")', () => {
     openDuolingoTutorial();
     const title = document.querySelector('.dt-tooltip-title');
-    expect(title?.textContent).toBe('Bem-vindo a JSgame');
+    expect(title?.textContent).toBe('Bem-vindo à mesa');
     const skip = document.querySelector('.dt-skip');
     expect(skip).not.toBeNull(); // primeiro step tem skip
     const next = document.querySelector('.dt-next');

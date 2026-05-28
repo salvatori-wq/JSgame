@@ -46,11 +46,19 @@ describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
   }
   const { NarrationLog } = await import('../narration-log');
 
-  it('primeira narração de Mestre cria scene pin com texto', () => {
+  it('P0 funil — 1ª narração de Mestre NÃO cria scene pin (não duplica cold-open)', () => {
     const log = new NarrationLog();
     log.appendNarration({ speaker: 'Mestre', text: 'A chuva começa a cair sobre a estrada.' });
+    expect(log.element.querySelector('.cn-scene-pin')).toBeNull();
+    log.destroy();
+  });
+
+  it('2ª narração de Mestre cria o scene pin com a última cena', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 2.' });
     expect(log.element.querySelector('.cn-scene-pin')).toBeTruthy();
-    expect(log.getLastSceneText()).toBe('A chuva começa a cair sobre a estrada.');
+    expect(log.getLastSceneText()).toBe('Cena 2.');
     expect(log.getLastSceneSpeaker()).toBe('Mestre');
     log.destroy();
   });
@@ -59,14 +67,16 @@ describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
     const log = new NarrationLog();
     log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
     log.appendNarration({ speaker: 'Mestre', text: 'Cena 2.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 3.' });
     const pins = log.element.querySelectorAll('.cn-scene-pin');
     expect(pins.length).toBe(1);
-    expect(log.getLastSceneText()).toBe('Cena 2.');
+    expect(log.getLastSceneText()).toBe('Cena 3.');
     log.destroy();
   });
 
   it('echo de roll NÃO atualiza scene pin (não é narração de Mestre)', () => {
     const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
     log.appendNarration({ speaker: 'Mestre', text: 'Cena narrada.' });
     log.appendNarration({ speaker: '🎲 Borin', text: 'percepção DC 12 → SUCESSO' });
     expect(log.getLastSceneText()).toBe('Cena narrada.');
@@ -75,6 +85,7 @@ describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
 
   it('player echo (▶) NÃO atualiza scene pin', () => {
     const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
     log.appendNarration({ speaker: 'Mestre', text: 'Cena base.' });
     log.appendNarration({ speaker: '▶ Borin', text: 'sneak' });
     expect(log.getLastSceneText()).toBe('Cena base.');
@@ -83,7 +94,8 @@ describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
 
   it('toggle expande/colapsa pin', () => {
     const log = new NarrationLog();
-    log.appendNarration({ speaker: 'Mestre', text: 'Cena.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 2.' });
     const head = log.element.querySelector('.cn-scene-pin-head') as HTMLButtonElement;
     const pin = log.element.querySelector('.cn-scene-pin') as HTMLElement;
     expect(pin.classList.contains('is-expanded')).toBe(false);
@@ -97,7 +109,8 @@ describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
 
   it('pin sticky position via CSS data check', () => {
     const log = new NarrationLog();
-    log.appendNarration({ speaker: 'Mestre', text: 'Cena.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 1.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Cena 2.' });
     const pin = log.element.querySelector('.cn-scene-pin') as HTMLElement;
     expect(pin).toBeTruthy();
     // CSS é injetado em runtime via styles.css; checa só que a class existe

@@ -12,7 +12,7 @@
 //  - Error card com botão retry actionable
 //  - Streaming typewriter visual nas narrações novas (respeita prefers-reduced-motion)
 
-import { el, escapeHtml, renderNarrationText } from '../util';
+import { el, escapeHtml, renderNarrationText, isDebugMode } from '../util';
 import { isVoiceTtsEnabled, speak as ttsSpeak } from '../voice-tts';
 import { playPageTurn } from '../audio';
 import { pickRandomTip, getThinkingPhase } from './thinking-tips';
@@ -274,8 +274,17 @@ export class NarrationLog {
     }
 
     // X.B3 — Atualiza scene pin com última narração de Mestre (não echo).
+    // P0 funil — só a partir da 2ª narração de Mestre. Na 1ª cena (cold-open),
+    // o pin apenas DUPLICA o texto que já está visível no log logo abaixo (sem
+    // scroll ainda), poluindo a primeira tela — o momento mais crítico do funil.
+    // Fixar a "última cena" só ganha valor quando o log já tem histórico.
     if (isMasterNarration) {
-      this.updateScenePin(payload.speaker, payload.text);
+      const masterNarrationCount = this.entries.filter(
+        (e) => e.kind === 'narration' && (e.speaker === 'Mestre' || e.speaker.startsWith('Mestre ')),
+      ).length;
+      if (masterNarrationCount >= 2) {
+        this.updateScenePin(payload.speaker, payload.text);
+      }
     }
 
     this.afterAppend(entryEl);
@@ -406,6 +415,42 @@ export class NarrationLog {
       timestamp: Date.now(),
     };
     this.entries.push(entry);
+
+    // P0 estabilidade — o técnico SEMPRE vai pro console (dev diagnostica mesmo
+    // sem flag visual; o jogador nunca precisa ver isso).
+    console.warn(
+      '[dm-degraded]',
+      payload.errorMeta.errorKind,
+      '· last:', payload.errorMeta.lastProvider,
+      '· tried:', payload.errorMeta.providersAttempted.join(' → ') || '—',
+      '·', payload.errorMeta.errorMsg,
+    );
+
+    // P0 funil — JOGADOR (prod) NUNCA vê jargão de infra (Cerebras, env var,
+    // "providers tentados", "ver detalhes técnicos"). Vê uma narração-ponte do
+    // Mestre + um retry discreto. O card técnico fica gated atrás de isDebugMode()
+    // (localhost / LAN / localStorage 'jsgame:debug'='1').
+    if (!isDebugMode()) {
+      const softEl = el('div', {
+        class: 'camp-narr-entry is-narration is-degraded-soft',
+        attrs: { 'data-id': entry.id },
+      }, [
+        el('div', { class: 'cnn-speaker', text: 'Mestre' }),
+        el('div', { class: 'cnn-text', text: payload.text }),
+      ]);
+      if (payload.errorMeta.canRetry && payload.onRetry) {
+        const handler = payload.onRetry;
+        softEl.appendChild(el('button', {
+          class: 'cn-retry-btn cn-retry-soft',
+          text: '🔁 Tentar de novo',
+          attrs: { type: 'button' },
+          on: { click: () => { softEl.classList.add('is-retrying'); handler(); } },
+        }));
+      }
+      this.entriesEl.appendChild(softEl);
+      this.afterAppend(softEl);
+      return;
+    }
 
     const errorKindLabel: Record<string, string> = {
       timeout: '⏱ Tempo esgotado',

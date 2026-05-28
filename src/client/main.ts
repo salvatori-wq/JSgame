@@ -20,7 +20,6 @@ import { getClass } from '../dnd/classes';
 import { portraitFor } from '../dnd/portrait';
 import { listTombstones, getStreak, type TombstoneDTO } from './api';
 import { setupAudioGesture } from './audio';
-import { shouldShowTour, openOnboardingTour } from './onboarding-tour';
 import { initA11yEnhancements, initEscapeKeyHandler, initGlobalErrorBoundary } from './a11y';
 import { installConnectionStatusBanner } from './connection-status';
 import { initUxPrefs } from './ux-prefs';
@@ -345,8 +344,9 @@ if (last) {
     currentUser = await getMe();
   } catch { /* offline ou erro — segue anônimo */ }
   void render();
-  // F21: onboarding tour no primeiro acesso (somente na home, evita interromper auto-rejoin)
-  if (currentView.kind === 'home' && shouldShowTour()) {
-    setTimeout(() => openOnboardingTour(), 400);
-  }
+  // P0 funil — onboarding tour da home REMOVIDO do auto-disparo. 4 passos
+  // modais antes de jogar eram fricção pura na primeira tela (34% saíam em
+  // started_only, p50 37s pra 1ª ação). A home é auto-explicativa e o
+  // tutorial Duolingo contextual cobre a tela de jogo. openOnboardingTour
+  // segue disponível em onboarding-tour.ts se quisermos religar via Ajustes.
 })();

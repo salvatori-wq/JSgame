@@ -933,6 +933,17 @@ body.is-death-save-pending::after {
   cursor: wait;
   pointer-events: none;
 }
+
+/* P0 estabilidade — degradação "soft" pro jogador: renderiza como narração
+   normal do Mestre (herda .is-narration), sem visual de erro nem jargão de
+   infra. O retry fica discreto (secundário, não um alarme). O card técnico
+   completo só aparece em modo debug (dev). */
+.cn-retry-soft {
+  margin-top: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  opacity: 0.82;
+}
 .camp-narr-entry.is-retrying::after {
   content: '⌛ tentando novamente…';
   display: block;

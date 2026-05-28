@@ -84,6 +84,32 @@ export function getOwnerName(): string {
 export function setOwnerName(name: string): void {
   try { localStorage.setItem(OWNER_KEY, name.trim()); } catch { /* ignore */ }
 }
+/** Nome anônimo default pra quem quer "jogar já" sem digitar nada.
+ * Temático e claramente trocável (o jogador edita no identity bar). */
+export const ANON_OWNER_NAME = 'Aventureiro';
+/** Retorna o owner name salvo; se vazio, gera e persiste um anônimo.
+ * Garante que os fluxos de "jogar já" NUNCA falhem em silêncio por falta
+ * de nome — o pedido de nome vira opt-in (pra salvar/coop), não um portão. */
+export function ensureOwnerName(): string {
+  const existing = getOwnerName().trim();
+  if (existing) return existing;
+  setOwnerName(ANON_OWNER_NAME);
+  return ANON_OWNER_NAME;
+}
+
+/** Modo debug: mostra detalhes técnicos (providers, erros de LLM, env vars)
+ * só pro DEV. Ativo em localhost/LAN OU com localStorage `jsgame:debug`='1'.
+ * Em prod o jogador NUNCA vê jargão de infra — vê só a narração + retry. */
+export function isDebugMode(): boolean {
+  try {
+    if (localStorage.getItem('jsgame:debug') === '1') return true;
+  } catch { /* ignore */ }
+  try {
+    const h = location.hostname;
+    return h === 'localhost' || h === '127.0.0.1'
+      || /^192\.168\./.test(h) || /^10\./.test(h);
+  } catch { return false; }
+}
 
 // Sessão ativa (pra auto-rejoin no reload).
 const LAST_SESSION_KEY = 'jsgame:lastSession';

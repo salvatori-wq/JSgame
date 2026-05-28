@@ -85,7 +85,6 @@ export async function mountHomeScreen(opts: HomeScreenOpts): Promise<void> {
 
   // ── Play Now (3 prefabs + wizard link)
   root.appendChild(renderPlayNow({
-    identityBar,
     onChronicleStart: (characterId) => opts.navigate({ kind: 'campaign', characterId }),
     onWizardClick: () => opts.navigate({ kind: 'wizard' }),
   }));

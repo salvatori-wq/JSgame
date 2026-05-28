@@ -2,10 +2,9 @@
 // 3 cards grandes: tap → cria PJ instantâneo + entra em cold-open.
 // Link "Criar PJ do zero" abaixo, discreto (descobrabilidade sem poluição).
 
-import { el, getOwnerName } from '../../util';
+import { el, ensureOwnerName } from '../../util';
 import { toastError } from '../../toast';
 import { trackClientMetric } from '../../api';
-import { focusOwnerInput } from './identity-bar';
 
 export interface PrefabCard {
   id: 'borin' | 'lyra' | 'sina';
@@ -25,7 +24,6 @@ export const PREFAB_CARDS: readonly PrefabCard[] = [
 ] as const;
 
 export interface PlayNowOpts {
-  identityBar: HTMLElement;
   onChronicleStart: (characterId: string) => void;
   onWizardClick: () => void;
 }
@@ -55,10 +53,8 @@ export function renderPlayNow(opts: PlayNowOpts): HTMLElement {
     },
     on: {
       click: () => {
-        if (!getOwnerName().trim()) {
-          focusOwnerInput(opts.identityBar);
-          return;
-        }
+        // Sem fricção: garante um owner (anônimo se preciso) e segue.
+        ensureOwnerName();
         opts.onWizardClick();
       },
     },
@@ -73,11 +69,9 @@ function renderPrefabCard(card: PrefabCard, opts: PlayNowOpts): HTMLElement {
     attrs: { type: 'button', 'data-prefab': card.id, title: `Jogar como ${card.label} agora` },
     on: {
       click: async () => {
-        const owner = getOwnerName().trim();
-        if (!owner) {
-          focusOwnerInput(opts.identityBar);
-          return;
-        }
+        // "Jogar já" = zero portões. Sem nome digitado, cria um anônimo
+        // (trocável depois no identity bar) em vez de morrer em silêncio.
+        const owner = ensureOwnerName();
         trackClientMetric('prefab_clicked', { prefab_id: card.id });
         btn.setAttribute('disabled', '');
         btn.classList.add('is-loading');
