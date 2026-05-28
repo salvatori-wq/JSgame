@@ -62,7 +62,10 @@ describe('α.1 — validateToolCall suggest_actions', () => {
     }
   });
 
-  it('clampa a 4 itens', () => {
+  // W3.6 — Sprint W: clamp em 3 (era 4). Consultor D&D: "PHB DM Style Guide
+  // pede 3 ou menos pra manter peso narrativo. Chips em quantidade = menu
+  // RPG japonês".
+  it('clampa a 3 itens (W3.6)', () => {
     const r = validateToolCall({
       name: 'suggest_actions',
       input: {
@@ -71,7 +74,7 @@ describe('α.1 — validateToolCall suggest_actions', () => {
         })),
       },
     });
-    expect(r?.kind === 'suggest_actions' && r.actions).toHaveLength(4);
+    expect(r?.kind === 'suggest_actions' && r.actions).toHaveLength(3);
   });
 
   it('normaliza action inválido pra "custom"', () => {

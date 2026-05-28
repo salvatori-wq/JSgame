@@ -295,23 +295,30 @@ describe('M1 — m-camp-dock + status-ribbon + campaign-core CSS', () => {
     expect(core).toMatch(/\.cn-chip-action-icon\s*\{[^}]*font-size:\s*13px/);
   });
 
-  it('M2.2 — sc-stage em portrait-narrow vira grid 2-col', () => {
-    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[^}]*display:\s*grid/);
-    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[^}]*grid-template-columns:\s*1fr\s+auto/);
+  // W1.2 — Sprint W substitui M2.2 grid 2-col por flex column stack single
+  // (dado protagonista 140px no centro, chips em grid 2x abaixo).
+  it('W1.2 — sc-stage em portrait-narrow vira flex column (dado protagonista)', () => {
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[\s\S]*?display:\s*flex/);
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-stage\s*\{[\s\S]*?flex-direction:\s*column/);
   });
 
-  it('M2.2 — sc-row em portrait-narrow vira flex-direction:column (col 2)', () => {
-    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-row\s*\{[^}]*flex-direction:\s*column/);
+  // W1.2 — sc-row agora é GRID com 2 areas (die row 1 span 2 / chip-attr+chip-dc row 2)
+  it('W1.2 — sc-row em portrait-narrow vira grid com area "die die"', () => {
+    expect(core).toMatch(/body\.is-portrait-narrow\s+\.sc-row\s*\{[\s\S]*?display:\s*grid/);
+    expect(core).toMatch(/grid-template-areas:[\s\S]*?"die die"/);
   });
 
   it('M2.3 — .is-roll-echo styling distinto (italic + opacity baixa)', () => {
     expect(core).toMatch(/\.camp-narr-entry\.is-roll-echo\s*\{[^}]*opacity:\s*0\.78/);
-    expect(core).toMatch(/\.is-roll-echo\s+\.cnn-text\s*\{[^}]*font-style:\s*italic/);
+    expect(core).toMatch(/\.is-roll-echo\s+\.cnn-text\s*\{[\s\S]*?font-style:\s*italic/);
   });
 
-  it('M3.2 — drop-cap pseudo-element na primeira narração', () => {
-    expect(core).toMatch(/\.camp-narr-entry\.is-first-narration\s+\.cnn-text::first-letter\s*\{/);
-    expect(core).toMatch(/\.is-first-narration\s+\.cnn-text::first-letter\s*\{[^}]*float:\s*left/);
+  // W2.1 — drop-cap inteligente: aparece em is-first-narration E em
+  // [data-drop-cap-active='1'] (primeiras 3 da cena + 1ª após location change).
+  it('W2.1 — drop-cap pseudo-element em first-narration OU data-drop-cap-active', () => {
+    expect(core).toMatch(/\.camp-narr-entry\.is-first-narration\s+\.cnn-text::first-letter/);
+    expect(core).toMatch(/\[data-drop-cap-active='1'\]\s+\.cnn-text::first-letter/);
+    expect(core).toMatch(/::first-letter[\s\S]*?float:\s*left/);
   });
 
   it('M3.3 — textura pergaminho via SVG noise no .camp-screen::before', () => {
@@ -731,5 +738,126 @@ describe('S1 — Ciclo S round 1 (crítico)', () => {
   it('S1.3 — scrollbar hidden no wiz-progress mobile (clean look)', () => {
     expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress\s*\{[\s\S]*?scrollbar-width:\s*none/);
     expect(wiz).toMatch(/body\.is-portrait-narrow\s+\.wiz-progress::-webkit-scrollbar\s*\{\s*display:\s*none/);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// Sprint W — Redesign Visceral (W1 Dado / W2 Mestre / W3 Combate)
+// ═════════════════════════════════════════════════════════════════════════
+
+describe('Sprint W1 — Dado Protagonista', () => {
+  const dice = readCss('dice.css');
+  const core = readCss('campaign-core.css');
+
+  it('W1-Mobile — dice-roll-overlay tem screen dim 0.72 + backdrop-filter blur(6px)', () => {
+    expect(dice).toMatch(/\.dice-roll-overlay\s*\{[\s\S]*?background:\s*rgba\(0,\s*0,\s*0,\s*0\.72\)/);
+    expect(dice).toMatch(/\.dice-roll-overlay\s*\{[\s\S]*?backdrop-filter:\s*blur\(6px\)/);
+  });
+
+  it('W1.3 — is-rolling guard inutiliza chips do overlay durante reveal', () => {
+    expect(dice).toMatch(/\.dice-roll-overlay\.is-rolling[\s\S]*?pointer-events:\s*none/);
+  });
+
+  it('W1.5 — flash crit/fumble com gradientes radial (gold + red)', () => {
+    expect(dice).toMatch(/\.dice-screen-flash\.is-crit[\s\S]*?255,\s*215,\s*0,\s*0\.35/);
+    expect(dice).toMatch(/\.dice-screen-flash\.is-fumble[\s\S]*?220,\s*60,\s*50,\s*0\.35/);
+  });
+
+  it('W1.5 — die-crit-landed e die-fumble-landed têm keyframes com scale 1.2', () => {
+    expect(dice).toMatch(/\.die-3d\.die-crit-landed[\s\S]*?dieCritLanded/);
+    expect(dice).toMatch(/\.die-3d\.die-fumble-landed[\s\S]*?dieFumbleLanded/);
+    expect(dice).toMatch(/@keyframes\s+dieCritLanded[\s\S]*?scale\(1\.2\)/);
+  });
+
+  it('W1-Mobile — sc-backdrop (skill-check) também tem backdrop-filter blur', () => {
+    expect(core).toMatch(/\.sc-backdrop\s*\{[\s\S]*?backdrop-filter:\s*blur\(6px\)/);
+  });
+});
+
+describe('Sprint W2 — Mestre Narrativo', () => {
+  const core = readCss('campaign-core.css');
+  const combat = readCss('combat.css');
+
+  it('W2.1 — read-aloud box (gradient gold + border-left + Cardo 16px) em is-narration não-echo', () => {
+    expect(core).toMatch(/\.camp-narr-entry\.is-narration:not\(\.is-roll-echo\)\s*\{[\s\S]*?border-left:\s*3px\s+solid\s+var\(--ink-gold\)/);
+    expect(core).toMatch(/\.camp-narr-entry\.is-narration:not\(\.is-roll-echo\)\s+\.cnn-text\s*\{[\s\S]*?font-size:\s*16px/);
+    expect(core).toMatch(/\.camp-narr-entry\.is-narration:not\(\.is-roll-echo\)\s+\.cnn-text\s*\{[\s\S]*?line-height:\s*1\.6/);
+  });
+
+  it('W2.2 — player echo style azul-aço discreto (font 13 italic opacity)', () => {
+    expect(core).toMatch(/\.camp-narr-entry\.is-player-echo\s+\.cnn-text\s*\{[\s\S]*?font-size:\s*13px/);
+    expect(core).toMatch(/\.camp-narr-entry\.is-player-echo\s*\{[\s\S]*?opacity:\s*0\.86/);
+  });
+
+  it('W2.3 — party message com avatar circle 28px + bg azul-aço', () => {
+    expect(core).toMatch(/\.cn-pm-avatar\s*\{[\s\S]*?width:\s*28px/);
+    expect(core).toMatch(/\.cn-pm-avatar\s*\{[\s\S]*?border-radius:\s*50%/);
+    expect(core).toMatch(/\.camp-narr-entry\.is-party-message\s*\{[\s\S]*?border-left:\s*3px\s+solid\s+rgba\(140,\s*180,\s*230/);
+  });
+
+  it('W2.4 — combat log usa Cardo serif italic 14px (não monospace)', () => {
+    expect(combat).toMatch(/\.cb-log-line\s*\{[\s\S]*?font-family:\s*'Cardo'/);
+    expect(combat).toMatch(/\.cb-log-line\s*\{[\s\S]*?font-style:\s*italic/);
+    expect(combat).toMatch(/\.cb-log-line\s*\{[\s\S]*?font-size:\s*14px/);
+  });
+
+  it('W2-Mobile — thinking indicator tem skeleton shimmer', () => {
+    expect(core).toMatch(/@keyframes\s+thinkingShimmer/);
+    expect(core).toMatch(/\.camp-narr-entry\.is-thinking\s*\{[\s\S]*?thinkingShimmer/);
+  });
+});
+
+describe('Sprint W3 — Combate Target-First', () => {
+  const combat = readCss('combat.css');
+  const cts = readCss('combat-target-sheet.css');
+  const ribbon = readCss('initiative-ribbon.css');
+
+  it('W3.1 — cb-enemy-meta usa Cardo italic (fog of war, não monospace)', () => {
+    expect(combat).toMatch(/\.cb-enemy-meta\s*\{[\s\S]*?font-family:\s*'Cardo'/);
+    expect(combat).toMatch(/\.cb-enemy-meta\s*\{[\s\S]*?font-style:\s*italic/);
+  });
+
+  it('W3.1 — cb-enemy-hp-adj tem cores por severidade (intacto verde, à beira vermelho)', () => {
+    expect(combat).toMatch(/\.cb-enemy-hp-adj\.cb-enemy-hp-intacto/);
+    expect(combat).toMatch(/\.cb-enemy-hp-adj\.cb-enemy-hp-à-beira/);
+  });
+
+  it('W3.2 — cts-overlay + cts-sheet com slide-up animation', () => {
+    expect(cts).toMatch(/\.cts-overlay\s*\{[\s\S]*?animation:\s*ctsOverlayFadeIn/);
+    expect(cts).toMatch(/\.cts-sheet\s*\{[\s\S]*?animation:\s*ctsSheetSlideUp/);
+    expect(cts).toMatch(/@keyframes\s+ctsSheetSlideUp/);
+  });
+
+  it('W3.2 — primary action btn tem glow pulsante + hit target ≥64px', () => {
+    expect(cts).toMatch(/\.cts-primary-btn\s*\{[\s\S]*?animation:\s*ctsPrimaryGlow/);
+    expect(cts).toMatch(/\.cts-primary-btn\s*\{[\s\S]*?min-height:\s*64px/);
+  });
+
+  it('W3-Mobile — enemy card.is-targeted tem pulse 200ms vermelho', () => {
+    expect(cts).toMatch(/\.cb-enemy-card\.is-targeted\s*\{[\s\S]*?cbTargetPulse/);
+    expect(cts).toMatch(/@keyframes\s+cbTargetPulse[\s\S]*?scale\(1\.05\)/);
+  });
+
+  it('W3.3 — cb-economy é STICKY top com z-index 8', () => {
+    expect(combat).toMatch(/\.cb-economy\s*\{[\s\S]*?position:\s*sticky/);
+    expect(combat).toMatch(/\.cb-economy\s*\{[\s\S]*?top:\s*0/);
+    expect(combat).toMatch(/\.cb-economy\s*\{[\s\S]*?z-index:\s*8/);
+  });
+
+  it('W3.4 — body.is-my-turn aplica box-shadow inset gold na combat-screen', () => {
+    expect(combat).toMatch(/body\.is-my-turn\s+\.combat-screen\s*\{[\s\S]*?box-shadow:[\s\S]*?var\(--ink-gold\)/);
+    expect(combat).toMatch(/@keyframes\s+turnEnterPulse/);
+  });
+
+  it('W3-DnD — body.is-took-damage tem screen-shake + dmgFlashFade', () => {
+    expect(combat).toMatch(/body\.is-took-damage[\s\S]*?bodyDamageShake/);
+    expect(combat).toMatch(/@keyframes\s+bodyDamageShake/);
+    expect(combat).toMatch(/@keyframes\s+dmgFlashFade/);
+  });
+
+  it('W3-DnD — irb-next-hint cor por kind (enemy red, player gold, me-next bg)', () => {
+    expect(ribbon).toMatch(/\.irb-next-hint\.irb-next-enemy/);
+    expect(ribbon).toMatch(/\.irb-next-hint\.irb-next-player/);
+    expect(ribbon).toMatch(/\.irb-next-hint\.is-me-next/);
   });
 });

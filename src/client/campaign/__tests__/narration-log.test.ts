@@ -203,8 +203,11 @@ describe('NarrationLog — M2.3 is-roll-echo', async () => {
   });
 });
 
-// N3.3 — Drop-cap responsivo via data-attr (sm pra narração <100 chars, md default).
-describe('NarrationLog — N3.3 drop-cap responsivo', async () => {
+// W2.1 (era N3.3) — Drop-cap inteligente: aparece nas primeiras 3 narrações
+// da cena + 1ª após location change. Consultor Mobile pediu: NÃO drop-cap
+// sempre — vira ruído visual em log longo. Tamanho via data-drop-cap='sm'|'md'
+// (curta < 100 chars vira sm).
+describe('NarrationLog — W2.1 drop-cap inteligente', async () => {
   if (typeof document === 'undefined') {
     it.skip('skip — não tem DOM', () => {});
     return;
@@ -216,6 +219,7 @@ describe('NarrationLog — N3.3 drop-cap responsivo', async () => {
     log.appendNarration({ speaker: 'Mestre', text: 'A chuva começa.' }); // 16 chars
     const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
     expect(entry?.dataset.dropCap).toBe('sm');
+    expect(entry?.dataset.dropCapActive).toBe('1');
     log.destroy();
   });
 
@@ -225,15 +229,50 @@ describe('NarrationLog — N3.3 drop-cap responsivo', async () => {
     log.appendNarration({ speaker: 'Mestre', text: longText });
     const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
     expect(entry?.dataset.dropCap).toBe('md');
+    expect(entry?.dataset.dropCapActive).toBe('1');
     log.destroy();
   });
 
-  it('narrações subsequentes NÃO recebem data-drop-cap (não são first)', () => {
+  it('primeiras 3 narrações do Mestre na mesma cena recebem drop-cap; 4ª NÃO', () => {
     const log = new NarrationLog();
-    log.appendNarration({ speaker: 'Mestre', text: 'Primeira.' });
-    log.appendNarration({ speaker: 'Mestre', text: 'Segunda.' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Primeira.', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Segunda.', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Terceira.', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Quarta.', currentLocation: 'taverna' });
     const entries = log.element.querySelectorAll('.camp-narr-entry');
-    expect((entries[1] as HTMLElement)?.dataset.dropCap).toBeUndefined();
+    expect((entries[0] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    expect((entries[1] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    expect((entries[2] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    expect((entries[3] as HTMLElement)?.dataset.dropCapActive).toBeUndefined();
+    log.destroy();
+  });
+
+  it('1ª narração após location change reseta counter e ganha drop-cap (mesmo após 3+ na cena anterior)', () => {
+    const log = new NarrationLog();
+    // 4 na taverna → 4ª não tem drop-cap
+    log.appendNarration({ speaker: 'Mestre', text: '1', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: '2', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: '3', currentLocation: 'taverna' });
+    log.appendNarration({ speaker: 'Mestre', text: '4', currentLocation: 'taverna' });
+    // Vira a esquina → nova cena, dropcap volta
+    log.appendNarration({ speaker: 'Mestre', text: 'A floresta começa…', currentLocation: 'floresta' });
+    const entries = log.element.querySelectorAll('.camp-narr-entry');
+    expect((entries[3] as HTMLElement)?.dataset.dropCapActive).toBeUndefined();
+    expect((entries[4] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    log.destroy();
+  });
+
+  it('echo de roll NÃO consome cota de drop-cap (não é narração do Mestre)', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Primeira.', currentLocation: 'cela' });
+    log.appendNarration({ speaker: '🎲 Borin', text: 'percepcao DC 12 → SUCESSO', currentLocation: 'cela' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Segunda.', currentLocation: 'cela' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Terceira.', currentLocation: 'cela' });
+    const entries = log.element.querySelectorAll('.camp-narr-entry');
+    // Roll-echo não conta — 3 Mestre narrations todas têm drop-cap.
+    expect((entries[0] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    expect((entries[2] as HTMLElement)?.dataset.dropCapActive).toBe('1');
+    expect((entries[3] as HTMLElement)?.dataset.dropCapActive).toBe('1');
     log.destroy();
   });
 });

@@ -126,16 +126,25 @@ describe('renderInitiativeRibbon', () => {
     expect(el.querySelector('.irb-expand-card')).toBeTruthy();
   });
 
-  it('hint "X é o próximo" aparece quando aliado é o próximo turno', () => {
+  // W3-DnD — Sprint W: next-up hint agora aparece SEMPRE (não só pra aliado).
+  // Consultor D&D: "ordem dramática" — DM narra próximo participante sempre,
+  // seja enemy ou aliado. Glyph muda por kind (🩸 enemy / 🤝 aliado / ▶ você).
+  it('hint "Próximo" aparece em TODOS turnos (W3-DnD next-up)', () => {
     const combat = makeCombat();
-    // currentTurn=0 (pc-1), próximo é enemy. Não deve haver hint pra próprio enemy.
     const party = [makeCharacter('pc-1'), makeCharacter('pc-2', { characterName: 'Lyra' })];
-    const el = renderInitiativeRibbon({ combat, party, myCharacterId: 'pc-1' });
-    expect(el.querySelector('.irb-next-hint')).toBeNull();
 
-    // Agora muda currentTurn pra 1 (enemy). Próximo = pc-2 (aliado).
+    // currentTurn=0 (pc-1), próximo é enemy "Goblin". Hint mostra Goblin com 🩸.
+    const el = renderInitiativeRibbon({ combat, party, myCharacterId: 'pc-1' });
+    const hint0 = el.querySelector('.irb-next-hint');
+    expect(hint0).not.toBeNull();
+    expect(hint0?.textContent).toContain('Goblin');
+    expect(hint0?.className).toContain('irb-next-enemy');
+
+    // currentTurn=1 (enemy), próximo = pc-2 (aliado Lyra).
     combat.currentTurnIndex = 1;
     const el2 = renderInitiativeRibbon({ combat, party, myCharacterId: 'pc-1' });
-    expect(el2.querySelector('.irb-next-hint')?.textContent).toContain('Lyra');
+    const hint1 = el2.querySelector('.irb-next-hint');
+    expect(hint1?.textContent).toContain('Lyra');
+    expect(hint1?.className).toContain('irb-next-player');
   });
 });
