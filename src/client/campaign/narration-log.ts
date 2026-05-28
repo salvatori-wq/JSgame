@@ -470,11 +470,18 @@ export class NarrationLog {
 
     const wrap = el('div', { class: 'cn-suggested-chips', attrs: { role: 'group', 'aria-label': 'Ações sugeridas' } });
     for (const chip of chips) {
+      // Sub-sprint D1 — chips com hint = ação com skill check (rolará dado).
+      // Marca .is-skill pra ganhar destaque visual (border dourado + 🎲 prefix).
+      const isSkill = !!chip.hint;
+      const tooltipBase = chip.hint
+        ? `🎲 Rola ${chip.hint} (d20 + bônus)`
+        : chip.label;
       const btn = el('button', {
-        class: `cn-chip${chip.variant === 'combat' ? ' is-combat' : ''}`,
-        attrs: { type: 'button' },
+        class: `cn-chip${chip.variant === 'combat' ? ' is-combat' : ''}${isSkill ? ' is-skill' : ''}`,
+        attrs: { type: 'button', title: tooltipBase, 'aria-label': tooltipBase },
         on: { click: () => chip.onClick() },
       }, [
+        isSkill ? el('span', { class: 'cn-chip-dice', text: '🎲', attrs: { 'aria-hidden': 'true' } }) : null,
         el('span', { class: 'cn-chip-label', text: chip.label }),
         chip.hint ? el('span', { class: 'cn-chip-hint', text: chip.hint }) : null,
       ].filter(Boolean) as HTMLElement[]);

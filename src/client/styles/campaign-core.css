@@ -199,10 +199,12 @@
 }
 
 .cn-chip {
+  /* Sub-sprint D1 (Tiago) — hit target 38→44px (WCAG AAA polegar) */
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 10px 14px;
+  min-height: 44px;
   background: linear-gradient(135deg, rgba(60, 40, 20, 0.85), rgba(40, 28, 14, 0.85));
   border: 1px solid rgba(200, 155, 95, 0.55);
   border-radius: 999px;
@@ -255,12 +257,68 @@
   letter-spacing: 0.04em;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+ * Sub-sprint D1 — Chips com SKILL (rolará dado d20) ganham destaque visual.
+ * Antes: idêntica às chips comuns. Agora: ícone 🎲, border dourado
+ * saturado, badge da perícia em pill destacada, glow sutil no hover.
+ * O player precisa SABER que aquela chip vai rolar dado.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+.cn-chip.is-skill {
+  border-color: var(--ink-gold);
+  background: linear-gradient(135deg, rgba(90, 60, 25, 0.92), rgba(50, 32, 14, 0.92));
+  box-shadow: 0 0 0 1px rgba(212, 168, 87, 0.2),
+              0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.cn-chip.is-skill:hover {
+  border-color: #f4d07f;
+  box-shadow: 0 0 14px rgba(212, 168, 87, 0.5),
+              0 0 0 1px rgba(212, 168, 87, 0.4);
+  transform: translateY(-1px);
+}
+
+.cn-chip-dice {
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  /* Pulsação sutil pra chamar atenção (mas não distrair) */
+  animation: cn-chip-dice-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes cn-chip-dice-glow {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12) rotate(-4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-chip-dice {
+    animation: none;
+  }
+}
+
+/* Badge "Percepção" agora pill dourada destacada, não italic pequeno */
+.cn-chip.is-skill .cn-chip-hint {
+  background: linear-gradient(135deg, var(--ink-gold), #b48d49);
+  color: #1a0e04;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 @media (max-width: 480px) {
   .cn-chip {
     font-size: 13px;
     padding: 10px 14px;
-    /* Hit target maior pro touch */
-    min-height: 38px;
+    min-height: 44px;
+  }
+  .cn-chip.is-skill .cn-chip-hint {
+    font-size: 9px;
+    padding: 2px 6px;
   }
 }
 
