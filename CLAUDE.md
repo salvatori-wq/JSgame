@@ -13,19 +13,19 @@ JSgame nasceu separado, do zero, aproveitando aprendizados do Cave Run.
 ## Status atual
 
 - ✅ **F1** Foundation (config, server, client, D&D core: dice/attributes/races/classes/skills/conditions/backgrounds)
-- ✅ **F2** Wizard de criação de PJ (5 steps point buy 27)
-- ✅ **F3** Mestre IA Groq + Modo Exploração (cena narrada + ações + skill check d20)
-- ⏳ **F4** Combate D&D real (initiative + ataques + AI inimigos + condições) — **PRÓXIMA**
-- ⏳ **F5** Polish + Coop multi-player + Magias + Rest + PWA
+- ✅ **F2** Wizard de criação de PJ (8 steps point buy 27 — race/class/subclass/abilities/background/personality/feat-ASI/review)
+- ✅ **F3** Mestre IA cascade (Groq→Gemini) + Modo Exploração (cena narrada + ações + skill check d20)
+- ✅ **F4** Combate D&D real — initiative (d20+DEX), action economy (Action/Bonus/Move/Reaction), attack rolls + crit + AC, 14 conditions PHB com glyph + efeitos, advantage/disadvantage automation via condition rules, enemy AI determinístico, end-combat detection. Inclui: F25 concentration, F26 damage profile (resistência/imunidade/vulnerabilidade), F27 saving throws (request_saving_throw tool + η.6 fórmula didática), α.3 inspiration (PHB), β.7 end-turn chip, reactions (counterspell, OA, shield via reaction-engine.ts), spell engine completo (resolvePlayerCastSpell — damage/heal/condition/buff/utility, slot consumption, upcasting, prepared check), death saves end-to-end (3 sucessos vs 3 falhas, nat20→1HP, nat1→2 falhas, tombstone). **TOTAL: 105 tests verde em combat/spells/saving-throw/rest-death/reactions/concentration/counterspell.**
+- ✅ **F5 (parcial)** Polish + Coop multi-player + Magias + Rest. Coop lobby completo, magic items, short rest visual picker (T2.5), long rest ritual (T3.3), achievements + tombstones + streaks. **Falta**: PWA install banner refino.
 
-**Pra retomar**: leia `HANDOFF_2026-05-25_F3-done-F4-next.md` na raiz.
+**Pra retomar**: leia o handoff mais recente (`HANDOFF_*.md` na raiz, ordenado por data).
 
 ## Comandos essenciais
 
 ```bash
 npm run dev          # backend (3001) + frontend (5173) em paralelo
 npm run typecheck    # tsc --noEmit
-npm test             # vitest (58 tests passando)
+npm test             # vitest (1794 tests passando)
 ```
 
 URLs: http://localhost:5173 (desktop) · http://192.168.15.3:5173 (mobile)
@@ -67,11 +67,11 @@ src/dnd/*.ts                                # Regras D&D 5e (PHB embarcado)
 
 ## Git
 
-Local em `C:\Users\JOÃO\JSgame\`. **Sem GitHub remote ainda** — só commits locais.
-Commits: F1 → F2 → F2.fix1/2/3 → F3.
+Local em `C:\Users\JOÃO\JSgame\`. **Remote**: `https://github.com/salvatori-wq/JSgame.git` (auto-deploy Render via push origin/main).
 
 ```bash
 git log --oneline | head -10
+git push origin main      # dispara auto-deploy Render
 ```
 
 ## Feedback persistente do João
@@ -82,7 +82,46 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Ciclo T — 3 commits, 1731→1770 tests +39)
+> Última atualização: 2026-05-29 (Ciclo U — 1 commit fix descoberto via playtest, 1770→1794 tests +24)
+
+### Ciclo U "Tool leak + Echo PT-BR" — fix descoberto via playtest headless (1 commit, +24 tests)
+
+Após Ciclo T, fechamos os ciclos de polish e fomos pra **playtest real headless** via preview eval: cold-open prefab Lyra (mago) → click "Atacar" (action-dock direct).
+Descobriu 2 gaps **REAIS** (não inferidos por audit estática):
+
+#### U.1 — Tool call leak no narration (CRÍTICO, `a71e3b6`) +12 tests
+- **Bug observado**: DM cuspiu literal no body do narration:
+  `"Sem conversa?"+ tool start_combat (enemies: [{name: \"Carcereiro Bruto\"...}])+ tool suggest_actions (actions: [...])`
+- **Causa raiz**: system prompt (prompts.ts:275-281) usa exemplos PT-BR
+  literais "+ tool NAME (args)". Quando cascade força retry-sem-tools
+  (Gemini mode=auto retornou narração vazia + toolCalls), LLM IMITA esses
+  exemplos como string em vez de chamar tools.
+- **Fix defensivo**: `stripInlineToolMentions(text)` em dm.ts. Pattern
+  `\s*\+?\s*tool\s+(KNOWN_NAMES)\s*\(` (case-insensitive), trunca a partir
+  do match. KNOWN_TOOL_NAMES cobre todas 24 tools + variações compactas
+  (Gemini às vezes vira "startcombat" sem underscore).
+- Aplicado em ambos caminhos extractJson (linha 146 + 157).
+- 12 tests: real playtest format + multi-tool inline + case insensitive +
+  non-regressão "toolkit"/"tool antiga" como palavras legítimas.
+
+#### U.2 — Player echo "attack" → "⚔ Atacar" (`a71e3b6`) +12 tests
+- **Bug observado**: takeAction handler echoava `String(action)` raw —
+  player via "attack" literal no log. Jargão dev exposto.
+- **Fix**: `explorationActionLabel(action)` em connection.ts mapeia os 10
+  ExplorationAction (types.ts:622) pra label PT-BR com ícone consistente
+  com action-dock-topics.ts: attack→"⚔ Atacar", sneak→"🥷 Furtar-se", etc.
+- Fallback raw se action desconhecida (defensivo).
+- 12 tests: 1 por action + fallback + cobertura total.
+
+### Decisões/aprendizados Ciclo U
+- **F4 NÃO é "PRÓXIMA"** — já entregue em ciclos passados (F25/F26/F27/η.5/etc).
+  CLAUDE.md desatualizado. **Corrigido neste ciclo.**
+- **Playtest headless > audit estática** — agent audit inferiu 3 buracos
+  críticos que JÁ ESTAVAM FECHADOS. Playtest real (15min, custou 6 LLM calls)
+  revelou 2 bugs reais que NENHUM audit pegou.
+- **Próximo ciclo deve começar por playtest**, não por audit.
+
+> Última atualização anterior: 2026-05-29 (Ciclo T — 3 commits, 1731→1770 tests +39)
 
 ### Ciclo T "Onboarding + Sheet + Rest UI + Dice Preview + Lobby" — entregue (3 commits, +39 tests)
 
