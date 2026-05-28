@@ -140,17 +140,19 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
 
   // ── Player turn action bar (só aparece se for meu turno)
   if (isMyTurn(combat, myCharacterId) && myChar) {
+    // Sub-sprint B (Mariana/Henrique) — labels PHB PT-BR + hints didáticos.
+    // "Disparada" → "Disparar" (verbo, alinha PHB), hints mais claros pra novatos.
     const actions: Array<{ id: CombatActionKind; label: string; icon: string; hint: string }> = [
-      { id: 'attack', label: 'Atacar', icon: '⚔', hint: 'Clique num inimigo acima' },
-      { id: 'dodge', label: 'Esquivar', icon: '🛡', hint: 'Ataques contra você têm desvantagem' },
-      { id: 'dash', label: 'Disparada', icon: '💨', hint: 'Movimento dobrado' },
-      { id: 'disengage', label: 'Desengajar', icon: '↩', hint: 'Sai sem provocar ataque de oportunidade' },
-      { id: 'hide', label: 'Esconder', icon: '🥷', hint: 'Tenta ficar invisível' },
+      { id: 'attack', label: 'Atacar', icon: '⚔', hint: 'Selecione o inimigo alvo nos cards acima' },
+      { id: 'dodge', label: 'Esquivar', icon: '🛡', hint: 'Ataques contra você têm desvantagem até seu próximo turno' },
+      { id: 'dash', label: 'Disparar', icon: '💨', hint: 'Movimento dobrado neste turno (PHB Disparar)' },
+      { id: 'disengage', label: 'Desengajar', icon: '↩', hint: 'Recua sem sofrer ataque de oportunidade' },
+      { id: 'hide', label: 'Esconder', icon: '🥷', hint: 'Teste de Furtividade — se ninguém te vê, fica oculto' },
       { id: 'help', label: 'Ajudar', icon: '🤝', hint: 'Aliado ganha vantagem no próximo ataque' },
       // F24
-      { id: 'grapple', label: 'Agarrar', icon: '🤼', hint: 'Atletismo contestado — alvo restrito' },
-      { id: 'shove', label: 'Empurrar', icon: '👐', hint: 'Atletismo contestado — alvo derrubado (caído)' },
-      { id: 'two-weapon', label: '2ª Arma', icon: '🗡', hint: 'Ataque bônus com weapon off-hand (1 por turno)' },
+      { id: 'grapple', label: 'Agarrar', icon: '🤼', hint: 'Atletismo vs Atletismo/Acrobacia — alvo fica preso' },
+      { id: 'shove', label: 'Empurrar', icon: '👐', hint: 'Atletismo contestado — derruba alvo (caído)' },
+      { id: 'two-weapon', label: '2ª Arma', icon: '🗡', hint: 'Ataque bônus com arma da mão fraca (1× por turno)' },
     ];
     const bar = el('div', { class: 'cb-actions cb-tab-content cb-tab-actions' });
     bar.appendChild(el('div', { class: 'cb-actions-title', text: `🎯 Seu turno, ${escapeHtml(myChar.characterName)}` }));
@@ -170,8 +172,11 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       const blockedTitle = blocked
         ? (a.id === 'two-weapon' ? '⛔ Já gastou Ação Bônus' : '⛔ Já gastou Ação principal')
         : a.hint;
+      // Sub-sprint B (Beatriz) — "Atacar" é a ação mais comum no turno (90%+).
+      // Marca .is-primary pra ganhar destaque visual (border dourado + accent sangue).
+      const isPrimary = a.id === 'attack';
       grid.appendChild(el('button', {
-        class: `cb-action-btn ${blocked ? 'is-blocked' : ''}`,
+        class: `cb-action-btn ${blocked ? 'is-blocked' : ''} ${isPrimary ? 'is-primary' : ''}`,
         attrs: { type: 'button', title: blockedTitle, ...(blocked ? { disabled: true } : {}) },
         on: {
           click: () => {

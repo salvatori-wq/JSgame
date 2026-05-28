@@ -234,7 +234,7 @@ function combatSubActions(topic: TopicId, ctx: ActionDockContext): SubAction[] {
       return [
         { glyph: '⚔', label: 'Atacar', disabled: !myTurn, onClick: () => cb?.('attack') },
         { glyph: '🛡', label: 'Esquivar', hint: 'Dodge', disabled: !myTurn, onClick: () => cb?.('dodge') },
-        { glyph: '🏃', label: 'Disparada', hint: 'Dash', disabled: !myTurn, onClick: () => cb?.('dash') },
+        { glyph: '🏃', label: 'Disparar', hint: 'Dash', disabled: !myTurn, onClick: () => cb?.('dash') },
         { glyph: '↩', label: 'Recuar', hint: 'Disengage', disabled: !myTurn, onClick: () => cb?.('disengage') },
         { glyph: '👻', label: 'Esconder', hint: 'Hide', disabled: !myTurn, onClick: () => cb?.('hide') },
         { glyph: '🤝', label: 'Ajudar', hint: 'Help aliado', disabled: !myTurn, onClick: () => cb?.('help') },

@@ -28,7 +28,7 @@ const CARDS: Card[] = [
   {
     icon: '🛡',
     title: 'Esquivar / Desengajar',
-    text: 'Esquivar: ataques contra você têm desvantagem. Disparada: movimento dobrado. Desengajar: sai sem provocar ataque de oportunidade.',
+    text: 'Esquivar: ataques contra você têm desvantagem. Disparar: movimento dobrado. Desengajar: sai sem provocar ataque de oportunidade.',
   },
   {
     icon: '👊',

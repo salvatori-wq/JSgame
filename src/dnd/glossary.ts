@@ -115,7 +115,7 @@ export const GLOSSARY: GlossaryEntry[] = [
     term: 'Movimento',
     aliases: ['speed'],
     category: 'combate',
-    description: 'Pés de deslocamento no turno (default 30ft pra humanos). Pode dividir entre antes/depois de outras ações. Anão = 25ft; Monk = 30+. Disparada (Dash) dobra.',
+    description: 'Deslocamento no turno (default 9m / 30ft pra humanos). Pode dividir entre antes/depois de outras ações. Anão = 7,5m / 25ft; Monge = 9m+. Disparar (Dash) dobra.',
     phbRef: 'PHB pág 191',
   },
   {
