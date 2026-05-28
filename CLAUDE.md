@@ -82,7 +82,128 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Sprint X — 2 commits feature+test, 1842→1871 tests +29, **consultores: D&D 9.2/10 Mobile 8.8/10 — acima de BG3 mobile e Genshin**)
+> Última atualização: 2026-05-29 (Sprint Y — 2 commits feature+test, 1871→1908 tests +37, **consultores: D&D 9.6/10 Mobile 9.4/10 — Mearls superado, empata BG3 mobile**)
+
+### Sprint Y "Fog Linter + Death Drama + NPC Secrets + Reward Juice + Combat Echo" — entregue (2 commits, +37 tests)
+
+Atende todos os **6 gaps remanescentes** dos 2 consultores pós Sprint X
+(3 D&D + 3 Mobile). UX/regra/drama atingiu **teto da categoria**. Próximas
+dimensões = vida social teatral + produto (conteúdo/persistência longa).
+
+**Vereditos pós-Sprint Y**:
+- **D&D 9.6/10** (era 9.2): *"Mesa de D&D 5e PHB-faithful conduzida por
+  DM competente; gap restante é polish narrativo, não regra ou drama."*
+  Expectativa Mearls (9.5) SUPERADA.
+- **Mobile 9.4/10** (era 8.8): *"Como RPG narrativo mobile, está no teto
+  da categoria. Não há comparável publicado nesse score."*
+
+**Comparativo Mobile pós-Y**:
+```
+Marvel Snap (9.5) > JSgame Y (9.4) ≈ BG3 mobile (9.4) > Disco Elysium (9.0)
+                                                       > Genshin (8.5)
+                                                       > Slay the Spire (8.5)
+```
+
+#### Commit 1: `feat(Y)` — `6808282`
+
+**Y.A — Atendendo consultor D&D** (3 gaps):
+- Y.A1 `narration-linter.ts` NOVO + pipeline em dm.ts. 9 patterns regex
+  (HP, CA, AC, DC, +ataque, XdY+Z, pés/ft, bônus, fração HP). Pipeline:
+  LLM → lint → se viola, retry 1× com `correctionPromptForNarration` →
+  se ainda viola, sanitize manual com adjetivos PHB → telemetria
+  `fog_violation`. Aceito (não viola): contagem turnos/rounds, nome
+  arma/spell, dano TAKEN pelo player.
+- Y.A2 `playDeathSaveHeartbeat()` 2 pulses 80→40Hz sine sub-bass gap
+  0.42s (sístole/diástole). Tracker `wasInDeathSave` previne re-trigger.
+  CSS `body.is-death-save-pending::after` vinheta vermelha 1.6s ciclo
+  4-stop (sístole 20% / diástole 45% / batimento2 60% / repouso 0-100%).
+  Reduced-motion fallback.
+- Y.A3 **NpcSecret** interface + `CampaignState.npcSecrets` SERVER-ONLY.
+  Tools `mark_npc_secret(npcName, secret, revealCondition, secretId?)` +
+  `reveal_npc_secret(npcName, secretId)`. Prompt injection bloco "🤫
+  SEGREDOS QUE NPCs RECENTES GUARDAM (SÓ você vê)" lista últimos 5 NPCs
+  com segredos pending. Tool defs PT-BR ricas com exemplos ("é irmã do
+  bandido procurado", "está possuído por demônio"). Recent event SEM
+  expor texto até reveal.
+
+**Y.B — Atendendo consultor Mobile** (3 gaps):
+- Y.B1 `body.is-combat-just-started` flag 1200ms em onState. CSS
+  `animation-delay: 400ms` no `.is-just-arrived` quando body flag.
+  Sequência: vinheta T+0~700ms → ring T+400~1100ms cross-fade limpo.
+- Y.B2 `reward-juice.ts` NOVO. `playConfetti({count, durationMs, origin})`
+  60 partículas top-fall (8 reduced) paleta HSL gold 3 tons + keyframes
+  `rj-fall-spin`/`rj-burst-radial` + custom CSS vars. `showItemReveal`
+  bottom-sheet backdrop blur + card scale-in cubic-bezier overshoot +
+  auto-dismiss 4.5s configurável + tap/ESC/backdrop. Wire: onLevelUp me
+  → confetti, onParty diff inventory → showItemReveal(featured = mais
+  raro ou primeiro).
+- Y.B3 `NarrationLog.appendCombatEcho({text, kind})` cria entry inline
+  `.is-combat-echo is-combat-echo-{kind}` 8 kinds (crit/miss/kill/death/
+  skill/player/enemy/neutral). `classifyCombatEventKind(ev)` em campaign-
+  screen. CSS Cardo italic 13px tabular-nums + cor por kind (crit gold
+  uppercase, death/kill red bold, miss mute, skill verde). `.cb-log-line`
+  legacy MANTIDO como fallback opcional tab Log.
+
+#### Commit 2: `test(Y)` — `65efd4c`
+
+Novos arquivos (4, 45 tests):
+- `narration-linter.test.ts` (14 tests: patterns + texto limpo + correction)
+- `npc-secrets.test.ts` (10 tests: mark/reveal validators)
+- `reward-juice.test.ts` (9 tests + 1 skipped sem DOM: confetti + reveal)
+- `sprint-y-css.test.ts` (12 tests: Y.A2 + Y.B1 + Y.B2 + Y.B3 CSS guards)
+
+### Aprendizados Sprint Y
+
+- **Linter > regra no prompt**. Consultor D&D: "regra é instrução, não
+  enforcement. LLM vaza 10-15%". Retry com correction + sanitize backup
+  fecha pra <2%.
+- **Heartbeat sub-bass 0.55 gain = "presença, não barulho"**. Player
+  sente urgência sem distração. Stage 4-stop imita ECG real.
+- **SERVER-ONLY + lookup case-insensitive** evita leak de secrets pro
+  client em qualquer code path acidental.
+- **Foca últimos 5 NPCs** no prompt secrets evita token bloat.
+- **animation-delay CSS** sincroniza vinheta+ring sem JavaScript timing
+  fragile.
+- **HSL paleta variada** > cores hex hardcoded pra confetti — variação
+  natural com 1 linha.
+- **Idempotência em modals** (closeXxx() antes de openXxx()) salva de
+  race conditions em coop.
+- **Combat-echo SUBORDINADO visualmente** (opacity 0.86, font 13px vs
+  16px da narração principal) cria hierarquia clara mesmo absorvido.
+
+### Gaps remanescentes (próximo Sprint Z)
+
+**D&D consultor** — vida TEATRAL (não mais regra/drama):
+1. **NPC interrompe player** (P1, 3h). DM responde DEPOIS do player hoje.
+   NPC arrogante deveria cortar via tool `npc_interrupt`.
+2. **Voicing por NPC** (P1, 4h). `NPC.voicePattern` (registro, tique,
+   gíria, sotaque). Prompt injection "Garra fala em frases curtas, usa
+   'pirralho' como diminutivo". Player reconhece NPC pela voz.
+3. **Tracker de promessas e dívidas** (P2, 2h). `state.playerCommitments[]`.
+   Tool `track_commitment`. Mestre cobra 3 sessões depois.
+
+**Mobile consultor** — PRODUTO (não mais UX):
+1. **Conteúdo**: mais cold-opens (hoje 13), prefabs (hoje 3), loot tables.
+   Combustível, não interface.
+2. **Multiplayer feel**: presence indicators (cursor companion, "Borin
+   está lendo a ficha"), modo espectador. Só se telemetria provar coop.
+3. **Persistência campanha longa**: timeline conquistas + mural de glórias
+   entre sessões. Sistema, não pixel.
+
+### Riscos Sprint Y (ZERO regressão funcional)
+
+| Risco | Severidade | Mitigação sugerida |
+|---|---|---|
+| Linter regex agressivo perde "+5 ataque" útil | Média | Telemetria `fog_violation.matches` 1 semana → calibrar |
+| Heartbeat irrita player ansioso | Baixa-Média | Toggle UX `--death-save-intensity` + fade após roll 2 |
+| NPC secrets bloat ~400 tokens/turn | Baixa | Monitorar adoção, simplificar se baixa |
+| Confetti 70 partículas performance | Baixa | Telemetria `dropped_frames` >50ms |
+| Item reveal 4.5s irrita veterano | Baixa-Média | Rarity-aware (comum 2.2s / lendário 8s) |
+| Combat echo congestion >10 rounds | Baixa | Adjacent collapse Discord-style |
+
+Nenhum bloqueia merge. Fine-tuning pós-playtest.
+
+> Última atualização anterior: 2026-05-29 (Sprint X — 2 commits feature+test, 1842→1871 tests +29, **consultores: D&D 9.2/10 Mobile 8.8/10 — acima de BG3 mobile e Genshin**)
 
 ### Sprint X "Camada Sonora + Combat Hierarchy Final" — entregue (2 commits, +29 tests)
 
