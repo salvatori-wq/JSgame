@@ -1027,7 +1027,23 @@ export class CampaignScreen {
       onInventory: () => this.openInventory(),
       onShortRest: () => { void this.openShortRestModal(); },
       onLongRest: () => { void this.confirmLongRest(); },
+      // Sub-sprint D2 — player abre picker de perícia e pede dado.
+      // Servidor emite skillCheckPending (overlay do dado abre normal).
+      onRollDice: () => { void this.openSkillPickerAndRoll(); },
     });
+  }
+
+  /** Sub-sprint D2 — abre picker de perícia + emit requestSkillCheck. */
+  private async openSkillPickerAndRoll(): Promise<void> {
+    if (this.isDmThinking) {
+      toastWarn('Aguarde o Mestre terminar antes de pedir outro teste.');
+      return;
+    }
+    const { openSkillPicker } = await import('./skill-picker');
+    const skill = await openSkillPicker();
+    if (!skill) return;
+    // DC fica undefined — server decide DC com base no contexto (default 12 média)
+    this.opts.socket.emit('requestSkillCheck', { skill });
   }
 
   private updateChatBar(): void {

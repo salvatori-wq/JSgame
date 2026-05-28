@@ -9,7 +9,7 @@ import type { ExplorationAction } from '../../shared/types';
 import { el } from '../util';
 import { inputDialog } from '../ui-modal';
 
-type TopicId = 'combat' | 'explore' | 'social' | 'magic' | 'more' | 'custom';
+type TopicId = 'combat' | 'explore' | 'social' | 'magic' | 'more' | 'custom' | 'dice';
 
 export interface ActionDockContext {
   isCombat: boolean;
@@ -28,6 +28,8 @@ export interface ActionDockContext {
   onShortRest: () => void;
   onLongRest: () => void;
   onEndTurn?: () => void;
+  // Sub-sprint D2 — player toma iniciativa e pede dado (perícia escolhida)
+  onRollDice?: () => void;
 }
 
 interface TopicDef {
@@ -92,6 +94,11 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
               openCustomActionModal(ctx);
               return;
             }
+            // Sub-sprint D2 — 'dice' (Tentar algo) abre picker direto, sem drill
+            if (t.id === 'dice') {
+              ctx.onRollDice?.();
+              return;
+            }
             dockState.currentTopic = isActive ? null : t.id;
             rerender();
           },
@@ -137,6 +144,9 @@ function explorationTopics(ctx: ActionDockContext): TopicDef[] {
     { id: 'explore', glyph: '🔍', label: 'Explorar', visible: true },
     { id: 'social',  glyph: '🗣',  label: 'Social',   visible: true },
     { id: 'magic',   glyph: '⚡', label: 'Magia',    visible: ctx.isCaster },
+    // Sub-sprint D2 — slot fixo "🎲 Tentar" pra player pedir dado sem
+    // esperar Mestre. Abre picker de perícia. Sempre visível em exploration.
+    { id: 'dice',    glyph: '🎲', label: 'Tentar',   visible: !!ctx.onRollDice },
     { id: 'more',    glyph: '⋯',  label: 'Mais',     visible: true },
     { id: 'custom',  glyph: '✎',  label: 'Livre',    visible: true },
   ];

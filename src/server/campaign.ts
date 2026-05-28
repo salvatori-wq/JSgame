@@ -562,6 +562,27 @@ export class Campaign {
     return this.state.pendingCheck;
   }
 
+  /**
+   * Sub-sprint D2 — Player toma iniciativa pra rolar dado sem esperar o
+   * Mestre. Cria pendingCheck novo. Caller (socket handler) deve validar
+   * payload e broadcastar skillCheckPending em seguida.
+   * Não sobrescreve pending existente (deixa o atual prevalecer).
+   */
+  setPlayerInitiatedSkillCheck(args: {
+    playerId: string;
+    skill: SkillId;
+    dc: number;
+    reason: string;
+  }): void {
+    if (this.state.pendingCheck) return;
+    this.state.pendingCheck = {
+      playerId: args.playerId,
+      skill: args.skill,
+      dc: args.dc,
+      reason: args.reason,
+    };
+  }
+
   // F27 — Resolve saving throw pendente. Mesma estrutura de resolveSkillCheck mas
   // pra ability save (FOR/DES/CON/INT/SAB/CAR). Proficiência se PJ tem em proficientSavingThrows.
   async resolveSavingThrow(playerId: string): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; dmResponse?: DMResponse } | null> {

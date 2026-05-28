@@ -353,12 +353,32 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
     });
 
     // ── requestSkillCheck: player rola d20 (server roleia, DM narra) ──
+    // Sub-sprint D2 — agora aceita player-initiated check: se payload tem
+    // skill e não há pending, cria pending novo (DC default 12 "média PHB").
     socket.on('requestSkillCheck', async (payload) => {
       try {
         if (!activeCampaignId || !activePlayerId) { socket.emit('error', 'no active campaign'); return; }
         const camp = campaigns.get(activeCampaignId);
         if (!camp) { socket.emit('error', 'campaign not found'); return; }
-        const pending = camp.getPendingSkillCheck();
+        let pending = camp.getPendingSkillCheck();
+        const requestedSkill = (payload as { skill?: string })?.skill;
+        const requestedDc = (payload as { dc?: number })?.dc;
+        // Sub-sprint D2 — Player toma iniciativa: cria pending check com a
+        // skill que ele escolheu. DC default 12 (média PHB) ou o que payload trouxe.
+        if (!pending && requestedSkill) {
+          camp.setPlayerInitiatedSkillCheck({
+            playerId: activePlayerId,
+            skill: requestedSkill as never,
+            dc: typeof requestedDc === 'number' ? requestedDc : 12,
+            reason: 'Tentar algo (iniciativa do jogador)',
+          });
+          pending = camp.getPendingSkillCheck();
+          if (pending) {
+            // Broadcast state pra todos clientes refresh (overlay do dado abre
+            // automaticamente quando state.pendingCheck preenche)
+            broadcastState(camp);
+          }
+        }
         if (!pending) { return; }
         if (pending.playerId !== activePlayerId) { return; }
 
