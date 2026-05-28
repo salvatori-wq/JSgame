@@ -79,13 +79,13 @@ export function renderIdentityBar(opts: IdentityBarOpts): HTMLElement {
       },
     }));
   } else {
-    // Round 1 fix (Henrique) — "Entrar" virou "Login" pra evitar confusão com
-    // "Entrar no jogo". Login aqui = identificar com email (opcional, pra salvar
-    // progresso). Tooltip explícito.
+    // Q3 — "Login" virou "💾 Salvar" pra deixar claro que é OPCIONAL (salvar
+    // progresso entre dispositivos), não cadastro obrigatório. Henrique família
+    // tinha confundido com "Entrar no jogo".
     actions.appendChild(el('button', {
       class: 'home-id-btn home-id-btn-primary',
-      text: 'Login',
-      attrs: { type: 'button', title: 'Salvar progresso entre dispositivos (opcional)' },
+      text: '💾 Salvar',
+      attrs: { type: 'button', title: 'Salvar progresso entre dispositivos (opcional — sem cadastro)' },
       on: { click: opts.onLoginClick },
     }));
   }

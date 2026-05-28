@@ -337,6 +337,39 @@ describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   });
 });
 
+describe('Q — ciclo home polish (prefab compact + coop toggle + footer)', () => {
+  const home = readCss('home-tavern.css');
+
+  it('Q1 — home-prefab-teaser hidden em portrait-narrow', () => {
+    expect(home).toMatch(/body\.is-portrait-narrow\s+\.home-prefab-teaser\s*\{[^}]*display:\s*none/);
+  });
+
+  it('Q1 — home-prefab-label 14px em mobile (era maior)', () => {
+    expect(home).toMatch(/body\.is-portrait-narrow\s+\.home-prefab-label\s*\{[^}]*font-size:\s*14px/);
+  });
+
+  it('Q2 — home-coop-input.is-hidden com max-height 0 (collapsed)', () => {
+    expect(home).toMatch(/\.home-coop-input\.is-hidden\s*\{[\s\S]*?max-height:\s*0/);
+    expect(home).toMatch(/\.home-coop-input\.is-hidden\s*\{[\s\S]*?overflow:\s*hidden/);
+  });
+
+  it('Q2 — home-coop-input ganha transition max-height pra animar abertura', () => {
+    expect(home).toMatch(/\.home-coop-input\s*\{[\s\S]*?transition:[^;]*max-height/);
+  });
+
+  it('Q4 — home-footer-link min-height 48px (compact)', () => {
+    expect(home).toMatch(/\.home-footer-link\s*\{[\s\S]*?min-height:\s*48px/);
+  });
+
+  it('Q4 — home-footer-link-icon 22px (era 24)', () => {
+    expect(home).toMatch(/\.home-footer-link-icon\s*\{[\s\S]*?font-size:\s*22px/);
+  });
+
+  it('Q4 — home-footer-link-label 10px (era 11)', () => {
+    expect(home).toMatch(/\.home-footer-link-label\s*\{[\s\S]*?font-size:\s*10px/);
+  });
+});
+
 describe('P — ciclo modais (spell CTA + slots + empty CTA + acessorio)', () => {
   const modals = readCss('modals.css');
   const spellCard = readCss('spell-card.css');

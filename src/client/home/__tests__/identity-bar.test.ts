@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe('renderIdentityBar', () => {
-  it('mostra "Entrar" button quando user é null (anônimo)', async () => {
+  it('mostra "💾 Salvar" button quando user é null (anônimo)', async () => {
     const { renderIdentityBar } = await import('../sections/identity-bar');
     const bar = renderIdentityBar({
       currentUser: null,
@@ -33,8 +33,8 @@ describe('renderIdentityBar', () => {
     });
     const btns = bar.querySelectorAll('.home-id-btn');
     const labels = Array.from(btns).map((b) => b.textContent);
-    // Round 1 fix (Henrique) — "Entrar" virou "Login" pra não confundir com "entrar no jogo"
-    expect(labels).toContain('Login');
+    // Q3 — "Login" virou "💾 Salvar" pra deixar claro que é opcional, não cadastro
+    expect(labels.some((l) => l?.includes('Salvar'))).toBe(true);
     expect(labels).not.toContain('Sair');
   });
 

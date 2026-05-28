@@ -16,7 +16,7 @@ const fakeSpell: SpellDef = {
   duration: 'Instantâneo',
   classes: ['mago'],
   description: '3 dardos brilhantes.',
-  effect: { kind: 'damage', dice: '1d4+1', type: 'forca' },
+  effect: { kind: 'damage', dice: '1d4+1', damageType: 'forca' },
   upcastDice: '1d4',
 };
 

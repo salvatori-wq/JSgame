@@ -537,10 +537,19 @@
   border: 1px solid rgba(180, 150, 90, 0.28);
   border-radius: 8px;
   color: var(--home-ink);
+  transition: max-height 240ms ease, padding 240ms ease, border-color 0.15s;
 }
 .home-coop-input:focus {
   outline: none;
   border-color: var(--home-gold);
+}
+/* Q2 — Input hidden por default — coop section visualmente mais limpa */
+.home-coop-input.is-hidden {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  overflow: hidden;
 }
 .home-coop-advanced-toggle {
   /* Round 1 fix (Tiago) — hit 32→40 mínimo, font 11→12 pra legibilidade */
@@ -924,22 +933,22 @@
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
 }
 .home-footer-link {
-  /* Round 2 fix (Beatriz) — tab bar mais respirável: padding 8→10, gap 2→4,
-   * label legível 9→11. Hit area 50→58px. */
+  /* Q4 — Footer mais compact (era 73px total, agora 56px alinhado com
+   * bottom-tab-bar do campaign-screen). Padding 10→8, gap 4→3, label
+   * 11→10 (pequena redução pra ganhar altura sem prejudicar hit). */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 4px;
-  font-size: 11px;
+  gap: 3px;
+  padding: 8px 4px;
+  font-size: 10px;
   letter-spacing: 0.6px;
   color: var(--home-ink-faint);
   background: transparent;
   border: none;
   cursor: pointer;
-  min-height: 56px;
-  min-height: 50px;
+  min-height: 48px;
   transition: color 160ms;
   text-transform: uppercase;
   font-weight: 600;
@@ -949,13 +958,13 @@
   outline: none;
 }
 .home-footer-link-icon {
-  /* Round 2 fix (Beatriz) — glyph 20→24px (peso visual + legibilidade) */
-  font-size: 24px;
+  /* Q4 — glyph 24→22 (mantém peso visual mas economiza altura) */
+  font-size: 22px;
   line-height: 1;
 }
 .home-footer-link-label {
-  /* Round 2 fix (Beatriz) — label 9→11px UPPERCASE pra hierarquia clara */
-  font-size: 11px;
+  /* Q4 — label 11→10px (compact tab-bar-like) */
+  font-size: 10px;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   font-weight: 600;
@@ -990,11 +999,17 @@ body.is-portrait-narrow .home-continue-inner { padding: 16px 14px 18px; }
 body.is-portrait-narrow .home-continue-title { font-size: 17px; }
 body.is-portrait-narrow .home-continue-cta { font-size: 14px; padding: 13px 16px; min-height: 46px; }
 body.is-portrait-narrow .home-prefab-card {
-  /* Round 2 fix — alinhado com card denso geral */
+  /* Round 2 fix — alinhado com card denso geral.
+   * Q1 — Teaser hidden em mobile pra cair 22px por card (3 cards = -66px
+   * total). Archetype mantém pra player ver classe/raça.
+   * Card vai de 136 → ~100px. Section de 506 → ~370px. */
   grid-template-columns: 50px 1fr auto;
   min-height: 64px;
-  padding: 10px 12px;
-  gap: 10px;
+  padding: 8px 12px;
+  gap: 8px 10px;
+}
+body.is-portrait-narrow .home-prefab-teaser {
+  display: none; /* Q1 — economiza ~22px por card em mobile */
 }
 body.is-portrait-narrow .home-prefab-icon {
   width: 50px;
@@ -1005,6 +1020,13 @@ body.is-portrait-narrow .home-prefab-cta {
   padding: 8px 12px;
   font-size: 10px;
   min-height: 36px;
+}
+body.is-portrait-narrow .home-prefab-label {
+  font-size: 14px;
+}
+body.is-portrait-narrow .home-prefab-archetype {
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 body.is-portrait-narrow .home-coop-btn {
   min-height: 84px;

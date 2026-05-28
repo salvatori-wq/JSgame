@@ -39,10 +39,12 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     el('span', { class: 'home-coop-btn-label', text: 'Criar Sala' }),
   ]));
 
-  // Joinar Lobby: botão + input revelado on-focus
+  // Joinar Lobby: botão grande + input revelado on-click (Q2 — input
+  // hidden por default reduz clutter visual; user clica btn → input
+  // aparece + foca → digita código → click de novo submete).
   const joinBtnWrap = el('div', { class: 'home-coop-join' });
   const lobbyInput = el('input', {
-    class: 'home-coop-input',
+    class: 'home-coop-input is-hidden',
     attrs: { type: 'text', placeholder: 'Código da sala', maxlength: '8', 'aria-label': 'Código da sala' },
   }) as HTMLInputElement;
   const joinBtn = el('button', {
@@ -51,6 +53,12 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     on: {
       click: () => {
         if (!ensureOwner(opts.identityBar)) return;
+        // Q2 — Primeiro click: input hidden → expande + foca
+        if (lobbyInput.classList.contains('is-hidden')) {
+          lobbyInput.classList.remove('is-hidden');
+          lobbyInput.focus();
+          return;
+        }
         const id = lobbyInput.value.trim();
         if (!id) { lobbyInput.focus(); return; }
         opts.onJoinLobby(id);
@@ -60,6 +68,13 @@ export function renderCoop(opts: CoopOpts): HTMLElement {
     el('span', { class: 'home-coop-btn-icon', text: '🔗' }),
     el('span', { class: 'home-coop-btn-label', text: 'Entrar na Sala' }),
   ]);
+  // Auto-submit no Enter quando input visível
+  lobbyInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const id = lobbyInput.value.trim();
+      if (id && ensureOwner(opts.identityBar)) opts.onJoinLobby(id);
+    }
+  });
   joinBtnWrap.appendChild(lobbyInput);
   joinBtnWrap.appendChild(joinBtn);
   buttons.appendChild(joinBtnWrap);
