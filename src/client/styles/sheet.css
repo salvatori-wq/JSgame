@@ -227,6 +227,19 @@
 }
 
 /* Saves */
+/* T2.1 — sheet-saves-card envolve "Resistências" com card visual próprio
+ * pra distinguir dos atributos acima na mesma section. Antes parecia continuação. */
+.sheet-saves-card {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(40, 30, 18, 0.4);
+  border: 1px solid rgba(184, 128, 48, 0.28);
+  border-radius: var(--r-md);
+}
+.sheet-saves-card .sheet-subh {
+  margin-top: 0;
+  color: var(--ink-gold);
+}
 .sheet-saves-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -426,14 +439,25 @@
   font-weight: bold;
 }
 .sheet-inv-group {
-  margin-bottom: 10px;
+  /* T2.2 — Cada grupo de tipo (Armas/Armaduras/Itens) ganha separator visual
+   * pra olhar distinguir blocos. Antes: parede de texto sem divisão clara. */
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(184, 128, 48, 0.18);
+}
+.sheet-inv-group:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 .sig-type {
   font-family: var(--font-heading);
   font-size: var(--fs-xs);
   letter-spacing: 0.1em;
   color: var(--accent-rune);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px dotted rgba(184, 128, 48, 0.25);
 }
 .sig-items {
   list-style: none;

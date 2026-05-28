@@ -12,10 +12,23 @@
   color: rgba(255, 255, 255, 0.78);
   letter-spacing: 0.01em;
   transition: background 240ms ease, border-color 240ms ease;
+  /* T2.4 — Garante que o preview não estoura largura em portrait estreito
+   * (375 - padding 24 = 351). max-width:100% + word-break previne overflow. */
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lpp-preview {
     transition: none;
   }
+}
+
+/* T2.4 — Em mobile estreito, reduz padding e font pra dar respiração */
+body.is-portrait-narrow .lpp-preview {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
 }

@@ -541,6 +541,47 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
   });
 });
 
+describe('T2 — Ciclo T round 2 (médio)', () => {
+  const sheet = readCss('sheet.css');
+  const modals = readCss('modals.css');
+  const lobby = readCss('lobby-personality-preview.css');
+  const srm = readCss('short-rest.css');
+
+  it('T2.1 — sheet-saves-card ganha bg/border distintos dos atributos', () => {
+    expect(sheet).toMatch(/\.sheet-saves-card\s*\{[\s\S]*?background:\s*rgba\(40,\s*30,\s*18/);
+    expect(sheet).toMatch(/\.sheet-saves-card\s*\{[\s\S]*?border:\s*1px\s+solid\s+rgba\(184,\s*128,\s*48/);
+  });
+
+  it('T2.2 — sheet-inv-group ganha border-bottom + padding-bottom (separator)', () => {
+    expect(sheet).toMatch(/\.sheet-inv-group\s*\{[\s\S]*?border-bottom:\s*1px\s+solid\s+rgba\(184,\s*128,\s*48/);
+    expect(sheet).toMatch(/\.sheet-inv-group:last-of-type\s*\{[^}]*border-bottom:\s*none/);
+  });
+
+  it('T2.3 — ach-anon-banner com gradient gold + border', () => {
+    expect(modals).toMatch(/\.ach-anon-banner\s*\{[\s\S]*?background:\s*linear-gradient[^;]*rgba\(244,\s*208,\s*127/);
+    expect(modals).toMatch(/\.ach-anon-banner\s*\{[\s\S]*?border:\s*1px\s+solid\s+rgba\(244,\s*208,\s*127/);
+  });
+
+  it('T2.4 — lpp-preview ganha max-width + word-break (mobile-safe)', () => {
+    expect(lobby).toMatch(/\.lpp-preview\s*\{[\s\S]*?max-width:\s*100%/);
+    expect(lobby).toMatch(/\.lpp-preview\s*\{[\s\S]*?word-break:\s*break-word/);
+  });
+
+  it('T2.4 — lpp-preview mobile reduce padding/font', () => {
+    expect(lobby).toMatch(/body\.is-portrait-narrow\s+\.lpp-preview\s*\{[\s\S]*?font-size:\s*12px/);
+  });
+
+  it('T2.5 — srm-chip tem WCAG AAA hit (44×44 min) + chip selected gold', () => {
+    expect(srm).toMatch(/\.srm-chip\s*\{[\s\S]*?min-width:\s*44px/);
+    expect(srm).toMatch(/\.srm-chip\s*\{[\s\S]*?min-height:\s*44px/);
+    expect(srm).toMatch(/\.srm-chip\.is-selected\s*\{[\s\S]*?border-color:\s*var\(--ink-gold/);
+  });
+
+  it('T2.5 — srm-preview com tint vermelho-vida + accent-life cor', () => {
+    expect(srm).toMatch(/\.srm-preview-val\s*\{[\s\S]*?color:\s*var\(--accent-life/);
+  });
+});
+
 describe('T1 — Ciclo T round 1 (crítico)', () => {
   const party = readCss('campaign-party.css');
   const modals = readCss('modals.css');

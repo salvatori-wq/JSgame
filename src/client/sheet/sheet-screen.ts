@@ -151,9 +151,13 @@ export class SheetScreen {
     }
     sec.appendChild(grid);
 
-    // Saving throws
-    const savesGrid = el('div', { class: 'sheet-saves' });
-    savesGrid.appendChild(el('h3', { class: 'sheet-subh', text: 'Saving Throws' }));
+    // T2.1 — Saving throws ganham card visual próprio (sheet-saves-card).
+    // Antes: subheader cinza + lista colava no grid de atributos sem distinção.
+    // Agora: card com bg/border diferentes — olho separa "atributos" de "saves".
+    // Microcopy: "Saving Throws" → "Resistências" (PT-BR consistente com
+    // saving-throw-overlay e glossary).
+    const savesGrid = el('div', { class: 'sheet-saves sheet-saves-card' });
+    savesGrid.appendChild(el('h3', { class: 'sheet-subh', text: '🛡 Resistências' }));
     const savesList = el('div', { class: 'sheet-saves-list' });
     const pb = proficiencyBonus(sheet.level);
     for (const key of ABILITY_KEYS) {

@@ -1300,6 +1300,27 @@ body.is-portrait-narrow .toast-container { left: 8px; right: 8px; max-width: non
   overflow-y: auto;
   padding-right: 4px;
 }
+/* T2.3 — Banner anon: aparece no topo do body quando usuário não tem login.
+ * Estilo "info" suave dourado pra não competir com tabs/cards. */
+.ach-anon-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  background: linear-gradient(180deg, rgba(244, 208, 127, 0.12), rgba(244, 208, 127, 0.05));
+  border: 1px solid rgba(244, 208, 127, 0.32);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-warm);
+}
+.ach-anon-icon { font-size: 18px; flex-shrink: 0; }
+.ach-anon-where {
+  font-family: var(--font-heading, 'Cinzel', serif);
+  color: var(--ink-gold);
+}
+
 .ach-empty {
   /* T1.4 — estruturado: icon + título + sub. font-style:italic descartado
    * (estrutura visual substitui o tom poético do 1-liner). */

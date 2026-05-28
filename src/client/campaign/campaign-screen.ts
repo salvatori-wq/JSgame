@@ -47,6 +47,7 @@ import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '
 import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
+import { openShortRestPicker } from './short-rest-overlay';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
 import { createBottomTabBar, type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
@@ -1808,25 +1809,15 @@ export class CampaignScreen {
       this.flashToast('Sem hit dice. Precisa de descanso longo.');
       return;
     }
-    // ψ.4 — Input modal customizado (era prompt() nativo)
-    const result = await inputDialog({
-      title: 'Descanso Curto',
-      text: `Quantos hit dice quer gastar? (1 a ${maxDice})`,
-      placeholder: '1',
-      initialValue: '1',
-      maxLength: 2,
-      validator: (v) => {
-        const n = parseInt(v, 10);
-        if (!Number.isFinite(n) || n < 1) return 'Digite um número ≥ 1';
-        if (n > maxDice) return `Máximo: ${maxDice} hit dice`;
-        return null;
+    // T2.5 — Picker visual D&D (era inputDialog numérico genérico).
+    // Mostra hit dice como chips clicáveis + preview HP estimado (1dN+ConMod).
+    openShortRestPicker({
+      character: this.character,
+      maxDice,
+      onConfirm: (n) => {
+        this.opts.socket.emit('shortRest', { hitDiceToSpend: Math.min(n, maxDice) });
       },
-      confirmText: '🛌 Descansar',
     });
-    if (result === null) return;
-    const n = parseInt(result, 10);
-    if (!Number.isFinite(n) || n < 1) return;
-    this.opts.socket.emit('shortRest', { hitDiceToSpend: Math.min(n, maxDice) });
   }
 
   private async confirmLongRest(): Promise<void> {

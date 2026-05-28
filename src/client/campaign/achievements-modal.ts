@@ -69,9 +69,22 @@ async function loadAndRender(body: HTMLElement, modal: HTMLElement): Promise<voi
   } catch { /* falha silenciosa = renderiza catálogo locked */ }
 
   // Anon ou erro → renderiza catálogo todo locked
+  const isAnon = data === null;
   const progress = data?.progress ?? ACHIEVEMENTS.map((a) => ({ achievement: a, unlocked: false, unlockedAt: null }));
   const counters = data?.counters ?? {};
   const unlockedSet = new Set(progress.filter((p) => p.unlocked).map((p) => p.achievement.id));
+
+  // T2.3 — Banner anon: usuário sem login vê tudo locked sem entender porquê.
+  // Aparece UMA vez no topo do body, antes das tabs.
+  if (isAnon) {
+    const banner = el('div', { class: 'ach-anon-banner' }, [
+      el('span', { class: 'ach-anon-icon', text: '🔒' }),
+      el('span', { class: 'ach-anon-text', text: 'Sem login — conquistas não salvam entre dispositivos. Click em ' }),
+      el('b', { class: 'ach-anon-where', text: '💾 Salvar' }),
+      el('span', { text: ' (home) pra sincronizar.' }),
+    ]);
+    body.appendChild(banner);
+  }
 
   // Atualiza sub-header com stats
   const stats = summarizeProgress(unlockedSet);
