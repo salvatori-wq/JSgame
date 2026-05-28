@@ -82,7 +82,56 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Sprint "Polish Mobile Profundo" M1/M2/M3 — 3 commits, 1591→1635 tests +44)
+> Última atualização: 2026-05-29 (Ciclo N "Hierarquia + Visual Rich + Polish Vivo" — 1 commit, 1635→1657 tests +22)
+
+### Ciclo N "Hierarquia + Visual Rich + Polish Vivo" — entregue (1 commit, +22 tests)
+
+Audit visual fresh pós-M1/M2/M3 — cold-open Gemini real ~14s + DOM inspect. 9 achados
+pela equipe das 4 personas, organizados em 3 rounds:
+
+#### N1 — Hierarquia + clareza (parte do commit `6007565`)
+- N1.1: Verdict idle educacional "d20 + 1 vs DC 12 — toque pra rolar" (era "Clique
+  pra rolar o d20"). `dcDifficultyLabel()` exportada com 6 faixas referência PHB
+  DMG p.238 (≤5 muito fácil, ≤10 fácil, ≤14 média, ≤19 difícil, ≤24 muito difícil,
+  25+ lendário). Chip-attr e chip-dc ganham title attrs educacionais
+- N1.2: `.is-first-narration .cnn-speaker` 10→13px com letter-spacing 0.18em —
+  marca "início da história" sem competir com drop-cap
+- N1.3: "Pular este teste" → "Pular — segue sem rolar" + title explicativo. Gap
+  roll↔skip 14→24px, min-height 38 desktop / 44 mobile, font 12→13
+
+#### N2 — Visual rich
+- N2.1: Texture pergaminho mobile compensa brightness — opacity 5→7%, matrix cor
+  gold-warm mais quente (0.88, 0.74, 0.45)
+- N2.2: Separator `linear-gradient` 1px gold-28 entre echo entry + próxima narração
+  não-echo. Sinal claro "isso é mecânica, agora volta cena narrada"
+- N2.3: Tooltips educacionais nos chips do skill-check (bônus de [skill] —
+  atributo X +Y / DC X — [faixa])
+
+#### N3 — Polish vivo
+- N3.1: `status-ribbon` glyph troca pra 🎲 + class `.is-pending-roll` quando
+  state.pendingCheck.playerId === character.id (ou pendingSave). Keyframe
+  `sr-roll-pulse` 1.4s scale+rotate. Reduced-motion off
+- N3.2: dock-attention pulse agora RECORRENTE — primeira render + dmDone.
+  Throttle 3s pra não virar flicker. `fireDockAttention()` helper idempotente
+- N3.3: Drop-cap responsivo via `data-drop-cap` attr. Narrações <100 chars usam
+  sm (32px desktop / 28px mobile); padrão md (38/32). Texto curto não fica
+  dominado visualmente
+
+### Arquivos novos/editados Ciclo N
+**Novos:**
+- `src/client/campaign/__tests__/dc-difficulty-label.test.ts` — 7 tests faixas DC
+- `HANDOFF_2026-05-29_ciclo-N-hierarquia-visual-polish-done.md`
+
+**Editados:**
+- `src/client/campaign/skill-check-overlay.ts` — verdict educacional + dcDifficultyLabel + skip clearer text + title attrs nos chips
+- `src/client/campaign/status-ribbon.ts` — hasPendingForMe + glyph 🎲 trade
+- `src/client/campaign/narration-log.ts` — data-drop-cap='sm'|'md' attr na first narration
+- `src/client/campaign/campaign-screen.ts` — fireDockAttention() recorrente + dmDone hook
+- `src/client/styles/campaign-core.css` — speaker 13px / skip 14/38 / texture mobile 7% / separator echo / drop-cap sm
+- `src/client/styles/status-ribbon.css` — is-pending-roll keyframe + reduced-motion
+- `src/client/campaign/__tests__/status-ribbon.test.ts` — +3 tests pending roll
+- `src/client/campaign/__tests__/narration-log.test.ts` — +3 tests drop-cap responsivo
+- `src/client/__tests__/mobile-polish-css.test.ts` — +9 CSS snapshot guards
 
 ### Sprint "Polish Mobile Profundo" M1/M2/M3 — entregue (3 commits, +44 tests)
 
