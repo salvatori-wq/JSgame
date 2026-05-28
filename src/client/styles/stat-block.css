@@ -1,0 +1,308 @@
+/* Sprint Φ.2 — StatBlock D&D 5e visual autêntico.
+ * Pegada livro impresso: fundo tan, fitas gold top/bottom, sangue D&D em
+ * títulos e réguas. Mobile-first: 1-col stack. Desktop: 2-col se >= 720px.
+ * Cores oficiais via tokens --dnd-* (Φ.1). */
+
+.stat-block {
+  background: var(--dnd-stat-bg);
+  color: #1a1310;
+  padding: 14px 16px 12px;
+  border-top: 3px solid var(--dnd-title-red);
+  border-bottom: 3px solid var(--dnd-title-red);
+  position: relative;
+  font-family: 'Cardo', 'Bookman Old Style', 'Bookman', Georgia, 'Times New Roman', serif;
+  font-size: 13.5px;
+  line-height: 1.4;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Fita gold (E69A28) abaixo do border vermelho — efeito double-bar dos livros */
+.stat-block::before,
+.stat-block::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--dnd-stat-ribbon);
+}
+.stat-block::before { top: 3px; }
+.stat-block::after { bottom: 3px; }
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.stat-block-head {
+  margin-bottom: 6px;
+}
+
+.stat-block-name {
+  font-family: var(--font-heading);
+  color: var(--dnd-title-red);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.stat-block-subtype {
+  font-style: italic;
+  color: #5a3d28;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* ─── Régua sangue (separador horizontal triangular) ─────────────────────── */
+.stat-block-rule {
+  height: 4px;
+  background: var(--dnd-rule-red);
+  /* triângulo descendo — clip-path simula a régua oficial */
+  clip-path: polygon(0% 0%, 100% 30%, 100% 100%, 0% 100%);
+  margin: 6px 0;
+}
+
+/* ─── AC / HP / Speed ────────────────────────────────────────────────────── */
+.stat-block-basics {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--dnd-title-red);
+  font-size: 13px;
+}
+
+.stat-block-kv {
+  line-height: 1.35;
+  color: #2a1f15;
+}
+
+.stat-block-kv-label {
+  font-weight: 700;
+  color: var(--dnd-title-red);
+}
+
+.stat-block-kv-value {
+  color: #2a1f15;
+}
+
+/* ─── Ability scores grid 6-col ──────────────────────────────────────────── */
+.stat-block-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px 6px;
+  margin: 4px 0;
+  text-align: center;
+  color: var(--dnd-title-red);
+  font-size: 12px;
+}
+
+.stat-block-ability-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-block-ability-score {
+  color: #2a1f15;
+  font-size: 13px;
+}
+
+/* Mobile: 6 cols já encaixa em narrow porque é pouco texto.
+ * Em ultra-narrow (<340px) pode quebrar — empilha em 3x2. */
+@media (max-width: 340px) {
+  .stat-block-abilities {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ─── Details (saves/skills/senses/CR) ──────────────────────────────────── */
+.stat-block-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 13px;
+}
+
+/* ─── Section header (Ações / Reações / Lendárias) ──────────────────────── */
+.stat-block-section {
+  font-family: var(--font-heading);
+  color: var(--dnd-title-red);
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 10px 0 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--dnd-title-red);
+}
+
+/* ─── Entries (Actions/Reactions/Legendary list) ─────────────────────────── */
+.stat-block-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.stat-block-entry {
+  line-height: 1.4;
+  color: #2a1f15;
+}
+
+.stat-block-entry-name {
+  font-weight: 700;
+  font-style: italic;
+}
+
+.stat-block-entry-desc {
+  /* inline com o nome */
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .stat-block {
+    /* nada anima por padrão; placeholder pra futuras animações */
+  }
+}
+
+/* ─── Dark theme override (quando renderiza dentro do dark UI) ───────────── */
+/* Mantém fundo tan ATÉ no dark theme — é a graça do componente parecer
+ * página de livro impresso flutuando sobre a noite. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * StatBlock Modal wrapper — bottom-sheet mobile / centered desktop
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.stat-block-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.stat-block-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.stat-block-modal-sheet {
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+  max-height: 88dvh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+}
+
+.stat-block-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(88, 24, 13, 0.92);
+  color: #f4e5c1;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.stat-block-modal-close:hover {
+  background: var(--dnd-rule-red);
+}
+
+/* Mobile bottom-sheet */
+@media (max-width: 600px) {
+  .stat-block-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .stat-block-modal-sheet {
+    max-height: 90dvh;
+    border-radius: 12px 12px 0 0;
+    animation: stat-block-sheet-up 240ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .stat-block-modal-sheet .stat-block {
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+@keyframes stat-block-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-block-modal-sheet {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Trigger buttons — em enemy cards (combat) e NPC cards (roster)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.cb-enemy-info-btn {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-gold);
+  border: 1px solid rgba(212, 168, 87, 0.4);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  padding: 0;
+  line-height: 1;
+  font-family: var(--font-ui);
+  transition: background 0.15s, color 0.15s;
+}
+
+.cb-enemy-info-btn:hover {
+  background: rgba(212, 168, 87, 0.2);
+  color: var(--ink-warm);
+}
+
+.npc-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.npc-card-sheet-btn {
+  background: rgba(212, 168, 87, 0.12);
+  color: var(--ink-gold);
+  border: 1px solid rgba(212, 168, 87, 0.35);
+  border-radius: var(--r-md);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.npc-card-sheet-btn:hover {
+  background: rgba(212, 168, 87, 0.22);
+}

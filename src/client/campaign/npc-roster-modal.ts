@@ -3,6 +3,8 @@
 
 import { el, onSwipeDown } from '../util';
 import type { NpcMemory } from '../../shared/types';
+import { npcToStatBlock } from '../components/stat-block';
+import { openStatBlockModal } from '../components/stat-block-modal';
 
 interface NpcRosterModalOpts {
   campaignId: string;
@@ -74,6 +76,15 @@ async function loadAndRender(campaignId: string, body: HTMLElement, modal: HTMLE
 
 function renderNpcCard(n: NpcMemory): HTMLElement {
   const relLabel = relationshipLabel(n.relationship);
+  const viewSheet = el('button', {
+    class: 'npc-card-sheet-btn',
+    attrs: { type: 'button', 'aria-label': `Ver ficha de ${n.name}` },
+    text: '📋 Ficha',
+    on: { click: (e): void => {
+      e.stopPropagation();
+      openStatBlockModal(npcToStatBlock(n));
+    } },
+  });
   const card = el('div', { class: `npc-card attitude-${n.attitude} rel-${relTier(n.relationship)}` }, [
     el('div', { class: 'npc-card-head' }, [
       el('span', { class: 'npc-card-icon', text: attitudeIcon(n.attitude) }),
@@ -88,7 +99,10 @@ function renderNpcCard(n: NpcMemory): HTMLElement {
     n.notes
       ? el('div', { class: 'npc-card-notes', text: `📝 ${n.notes}` })
       : null,
-    el('div', { class: 'npc-card-when', text: `Visto ${formatRelative(n.lastSeen)}` }),
+    el('div', { class: 'npc-card-footer' }, [
+      el('span', { class: 'npc-card-when', text: `Visto ${formatRelative(n.lastSeen)}` }),
+      viewSheet,
+    ]),
   ].filter(Boolean) as HTMLElement[]);
   return card;
 }

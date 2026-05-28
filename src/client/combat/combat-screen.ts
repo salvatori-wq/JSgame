@@ -13,6 +13,8 @@ import { portraitFor } from '../../dnd/portrait';
 import { renderClassFeaturesBar } from './class-features-bar';
 import { getConditionIcon, getConditionDescription } from './condition-icons';
 import { renderInitiativeRibbon } from './initiative-ribbon';
+import { enemyToStatBlock } from '../components/stat-block';
+import { openStatBlockModal } from '../components/stat-block-modal';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -329,6 +331,15 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
     attrs: { 'data-combat-target': en.id },
     on: clickable && !dead ? { click: onClick } : undefined,
   }, [
+    el('button', {
+      class: 'cb-enemy-info-btn',
+      attrs: { type: 'button', 'aria-label': `Ver ficha de ${en.name}` },
+      text: 'ℹ',
+      on: { click: (e): void => {
+        e.stopPropagation();
+        openStatBlockModal(enemyToStatBlock(en));
+      } },
+    }),
     el('div', { class: 'cb-enemy-name', text: en.name }),
     el('div', { class: 'cb-enemy-meta', text: `CA ${en.armorClass} · +${en.attackBonus} · ${en.damageDice}${en.damageBonus ? `+${en.damageBonus}` : ''}` }),
     el('div', { class: 'cb-enemy-hp-bar' }, [
