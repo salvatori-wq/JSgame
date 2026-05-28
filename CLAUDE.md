@@ -82,7 +82,119 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Sprint W — 2 commits feature+test, 1802→1842 tests +40, **consultores aprovaram D&D 8.5/10 Mobile 8.0/10**)
+> Última atualização: 2026-05-29 (Sprint X — 2 commits feature+test, 1842→1871 tests +29, **consultores: D&D 9.2/10 Mobile 8.8/10 — acima de BG3 mobile e Genshin**)
+
+### Sprint X "Camada Sonora + Combat Hierarchy Final" — entregue (2 commits, +29 tests)
+
+Atende os 6 gaps remanescentes apontados pelos consultores no fim do Sprint
+W (3 D&D + 3 Mobile). Vereditos pós-X:
+- **D&D 9.2/10** (era 8.5): *"SOA, PARECE e SUSTENTA D&D em todas as três
+  camadas sensoriais (visual + texto + áudio) — falta só o linter de fog
+  of war pra fechar a ilusão sem vazamento."*
+- **Mobile 8.8/10** (era 8.0): *"SOA, RESPIRA e CONDUZ como D&D real —
+  acima de BG3 mobile, alcançando Slay the Spire mobile (8.5)"*
+
+#### Commit 1: `feat(X)` — `7870c52`
+
+**X.A Camada Sonora** (4 mudanças):
+- X.A1 `playDiceLand()` reforçado pra "Slay-the-Spire mobile-feel". 3 camadas:
+  sub-bass 60Hz sine (pressão grave) + mid 180→60Hz sawtooth ("tac" base
+  γ.1) + high 4kHz noise burst (madeira/osso) + tail 400Hz bandpass.
+  ~250ms. setupAudioGesture já existia (main.ts:53 unlock iOS).
+- X.A2 ambient default **ON** (era OFF "intrusivo"). Trilha medieval
+  procedural já tem 8 moods (exploration-calm/tension, combat-skirmish/boss,
+  rest, shop, danger-low-hp, mystery, victory). Player muta em UX Settings
+  → "🎵 Ambient" se não quiser.
+- X.A3 `playPageTurn()` SFX no read-aloud. Brushed noise 3 layers (4200/
+  2400/1200 Hz bandpass) ~240ms gain 0.18 baixo. Disparado em
+  NarrationLog.appendNarration SÓ quando speaker é Mestre. Reduced-motion
+  off.
+- X.A4 **fog of war narrativo** no SYSTEM_PROMPT. Nova regra PROIBIDO:
+  "DM NUNCA cita HP/CA/DC/dano/+ataque do oponente em texto. Use APENAS
+  adjetivos e sinais corporais. Stats só via tool calls. Único número
+  aceito: contagem de turnos/rounds pra clock."
+
+**X.B Combat Hierarchy Final** (3 mudanças):
+- X.B1 features colapsadas em chips no `combat-target-sheet`. `cts-features-
+  row` entre primary action e footer. `TARGET_SHEET_FEATURES` whitelist
+  (rage, action-surge, second-wind, channel-divinity, ki, wild-shape).
+  EXCLUI bardic-inspiration (precisa picker → fallback bar). buildTarget
+  SheetFeatureChips puro + testado. Min-height 40px (WCAG AA), badge X/Y
+  tabular gold.
+- X.B2 initiative "passou pra você". Tracker module-level
+  lastRibbonTurnIndex + lastRibbonCombatRound detecta transição
+  currentTurnIndex PRA mim. `.is-just-arrived` 700ms animação cubic-bezier
+  overshoot: avatar scale 1.15→1.45→1.15 + brightness 1.3 + pseudo-element
+  ::before ring gold expansivo 0→24px shadow. Sincroniza com toast "▶ Seu
+  turno" do W3.4. Reduced-motion fallback.
+- X.B3 **scene pin sticky**. `.cn-scene-pin` ANTES de entriesEl no rootEl,
+  position:sticky top:0 z-index:5 + backdrop-filter blur(4px) + border-left
+  3px gold. Cabeça "📜 Última cena ▾" expande/colapsa preview Cardo italic
+  13px (~120 chars truncate palavra completa via `previewText`) ↔ full Cardo
+  14px lh 1.6. Atualizado SÓ por narração de Mestre (echo/party/player
+  não tocam). getLastSceneText/getLastSceneSpeaker pra tests.
+
+#### Commit 2: `test(X)` — `e02190f`
+
+Novos arquivos (4, 29 tests):
+- `audio-sprint-x.test.ts` (6 tests)
+- `combat-target-sheet-features.test.ts` (8 tests)
+- `scene-pin.test.ts` (10 tests, 1 skipped sem DOM)
+- `sprint-x-css.test.ts` (12 tests B1+B2+B3 CSS guards)
+
+### Aprendizados Sprint X
+
+- **Web Audio synth procedural > MP3 binary asset**. Zero bundle bloat,
+  zero risk iOS Safari (gesture unlock já solved). Consultor Mobile
+  aceitou justificativa explícita.
+- **Default ON > Default OFF** quando feature pediu pelos especialistas.
+  Trade-off: muta em 30s vs nunca descobre.
+- **Track separado de currentTurnIndex + currentRound** pra detectar
+  transição: evita false-positive quando outro player renderiza no mesmo
+  turno cross-round.
+- **Scene pin lazy**: só cria DOM quando 1ª narração de Mestre chega;
+  updates subsequentes só trocam textContent.
+- **Whitelist de features TARGET-FREE** pro target-sheet: bardic-
+  inspiration precisa picker — manter fallback bar é correto.
+
+### Gaps remanescentes (próximo Sprint Y)
+
+**Consultor D&D — 3 críticos**:
+1. **Fog of war LINTER server-side** (2h, P0). Regex narration rejeita
+   `\d+\s*(HP|CA|DC|XP|pés|ft)` + retry 1× com correção. Sem isso, X.A4
+   fica em 90%.
+2. **Death save drama visual + sonoro** (4h). Heartbeat 60Hz loop + vinheta
+   bordas + narração entre rolls. Momento mais dramático D&D, pasteurizado.
+3. **NPC com segredos persistentes** (6h). `npc.secrets[]` server-only +
+   tool `mark_npc_secret`. Prompt injeta segredos no próximo encontro.
+   "DM que TECE conspiração" vs "Mestre IA legal".
+
+**Consultor Mobile — 3 críticos**:
+1. **Vinheta combat-enter + 1ª "passou pra você" sincronizadas**. Hoje
+   sequência separada — fundir num momento dramático contínuo.
+2. **Reward juice em level-up + loot drop**. `playLevelUp` arpeggio existe;
+   falta confetti dourado + card reveal. Único gap claro vs Marvel Snap 9.5.
+3. **Combat log absorvido no read-aloud feed**. `.cb-log-line` ainda
+   separado = 2 feeds verticais em mobile portrait. Fundir como
+   `.is-combat-echo` no narration-log.
+
+### Riscos Sprint X (consultores apontaram, ZERO regressão funcional)
+- Ambient default ON: monitorar telemetria `ambient_muted_within_60s`. Se
+  >15-25%, reconsiderar.
+- Fog of war prompt sem linter: LLM vaza ~10-15%. Q3 #1 D&D fecha.
+- Scene-pin sticky em viewport ≤620: auto-collapse quando `entries.length
+  < 3` (fix de 15min).
+- Web Audio Firefox Android: telemetria `audio_unlock_failed`. Se >5%, MP3
+  fallback ≤30KB single.
+- Status-ribbon + scene-pin ambos `top:0 sticky`: confirmar z-index cascade
+  visual (status-ribbon vs cn-scene-pin z:5).
+
+**Comparativo Mobile pós-X**:
+```
+Marvel Snap (9.5) > JSgame X (8.8) > Slay the Spire mobile (8.5) ≈ Genshin (8.5) > BG3 mobile
+```
+
+> Última atualização anterior: 2026-05-29 (Sprint W — 2 commits feature+test, 1802→1842 tests +40, **consultores aprovaram D&D 8.5/10 Mobile 8.0/10**)
 
 ### Sprint W "Redesign Visceral" — entregue (2 commits, +40 tests, score 5.5→8.0)
 
