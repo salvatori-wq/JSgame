@@ -82,7 +82,89 @@ git log --oneline | head -10
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Sprint "Dado Visível" D1/D2/D3 — 3 commits, 1576→1591 tests +15)
+> Última atualização: 2026-05-29 (Sprint "Polish Mobile Profundo" M1/M2/M3 — 3 commits, 1591→1635 tests +44)
+
+### Sprint "Polish Mobile Profundo" M1/M2/M3 — entregue (3 commits, +44 tests)
+
+Continuação do plano de melhoria do Sprint "Dado Visível". Equipe das 4 personas
+guiou os 10 achados pós-sprint: M1 (crítico) M2 (médio) M3 (polish).
+
+#### M1 — Layout campanha mobile (`2e4c5d8`) — +8 tests
+- M1.1: party slot 22vh → 16vh com `.is-solo` (solo libera 49px pra
+  narration host respirar); dock border 0.35→0.45 + shadow -8/24→-10/28 +
+  linha gold-18 (visual depth maior); animação `dock-attention-once`
+  1.8s one-shot ao montar (chamada de atenção pro "interage aqui")
+- M1.2: botão "Pular este teste" sutil link-like (italic + underline
+  dotted + ink-mute) no skill-check overlay. Socket `skipPendingCheck`
+  novo + `Campaign.clearPendingCheck()` valida ownerId + emite "🚶 [PJ]
+  pula o teste e segue em frente" narração breve
+- M1.3: location header truncate fluido (shorten(18) removido) com
+  `.sr-loc` flex:1 1 auto + min-width:0 + title attr — ellipsis kicka
+  só quando excede largura disponível
+
+#### M2 — Polish visual (`9837fc8`) — +22 tests
+- M2.1: `chip-icon-detector.ts` NOVO detecta verbo PT-BR + 16 patterns
+  (🗣 falar, 🚶 seguir, ⚔ atacar, 🔮 conjurar, 🏃 fugir, 🥷 esconder,
+  ✋ pegar, 🔓 abrir, 📖 ler, 🧗 escalar, 💰 comprar, 💚 curar, 🍺 beber,
+  🌙 dormir, 🛡 equipar, ⏳ esperar). `.cn-chip-action-icon` prefix
+  aplicado SÓ em chips não-skill (skill mantém 🎲 dourado)
+- M2.2: dice overlay vira grid 2-col em portrait-narrow:
+  ```
+  ┌─────────────────────┐
+  │ Label       ┌─────┐ │
+  │ Sub italic  │ d20 │ │
+  │             │ DC  │ │
+  ├─────────────┴─────┤
+  │ [tutorial inline] │
+  │ verdict           │
+  │ 🎲 Rolar          │
+  │ Pular este teste  │
+  └─────────────────────┘
+  ```
+  sc-row col 2 row 1/-span 2 com flex-direction:column. Override
+  padding-top 50→20 (era buffer landscape, em column cai naturalmente).
+  Stage 398px cabe em 812 viewport.
+- M2.3: echo de roll (🎲/🛡/🚶 speaker prefix) ganha `.is-roll-echo`
+  com opacity 0.78 + italic 12px + tabular-nums + ink-mute. Diferencia
+  visualmente "mecânica do dado" de "narração da cena"
+
+#### M3 — Refino estético (`5dc991c`) — +14 tests
+- M3.1: tutorial Duolingo padding 12/10 → 18/16 em mobile, glyph 32→36,
+  title 16→17, text 13→14 line-height 1.55. Skip hit 24→44px + nav-btn
+  36→44px (WCAG AAA polegar)
+- M3.2: drop-cap na primeira narração — `.is-first-narration
+  .cnn-text::first-letter` Cinzel 38px dourado float:left com text-shadow
+  gold-glow + black depth. Mobile reduz pra 32px. Cria momento "Era uma
+  vez..." dramático na cold-open
+- M3.3: textura pergaminho via SVG fractalNoise inline (~700b base64
+  sem fetch externo) no `.camp-screen::before` com opacity 0.05 +
+  mix-blend-mode:overlay. z-index -1 + isolation:isolate (sem vazar).
+  Cor noise tinge gold-ish — feel medieval real
+
+### Arquivos editados Sprint M1/M2/M3
+**Novos:**
+- `src/client/campaign/chip-icon-detector.ts` — 16 patterns + listChipIconPatterns
+- `src/client/campaign/__tests__/chip-icon-detector.test.ts` — 17 tests
+- `src/client/campaign/__tests__/skill-check-skip.test.ts` — 5 tests UI
+- `HANDOFF_2026-05-29_polish-mobile-m1-m2-m3-done.md`
+
+**Editados:**
+- `src/client/styles/m-camp-dock.css` — party.is-solo + dock-attention keyframe
+- `src/client/styles/status-ribbon.css` — .sr-loc flex/min-width
+- `src/client/styles/campaign-core.css` — skip-btn + cn-chip-action-icon + sc-stage
+  grid 2-col + is-roll-echo + drop-cap + texture pergaminho
+- `src/client/styles/duolingo-tutorial.css` — mobile padding + hit areas
+- `src/client/campaign/campaign-screen.ts` — wire is-solo + is-dock-attention +
+  onSkip handler emit skipPendingCheck
+- `src/client/campaign/skill-check-overlay.ts` — onSkip opcional 3º arg
+- `src/client/campaign/status-ribbon.ts` — .sr-loc sem shorten() + title attr
+- `src/client/campaign/narration-log.ts` — detectChipIcon import + is-roll-echo class
+- `src/shared/types.ts` — skipPendingCheck socket event
+- `src/server/campaign.ts` — clearPendingCheck(playerId) método
+- `src/server/sockets/connection.ts` — skipPendingCheck socket handler
+- `src/server/__tests__/campaign-player-initiated-roll.test.ts` — +3 tests clearPending
+- `src/client/campaign/__tests__/narration-log.test.ts` — +5 tests is-roll-echo
+- `src/client/__tests__/mobile-polish-css.test.ts` — +14 CSS snapshot tests
 
 ### Sprint "Dado Visível" — entregue (3 commits, +15 tests)
 
