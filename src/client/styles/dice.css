@@ -259,7 +259,43 @@ body.is-portrait-narrow .sc-row {
 .dice-roll-overlay .dro-preview {
   font-size: 14px;
   color: #d8d4c4;
-  opacity: 0.75;
+  opacity: 0.85;
+  /* T3.2 — Quando chips presentes, vira flex row inline; texto puro segue centrado. */
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+.dice-roll-overlay .dro-prev-prefix {
+  color: var(--ink-mute);
+  font-style: italic;
+  font-size: 12px;
+}
+.dice-roll-overlay .dro-prev-die {
+  font-family: 'Cinzel', serif, system-ui;
+  font-size: 15px;
+  color: #f4d07f;
+  padding: 2px 8px;
+  background: rgba(244, 208, 127, 0.12);
+  border: 1px solid rgba(244, 208, 127, 0.35);
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+.dice-roll-overlay .dro-prev-bonus {
+  font-family: 'Cinzel', serif, system-ui;
+  font-size: 14px;
+  color: #b8e8a0;
+  padding: 2px 6px;
+  background: rgba(120, 180, 80, 0.14);
+  border: 1px solid rgba(120, 180, 80, 0.3);
+  border-radius: 4px;
+}
+.dice-roll-overlay .dro-prev-vs {
+  font-size: 12px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
 }
 
 .dice-roll-overlay .dro-verdict {

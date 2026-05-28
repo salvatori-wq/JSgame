@@ -1,0 +1,68 @@
+/* JSgame · T3.3 — Long Rest ritual visual overlay.
+ * 🌙 noite cai → ⭐ descansa → ☀ amanhece. ~1.8s total. */
+
+.lrr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(10, 10, 30, 0.92) 0%, rgba(0, 0, 0, 0.96) 70%);
+  animation: lrr-fade-in 0.4s ease-out;
+  pointer-events: none;
+}
+.lrr-overlay.is-closing {
+  animation: lrr-fade-out 0.25s ease-in forwards;
+}
+
+.lrr-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.lrr-icon {
+  font-size: 84px;
+  filter: drop-shadow(0 0 24px rgba(244, 208, 127, 0.45));
+  animation: lrr-icon-breath 2s ease-in-out infinite;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.lrr-icon.is-changing {
+  opacity: 0;
+  transform: scale(0.92);
+}
+
+.lrr-label {
+  font-family: var(--font-heading, 'Cinzel', serif);
+  font-size: 18px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-gold, #f4d07f);
+  text-shadow: 0 0 12px rgba(244, 208, 127, 0.5);
+  transition: opacity 0.14s ease;
+}
+.lrr-label.is-changing { opacity: 0; }
+
+@keyframes lrr-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lrr-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes lrr-icon-breath {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 18px rgba(244, 208, 127, 0.4)); }
+  50%      { transform: scale(1.06); filter: drop-shadow(0 0 32px rgba(244, 208, 127, 0.65)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Defesa em profundidade — JS já não monta overlay em reduced-motion (módulo
+   * checa matchMedia). Esses overrides cobrem qualquer caller futuro que
+   * mostrar overlay com reduced ativo. */
+  .lrr-overlay { animation: none; }
+  .lrr-icon { animation: none; }
+}

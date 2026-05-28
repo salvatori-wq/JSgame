@@ -541,6 +541,34 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
   });
 });
 
+describe('T3 — Ciclo T round 3 (polish)', () => {
+  const modals = readCss('modals.css');
+  const dice = readCss('dice.css');
+  const lrr = readCss('long-rest-ritual.css');
+
+  it('T3.1 — ach-card.is-hidden tem visual DISTINTO de is-locked (blur + roxo)', () => {
+    expect(modals).toMatch(/\.ach-card\.is-hidden\s*\{[\s\S]*?filter:\s*blur/);
+    expect(modals).toMatch(/\.ach-card\.is-hidden\s*\{[\s\S]*?border-color:\s*rgba\(160,\s*110,\s*200/);
+  });
+
+  it('T3.2 — dro-preview vira inline-flex com chips coloridos', () => {
+    expect(dice).toMatch(/\.dro-preview\s*\{[\s\S]*?display:\s*inline-flex/);
+    expect(dice).toMatch(/\.dro-prev-die\s*\{[\s\S]*?background:\s*rgba\(244,\s*208,\s*127/);
+    expect(dice).toMatch(/\.dro-prev-bonus\s*\{[\s\S]*?color:\s*#b8e8a0/);
+  });
+
+  it('T3.3 — lrr-overlay com radial-gradient noturno + fade-in keyframe', () => {
+    expect(lrr).toMatch(/\.lrr-overlay\s*\{[\s\S]*?background:\s*radial-gradient/);
+    expect(lrr).toMatch(/@keyframes\s+lrr-fade-in/);
+    expect(lrr).toMatch(/@keyframes\s+lrr-icon-breath/);
+  });
+
+  it('T3.3 — reduced-motion override pra lrr-overlay e lrr-icon', () => {
+    expect(lrr).toMatch(/prefers-reduced-motion[\s\S]*?\.lrr-overlay[\s\S]*?animation:\s*none/);
+    expect(lrr).toMatch(/prefers-reduced-motion[\s\S]*?\.lrr-icon[\s\S]*?animation:\s*none/);
+  });
+});
+
 describe('T2 — Ciclo T round 2 (médio)', () => {
   const sheet = readCss('sheet.css');
   const modals = readCss('modals.css');

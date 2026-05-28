@@ -1360,6 +1360,17 @@ body.is-portrait-narrow .toast-container { left: 8px; right: 8px; max-width: non
   opacity: 0.45;
   filter: grayscale(0.7);
 }
+/* T3.1 — is-hidden (oculto/mistério) precisa visual DIFERENTE de locked
+ * (visto mas bloqueado). Locked = cinza apagado; hidden = blur sutil + tint
+ * roxo místico pra sinalizar "tem algo aqui que vc não pode ver". */
+.ach-card.is-hidden {
+  opacity: 0.55;
+  filter: blur(0.6px) grayscale(0.4);
+  border-color: rgba(160, 110, 200, 0.32);
+  background: linear-gradient(180deg, rgba(40, 20, 60, 0.35), rgba(28, 16, 40, 0.45));
+}
+.ach-card.is-hidden .ach-card-icon { opacity: 0.75; }
+.ach-card.is-hidden .ach-card-name { color: rgba(200, 170, 230, 0.7); }
 .ach-card.is-unlocked {
   opacity: 1;
   border-color: rgba(255, 230, 180, 0.35);

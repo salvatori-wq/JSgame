@@ -48,6 +48,7 @@ import { renderStatusRibbon } from './status-ribbon';
 import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { openShortRestPicker } from './short-rest-overlay';
+import { playLongRestRitual } from './long-rest-ritual';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
 import { createBottomTabBar, type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
@@ -1829,7 +1830,11 @@ export class CampaignScreen {
       cancelText: 'Mais tarde',
     });
     if (ok) {
-      this.opts.socket.emit('longRest');
+      // T3.3 — Ritual visual cinematográfico antes de emitir longRest.
+      // 🌙 noite → ⭐ descanso → ☀ amanhecer (~2s). reduced-motion pula direto.
+      playLongRestRitual(() => {
+        this.opts.socket.emit('longRest');
+      });
     }
   }
 

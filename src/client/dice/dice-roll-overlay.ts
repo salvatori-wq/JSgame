@@ -63,7 +63,7 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
     stage.appendChild(el('div', { class: 'dro-label', text: opts.label }));
   }
   if (opts.preview) {
-    stage.appendChild(el('div', { class: 'dro-preview', text: opts.preview }));
+    stage.appendChild(renderPreviewChips(opts.preview));
   }
 
   const die = renderDie({ kind: opts.kind, value: '?' });
@@ -163,4 +163,48 @@ function flashScreen(): void {
   const flash = el('div', { class: 'dice-screen-flash', attrs: { 'aria-hidden': 'true' } });
   document.body.appendChild(flash);
   window.setTimeout(() => flash.remove(), 700);
+}
+
+/**
+ * T3.2 — Quebra preview "Ataque: d20+5 vs CA 13" em chips visuais separados:
+ *   [Ataque:] [d20] [+5] [vs CA 13]
+ * Cada parte ganha classe distinta pra CSS colorir. Se não der match no padrão,
+ * cai pro texto plano (graceful fallback).
+ *
+ * Exportado pra tests.
+ */
+export function parsePreviewParts(preview: string): {
+  prefix: string | null;
+  die: string | null;
+  bonus: string | null;
+  vs: string | null;
+  fallback: string | null;
+} {
+  // Tenta extrair: "<prefix>: <die>[+-]<bonus> vs <target>"
+  // Ex: "Ataque: d20+5 vs CA 13" / "d20+3 vs CD 12" / "Save: d20-1 vs CD 14"
+  const m = preview.match(/^(?:(.+?):\s*)?(d\d+)\s*([+\-]\s*\d+)?\s*(?:vs\s+(.+))?$/i);
+  if (!m) return { prefix: null, die: null, bonus: null, vs: null, fallback: preview };
+  const [, prefix, die, bonus, vs] = m;
+  return {
+    prefix: prefix ? prefix.trim() : null,
+    die: die ?? null,
+    bonus: bonus ? bonus.replace(/\s/g, '') : null,
+    vs: vs ? vs.trim() : null,
+    fallback: null,
+  };
+}
+
+function renderPreviewChips(preview: string): HTMLElement {
+  const parts = parsePreviewParts(preview);
+  const wrap = el('div', { class: 'dro-preview' });
+  if (parts.fallback) {
+    // Sem match — texto puro como antes
+    wrap.textContent = parts.fallback;
+    return wrap;
+  }
+  if (parts.prefix) wrap.appendChild(el('span', { class: 'dro-prev-prefix', text: parts.prefix }));
+  if (parts.die) wrap.appendChild(el('span', { class: 'dro-prev-die', text: parts.die }));
+  if (parts.bonus) wrap.appendChild(el('span', { class: 'dro-prev-bonus', text: parts.bonus }));
+  if (parts.vs) wrap.appendChild(el('span', { class: 'dro-prev-vs', text: `vs ${parts.vs}` }));
+  return wrap;
 }
