@@ -93,7 +93,13 @@ async function loadAndRender(body: HTMLElement, modal: HTMLElement): Promise<voi
     grid.innerHTML = '';
     const filtered = progress.filter((p) => (p.achievement.category ?? 'meta') === activeCat);
     if (filtered.length === 0) {
-      grid.appendChild(el('div', { class: 'ach-empty', text: 'Nenhuma conquista nessa categoria ainda.' }));
+      // T1.4 — Empty estruturado (era 1-liner sem afford). Mesma pegada de
+      // gl-empty (S3.2) e qlm-empty (S3.3): icon + título + sub explicativa.
+      const empty = el('div', { class: 'ach-empty' });
+      empty.appendChild(el('div', { class: 'ach-empty-icon', text: '🏆' }));
+      empty.appendChild(el('div', { class: 'ach-empty-title', text: 'Nada por aqui ainda' }));
+      empty.appendChild(el('div', { class: 'ach-empty-sub', text: `Jogue mais para desbloquear conquistas de "${CATEGORY_LABELS[activeCat]}".` }));
+      grid.appendChild(empty);
       return;
     }
     for (const p of filtered) {

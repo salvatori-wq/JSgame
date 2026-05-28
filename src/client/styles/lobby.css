@@ -74,6 +74,14 @@
 .lobby-player-row.is-me { border-color: var(--ink-gold); }
 .lobby-player-row.is-status-ready { background: rgba(60, 90, 30, 0.25); border-color: rgba(120, 180, 80, 0.4); }
 .lobby-player-row.is-status-wizard { background: rgba(80, 50, 110, 0.2); border-color: rgba(160, 120, 220, 0.3); }
+/* T1.5 — 'selecting' (escolhendo PJ existente) ficava indistinguível de 'joined'
+ * (acabou de entrar, sem ação). Agora ganha tint azul-aço suave pra sinalizar
+ * "tá pensando" sem competir com 'wizard' (criando do zero, roxo) ou 'ready'
+ * (travado, verde). 'joined' fica neutro default. */
+.lobby-player-row.is-status-selecting {
+  background: rgba(40, 70, 110, 0.22);
+  border-color: rgba(120, 160, 220, 0.36);
+}
 .lp-host { font-size: 14px; text-align: center; }
 .lp-name { font-family: var(--font-heading); font-size: 13px; color: var(--ink-warm); }
 .lp-status { font-size: 11px; color: var(--ink-mute); }

@@ -1007,6 +1007,21 @@ body.is-portrait-narrow .profile-grid {
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
   animation: lvlup-pop 0.4s cubic-bezier(0.25, 1.5, 0.5, 1);
+  /* T1.2 — Mobile landscape (380×600) + texto comprido pode empurrar .ot-actions
+   * abaixo do fold sem scroll. Agora: card vira flex column com max-height 85vh,
+   * body scrolla, dots fixos no meio, actions sticky no fim (margin-top:auto). */
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  min-height: 0;
+}
+.ot-card .ot-body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.ot-card .ot-actions {
+  margin-top: auto;
 }
 .ot-icon {
   font-size: 56px;

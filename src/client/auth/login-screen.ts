@@ -125,12 +125,24 @@ export class LoginScreen {
     }) as HTMLInputElement;
     card.appendChild(input);
 
-    card.appendChild(el('button', {
+    // T1.3 — Loading state explícito ao submeter (era só disabled silencioso).
+    // Mesmo padrão de S3.4: requestAnimationFrame defer pra DOM pintar antes do
+    // callback assíncrono. Class `.is-loading` cuida do visual (modals.css).
+    const submitBtn = el('button', {
       class: 'login-submit-btn',
       text: '⚔ Enviar link mágico',
       attrs: { type: 'button' },
-      on: { click: () => void this.submit() },
-    }));
+      on: {
+        click: () => {
+          if (submitBtn.classList.contains('is-loading')) return;
+          submitBtn.classList.add('is-loading');
+          submitBtn.setAttribute('disabled', 'true');
+          submitBtn.textContent = '⏳ Enviando…';
+          requestAnimationFrame(() => void this.submit());
+        },
+      },
+    });
+    card.appendChild(submitBtn);
 
     return card;
   }

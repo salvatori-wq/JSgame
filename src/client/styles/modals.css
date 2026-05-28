@@ -766,6 +766,13 @@ body.is-portrait-narrow .cb-eco-slot {
   cursor: pointer;
 }
 .login-submit-btn:hover { background: #ffdb95; }
+/* T1.3 — loading state visual quando envia o magic link */
+.login-submit-btn.is-loading,
+.login-submit-btn:disabled {
+  opacity: 0.65;
+  pointer-events: none;
+  cursor: wait;
+}
 .login-sep {
   text-align: center;
   color: var(--ink-mute);
@@ -1294,10 +1301,28 @@ body.is-portrait-narrow .toast-container { left: 8px; right: 8px; max-width: non
   padding-right: 4px;
 }
 .ach-empty {
+  /* T1.4 — estruturado: icon + título + sub. font-style:italic descartado
+   * (estrutura visual substitui o tom poético do 1-liner). */
   text-align: center;
+  color: var(--ink-warm);
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.ach-empty-icon { font-size: 36px; opacity: 0.65; }
+.ach-empty-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  color: var(--ink-gold);
+}
+.ach-empty-sub {
+  font-size: 12px;
   color: var(--ink-mute);
-  font-style: italic;
-  padding: var(--gap-loose);
+  max-width: 280px;
+  line-height: 1.45;
 }
 .ach-card {
   display: grid;

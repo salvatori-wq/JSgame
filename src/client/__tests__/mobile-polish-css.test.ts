@@ -541,6 +541,39 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
   });
 });
 
+describe('T1 — Ciclo T round 1 (crítico)', () => {
+  const party = readCss('campaign-party.css');
+  const modals = readCss('modals.css');
+  const lobby = readCss('lobby.css');
+
+  it('T1.2 — ot-card vira flex column com max-height 85vh (mobile landscape fix)', () => {
+    expect(party).toMatch(/\.ot-card\s*\{[\s\S]*?display:\s*flex/);
+    expect(party).toMatch(/\.ot-card\s*\{[\s\S]*?flex-direction:\s*column/);
+    expect(party).toMatch(/\.ot-card\s*\{[\s\S]*?max-height:\s*85vh/);
+  });
+
+  it('T1.2 — ot-body é scrollable + ot-actions colado no bottom', () => {
+    expect(party).toMatch(/\.ot-card\s+\.ot-body\s*\{[\s\S]*?overflow-y:\s*auto/);
+    expect(party).toMatch(/\.ot-card\s+\.ot-actions\s*\{[^}]*margin-top:\s*auto/);
+  });
+
+  it('T1.3 — login-submit-btn loading state com opacity + cursor wait', () => {
+    expect(modals).toMatch(/\.login-submit-btn\.is-loading[\s\S]*?\.login-submit-btn:disabled\s*\{[\s\S]*?opacity:\s*0\.65/);
+    expect(modals).toMatch(/\.login-submit-btn\.is-loading[\s\S]*?\.login-submit-btn:disabled\s*\{[\s\S]*?cursor:\s*wait/);
+  });
+
+  it('T1.4 — ach-empty estruturado (icon + title + sub)', () => {
+    expect(modals).toMatch(/\.ach-empty-icon\s*\{[^}]*font-size:\s*36px/);
+    expect(modals).toMatch(/\.ach-empty-title\s*\{[^}]*font-family:\s*var\(--font-heading/);
+    expect(modals).toMatch(/\.ach-empty-sub\s*\{/);
+  });
+
+  it('T1.5 — lobby-player-row.is-status-selecting ganha tint azul-aço distinto', () => {
+    expect(lobby).toMatch(/\.lobby-player-row\.is-status-selecting\s*\{[\s\S]*?background:\s*rgba\(40,\s*70,\s*110/);
+    expect(lobby).toMatch(/\.lobby-player-row\.is-status-selecting\s*\{[\s\S]*?border-color:\s*rgba\(120,\s*160,\s*220/);
+  });
+});
+
 describe('S3 — Ciclo S round 3 (polish)', () => {
   const home = readCss('home-tavern.css');
   const gloss = readCss('glossary.css');

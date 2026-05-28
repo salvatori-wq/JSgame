@@ -14,6 +14,8 @@ interface Step {
 // Round 3 fix (Mariana/Henrique) — microcopy mais cinematográfica + family-friendly:
 // "cemitério" → "Heróis Caídos", "wizard" inglês mantido como termo D&D (livro mago),
 // adicionado verbos vivos ao invés de listagem técnica.
+// T1.1 (Henrique família) — Step 2 "PHB" inglês virou "Livro do Jogador (D&D 5e)"
+// pra ficar PT-BR na primeira impressão.
 const STEPS: Step[] = [
   {
     icon: '⚔',
@@ -23,7 +25,7 @@ const STEPS: Step[] = [
   {
     icon: '🎭',
     title: 'Crie seu Herói',
-    text: 'Cinco passos: raça, classe, atributos (point buy 27), antecedente, identidade. Tudo direto do Player\'s Handbook.',
+    text: 'Cinco passos: raça, classe, atributos (point buy 27), antecedente, identidade. Tudo direto do Livro do Jogador (D&D 5e).',
   },
   {
     icon: '🎲',
