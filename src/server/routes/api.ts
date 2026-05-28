@@ -103,10 +103,13 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       const start = Date.now();
       try {
         const p = mkProvider();
+        // BUG-Ω.6 — maxTokens 100 (era 20). gpt-oss-120b da Cerebras tem
+        // reasoning tokens internos (17-50) ANTES do content. Com 20 tokens
+        // só sobra pra reasoning → content vazio → falso-negativo no diag.
         const r = await p.generate({
-          systemPrompt: 'Responda em PT-BR com 1 palavra.',
-          userPrompt: 'oi',
-          maxTokens: 20,
+          systemPrompt: 'Responda em PT-BR com 1 frase curta.',
+          userPrompt: 'diga oi',
+          maxTokens: 100,
         });
         return {
           provider: name,
