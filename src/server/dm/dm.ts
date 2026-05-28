@@ -31,6 +31,34 @@ const LLM_TIMEOUT_SHORT_MS = 12_000;
 export class DungeonMaster {
   constructor(private provider: DMProvider) {}
 
+  // BUG-Ω.5 — Quando cascade inteiro falha, gera narração DECENTE via FallbackDM
+  // templates em vez de mostrar "Mestre travou" técnico. Mantém errorMeta no
+  // response pra UI ainda renderizar retry button + dica actionable se quota.
+  private async fallbackWithStyle(
+    context: NarrationContext,
+    err: unknown,
+    providersAttempted: string[],
+    lastProvider: string,
+  ): Promise<DMResponse> {
+    const fallback = new FallbackDM();
+    const offline = await fallback.narrate(context);
+    const msg = err instanceof Error ? err.message : String(err);
+    const errorKind = classifyError(msg);
+    return {
+      narration: offline.narration,
+      speaker: offline.speaker,
+      toolCalls: [],
+      raw: msg,
+      errorMeta: {
+        providersAttempted,
+        lastProvider,
+        errorKind,
+        errorMsg: msg.slice(0, 160),
+        canRetry: errorKind !== 'auth',
+      },
+    };
+  }
+
   /**
    * Comprime um bloco de narrações em 1-2 frases factuais — usado pelo Campaign
    * pra auto-resumo periódico (zera o narrationLog após N=10 entradas).
@@ -102,13 +130,14 @@ export class DungeonMaster {
           console.warn('[dm] retry sem tools também falhou:', err2);
           // T1 — track narration_error
           void this.trackError(context, msg.slice(0, 80));
-          return makeGracefulFallback(err2, this.getProviderListSafe(), this.getEffectiveProviderForError());
+          // BUG-Ω.5 — Narração DECENTE via templates em vez de "Mestre travou".
+          return this.fallbackWithStyle(context, err2, this.getProviderListSafe(), this.getEffectiveProviderForError());
         }
       } else {
         // Timeout ou erro fatal — devolve fallback sem quebrar o queue
         console.warn('[dm] LLM falhou/expirou após backoff:', msg.slice(0, 120));
         void this.trackError(context, msg.slice(0, 80));
-        return makeGracefulFallback(err, this.getProviderListSafe(), this.getEffectiveProviderForError());
+        return this.fallbackWithStyle(context, err, this.getProviderListSafe(), this.getEffectiveProviderForError());
       }
     }
     let parsed = extractJson(response.text);
@@ -134,7 +163,7 @@ export class DungeonMaster {
     // Se ainda vazio após retry, degrada graceful em vez de mandar string vazia.
     if (!narration) {
       void this.trackError(context, 'empty narration after retry');
-      return makeGracefulFallback(new Error('LLM retornou narração vazia'), this.getProviderListSafe(), this.getEffectiveProviderForError());
+      return this.fallbackWithStyle(context, new Error('LLM retornou narração vazia'), this.getProviderListSafe(), this.getEffectiveProviderForError());
     }
 
     // T1 — track narration_success (após validar que de fato veio conteúdo).
@@ -355,6 +384,9 @@ export class FallbackDM {
   }
 
   // ESLint warning OK: classe segue interface implícita do DungeonMaster
+  // BUG-Ω.5 — Narrações offline DECENTES (sem AI). Library de templates
+  // categorizados pra que jogo nunca trave em "Mestre travou". Cada chamada
+  // varia o template pra não soar repetitivo.
   async narrate(context: NarrationContext): Promise<DMResponse> {
     const partyName = context.party[0]?.characterName ?? 'aventureiro';
     let narration: string;
@@ -362,25 +394,85 @@ export class FallbackDM {
     if (context.skillCheckResolution) {
       const r = context.skillCheckResolution;
       narration = r.nat20
-        ? `${r.playerName} acerta tão bem que algo no mundo treme. Vai além do esperado.`
+        ? pickRandom(NAT20_TEMPLATES).replace('{name}', r.playerName)
         : r.nat1
-          ? `${r.playerName} falha feio. Pior — algo escutou a desgraça e tá vindo.`
+          ? pickRandom(NAT1_TEMPLATES).replace('{name}', r.playerName)
           : r.success
-            ? `${r.playerName} consegue. Não foi gracioso. Mas tá feito.`
-            : `${r.playerName} tenta e falha. O mundo registra. Anda.`;
+            ? pickRandom(SUCCESS_TEMPLATES).replace('{name}', r.playerName)
+            : pickRandom(FAIL_TEMPLATES).replace('{name}', r.playerName);
     } else if (context.playerAction) {
-      narration = `Você faz: ${context.playerAction.action}. O mundo responde — mas o Mestre IA tá offline. Provider sem key ou timeout. Tenta de novo.`;
+      const action = context.playerAction.action;
+      const details = (context.playerAction as { details?: string }).details ?? '';
+      narration = pickRandom(ACTION_TEMPLATES)
+        .replace('{action}', action)
+        .replace('{details}', details ? ` (${details})` : '');
     } else {
-      narration = `${partyName}, vocês chegaram. Tem algo errado no ar — sempre tem. O Mestre IA tá offline, então a campanha vai ficar atmosfera só por enquanto. Configura GROQ_API_KEY ou ANTHROPIC_API_KEY no .env pra eu acordar.`;
+      narration = pickRandom(SCENE_TEMPLATES).replace('{name}', partyName);
     }
 
     return {
       narration,
+      // Mantém "Mestre (offline)" pra client.isDegradedNarration detectar →
+      // dispara auto-retry silent transparente antes de mostrar card de erro.
       speaker: 'Mestre (offline)',
       toolCalls: [],
-      raw: '',
+      raw: 'fallback-offline-template',
     };
   }
 }
+
+function pickRandom<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+// BUG-Ω.5 — Templates narrativos offline. Tom Sombrio+Sarcástico+Trickster
+// (validated em Cave Run + JSgame). Varia por categoria — Mestre não soa robô.
+const NAT20_TEMPLATES = [
+  '{name} acerta tão bem que algo no mundo treme. Vai além do esperado — bem mais.',
+  '{name} executa com perfeição rara. O ar fica diferente por um segundo. Algo notou.',
+  '{name} brilha. Pra dizer pouco. O que era impossível virou simples — só pra você.',
+  '{name} arrebenta. Sem palavras pra descrever. Mas tem consequência boa vindo.',
+  '{name} faz o impossível parecer rotina. Os deuses dão risada — admirativos.',
+] as const;
+
+const NAT1_TEMPLATES = [
+  '{name} falha feio. Pior — algo escutou a desgraça e tá vindo.',
+  '{name} tropeça no próprio plano. O som ecoa. Algo respondeu na escuridão.',
+  '{name} erra de um jeito que o universo registra. Vai cobrar isso depois.',
+  '{name} desastre completo. Por sorte ninguém viu — ou viu?',
+  '{name} faz a pior escolha possível. O mundo nota. E lembra.',
+] as const;
+
+const SUCCESS_TEMPLATES = [
+  '{name} consegue. Não foi gracioso. Mas tá feito.',
+  '{name} acerta o que precisava. Sem brilho — só competência.',
+  '{name} tira de letra. Avança.',
+  '{name} faz acontecer. Próxima.',
+  '{name} resolve. O mundo segue.',
+] as const;
+
+const FAIL_TEMPLATES = [
+  '{name} tenta e falha. O mundo registra. Anda.',
+  '{name} chega perto mas não fecha. Tem que tentar outra coisa.',
+  '{name} erra por pouco. Frustrante, mas não fatal.',
+  '{name} não consegue agora. O tempo passa.',
+  '{name} se complica. Tem que ajustar o plano.',
+] as const;
+
+const ACTION_TEMPLATES = [
+  'Você {action}{details}. O mundo responde — devagar, atento.',
+  'Você {action}{details}. Algo se move ao fundo. Atenção.',
+  'Você {action}{details}. O cenário muda sutilmente.',
+  'Você {action}{details}. Há reações — nem todas visíveis ainda.',
+  'Você {action}{details}. A cena absorve. Próximo passo é seu.',
+] as const;
+
+const SCENE_TEMPLATES = [
+  '{name}, vocês chegaram. Tem algo errado no ar — sempre tem.',
+  '{name}, o lugar respira diferente. Mantenham os olhos abertos.',
+  '{name}, a cena pede atenção. Vejam, escutem, decidam.',
+  '{name}, vocês não estão sozinhos. Nunca estão.',
+  '{name}, o silêncio aqui é estranho. Quase educado demais.',
+] as const;
 
 export type DMInterface = DungeonMaster | FallbackDM;

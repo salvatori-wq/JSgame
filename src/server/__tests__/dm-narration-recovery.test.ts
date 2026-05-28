@@ -95,7 +95,9 @@ describe('BUG-001 — DM narration recovery', () => {
     const result = await dm.narrate(mkContext());
 
     expect(provider.calls.length).toBe(2);
-    expect(result.speaker).toBe('Mestre (degradado)');
+    // BUG-Ω.5 — FallbackDM agora gera narrações decentes via templates
+    // (speaker "Mestre (offline)" detectado por isDegradedNarration no client).
+    expect(result.speaker).toBe('Mestre (offline)');
     expect(result.narration.length).toBeGreaterThan(10);
   });
 
@@ -119,6 +121,8 @@ describe('BUG-001 — DM narration recovery', () => {
     const result = await dm.narrate(mkContext());
 
     expect(provider.calls.length).toBe(1);
-    expect(result.speaker).toBe('Mestre (degradado)');
+    // BUG-Ω.5 — FallbackDM agora gera narrações decentes via templates
+    // (speaker "Mestre (offline)" detectado por isDegradedNarration no client).
+    expect(result.speaker).toBe('Mestre (offline)');
   });
 });

@@ -67,6 +67,138 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     });
   });
 
+  // === BUG-Ω.5 — DM provider diagnostic (live ping em prod).
+  // Faz health check em CADA provider configurado individualmente. Curl em prod
+  // mostra exatamente qual env var está/não está + qual provider responde.
+  // Usado pra confirmar que CEREBRAS_API_KEY etc estão setados certo no Render.
+  app.get('/api/dm/diag', async (_req, res) => {
+    const mask = (key: string | undefined): string => {
+      if (!key) return 'MISSING';
+      if (key.length < 8) return 'SET (curto demais — verificar)';
+      return `SET (${key.slice(0, 4)}…${key.slice(-4)})`;
+    };
+    const envStatus = {
+      DM_PROVIDER: process.env.DM_PROVIDER ?? '(auto)',
+      GEMINI_API_KEY: mask(process.env.GEMINI_API_KEY),
+      GROQ_API_KEY: mask(process.env.GROQ_API_KEY),
+      ANTHROPIC_API_KEY: mask(process.env.ANTHROPIC_API_KEY),
+      CEREBRAS_API_KEY: mask(process.env.CEREBRAS_API_KEY),
+      CLOUDFLARE_ACCOUNT_ID: mask(process.env.CLOUDFLARE_ACCOUNT_ID),
+      CLOUDFLARE_API_TOKEN: mask(process.env.CLOUDFLARE_API_TOKEN),
+      MISTRAL_API_KEY: mask(process.env.MISTRAL_API_KEY),
+    };
+
+    // Live ping cada provider configurado — prompt mínimo "say hi"
+    const { buildProviderFromEnv } = await import('../dm/providers/factory.js');
+    const tests: Array<{
+      provider: string;
+      configured: boolean;
+      ok: boolean;
+      latency_ms?: number;
+      response_preview?: string;
+      error?: string;
+    }> = [];
+
+    const testProvider = async (name: string, mkProvider: () => import('../dm/providers/base.js').DMProvider): Promise<typeof tests[number]> => {
+      const start = Date.now();
+      try {
+        const p = mkProvider();
+        const r = await p.generate({
+          systemPrompt: 'Responda em PT-BR com 1 palavra.',
+          userPrompt: 'oi',
+          maxTokens: 20,
+        });
+        return {
+          provider: name,
+          configured: true,
+          ok: true,
+          latency_ms: Date.now() - start,
+          response_preview: r.text.slice(0, 80),
+        };
+      } catch (err) {
+        return {
+          provider: name,
+          configured: true,
+          ok: false,
+          latency_ms: Date.now() - start,
+          error: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+        };
+      }
+    };
+
+    const env = process.env;
+    if (env.CEREBRAS_API_KEY) {
+      const { CerebrasProvider } = await import('../dm/providers/cerebras.js');
+      tests.push(await testProvider('cerebras', () => new CerebrasProvider({
+        apiKey: env.CEREBRAS_API_KEY!,
+        model: env.CEREBRAS_MODEL ?? 'llama-3.3-70b',
+      })));
+    } else { tests.push({ provider: 'cerebras', configured: false, ok: false }); }
+    if (env.GEMINI_API_KEY) {
+      const { GeminiProvider } = await import('../dm/providers/gemini.js');
+      tests.push(await testProvider('gemini', () => new GeminiProvider({
+        apiKey: env.GEMINI_API_KEY!,
+        model: env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+      })));
+    } else { tests.push({ provider: 'gemini', configured: false, ok: false }); }
+    if (env.GROQ_API_KEY) {
+      const { GroqProvider } = await import('../dm/providers/groq.js');
+      tests.push(await testProvider('groq', () => new GroqProvider({
+        apiKey: env.GROQ_API_KEY!,
+        model: env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
+      })));
+    } else { tests.push({ provider: 'groq', configured: false, ok: false }); }
+    if (env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN) {
+      const { CloudflareProvider } = await import('../dm/providers/cloudflare.js');
+      tests.push(await testProvider('cloudflare', () => new CloudflareProvider({
+        accountId: env.CLOUDFLARE_ACCOUNT_ID!,
+        apiToken: env.CLOUDFLARE_API_TOKEN!,
+        model: env.CLOUDFLARE_MODEL ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+      })));
+    } else { tests.push({ provider: 'cloudflare', configured: false, ok: false }); }
+    if (env.MISTRAL_API_KEY) {
+      const { MistralProvider } = await import('../dm/providers/mistral.js');
+      tests.push(await testProvider('mistral', () => new MistralProvider({
+        apiKey: env.MISTRAL_API_KEY!,
+        model: env.MISTRAL_MODEL ?? 'mistral-small-latest',
+      })));
+    } else { tests.push({ provider: 'mistral', configured: false, ok: false }); }
+    if (env.ANTHROPIC_API_KEY) {
+      const { AnthropicProvider } = await import('../dm/providers/anthropic.js');
+      tests.push(await testProvider('anthropic', () => new AnthropicProvider(
+        env.ANTHROPIC_API_KEY!,
+        env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001',
+        env.ANTHROPIC_BASE_URL,
+      )));
+    } else { tests.push({ provider: 'anthropic', configured: false, ok: false }); }
+
+    // Provider que o factory escolheria agora
+    const built = buildProviderFromEnv(env as Record<string, string | undefined>);
+    const builtName = built?.name ?? 'NENHUM (todos missing)';
+
+    const okCount = tests.filter((t) => t.ok).length;
+    const configuredCount = tests.filter((t) => t.configured).length;
+    const recommendation =
+      okCount === 0 && configuredCount === 0
+        ? 'NENHUM provider configurado. Add CEREBRAS_API_KEY (gratuito): cloud.cerebras.ai → API Key → Render env var'
+        : okCount === 0
+          ? `${configuredCount} providers configurados, mas TODOS falharam ping. Veja "error" em cada um.`
+          : okCount < 2
+            ? `Apenas ${okCount} provider funciona. Recomendado 2+ pra resiliência.`
+            : `${okCount} providers funcionando — cascade saudável ✓`;
+
+    res.json({
+      env: envStatus,
+      built_provider: builtName,
+      live_tests: tests,
+      summary: {
+        configured: configuredCount,
+        working: okCount,
+        recommendation,
+      },
+    });
+  });
+
   // === DM health (Sprint 3) — detalhamento do cascade provider + métricas LLM
   app.get('/api/dm/health', async (_req, res) => {
     try {
