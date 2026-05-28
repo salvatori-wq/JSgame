@@ -61,7 +61,18 @@ function renderModal(opts: Opts): HTMLElement {
   ]));
 
   if (opts.quests.length === 0) {
-    card.appendChild(el('div', { class: 'qlm-empty', text: 'Nenhuma quest ainda. Explore e converse com NPCs.' }));
+    // S3.3 — Empty estruturado com orientação. Antes era 1-liner sem afford —
+    // novo player não sabia se o loop tava quebrado ou só vazio. Agora icon +
+    // título + duas vias claras (NPC e exploração).
+    const empty = el('div', { class: 'qlm-empty' });
+    empty.appendChild(el('div', { class: 'qlm-empty-icon', text: '📜' }));
+    empty.appendChild(el('div', { class: 'qlm-empty-title', text: 'Nenhuma missão ainda' }));
+    empty.appendChild(el('div', { class: 'qlm-empty-sub', text: 'Quests aparecem quando NPCs pedem ajuda ou você revela mistérios:' }));
+    const hints = el('ul', { class: 'qlm-empty-hints' });
+    hints.appendChild(el('li', { text: '💬 Use "Falar" com NPCs (taverneiro, guarda, viajante) — pergunte por problemas locais' }));
+    hints.appendChild(el('li', { text: '🗺 "Explorar" lugares novos — ruínas, masmorras e estradas revelam tarefas' }));
+    empty.appendChild(hints);
+    card.appendChild(empty);
   } else {
     if (active.length > 0) {
       card.appendChild(el('h3', { class: 'qlm-section', text: `▶ Ativas (${active.length})` }));

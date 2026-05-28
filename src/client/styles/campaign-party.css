@@ -566,10 +566,40 @@ body.is-portrait-narrow .profile-grid {
 .qlm-section-done { color: #80b850; }
 .qlm-section-failed { color: #c06040; }
 .qlm-empty {
-  padding: 24px 12px;
+  /* S3.3 — estruturado com hints. font-style:italic dos antigos 1-liners
+   * removido (hints precisam clareza). */
+  padding: 24px 16px;
   text-align: center;
+  color: var(--ink-warm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.qlm-empty-icon { font-size: 36px; opacity: 0.65; }
+.qlm-empty-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  color: var(--ink-gold);
+}
+.qlm-empty-sub {
+  font-size: 12px;
   color: var(--ink-mute);
-  font-style: italic;
+  margin-bottom: 4px;
+}
+.qlm-empty-hints {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink-warm);
+  max-width: 320px;
+}
+.qlm-empty-hints li {
+  padding: 6px 0;
+  line-height: 1.4;
 }
 .qlm-quest {
   background: rgba(0, 0, 0, 0.35);

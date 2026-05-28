@@ -784,6 +784,13 @@ body.is-portrait-narrow .cb-eco-slot {
   font-size: 13px;
 }
 .login-anon-btn:hover { border-color: var(--ink-gold); background: rgba(180, 120, 40, 0.2); }
+/* S3.4 — loading state ao click: dim + pointer-events:none + cursor wait */
+.login-anon-btn.is-loading,
+.login-anon-btn:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  cursor: wait;
+}
 .login-back-btn {
   margin-top: 18px;
   background: transparent;

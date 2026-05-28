@@ -541,6 +541,35 @@ describe('N1/N2/N3 — round 4 (hierarquia + visual rich + polish vivo)', () => 
   });
 });
 
+describe('S3 — Ciclo S round 3 (polish)', () => {
+  const home = readCss('home-tavern.css');
+  const gloss = readCss('glossary.css');
+  const party = readCss('campaign-party.css');
+  const modals = readCss('modals.css');
+
+  it('S3.1 — home-prefab-archetype em portrait-narrow ganha min-height 24 + flex center', () => {
+    expect(home).toMatch(/body\.is-portrait-narrow\s+\.home-prefab-archetype\s*\{[\s\S]*?min-height:\s*24px/);
+    expect(home).toMatch(/body\.is-portrait-narrow\s+\.home-prefab-archetype\s*\{[\s\S]*?align-items:\s*center/);
+  });
+
+  it('S3.2 — gl-empty estruturado com icon + title + cta (3 sub-classes)', () => {
+    expect(gloss).toMatch(/\.gl-empty-icon\s*\{[^}]*font-size:\s*36px/);
+    expect(gloss).toMatch(/\.gl-empty-title\s*\{[^}]*font-family:\s*var\(--font-heading/);
+    expect(gloss).toMatch(/\.gl-empty-cta\s*\{[\s\S]*?min-height:\s*44px/);
+  });
+
+  it('S3.3 — qlm-empty estruturado com icon + title + hints', () => {
+    expect(party).toMatch(/\.qlm-empty-icon\s*\{[^}]*font-size:\s*36px/);
+    expect(party).toMatch(/\.qlm-empty-title\s*\{[^}]*font-family:\s*var\(--font-heading/);
+    expect(party).toMatch(/\.qlm-empty-hints\s*\{[\s\S]*?list-style:\s*none/);
+  });
+
+  it('S3.4 — login-anon-btn loading state com opacity + pointer-events:none', () => {
+    expect(modals).toMatch(/\.login-anon-btn\.is-loading[\s\S]*?\.login-anon-btn:disabled\s*\{[\s\S]*?opacity:\s*0\.6/);
+    expect(modals).toMatch(/\.login-anon-btn\.is-loading[\s\S]*?\.login-anon-btn:disabled\s*\{[\s\S]*?pointer-events:\s*none/);
+  });
+});
+
 describe('S2 — Ciclo S round 2 (médio mobile polish)', () => {
   const wiz = readCss('wizard.css');
   const party = readCss('campaign-party.css');

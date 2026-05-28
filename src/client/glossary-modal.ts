@@ -48,7 +48,26 @@ export function openGlossaryModal(opts: { focusTerm?: string } = {}): void {
     body.innerHTML = '';
     const matches = searchGlossary(searchQuery);
     if (matches.length === 0) {
-      body.appendChild(el('div', { class: 'gl-empty', text: 'Nenhum termo encontrado. Tente outra busca.' }));
+      // S3.2 — Empty estruturado: ícone + título + CTA "← Ver todos" (limpa busca).
+      // Antes era texto plano sem affordance de saída — user ficava preso.
+      const empty = el('div', { class: 'gl-empty' });
+      empty.appendChild(el('div', { class: 'gl-empty-icon', text: '🔍' }));
+      empty.appendChild(el('div', { class: 'gl-empty-title', text: 'Nenhum termo encontrado' }));
+      empty.appendChild(el('div', { class: 'gl-empty-sub', text: `Tente outra busca ou veja todos os ${GLOSSARY.length} termos.` }));
+      empty.appendChild(el('button', {
+        class: 'gl-empty-cta',
+        text: `← Ver todos (${GLOSSARY.length} termos)`,
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            searchQuery = '';
+            searchInput.value = '';
+            renderResults();
+            searchInput.focus();
+          },
+        },
+      }));
+      body.appendChild(empty);
       return;
     }
 

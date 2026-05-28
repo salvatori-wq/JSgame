@@ -78,12 +78,27 @@ export class LoginScreen {
     card.appendChild(el('h2', { class: 'login-h2', text: '⚔ Jogar agora' }));
     card.appendChild(el('p', { class: 'login-intro', text: 'Sem cadastro, sem email, sem espera. Cria PJ, joga, salva no navegador.' }));
 
-    card.appendChild(el('button', {
+    // S3.4 — Botão anon ganha loading state visual ao click.
+    // Antes: callback rodava imediato sem feedback — em mobile lento usuário
+    // clicava 2x. Agora desabilita + troca texto + adiciona class is-loading.
+    // Setattribute disabled + style :disabled (modals.css cuida do visual).
+    const anonBtn = el('button', {
       class: 'login-anon-btn cta-glow',
       text: '🎮 Jogar sem cadastro',
       attrs: { type: 'button', title: 'PJs salvos só localmente neste navegador' },
-      on: { click: () => this.opts.onContinueAnonymous() },
-    }));
+      on: {
+        click: () => {
+          if (anonBtn.classList.contains('is-loading')) return;
+          anonBtn.classList.add('is-loading');
+          anonBtn.setAttribute('disabled', 'true');
+          anonBtn.textContent = '⏳ Carregando…';
+          // Defer pra DOM pintar o loading state antes do callback síncrono
+          // disparar o re-render da home.
+          requestAnimationFrame(() => this.opts.onContinueAnonymous());
+        },
+      },
+    });
+    card.appendChild(anonBtn);
 
     card.appendChild(el('div', { class: 'login-sep', text: '— ou crie conta pra salvar entre dispositivos —' }));
 

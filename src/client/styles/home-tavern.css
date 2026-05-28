@@ -1027,6 +1027,15 @@ body.is-portrait-narrow .home-prefab-label {
 body.is-portrait-narrow .home-prefab-archetype {
   font-size: 10px;
   letter-spacing: 0.04em;
+  /* S3.1 — Card 1 "Lutador Anão · Linha de frente" cabe em 1 linha (h 12),
+   * cards 2 e 3 viram 2 linhas (h 24) — visual irregular (cards de altura
+   * diferente). Fixo min-height 24px (2 linhas) + centraliza vertical pra
+   * uniformizar: cards de 1 linha viram visualmente 2-line-height. */
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 body.is-portrait-narrow .home-coop-btn {
   min-height: 84px;
