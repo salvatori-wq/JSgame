@@ -215,6 +215,16 @@ body.is-portrait-narrow .ch-narration-host {
   overscroll-behavior: contain;
 }
 
+/* ④ Narração curta centralizada — quando o conteúdo cabe sem rolar (cold-open,
+ * cena curta), centraliza verticalmente pra matar a "banda morta" embaixo. JS
+ * (narration-log) só liga is-narr-sparse quando NÃO há overflow (sem risco de
+ * cutoff de flex+scroll) e fora de combate. */
+body.is-portrait-narrow .ch-narration-host.is-narr-sparse {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 /* PENDING CHECK — sticky no fim da narration (acima da dock) */
 body.is-portrait-narrow .ch-slot-pending-check:empty {
   display: none;

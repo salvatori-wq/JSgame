@@ -386,18 +386,24 @@
  * Click no head → expande/colapsa (preview ↔ full).
  */
 .cn-scene-pin {
+  /* ④ Redesign — oculto por padrão; revelado SÓ quando a narração viva saiu
+   * de vista (JS adiciona .is-revealed). Evita duplicar a cena que já está na
+   * tela (bug L1) e some em combate (setCombatMode). */
+  display: none;
   position: sticky;
   top: 0;
   z-index: 5;
   margin: 0 0 8px;
-  background: linear-gradient(180deg, rgba(38, 28, 14, 0.96) 0%, rgba(28, 18, 8, 0.94) 100%);
+  /* bg opaco: o histórico rola POR BAIXO do pin sticky — translúcido vazava. */
+  background: linear-gradient(180deg, rgba(38, 28, 14, 0.98) 0%, rgba(28, 18, 8, 0.98) 100%);
   border: 1px solid rgba(244, 208, 127, 0.28);
   border-left: 3px solid var(--ink-gold);
   border-radius: 0 6px 6px 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   animation: narr-fade-in 0.3s ease-out;
+}
+.cn-scene-pin.is-revealed {
+  display: block;
 }
 .cn-scene-pin-head {
   display: flex;

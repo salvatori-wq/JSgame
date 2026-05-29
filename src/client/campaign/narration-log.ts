@@ -108,6 +108,12 @@ export class NarrationLog {
   private narrationsInCurrentScene = 0;
   private newSinceScrolled = 0;
   private isPinnedToBottom = true;
+  // ④ Redesign — scene pin sem sobreposição: rastreia a última narração de
+  // Mestre pra só REVELAR o pin quando ela saiu de vista (scrolled away). Em
+  // combate o pin some (narração vira recap de 18vh — pin seria ruído).
+  private lastMasterNarrationEl: HTMLElement | null = null;
+  private inCombat = false;
+  private pinRafScheduled = false;
   private opts: Required<NarrationLogOpts>;
   // Mantém referência das animações ativas pra cancelar se entry remove.
   private activeTypewriters = new Map<string, ReturnType<typeof setInterval>>();
@@ -271,6 +277,9 @@ export class NarrationLog {
       entryEl.dataset.noDropCap = '1';
     }
     this.entriesEl.appendChild(entryEl);
+    // ④ — guarda a referência da última narração de Mestre pro cálculo de
+    // visibilidade do scene pin (revela só quando esta sai de vista).
+    if (isMasterNarration) this.lastMasterNarrationEl = entryEl;
 
     // Typewriter visual nas narrações de Mestre (não em chat/echo).
     if (isMasterNarration && this.opts.enableTypewriter) {
@@ -374,6 +383,69 @@ export class NarrationLog {
     if (this.scenePinFullEl) {
       this.scenePinFullEl.textContent = text;
     }
+    this.updateScenePinVisibility();
+  }
+
+  /**
+   * ④ Redesign — informa o modo combate. Em combate o scene pin some (a
+   * narração já é um recap fino de 18vh — o pin seria ruído) e a centragem
+   * de narração curta é desligada. Chamado por campaign-screen.updateMainContent.
+   */
+  setCombatMode(inCombat: boolean): void {
+    if (this.inCombat === inCombat) return;
+    this.inCombat = inCombat;
+    this.updateScenePinVisibility();
+    this.updateSparseCentering();
+  }
+
+  /**
+   * ④ Revela o scene pin SÓ quando a última narração de Mestre saiu de vista
+   * (você scrollou pra cima/pra história). No fundo (cena viva visível) o pin
+   * fica oculto — senão duplicaria o que já está na tela (bug L1). Em combate,
+   * sempre oculto. Robusto a ambientes sem layout (rects 0 → não mexe).
+   */
+  private updateScenePinVisibility(): void {
+    if (!this.scenePinEl) return;
+    if (this.inCombat || !this.lastMasterNarrationEl) {
+      this.scenePinEl.classList.remove('is-revealed');
+      return;
+    }
+    const container = this.getScrollContainer();
+    const cRect = container.getBoundingClientRect();
+    if (cRect.height <= 0) return; // sem layout (boot/test) — não altera estado
+    const eRect = this.lastMasterNarrationEl.getBoundingClientRect();
+    // "saiu de vista" = a última narração de Mestre não intersecta a área visível:
+    //  - inteiramente ACIMA (ecos/ações novas empurraram a cena pra cima), ou
+    //  - inteiramente ABAIXO (scrollou pra cima lendo histórico).
+    // Nos dois casos o pin reapresenta a cena atual. Visível → oculto (não duplica).
+    const outOfView = eRect.bottom <= cRect.top + 4 || eRect.top >= cRect.bottom - 4;
+    this.scenePinEl.classList.toggle('is-revealed', outOfView);
+  }
+
+  /**
+   * ④ Mata a "banda morta": quando a narração cabe sem rolar (cena curta, ex.
+   * cold-open), centraliza verticalmente o conteúdo no scroll container via
+   * .is-narr-sparse (CSS). Só quando há overflow=NÃO (sem risco de cutoff de
+   * flex+scroll) e fora de combate. No-op no scroll self (desktop).
+   */
+  private updateSparseCentering(): void {
+    const container = this.getScrollContainer();
+    if (container === this.rootEl) return; // desktop self-scroll — sem centragem
+    const ch = container.clientHeight;
+    if (ch <= 0) return; // sem layout
+    const fits = this.rootEl.scrollHeight <= ch + 1;
+    container.classList.toggle('is-narr-sparse', fits && !this.inCombat);
+  }
+
+  /** rAF-throttle pra recalcular pin + centragem durante scroll sem thrash. */
+  private scheduleScenePinUpdate(): void {
+    if (this.pinRafScheduled) return;
+    this.pinRafScheduled = true;
+    requestAnimationFrame(() => {
+      this.pinRafScheduled = false;
+      this.updateScenePinVisibility();
+      this.updateSparseCentering();
+    });
   }
 
   private toggleScenePin(): void {
@@ -949,6 +1021,8 @@ export class NarrationLog {
         this.updateBadge();
       }
     }
+    // ④ — recalcula visibilidade do scene pin + centragem conforme o scroll.
+    this.scheduleScenePinUpdate();
   }
 
   private afterAppend(_entryEl: HTMLElement): void {
@@ -965,6 +1039,11 @@ export class NarrationLog {
       this.newSinceScrolled++;
       this.updateBadge();
     }
+    // ④ — após cada append, reavalia o scene pin (a cena viva está visível?)
+    // e a centragem (cabe sem rolar?). rAF garante layout já aplicado.
+    this.updateScenePinVisibility();
+    this.updateSparseCentering();
+    requestAnimationFrame(() => { this.updateScenePinVisibility(); this.updateSparseCentering(); });
   }
 
   private updateBadge(): void {

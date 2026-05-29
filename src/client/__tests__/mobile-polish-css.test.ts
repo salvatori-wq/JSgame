@@ -369,6 +369,20 @@ describe('Redesign ③ — party faixa fina solo (m-camp-dock.css)', () => {
   });
 });
 
+describe('Redesign ④ — scene-pin sem sobreposição + narração centrada', () => {
+  const dock = readCss('m-camp-dock.css');
+  const core = readCss('campaign-core.css');
+
+  it('④ scene-pin oculto por padrão, revelado só com .is-revealed', () => {
+    expect(core).toMatch(/\.cn-scene-pin\s*\{[^}]*display:\s*none/);
+    expect(core).toMatch(/\.cn-scene-pin\.is-revealed\s*\{[^}]*display:\s*block/);
+  });
+
+  it('④ narração curta centraliza via .is-narr-sparse (mata banda morta)', () => {
+    expect(dock).toMatch(/\.ch-narration-host\.is-narr-sparse\s*\{[\s\S]*?justify-content:\s*center/);
+  });
+});
+
 describe('Redesign ② — combate sem abas em portrait (combat.css)', () => {
   const combat = readCss('combat.css');
 

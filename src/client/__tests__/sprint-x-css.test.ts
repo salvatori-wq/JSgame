@@ -58,9 +58,12 @@ describe('Sprint X.B3 — Scene pin sticky', () => {
     expect(core).toMatch(/\.cn-scene-pin\s*\{[\s\S]*?z-index:\s*5/);
   });
 
-  it('cn-scene-pin tem border-left gold + backdrop blur', () => {
+  it('cn-scene-pin tem border-left gold + ④ oculto por padrão (bg opaco, sem blur)', () => {
     expect(core).toMatch(/\.cn-scene-pin\s*\{[\s\S]*?border-left:\s*3px\s+solid\s+var\(--ink-gold\)/);
-    expect(core).toMatch(/\.cn-scene-pin\s*\{[\s\S]*?backdrop-filter:\s*blur\(4px\)/);
+    // ④ — removeu o backdrop-filter: o bg agora é opaco e o pin só aparece
+    // quando scrollado (display:none default → .is-revealed). Ver scene-pin-redesign.test.
+    expect(core).toMatch(/\.cn-scene-pin\s*\{[\s\S]*?display:\s*none/);
+    expect(core).toMatch(/\.cn-scene-pin\.is-revealed\s*\{[^}]*display:\s*block/);
   });
 
   it('preview Cardo italic 13px / full 14px', () => {
