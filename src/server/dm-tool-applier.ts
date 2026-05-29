@@ -11,6 +11,7 @@ import type { ValidatedTool } from './dm/tools.js';
 import { startCombat, applyConditionTo } from './combat.js';
 import { awardXpToParty } from '../dnd/leveling.js';
 import { pickEncounter, picksToEnemyInputs } from '../dnd/encounter-builder.js';
+import { balanceFreeformEnemies } from '../dnd/combat-balance.js';
 
 export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool): void {
   switch (tool.kind) {
@@ -28,13 +29,18 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
 
     case 'start_combat': {
       camp.state.mode = 'combat';
+      // Fase 3 — Anti-slog: calibra HP dos inimigos freeform pra ~4 rounds.
+      // O LLM costuma inflar HP no start_combat (vs start_combat_balanced).
+      // Só REDUZ, só quando muito acima do alvo, respeita pisos. NÃO silencioso.
+      const balanced = balanceFreeformEnemies(camp.party, tool.enemies);
       camp.state.combat = startCombat({
         party: camp.party,
-        enemies: tool.enemies,
+        enemies: balanced.enemies,
       });
       camp.combatStartCount += 1;
-      const enemyNames = tool.enemies.map((e) => e.name).join(', ');
+      const enemyNames = balanced.enemies.map((e) => e.name).join(', ');
       camp.pushRecentEvent(`Combate iniciado: ${enemyNames}`);
+      if (balanced.adjusted) camp.pushRecentEvent(balanced.note);
       camp.indexFact({
         kind: 'event',
         text: `Combate começou contra: ${enemyNames}. Local: ${camp.state.currentLocation}.`,
@@ -51,7 +57,11 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           await trackMetricEvent({
             sessionId: camp.state.id,
             kind: 'combat_started',
-            payload: { enemies: tool.enemies.length, names: enemyNames },
+            payload: {
+              enemies: balanced.enemies.length, names: enemyNames,
+              balanced: balanced.adjusted, partyDpr: balanced.partyDpr,
+              hpBefore: balanced.originalTotalHp, hpAfter: balanced.newTotalHp,
+            },
           });
         } catch { /* ignore */ }
       })();
