@@ -312,7 +312,22 @@ async function renderCampaign(characterId: string, campaignId?: string): Promise
     ownerName: getOwnerName(),
     onExit: () => navigate({ kind: 'home' }),
   });
-  await currentCampaign.start();
+  try {
+    await currentCampaign.start();
+  } catch (err) {
+    // Auto-rejoin falhou — ex: PJ/campanha não existe mais (getCharacter 404
+    // quando o servidor free dormiu e perdeu o estado, ou sessão antiga
+    // inválida). Sem isto, a tela fica EM BRANCO (campaign-container vazio) e
+    // o jogador trava — sintoma que aparecia como refresh repetido na
+    // telemetria. Degrada: limpa a sessão inválida e volta pra home com aviso.
+    console.warn('[campaign] start falhou — limpando sessão e voltando pra home:', err);
+    clearLastSession();
+    try { currentCampaign?.destroy(); } catch { /* ignore */ }
+    currentCampaign = null;
+    container.remove();
+    toastError('🌙 Essa aventura não está mais disponível. Comece uma nova partida.');
+    navigate({ kind: 'home' });
+  }
 }
 
 // Auto-rejoin: se havia sessão ativa no localStorage, volta direto pra ela.
