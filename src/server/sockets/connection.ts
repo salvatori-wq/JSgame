@@ -411,22 +411,26 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
 
         await withThinkingBroadcast(camp, activePlayerId, `rolar ${pending.skill}`, async () => {
           const useInspiration = !!(payload as { useInspiration?: boolean })?.useInspiration;
-          const result = await camp.resolveSkillCheck(activePlayerId!, { useInspiration });
+          // Rank 1 fix — emite o diceRollResult DENTRO do onRoll (assim que o d20
+          // é rolado), ANTES do await dm.narrate. O dado anima na hora; antes
+          // ficava congelado em "?" os 3-12s da latência do Mestre.
+          const result = await camp.resolveSkillCheck(activePlayerId!, { useInspiration }, (early) => {
+            io.to(camp.state.id).emit('diceRollResult', {
+              source: activePlayerId!,
+              roll: early.roll,
+              purpose: 'skill-check',
+            });
+            // γ.6 — telemetria roll
+            trackFirstRollIfNeeded({
+              roll_total: early.roll.total,
+              success: early.success,
+              nat20: early.nat20,
+              nat1: early.nat1,
+              skill: pending.skill,
+            });
+          });
           if (!result) return;
 
-          io.to(camp.state.id).emit('diceRollResult', {
-            source: activePlayerId!,
-            roll: result.roll,
-            purpose: 'skill-check',
-          });
-          // γ.6 — telemetria roll
-          trackFirstRollIfNeeded({
-            roll_total: result.roll.total,
-            success: result.success,
-            nat20: result.nat20,
-            nat1: result.nat1,
-            skill: pending.skill,
-          });
           const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
           const verdict = result.nat20 ? 'NAT20 CRIT' : result.nat1 ? 'NAT1 FALHA' : (result.success ? 'SUCESSO' : 'FALHOU');
           const inspNote = result.usedInspiration ? ' ✨' : '';

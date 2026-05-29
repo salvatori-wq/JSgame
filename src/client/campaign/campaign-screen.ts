@@ -101,6 +101,11 @@ export class CampaignScreen {
   private party: CharacterSheet[] = [];
   private currentState: CampaignState | null = null;
   private skillCheckOverlay: PendingCheck | null = null;
+  // Rank 1 fix — true enquanto o dado do skill-check está animando/mostrando o
+  // resultado. Protege contra o broadcastState (pendingCheck=null) que chega
+  // logo após o diceRollResult e fechava o overlay em ~64ms (dado "some sem
+  // nexo"). Resetado pelo onClose do próprio overlay (4-5s).
+  private skillCheckResolving = false;
   // Chat refactor 2026-05-26: NarrationLog encapsula histórico + scroll + thinking
   // inline + error cards. Persistente entre renders — nunca destruída.
   private narrationLog: NarrationLog | null = null;
@@ -679,7 +684,9 @@ export class CampaignScreen {
 
     const onDice = (payload: { source: string; roll: DiceRoll; purpose: string }): void => {
       if (payload.purpose === 'skill-check' && this.skillCheckOverlay) {
+        this.skillCheckResolving = true;
         showSkillCheckResult(payload.roll, this.skillCheckOverlay, () => {
+          this.skillCheckResolving = false;
           this.skillCheckOverlay = null;
           this.render();
         });
@@ -882,8 +889,12 @@ export class CampaignScreen {
   private maybeShowPendingCheck(): void {
     const pending = this.currentState?.pendingCheck;
     if (!pending || !this.character) {
-      // Não há check ativo OU já passou — fecha overlay se aberto
-      if (!pending && this.skillCheckOverlay) {
+      // Não há check ativo OU já passou — fecha overlay se aberto.
+      // Rank 1 fix: NÃO fecha se o dado está animando/mostrando resultado
+      // (skillCheckResolving). O broadcastState que limpa pendingCheck chega
+      // logo após o diceRollResult; sem esta guarda ele arrancava o overlay
+      // ~64ms depois do dado começar a girar. O onClose do overlay (4-5s) fecha.
+      if (!pending && this.skillCheckOverlay && !this.skillCheckResolving) {
         closeSkillCheck();
         this.skillCheckOverlay = null;
       }

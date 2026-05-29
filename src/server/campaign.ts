@@ -467,7 +467,15 @@ export class Campaign {
 
   // Resolve skill check pendente. Verifica owner: só playerId === pendingCheck.playerId.
   // α.3 — useInspiration opcional: gasta 1 inspiração pra forçar advantage no roll.
-  async resolveSkillCheck(playerId: string, opts: { useInspiration?: boolean } = {}): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean; dmResponse: DMResponse } | null> {
+  async resolveSkillCheck(
+    playerId: string,
+    opts: { useInspiration?: boolean } = {},
+    // Rank 1 fix — dispara ASSIM QUE o d20 é rolado, ANTES do await dm.narrate
+    // (LLM 3-12s). O caller emite diceRollResult aqui pra o cliente animar o
+    // dado na hora em vez de congelar em "?" até o Mestre responder. Mesma
+    // pegada do psi-fix de saving-throw/death-save.
+    onRoll?: (early: { roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean }) => void,
+  ): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean; dmResponse: DMResponse } | null> {
     return this.enqueue(async () => {
       const check = this.state.pendingCheck;
       if (!check) return null;
@@ -511,6 +519,11 @@ export class Campaign {
         disadvantage: advMode === 'disadvantage',
       });
       const success = roll.total >= check.dc;
+      // Rank 1 fix — emite o dado AGORA (antes do await dm.narrate). Best-effort:
+      // uma falha no callback nunca pode abortar a resolução do check.
+      try {
+        onRoll?.({ roll, success, nat20: !!roll.nat20, nat1: !!roll.nat1, usedInspiration });
+      } catch { /* emit é best-effort */ }
       // F17: credita skill_check event
       this.pushAchievementEvent(player.id, {
         kind: 'skill_check',
