@@ -106,8 +106,35 @@ export function applyUxPrefs(prefs: UxPrefs = getUxPrefs()): void {
   document.body.classList.toggle('force-motion', prefs.forceMotion);
 }
 
-/** Inicializa: load + apply. Chamar no boot do main.ts. */
+/** Migração one-time: completa o 289673f. Aquele commit virou o default de
+ * physicalDice ON→OFF (o canvas físico z-9600 tapava o dado CSS do skill-check
+ * no celular), MAS getUxPrefs faz {...DEFAULT, ...stored} — então quem já jogou
+ * tem physicalDice:true salvo e o novo default nunca o alcança. Resultado: o
+ * João (e qualquer player antigo) segue no dado físico mesmo após o deploy.
+ * Aqui resetamos UMA vez pro novo default. Quem quiser o físico reativa em
+ * Ajustes (o flag impede re-clobber depois). Mesma pegada do tutorial-seen flag. */
+const PHYSICAL_DICE_MIGRATION_KEY = 'jsgame:physicalDiceDefaultMigratedV2';
+
+export function migratePhysicalDiceDefault(): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(PHYSICAL_DICE_MIGRATION_KEY) === '1') return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<UxPrefs>;
+      // Só age sobre quem tinha o ANTIGO default (physicalDice:true). Quem já
+      // está em false, ou nunca salvou pref, não é tocado.
+      if (parsed && parsed.physicalDice === true) {
+        setUxPrefs({ physicalDice: false });
+      }
+    }
+    localStorage.setItem(PHYSICAL_DICE_MIGRATION_KEY, '1');
+  } catch { /* best-effort — migração nunca pode travar o boot */ }
+}
+
+/** Inicializa: migra prefs legadas + load + apply. Chamar no boot do main.ts. */
 export function initUxPrefs(): void {
+  migratePhysicalDiceDefault();
   applyUxPrefs(getUxPrefs());
 }
 

@@ -2,7 +2,7 @@
 // ο.8 — Tests do UX Prefs.
 
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-import { getUxPrefs, setUxPrefs, resetUxPrefs, applyUxPrefs, initUxPrefs, DEFAULT_PREFS, _resetCacheForTest } from '../ux-prefs';
+import { getUxPrefs, setUxPrefs, resetUxPrefs, applyUxPrefs, initUxPrefs, migratePhysicalDiceDefault, DEFAULT_PREFS, _resetCacheForTest } from '../ux-prefs';
 
 // Mock localStorage explicit pra evitar pollution cross-file no single-fork.
 // Em happy-dom localStorage default às vezes vira proxy quebrado dependendo da
@@ -123,5 +123,61 @@ describe('UX Prefs ο.8', () => {
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw!);
     expect(parsed.forceMotion).toBe(false);
+  });
+});
+
+// Cycle 1 — completa o 289673f: o default de physicalDice virou OFF mas players
+// antigos têm physicalDice:true salvo, que sobrescreve o default → seguem no dado
+// físico que tapa o dado CSS no celular. A migração reseta UMA vez.
+describe('physicalDice migration', () => {
+  const MIGRATION_KEY = 'jsgame:physicalDiceDefaultMigratedV2';
+
+  beforeEach(() => {
+    localStorage.clear();
+    _resetCacheForTest();
+    if (typeof document !== 'undefined') document.body.className = '';
+  });
+
+  it('reseta physicalDice:true legado pro novo default OFF + marca flag', () => {
+    localStorage.setItem('jsgame.uxPrefs', JSON.stringify({ ...DEFAULT_PREFS, physicalDice: true }));
+    _resetCacheForTest();
+    migratePhysicalDiceDefault();
+    expect(getUxPrefs().physicalDice).toBe(false);
+    expect(localStorage.getItem(MIGRATION_KEY)).toBe('1');
+  });
+
+  it('é one-time: não re-clobbera se o player reativar o físico depois', () => {
+    localStorage.setItem('jsgame.uxPrefs', JSON.stringify({ ...DEFAULT_PREFS, physicalDice: true }));
+    _resetCacheForTest();
+    migratePhysicalDiceDefault();
+    expect(getUxPrefs().physicalDice).toBe(false);
+    // player reativa de propósito em Ajustes
+    setUxPrefs({ physicalDice: true });
+    expect(getUxPrefs().physicalDice).toBe(true);
+    // próximo boot roda migrate de novo — NÃO deve mexer (flag já setado)
+    migratePhysicalDiceDefault();
+    expect(getUxPrefs().physicalDice).toBe(true);
+  });
+
+  it('no-op pra quem já está em physicalDice:false', () => {
+    localStorage.setItem('jsgame.uxPrefs', JSON.stringify({ ...DEFAULT_PREFS, physicalDice: false }));
+    _resetCacheForTest();
+    migratePhysicalDiceDefault();
+    expect(getUxPrefs().physicalDice).toBe(false);
+    expect(localStorage.getItem(MIGRATION_KEY)).toBe('1');
+  });
+
+  it('fresh user (sem prefs salvas) não quebra e marca a migração', () => {
+    _resetCacheForTest();
+    expect(() => migratePhysicalDiceDefault()).not.toThrow();
+    expect(getUxPrefs().physicalDice).toBe(false);
+    expect(localStorage.getItem(MIGRATION_KEY)).toBe('1');
+  });
+
+  it('initUxPrefs dispara a migração no boot', () => {
+    localStorage.setItem('jsgame.uxPrefs', JSON.stringify({ ...DEFAULT_PREFS, physicalDice: true }));
+    _resetCacheForTest();
+    initUxPrefs();
+    expect(getUxPrefs().physicalDice).toBe(false);
   });
 });
