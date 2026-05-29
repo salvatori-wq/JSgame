@@ -117,6 +117,6 @@ function renderQuest(q: Quest): HTMLElement {
     card.appendChild(list);
   }
 
-  card.appendChild(el('div', { class: 'qlm-quest-reward', text: `🏆 Reward ${q.rewardXp} XP` }));
+  card.appendChild(el('div', { class: 'qlm-quest-reward', text: `🏆 Recompensa: ${q.rewardXp} XP` }));
   return card;
 }

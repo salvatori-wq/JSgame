@@ -572,6 +572,19 @@ body.is-death-save-pending::after {
   font-size: 32px;
   margin: 3px 7px 0 0;
 }
+/* Anula o drop-cap quando a narração começa com palavra de 1 letra ("O ",
+   "A ", "E ") — o ::first-letter float colaria a letra gigante na palavra
+   seguinte e colapsaria o espaço ("Obrutamonte"). !important pra vencer o
+   @media mobile abaixo que reaplica o drop-cap. */
+.camp-narr-entry[data-no-drop-cap='1'] .cnn-text::first-letter {
+  font: inherit !important;
+  color: inherit !important;
+  float: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-shadow: none !important;
+  letter-spacing: inherit !important;
+}
 @media (max-width: 480px) {
   .camp-narr-entry.is-first-narration .cnn-text::first-letter,
   .camp-narr-entry[data-drop-cap-active='1'] .cnn-text::first-letter {

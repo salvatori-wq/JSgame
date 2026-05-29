@@ -191,7 +191,7 @@ export class LobbyScreen {
     const statusClass = `is-status-${p.status}`;
     const extraInfo: string[] = [];
     if (p.characterName) extraInfo.push(`PJ: ${p.characterName}`);
-    if (p.status === 'wizard' && p.wizardStep) extraInfo.push(`step: ${p.wizardStep}`);
+    if (p.status === 'wizard' && p.wizardStep) extraInfo.push(`criando — passo ${p.wizardStep}`);
     return el('div', { class: `lobby-player-row ${statusClass} ${isMe ? 'is-me' : ''}` }, [
       el('span', { class: 'lp-host', text: p.isHost ? '👑' : '👤' }),
       el('span', { class: 'lp-name', text: p.ownerName + (isMe ? ' (você)' : '') }),

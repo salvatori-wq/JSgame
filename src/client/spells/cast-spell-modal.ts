@@ -11,6 +11,7 @@ import { SPELLS, type SpellId } from '../../dnd/spells';
 import { isSpellcaster } from '../../dnd/spell-slots';
 import { el, escapeHtml, onSwipeDown } from '../util';
 import { renderSpellCard } from '../components/spell-card';
+import { toastWarn } from '../toast';
 
 type SocketT = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -74,7 +75,7 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
     const levels = [...spellsByLevel.keys()].sort();
     for (const lvl of levels) {
       const ids = spellsByLevel.get(lvl)!;
-      spellsList.appendChild(el('div', { class: 'cs-modal-level-title', text: lvl === 0 ? 'TRUQUES (sem slot)' : `NÍVEL ${lvl}` }));
+      spellsList.appendChild(el('div', { class: 'cs-modal-level-title', text: lvl === 0 ? 'TRUQUES (sem gastar magia)' : `NÍVEL ${lvl}` }));
       const grid = el('div', { class: 'cs-modal-grid' });
       for (const id of ids) {
         const sp = SPELLS[id];
@@ -160,11 +161,19 @@ function handleSpellSelection(
   const slotLevel = smallestSlotFor(caster, sp.level);
   const needsEnemyTarget = sp.effect.kind === 'damage' || (sp.effect.kind === 'condition' && (combat?.enemies.some((e) => e.currentHp > 0)));
   const needsPartyTarget = sp.effect.kind === 'heal';
+  // Inimigos vivos disponíveis pra mirar (vazio fora de combate).
+  const liveEnemies = combat ? combat.enemies.filter((e) => e.currentHp > 0) : [];
 
-  if (needsEnemyTarget && combat) {
+  if (needsEnemyTarget) {
+    // Guard: magia hostil sem inimigo vivo NÃO deve cair no self-target (auto-dano)
+    // nem abrir picker vazio. Avisa e mantém o modal aberto pra escolher outra.
+    if (liveEnemies.length === 0) {
+      toastWarn('Essa magia precisa de um inimigo pra mirar.');
+      return;
+    }
     openTargetPicker({
       title: `Alvo pra ${sp.name}`,
-      targets: combat.enemies.filter((e) => e.currentHp > 0).map((e) => ({ id: e.id, label: `${e.name} (HP ${e.currentHp}/${e.maxHp})` })),
+      targets: liveEnemies.map((e) => ({ id: e.id, label: `${e.name} (HP ${e.currentHp}/${e.maxHp})` })),
       onPick: (ids) => {
         socket.emit('castSpell', { spellId: sp.id, targetIds: ids, slotLevel });
         closeModal();

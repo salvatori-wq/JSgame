@@ -216,10 +216,18 @@ describe('NarrationLog — W2.1 drop-cap inteligente', async () => {
 
   it('primeira narração CURTA (<100 chars) recebe data-drop-cap="sm"', () => {
     const log = new NarrationLog();
-    log.appendNarration({ speaker: 'Mestre', text: 'A chuva começa.' }); // 16 chars
+    log.appendNarration({ speaker: 'Mestre', text: 'Chuva fria começa.' }); // curto
     const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
     expect(entry?.dataset.dropCap).toBe('sm');
     expect(entry?.dataset.dropCapActive).toBe('1');
+    log.destroy();
+  });
+
+  it('narração começando com palavra de 1 letra ("O ", "A ") NÃO recebe drop-cap (evita "Obrutamonte")', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'O brutamonte avança pelo mercado.' });
+    const entry = log.element.querySelector('.is-first-narration') as HTMLElement;
+    expect(entry?.dataset.dropCapActive).toBeUndefined();
     log.destroy();
   });
 
@@ -255,7 +263,7 @@ describe('NarrationLog — W2.1 drop-cap inteligente', async () => {
     log.appendNarration({ speaker: 'Mestre', text: '3', currentLocation: 'taverna' });
     log.appendNarration({ speaker: 'Mestre', text: '4', currentLocation: 'taverna' });
     // Vira a esquina → nova cena, dropcap volta
-    log.appendNarration({ speaker: 'Mestre', text: 'A floresta começa…', currentLocation: 'floresta' });
+    log.appendNarration({ speaker: 'Mestre', text: 'Floresta densa começa…', currentLocation: 'floresta' });
     const entries = log.element.querySelectorAll('.camp-narr-entry');
     expect((entries[3] as HTMLElement)?.dataset.dropCapActive).toBeUndefined();
     expect((entries[4] as HTMLElement)?.dataset.dropCapActive).toBe('1');

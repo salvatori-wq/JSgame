@@ -18,7 +18,7 @@ export function renderFeatStep(
 ): HTMLElement {
   const container = el('div', { class: 'wiz-step wiz-step-feat' });
   container.appendChild(el('h2', { class: 'wiz-h2', text: 'Escolha de Nível 4 (opcional)' }));
-  container.appendChild(el('p', { class: 'wiz-intro', text: 'Ao atingir nv 4 você ganha +2 em atributos (ASI) OU 1 talento (Feat). Pode planejar agora ou pular — escolhe depois quando subir.' }));
+  container.appendChild(el('p', { class: 'wiz-intro', text: 'Ao chegar no nível 4 você escolhe: +2 em atributos OU um talento (uma habilidade especial). Pode planejar agora ou pular — dá pra decidir depois quando subir.' }));
 
   // Modo inicial vem do state atual
   const initialMode: Mode = !state.plannedLevel4Choice
@@ -82,8 +82,8 @@ function renderModeToggle(mode: Mode, onChange: (m: Mode) => void): HTMLElement 
   const wrap = el('div', { class: 'feat-mode-toggle' });
   const modes: { id: Mode; label: string; sub: string }[] = [
     { id: 'none', label: 'Pular', sub: 'decido depois' },
-    { id: 'asi', label: '+2 Atributos', sub: 'ASI clássico' },
-    { id: 'feat', label: 'Talento', sub: '1 feat' },
+    { id: 'asi', label: '+2 Atributos', sub: 'reforça os atributos' },
+    { id: 'feat', label: 'Talento', sub: 'ganha uma habilidade especial' },
   ];
   for (const m of modes) {
     wrap.appendChild(el('button', {

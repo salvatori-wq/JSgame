@@ -243,7 +243,12 @@ export class NarrationLog {
       this.lastSceneLocation = payload.currentLocation ?? null;
       this.narrationsInCurrentScene = 0;
     }
-    const dropCapActive = isMasterNarration &&
+    // Bug visual: drop-cap (::first-letter float) numa narração que começa com
+    // palavra de 1 letra ("O brutamonte", "A porta", "E então") cola a letra
+    // gigante na palavra seguinte e colapsa o espaço → "Obrutamonte". Desativa
+    // o drop-cap nesses casos (1ª letra seguida de espaço).
+    const startsWithSingleLetterWord = /^[A-Za-zÀ-ÿ]\s/.test(payload.text.trimStart());
+    const dropCapActive = isMasterNarration && !startsWithSingleLetterWord &&
       (isFirstNarration || locationChanged || this.narrationsInCurrentScene < 3);
     if (isMasterNarration) this.narrationsInCurrentScene += 1;
 
@@ -258,6 +263,12 @@ export class NarrationLog {
     if (dropCapActive) {
       entryEl.dataset.dropCap = dropCapSize;
       entryEl.dataset.dropCapActive = '1';
+    }
+    // Anula o ::first-letter (que também vem de .is-first-narration no CSS)
+    // quando a narração começa com palavra de 1 letra — senão "O brutamonte"
+    // vira "Obrutamonte" (drop-cap colado).
+    if (startsWithSingleLetterWord) {
+      entryEl.dataset.noDropCap = '1';
     }
     this.entriesEl.appendChild(entryEl);
 
