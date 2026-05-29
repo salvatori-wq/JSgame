@@ -82,7 +82,49 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (QA Mobile Fase A→C — 5 commits, suite 2014 verde, dado+chat+combate)
+> Última atualização: 2026-05-29 (Redesign layout mobile mode-aware — 4 movimentos + docs, 5 commits, suite 2042 verde, combate domina a tela)
+
+### Redesign de layout mobile (mode-aware) — entregue (4 movimentos, +33 tests)
+
+Executado o redesign validado no mockup `public/proto-layout.html` (consumido e
+**deletado**). Tudo atrás de `body.is-portrait-narrow` — desktop não regride
+(verificado: sem `is-portrait-narrow`, toggle `is-in-combat` não muda nada).
+
+- **① Proporção mode-aware** (`m-camp-dock.css`, commit `f17119b`): em combate
+  (`.camp-screen.is-in-combat` — gancho já existia em `campaign-screen.ts:1115`)
+  a narração vira recap fino (`flex:0 0 auto; max-height:18vh`) e o dock
+  (`.ch-slot-main-content`) cresce. Exploração intocada (35vh / narração `flex:1`).
+- **② Combate sem abas** (`combat-screen.ts` + `combat.css`, `a3871c0`): em
+  portrait o combat-screen NÃO renderiza `.cb-tabs` nem seta `data-active-tab`
+  → inimigos + economia + ações JUNTOS. Resolve o loop de ataque (U2: enemy cards
+  escondidos pela aba "Ações"). Log inline oculto (vive nos echoes Sprint Y).
+  Desktop mantém abas. Swipe + setActiveTab gated p/ não-portrait.
+- **③ Party faixa fina solo** (`campaign-screen.ts` `renderPartyStrip` + CSS,
+  `41ceef8`): solo+portrait → faixa de 1 linha (portrait 28px + nome + HP + CA),
+  SEM XP/slots; badges críticos (conditions/conc/fúria/exaustão/inspiração) em 2ª
+  mini-linha só quando há. Slot ganha `is-thin-host`. Removeu o cap 58vh do dock
+  de combate (`max-height:none`) → dock absorve o espaço liberado. Coop/desktop
+  mantêm card cheio (`.cp-pj`, XP/slots, scroll-x coop).
+- **④ Scene-pin sem sobreposição + narração centrada** (`narration-log.ts` +
+  `campaign-screen.ts setCombatMode` + CSS, `8bb5614`): pin scroll-aware — nasce
+  oculto (`display:none`), revela (`.is-revealed`) SÓ quando a última narração de
+  Mestre saiu de vista (acima OU abaixo) → mata a duplicação (bug L1); some em
+  combate; bg opaco. Narração curta centralizada (`.ch-narration-host.is-narr-sparse`)
+  mata a banda morta do cold-open (só sem overflow → sem cutoff flex+scroll).
+
+**Medido 390×844** (DOM real / `getBoundingClientRect` — `preview_screenshot`
+trava neste ambiente): combate = dock **295→572px** (≈68vh, +277px) com inimigos
++ ações juntos e o alvo acima do fold; exploração = narração **565px** respirando,
+party **135→45px** (libera 90px), pin sem duplicar; gap 0, tab bar fixa.
+
+**Suite 2042 verde** (era 2014). Tudo pushado → deploy Render.
+
+**Pendente (celular real)**: confirmar no aparelho do João o timing do reveal do
+pin ④ + o dado físico D2 — o preview headless trava em rAF / import pesado, então
+o reveal fim-a-fim com layout real não foi exercitado (CSS + unit tests cobrem as
+peças). Demais P2/P3 do `BACKLOG_QA_MOBILE.md` + rotacionar token Turso seguem abertos.
+
+> Última atualização anterior: 2026-05-29 (QA Mobile Fase A→C — 5 commits, suite 2014 verde, dado+chat+combate)
 
 ### QA Mobile Fase A→C "dado/chat/combate" — entregue (5 commits, +~27 tests)
 
