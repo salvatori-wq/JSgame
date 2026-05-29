@@ -30,19 +30,29 @@ describe('renderActionDockTopics — exploration', () => {
     resetActionDockState();
   });
 
-  it('renderiza 4-5 topic cards', () => {
+  it('renderiza 4 topic cards (U6 — sem "Combate" top-level)', () => {
     const el = renderActionDockTopics(baseCtx());
     document.body.appendChild(el);
     const cards = el.querySelectorAll('.adt-card');
-    // combat / explore / social / more / custom = 5 (sem magic pq isCaster=false)
-    expect(cards.length).toBe(5);
+    // U6: explore / social / more / custom = 4 (sem magic pq isCaster=false,
+    // sem dice pq baseCtx não passa onRollDice, sem "Combate" que foi pro "Mais")
+    expect(cards.length).toBe(4);
+    expect(el.textContent).not.toContain('Combate');
   });
 
   it('inclui Magia se isCaster=true', () => {
     const el = renderActionDockTopics(baseCtx({ isCaster: true }));
     const cards = el.querySelectorAll('.adt-card');
-    expect(cards.length).toBe(6);
+    expect(cards.length).toBe(5); // U6: explore / social / magic / more / custom
     expect(el.textContent).toContain('Magia');
+  });
+
+  it('U6 — "Atacar" agora vive no drill de "Mais" (não no top-level)', () => {
+    const el = renderActionDockTopics(baseCtx());
+    const moreCard = Array.from(el.querySelectorAll('.adt-card'))
+      .find((c) => c.textContent?.includes('Mais')) as HTMLButtonElement;
+    moreCard.click();
+    expect(el.textContent).toContain('Atacar');
   });
 
   it('NÃO mostra drill antes de clicar', () => {

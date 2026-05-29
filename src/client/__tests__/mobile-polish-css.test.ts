@@ -906,3 +906,15 @@ describe('Trade-offs dado — overlay D2/D4', () => {
     expect(dice).toMatch(/\.dice-roll-overlay\.is-physical\s*\{[^}]*backdrop-filter:\s*none/);
   });
 });
+
+describe('U7 — eco do roll colorido por desfecho', () => {
+  const core = readCss('campaign-core.css');
+
+  it('.is-roll-echo-success colore o .cnn-text', () => {
+    expect(core).toMatch(/\.is-roll-echo-success\s+\.cnn-text\s*\{[^}]*color:/);
+  });
+
+  it('.is-roll-echo-fail colore o .cnn-text', () => {
+    expect(core).toMatch(/\.is-roll-echo-fail\s+\.cnn-text\s*\{[^}]*color:/);
+  });
+});

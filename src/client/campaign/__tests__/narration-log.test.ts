@@ -186,6 +186,49 @@ describe('NarrationLog — M2.3 is-roll-echo', async () => {
     log.destroy();
   });
 
+  // U7 — eco do roll colorido por desfecho (verde sucesso / vermelho falha).
+  it('U7 — echo SUCESSO ganha .is-roll-echo-success', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🎲 Borin', text: 'percepcao (DC 12): rolou 18 → SUCESSO' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo-success')).toBe(true);
+    expect(entry?.classList.contains('is-roll-echo-fail')).toBe(false);
+    log.destroy();
+  });
+
+  it('U7 — echo FALHOU ganha .is-roll-echo-fail', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🎲 Borin', text: 'furtividade (DC 15): rolou 7 → FALHOU' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo-fail')).toBe(true);
+    expect(entry?.classList.contains('is-roll-echo-success')).toBe(false);
+    log.destroy();
+  });
+
+  it('U7 — NAT1 FALHA classifica como fail', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🎲 Borin', text: 'atletismo (DC 10): rolou 1 → NAT1 FALHA' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo-fail')).toBe(true);
+    log.destroy();
+  });
+
+  it('U7 — NAT20 CRIT classifica como success', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: '🎲 Borin', text: 'persuasao (DC 18): rolou 20 → NAT20 CRIT' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo-success')).toBe(true);
+    log.destroy();
+  });
+
+  it('U7 — narração normal com "sucesso" no texto NÃO ganha outcome (só roll-echo)', () => {
+    const log = new NarrationLog();
+    log.appendNarration({ speaker: 'Mestre', text: 'Você obteve sucesso em fugir da cidade.' });
+    const entry = log.element.querySelector('.camp-narr-entry');
+    expect(entry?.classList.contains('is-roll-echo-success')).toBe(false);
+    log.destroy();
+  });
+
   it('narração normal do Mestre NÃO ganha .is-roll-echo', () => {
     const log = new NarrationLog();
     log.appendNarration({ speaker: 'Mestre', text: 'A chuva fina cai sobre a estrada.' });

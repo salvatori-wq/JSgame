@@ -837,8 +837,17 @@ export class NarrationLog {
       && !isRollEcho
       && entry.speaker.startsWith('▶ ');
     const echoClass = isRollEcho ? ' is-roll-echo' : (isPlayerEcho ? ' is-player-echo' : '');
+    // U7 — realça o DESFECHO do roll no eco (verde sucesso / vermelho falha) em
+    // vez do cinza uniforme. O eco é o registro persistente; "quem pisca perde"
+    // o verdict do overlay, então a cor aqui conta o resultado de relance.
+    // Verdicts do server (connection.ts): SUCESSO / NAT20 CRIT / FALHOU / NAT1 FALHA.
+    let outcomeClass = '';
+    if (isRollEcho) {
+      if (/falh/i.test(entry.text)) outcomeClass = ' is-roll-echo-fail';
+      else if (/sucesso|crit/i.test(entry.text)) outcomeClass = ' is-roll-echo-success';
+    }
     const entryEl = el('div', {
-      class: `camp-narr-entry ${extraClass}${echoClass}`,
+      class: `camp-narr-entry ${extraClass}${echoClass}${outcomeClass}`,
       attrs: { 'data-id': entry.id, 'data-kind': entry.kind },
     });
     // QW-2: renderNarrationText escapa HTML ANTES de aplicar markdown leve.

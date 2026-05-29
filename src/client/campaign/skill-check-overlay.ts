@@ -238,11 +238,13 @@ export function showSkillCheckResult(
       });
       stage.appendChild(live);
 
-      // Auto-close após 2.5s
+      // U7 — Auto-close mais longo pra dar tempo de LER o desfecho ("quem
+      // pisca perde"): 4s normal, 5s em nat20/nat1 (momento dramático). Era 2,5s.
+      const closeAfter = (roll.nat20 || roll.nat1) ? 5000 : 4000;
       window.setTimeout(() => {
         closeSkillCheck();
         onClose();
-      }, 2500);
+      }, closeAfter);
     },
   });
 

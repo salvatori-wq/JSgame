@@ -149,7 +149,9 @@ export function renderActionDockTopics(ctx: ActionDockContext): HTMLElement {
 
 function explorationTopics(ctx: ActionDockContext): TopicDef[] {
   return [
-    { id: 'combat',  glyph: '⚔️', label: 'Combate',  visible: true },
+    // U6 — "Combate" (Atacar) saiu do top-level de exploração (atacar fora de
+    // combate é raro/estranho — A3-06) e foi pro drill de "Mais". Sem ele os
+    // cards caem de 6/7 (3 fileiras) pra 5/6 (2 fileiras), liberando a narração.
     { id: 'explore', glyph: '🔍', label: 'Explorar', visible: true },
     { id: 'social',  glyph: '🗣',  label: 'Social',   visible: true },
     { id: 'magic',   glyph: '⚡', label: 'Magia',    visible: ctx.isCaster },
@@ -257,6 +259,8 @@ function explorationSubActions(topic: TopicId, ctx: ActionDockContext): SubActio
           { glyph: '🏕', label: 'Descanso Longo', hint: '8h, restaura tudo', onClick: () => ctx.onLongRest() },
         ] : []),
         { glyph: '🧪', label: 'Usar Item', onClick: () => ctx.onAction('use-item', '') },
+        // U6 — "Atacar" (inicia combate) mora aqui agora, fora do top-level.
+        { glyph: '⚔', label: 'Atacar', hint: 'inicia combate', onClick: () => ctx.onAction('attack', '') },
       ];
     default:
       return [];

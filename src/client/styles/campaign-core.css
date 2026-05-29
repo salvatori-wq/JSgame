@@ -661,6 +661,22 @@ body.is-death-save-pending::after {
 .camp-narr-entry.is-roll-echo:hover {
   opacity: 1;
 }
+/* U7 — desfecho do roll colorido (verde sucesso / vermelho falha) em vez do
+ * cinza uniforme. Opacity full + cor no texto + borda lateral por resultado. */
+.camp-narr-entry.is-roll-echo.is-roll-echo-success {
+  opacity: 1;
+  border-left-color: rgba(120, 190, 110, 0.6);
+}
+.camp-narr-entry.is-roll-echo.is-roll-echo-success .cnn-text {
+  color: #8fce82;
+}
+.camp-narr-entry.is-roll-echo.is-roll-echo-fail {
+  opacity: 1;
+  border-left-color: rgba(200, 80, 70, 0.6);
+}
+.camp-narr-entry.is-roll-echo.is-roll-echo-fail .cnn-text {
+  color: #d98a82;
+}
 
 /* W2.2 — Player echo ("▶ Nome: ação") — distinto de Mestre (gold) e de
  * roll-echo (mute). Tint azul-aço sutil mostra "ação minha/aliado",
