@@ -21,6 +21,7 @@ import {
 import { hapticTap, hapticCrit, hapticFumble, hapticSuccess } from '../haptic';
 import { showToast } from '../toast';
 import { trackClientMetric } from '../api';
+import { physicalDiceEnabled, rollPhysicalDie, clearPhysicalDice } from './dice-box-engine';
 
 let currentEl: HTMLDivElement | null = null;
 let currentTimer: number | null = null;
@@ -86,6 +87,70 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
   playDiceRolling();
   hapticTap();
 
+  // onDone compartilhado entre o caminho FÍSICO (dice-box) e o CSS.
+  const finishReveal = (): void => {
+    if (opts.special === 'crit') {
+      playDiceCritTing();
+      hapticCrit();
+      if (!opts.noScreenFlash) flashScreen('crit');
+      die.classList.add('die-crit-landed');
+    } else if (opts.special === 'fumble') {
+      playDiceFumble();
+      hapticFumble();
+      if (!opts.noScreenFlash) flashScreen('fumble');
+      die.classList.add('die-fumble-landed');
+    } else if (opts.special === 'success') {
+      hapticSuccess();
+    }
+    if (opts.verdictText) verdict.textContent = opts.verdictText;
+    if (opts.special === 'crit') verdict.classList.add('is-crit');
+    else if (opts.special === 'fumble') verdict.classList.add('is-fumble');
+    else if (opts.special === 'success') verdict.classList.add('is-success');
+    else if (opts.special === 'fail') verdict.classList.add('is-fail');
+
+    const ariaLive = el('div', {
+      class: 'visually-hidden',
+      attrs: { role: 'alert', 'aria-live': 'polite' },
+      text: `Resultado: ${opts.final}${opts.verdictText ? ` — ${opts.verdictText}` : ''}`,
+    });
+    stage.appendChild(ariaLive);
+
+    const isDramatic = opts.special === 'crit' || opts.special === 'fumble';
+    const defaultAfter = isDramatic ? 4000 : 2500;
+    const closeAfter = opts.showAfterMs ?? defaultAfter;
+    currentTimer = window.setTimeout(() => {
+      closeDiceRollOverlay();
+      opts.onClose?.();
+    }, closeAfter);
+  };
+
+  // Caminho FÍSICO (dice-box): esconde o dado CSS, rola com física e resultado
+  // forçado. Se a física não estiver disponível, cai pro dado CSS sem travar.
+  if (physicalDiceEnabled()) {
+    overlay.classList.add('is-physical');
+    die.style.display = 'none';
+    void rollPhysicalDie({
+      kind: opts.kind,
+      final: opts.final,
+      onSettle: () => { die.setAttribute('data-value', String(opts.final)); finishReveal(); },
+    }).then((ok) => {
+      if (!ok) {
+        overlay.classList.remove('is-physical');
+        die.style.display = '';
+        rollCssDie();
+      }
+    }).catch(() => {
+      overlay.classList.remove('is-physical');
+      die.style.display = '';
+      rollCssDie();
+    });
+    return;
+  }
+  rollCssDie();
+
+  // Animação CSS (fallback / física off): spin + reveal no dado .die-3d.
+  function rollCssDie(): void {
+
   // Ω.1 — Watchdog combat. Se algo travar (DOM removido, anim engasgada),
   // garante que overlay não fica órfão na tela.
   if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
@@ -102,65 +167,15 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
     }
   }, COMBAT_WATCHDOG_MS);
 
-  // Animação spin + reveal
-  rollAndReveal(die, {
-    final: opts.final,
-    special: opts.special,
-    // ψ.1 — playDiceLand no impacto físico (35% do duration), não no fim.
-    // Som "tac" agora sincroniza com o bounce visual.
-    onLand: () => {
-      playDiceLand();
-    },
-    onDone: () => {
-      // Camada 3 (opcional): crit ting OU fumble dread.
-      // W1.5 — Screen flash visceral em ambos crit (gold) e fumble (red).
-      // Dado também escala 1.2× via .die-crit-landed / .die-fumble-landed class.
-      if (opts.special === 'crit') {
-        playDiceCritTing();
-        hapticCrit();
-        if (!opts.noScreenFlash) flashScreen('crit');
-        die.classList.add('die-crit-landed');
-      } else if (opts.special === 'fumble') {
-        playDiceFumble();
-        hapticFumble();
-        if (!opts.noScreenFlash) flashScreen('fumble');
-        die.classList.add('die-fumble-landed');
-      } else if (opts.special === 'success') {
-        hapticSuccess();
-      }
-
-      // Verdict text
-      if (opts.verdictText) {
-        verdict.textContent = opts.verdictText;
-      }
-      if (opts.special === 'crit') verdict.classList.add('is-crit');
-      else if (opts.special === 'fumble') verdict.classList.add('is-fumble');
-      else if (opts.special === 'success') verdict.classList.add('is-success');
-      else if (opts.special === 'fail') verdict.classList.add('is-fail');
-
-      // ARIA — anuncia resultado pra screen readers
-      const ariaLive = el('div', {
-        class: 'visually-hidden',
-        attrs: { role: 'alert', 'aria-live': 'polite' },
-        text: `Resultado: ${opts.final}${opts.verdictText ? ` — ${opts.verdictText}` : ''}`,
-      });
-      stage.appendChild(ariaLive);
-
-      // W1.3 — Drama timing: default 2500ms (era 1500ms "tempo de Tinder").
-      // Crit/fumble dobra pra 4000ms — momento mais épico do D&D merece silêncio.
-      // Consultor D&D: "silêncio pós-roll dura 5-10s em mesa, 2.5-4s é meio-termo".
-      const isDramatic = opts.special === 'crit' || opts.special === 'fumble';
-      const defaultAfter = isDramatic ? 4000 : 2500;
-      const closeAfter = opts.showAfterMs ?? defaultAfter;
-
-      // Liberar interação só DEPOIS do tempo dramático (drama silence).
-      // is-rolling permanece até closeAfter — chips/botões inertes durante reveal.
-      currentTimer = window.setTimeout(() => {
-        closeDiceRollOverlay();
-        opts.onClose?.();
-      }, closeAfter);
-    },
-  });
+    // Animação spin + reveal (dado CSS)
+    rollAndReveal(die, {
+      final: opts.final,
+      special: opts.special,
+      // ψ.1 — playDiceLand no impacto físico (35% do duration), não no fim.
+      onLand: () => { playDiceLand(); },
+      onDone: finishReveal,
+    });
+  }
 }
 
 export function closeDiceRollOverlay(): void {
@@ -172,6 +187,7 @@ export function closeDiceRollOverlay(): void {
     window.clearTimeout(watchdogTimer);
     watchdogTimer = null;
   }
+  clearPhysicalDice();
   currentEl?.remove();
   currentEl = null;
 }

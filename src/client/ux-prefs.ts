@@ -20,6 +20,9 @@ export interface UxPrefs {
    * Default ON: maioria dos players quer ver dado caindo. Player com sensibilidade
    * desativa pra respeitar OS. */
   forceMotion: boolean;
+  /** Dado 3D com física real (@3d-dice/dice-box) — cai e quica. Default ON.
+   * Fallback automático pro dado CSS se off, sem WebGL, ou se a lib falhar. */
+  physicalDice: boolean;
 }
 
 export const DEFAULT_PREFS: UxPrefs = {
@@ -30,6 +33,7 @@ export const DEFAULT_PREFS: UxPrefs = {
   animSpeed: 'normal',
   typewriterSpeed: 'normal',
   forceMotion: true,
+  physicalDice: true,
 };
 
 let cached: UxPrefs | null = null;
@@ -131,6 +135,7 @@ function sanitize(patch: Partial<UxPrefs>): Partial<UxPrefs> {
     out.typewriterSpeed = patch.typewriterSpeed;
   }
   if (typeof patch.forceMotion === 'boolean') out.forceMotion = patch.forceMotion;
+  if (typeof patch.physicalDice === 'boolean') out.physicalDice = patch.physicalDice;
   return out;
 }
 

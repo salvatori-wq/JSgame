@@ -120,6 +120,16 @@ export function openUxSettingsModal(): void {
     },
   ));
 
+  // Dado 3D com física real (cai e quica). Fallback automático pro dado CSS.
+  body.appendChild(renderToggle(
+    '🎲 Dado 3D com física',
+    'Dado de verdade que cai e quica na tela. Desliga pra um dado mais leve (CSS).',
+    prefs.physicalDice,
+    (v) => {
+      prefs = setUxPrefs({ physicalDice: v });
+    },
+  ));
+
   root.appendChild(body);
 
   pushSheet({
