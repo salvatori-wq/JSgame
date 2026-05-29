@@ -328,6 +328,26 @@ describe('M1 — m-camp-dock + status-ribbon + campaign-core CSS', () => {
   });
 });
 
+describe('Redesign ① — proporção mode-aware em combate (portrait-narrow)', () => {
+  const dock = readCss('m-camp-dock.css');
+
+  it('① combate ENCOLHE a narração: flex 0 0 auto + max-height 18vh', () => {
+    expect(dock).toMatch(
+      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[\s\S]*?flex:\s*0\s+0\s+auto[\s\S]*?max-height:\s*18vh/,
+    );
+  });
+
+  it('① combate CRESCE o dock: flex 1 1 auto + max-height 58vh', () => {
+    expect(dock).toMatch(
+      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-slot-main-content\s*\{[\s\S]*?flex:\s*1\s+1\s+auto[\s\S]*?max-height:\s*58vh/,
+    );
+  });
+
+  it('① exploração INTOCADA: dock base segue 35vh (Ω.9 preservado)', () => {
+    expect(dock).toMatch(/body\.is-portrait-narrow\s+\.ch-slot-main-content\s*\{[^}]*max-height:\s*35vh/);
+  });
+});
+
 describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   const css = readCss('duolingo-tutorial.css');
 

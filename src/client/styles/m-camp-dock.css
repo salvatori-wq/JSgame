@@ -273,3 +273,25 @@ body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
   border-top-color: var(--accent-blood);
   box-shadow: 0 -8px 24px rgba(200, 64, 50, 0.35);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * ① REDESIGN MODE-AWARE — combate: a LUTA domina a tela.
+ *
+ * Exploração mantém o layout Ω.9 (narração flex:1 respira, dock 35vh).
+ * Em combate o sintoma era "batalha pequena": o combat-screen INTEIRO
+ * (inimigos + economia + ações + encerrar) é montado no dock de 35vh,
+ * forçando abas e scroll interno. Aqui FLIPAMOS as proporções verticais:
+ *   - a narração vira um recap fino (≤18vh, NÃO cresce — flex 0 0 auto);
+ *   - o dock (.ch-slot-main-content) passa a ser o elemento que CRESCE
+ *     (flex 1 1 auto), ocupando o espaço liberado, até 58vh → ~1,7× a
+ *     área anterior da luta.
+ * Tudo atrás de is-portrait-narrow + .is-in-combat → desktop e modo
+ * exploração ficam intactos. (Movimento ① do redesign de layout mobile.) */
+body.is-portrait-narrow .camp-screen.is-in-combat .ch-narration-host {
+  flex: 0 0 auto;
+  max-height: 18vh;
+}
+body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
+  flex: 1 1 auto;
+  max-height: 58vh;
+}
