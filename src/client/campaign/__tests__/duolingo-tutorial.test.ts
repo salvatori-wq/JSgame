@@ -8,6 +8,7 @@ import {
   shouldShowDuolingoTutorial,
   markDuolingoTutorialDone,
   isDuolingoTutorialOpen,
+  isRollOverlayOpen,
   resetDuolingoTutorialForTest,
 } from '../duolingo-tutorial';
 
@@ -44,6 +45,29 @@ describe('Duolingo Tutorial', () => {
   it('shouldShow=false após markDone', () => {
     markDuolingoTutorialDone();
     expect(shouldShowDuolingoTutorial()).toBe(false);
+  });
+
+  // Cycle 2 — o tutorial não pode disparar por cima do dado do cold-open.
+  it('isRollOverlayOpen=false sem overlay de rolagem', () => {
+    expect(isRollOverlayOpen()).toBe(false);
+  });
+
+  it('isRollOverlayOpen=true com skill-check overlay aberto', () => {
+    const ov = document.createElement('div');
+    ov.className = 'sc-overlay';
+    document.body.appendChild(ov);
+    expect(isRollOverlayOpen()).toBe(true);
+    ov.remove();
+    expect(isRollOverlayOpen()).toBe(false);
+  });
+
+  it('isRollOverlayOpen=true com dice-roll-overlay (combate) aberto', () => {
+    const ov = document.createElement('div');
+    ov.className = 'dice-roll-overlay';
+    document.body.appendChild(ov);
+    expect(isRollOverlayOpen()).toBe(true);
+    ov.remove();
+    expect(isRollOverlayOpen()).toBe(false);
   });
 
   it('openDuolingoTutorial renderiza overlay com tooltip', () => {

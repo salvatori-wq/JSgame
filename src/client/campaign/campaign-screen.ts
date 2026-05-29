@@ -44,7 +44,7 @@ import { toastError, toastWarn } from '../toast';
 import { humanizeServerError } from '../humanize-error';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
-import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial } from './duolingo-tutorial';
+import { openDuolingoTutorial, shouldShowDuolingoTutorial, closeDuolingoTutorial, isRollOverlayOpen } from './duolingo-tutorial';
 import { NarrationLog, isDegradedNarration, shouldAutoRetrySilent, maybeTtsSpeak, classIcon } from './narration-log';
 import { playConfetti, showItemReveal } from '../reward-juice';
 
@@ -850,7 +850,18 @@ export class CampaignScreen {
       && shouldShowDuolingoTutorial()
     ) {
       this.explorationTutorialFired = true;
-      setTimeout(() => openDuolingoTutorial(), 1200);
+      setTimeout(() => {
+        // Não cobrir o dado: o cold-open abre um skill-check overlay (z-9000) e o
+        // Duolingo é z-10000 — disparar junto tapa o dado + botão "Rolar". Se um
+        // overlay de rolagem estiver aberto, re-arma (fired=false) e adia: o
+        // próximo dmNarration/state update (após o check resolver e o player
+        // agir) re-tenta com a tela livre.
+        if (isRollOverlayOpen()) {
+          this.explorationTutorialFired = false;
+          return;
+        }
+        openDuolingoTutorial();
+      }, 1200);
       return;
     }
 

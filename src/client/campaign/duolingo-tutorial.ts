@@ -18,6 +18,16 @@ export function shouldShowDuolingoTutorial(): boolean {
   try { return localStorage.getItem(STORAGE_KEY) !== '1'; } catch { return false; }
 }
 
+/** Há um overlay de ROLAGEM aberto (skill-check z-9000 ou dado de combate)?
+ * O tutorial Duolingo é z-10000 — se abrir junto, a folha central dele TAPA o
+ * dado + o botão "Rolar". O cold-open mostra um skill-check imediatamente, então
+ * o disparo do tutorial precisa adiar enquanto isto for true (senão o player vê
+ * o dado escondido = "dado não joga"). Exportado pra ser testável. */
+export function isRollOverlayOpen(): boolean {
+  if (typeof document === 'undefined') return false;
+  return !!document.querySelector('.sc-overlay, .dice-roll-overlay');
+}
+
 export function markDuolingoTutorialDone(): void {
   try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* ignore */ }
 }
