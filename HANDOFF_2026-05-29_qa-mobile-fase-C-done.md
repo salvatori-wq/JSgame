@@ -29,6 +29,7 @@ Os 3 "bugs-semente" P0 da sessão anterior **NÃO reproduzem como descritos** a 
 | `3807dc4` | U1 HP/CA na ribbon de combate · U2 loop de ataque (revela aba inimigos) |
 | `327726a` | D5 face d20 · D6 dado clicável · U4 hierarquia de turno · U5 end-turn sticky |
 | `599f9b1` | D2 físico legível (sem blur, dim 0.5) + prewarm · D3 overlay no body · D4 overflow · U3 hint target-first |
+| `b68806a` | U6 dock de exploração 5 cards (Atacar→Mais) · U7 resultado +tempo (4–5s) + eco verde/vermelho |
 
 ## Aberto pra próxima sessão
 
@@ -36,8 +37,9 @@ Os 3 "bugs-semente" P0 da sessão anterior **NÃO reproduzem como descritos** a 
    A parte de código (tirar blur, aliviar dim, pré-aquecer ~600KB em idle) está feita,
    mas o timing fino (quão rápido o canvas pinta o d20 no 1º roll) só dá pra medir
    no aparelho. O `preview_screenshot` deste ambiente trava (headless) — não dá prova visual aqui.
-2. **U6** (7 tópicos competindo no dock de exploração) e **U7** (resultado do teste some
-   em 2,5s) — P1 que não entraram nesta rodada.
+2. ✅ **U6 e U7 entregues** (commit `b68806a`): dock de exploração caiu pra 5 cards
+   (Atacar foi pro "Mais") + resultado do teste com mais tempo (4–5s) e eco colorido
+   verde/vermelho. Todos os P0/P1 do backlog fechados.
 3. P2/P3 do backlog: U8, U9, U10, L1, L2, U11, U12, U13, L3, L4, C3.
 4. **[SEGURANÇA, bloqueante]** Rotacionar token Turso (vazou em chat anterior):
    João gera novo em `jsgame-prod` → troca `TURSO_AUTH_TOKEN` no Render → revoga o antigo.

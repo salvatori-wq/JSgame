@@ -16,6 +16,7 @@ Cada fix verificado no preview 390×844 (exceto onde marcado "precisa celular re
 | `3807dc4` | **U1** HP/CA na ribbon de combate · **U2** loop de ataque |
 | `327726a` | **D5** face d20 · **D6** dado clicável · **U4** hierarquia de turno · **U5** end-turn sticky |
 | `599f9b1` | **D2** físico legível + prewarm · **D3** overlay no body · **D4** overflow · **U3** hint target-first |
+| `b68806a` | **U6** dock de exploração 5 cards (Atacar→Mais) · **U7** resultado +tempo (4–5s) + eco verde/vermelho |
 
 **Correção importante**: BUG-1, BUG-2 e o empty-state do BUG-3 **não reproduziam**
 a 390×844 (ver §0). As causas REAIS (dado órfão D1, counter C1, físico borrado D2)
@@ -23,9 +24,10 @@ a 390×844 (ver §0). As causas REAIS (dado órfão D1, counter C1, físico borr
 
 **Aberto pra próxima sessão**:
 - **D2** — confirmar o timing do dado físico no **celular real do João** (a parte de código foi feita).
-- **U6** (7 tópicos no dock) · **U7** (resultado some em 2,5s) — P1 não selecionados nesta rodada.
 - P2/P3: U8, U9, U10, L1, L2, U11, U12, U13, L3, L4, C3 (ver §1).
 - **Rotacionar token Turso** (segurança, §5).
+
+> Todos os P0/P1 do backlog foram entregues (M1, U1, U2, C1, D1–D6, U3, U4, U5, U6, U7).
 
 ## 0. Honestidade de verificação (leia primeiro — 3 surpresas)
 

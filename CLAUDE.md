@@ -82,9 +82,9 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (QA Mobile Fase A→C — 4 commits, suite 2006 verde, dado+chat+combate)
+> Última atualização: 2026-05-29 (QA Mobile Fase A→C — 5 commits, suite 2014 verde, dado+chat+combate)
 
-### QA Mobile Fase A→C "dado/chat/combate" — entregue (4 commits, +~19 tests)
+### QA Mobile Fase A→C "dado/chat/combate" — entregue (5 commits, +~27 tests)
 
 Esquadrão de 4 auditores read-only em paralelo (A1 fluxo · A2 regras · A3 clareza
 · A4 layout) + reprodução empírica minha no preview 390×844 (Fase A/B) → 13 fixes
@@ -98,7 +98,7 @@ no navegador (getBoundingClientRect / computed styles) revelou as causas REAIS:
 1º roll — D1), char-counter `position:absolute` flutuando sobre o input (C1), e o
 dado físico tapado pelo `backdrop-filter:blur` + dim 0.72 do overlay (D2).
 
-**Fixes** (commits `a6203e3` `3807dc4` `327726a` `599f9b1`, todos pushados):
+**Fixes** (commits `a6203e3` `3807dc4` `327726a` `599f9b1` `b68806a`, todos pushados):
 - **Regra**: M1 — `end_combat_with_outcome` (vitória narrada) agora concede XP +
   level-ups (era 0 XP; só o kill mecânico dava). `Campaign.awardCombatVictoryXp()`.
 - **Combate/clareza**: U1 (HP/CA na ribbon de combate — sumia no auge do risco),
@@ -111,8 +111,9 @@ dado físico tapado pelo `backdrop-filter:blur` + dim 0.72 do overlay (D2).
   (`overflow-y:auto` p/ viewport curto), D5 (face d20 crua no físico), D6 (dado clicável).
 - **Chat**: C1 (`.cs-footer position:relative` ancora o counter — não sobre o input).
 
-**Pendente**: D2 confirmar timing no **celular real do João**; U6/U7 (P1 não
-selecionados) + P2/P3 do backlog; **rotacionar token Turso** (segurança).
+**Pendente**: D2 confirmar timing no **celular real do João**; P2/P3 do backlog;
+**rotacionar token Turso** (segurança). U6 (dock de exploração 5 cards, Atacar→Mais)
+e U7 (resultado +tempo + eco verde/vermelho) entregues — todos os P0/P1 fechados.
 
 **Aprendizados**: reprodução empírica > diagnóstico herdado (3/3 seeds mal
 diagnosticados); `preview_screenshot` trava neste ambiente (usar `preview_eval`);
