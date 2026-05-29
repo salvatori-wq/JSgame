@@ -347,6 +347,7 @@
   padding: 10px 14px calc(10px + var(--m-safe-bottom, 0px));
   border-top: 1px solid rgba(244, 208, 127, 0.15);
   flex-shrink: 0;
+  position: relative; /* C1 — ancora o .cs-char-counter ao footer (era ancorado à sheet fixed → flutuava sobre o input) */
 }
 
 .chat-sheet .cs-input {
@@ -373,8 +374,8 @@
 /* ψ.2 — Char counter (>70% limit) */
 .chat-sheet .cs-char-counter {
   position: absolute;
-  bottom: calc(48px + var(--m-safe-bottom, 0px));
-  right: 56px;
+  bottom: calc(100% + 2px); /* C1 — flutua ACIMA do footer (relativo a ele), não sobre a textarea */
+  right: 12px;
   font-size: 10px;
   color: rgba(228, 200, 150, 0.55);
   background: rgba(20, 12, 8, 0.85);

@@ -861,3 +861,15 @@ describe('Sprint W3 — Combate Target-First', () => {
     expect(ribbon).toMatch(/\.irb-next-hint\.is-me-next/);
   });
 });
+
+describe('C1 — chat.css contador ancorado ao footer (não sobre o input)', () => {
+  const css = readCss('chat.css');
+
+  it('.cs-footer é position:relative pra ancorar o counter absoluto', () => {
+    expect(css).toMatch(/\.cs-footer\s*\{[^}]*position:\s*relative/);
+  });
+
+  it('.cs-char-counter flutua ACIMA do footer (bottom: calc(100%...), não sobre a textarea)', () => {
+    expect(css).toMatch(/\.cs-char-counter\s*\{[^}]*bottom:\s*calc\(100%/);
+  });
+});

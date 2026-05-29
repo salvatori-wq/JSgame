@@ -877,6 +877,45 @@ export class Campaign {
     return out;
   }
 
+  /**
+   * F16/M1 — Distribui XP de vitória entre a party viva, dispara level-ups e
+   * credita achievements (combat_won + level_up). Popula `lastCombatXpAwards`
+   * (lido por flushPostCombatRewards). Compartilhado entre o caminho de kill
+   * mecânico (endCombatNarrate) e a vitória narrada pelo DM via tool
+   * end_combat_with_outcome (rendição/fuga/intervenção). No-op sem combate.
+   */
+  awardCombatVictoryXp(): void {
+    const combat = this.state.combat;
+    if (!combat) return;
+    this.lastCombatXpAwards = [];
+    // F17: detecta "untouched" — ninguém da party caiu (currentHp > 0 ainda)
+    const allAlive = this.party.every((p) => p.currentHp > 0);
+    for (const pj of this.party) {
+      this.pushAchievementEvent(pj.id, { kind: 'combat_won', allAlive });
+    }
+    const totalXp = combat.enemies.reduce((sum, e) => sum + (e.xpAward ?? 10), 0);
+    if (totalXp <= 0) return;
+    this.lastCombatXpAwards = awardXpToParty(this.party, totalXp);
+    for (const r of this.lastCombatXpAwards) {
+      if (r.levelUps.length > 0) {
+        const last = r.levelUps[r.levelUps.length - 1]!;
+        this.pushRecentEvent(`${r.characterName} subiu pra nível ${last.newLevel} (+${r.xpAwarded} XP)`);
+        this.indexFact({
+          kind: 'event',
+          text: `${r.characterName} subiu pra nível ${last.newLevel} após combate em ${this.state.currentLocation}.`,
+          tags: `levelup progressao ${r.characterName.toLowerCase()}`,
+          importance: 1.4,
+        });
+        // F17: credita level_up por nível subido
+        for (const lu of r.levelUps) {
+          this.pushAchievementEvent(r.characterId, { kind: 'level_up', oldLevel: lu.oldLevel, newLevel: lu.newLevel });
+        }
+      } else {
+        this.pushRecentEvent(`${r.characterName} ganhou ${r.xpAwarded} XP`);
+      }
+    }
+  }
+
   private async endCombatNarrate(outcome: 'victory' | 'defeat'): Promise<DMResponse | undefined> {
     const combat = this.state.combat;
     if (!combat) return undefined;
@@ -885,37 +924,12 @@ export class Campaign {
     this.state.mode = 'exploration';
     this.pushRecentEvent(outcome === 'victory' ? 'Combate vencido' : 'Party caiu em combate');
 
-    // F16: vitória → distribui XP entre party viva, dispara level-ups.
-    this.lastCombatXpAwards = [];
+    // F16/M1: vitória → XP + level-ups + achievements (lógica compartilhada
+    // com o handler end_combat_with_outcome via awardCombatVictoryXp).
     if (outcome === 'victory') {
-      // F17: detecta "untouched" — ninguém da party caiu (currentHp > 0 ainda)
-      const allAlive = this.party.every((p) => p.currentHp > 0);
-      for (const pj of this.party) {
-        this.pushAchievementEvent(pj.id, { kind: 'combat_won', allAlive });
-      }
-
-      const totalXp = combat.enemies.reduce((sum, e) => sum + (e.xpAward ?? 10), 0);
-      if (totalXp > 0) {
-        this.lastCombatXpAwards = awardXpToParty(this.party, totalXp);
-        for (const r of this.lastCombatXpAwards) {
-          if (r.levelUps.length > 0) {
-            const last = r.levelUps[r.levelUps.length - 1]!;
-            this.pushRecentEvent(`${r.characterName} subiu pra nível ${last.newLevel} (+${r.xpAwarded} XP)`);
-            this.indexFact({
-              kind: 'event',
-              text: `${r.characterName} subiu pra nível ${last.newLevel} após combate em ${this.state.currentLocation}.`,
-              tags: `levelup progressao ${r.characterName.toLowerCase()}`,
-              importance: 1.4,
-            });
-            // F17: credita level_up por nível subido
-            for (const lu of r.levelUps) {
-              this.pushAchievementEvent(r.characterId, { kind: 'level_up', oldLevel: lu.oldLevel, newLevel: lu.newLevel });
-            }
-          } else {
-            this.pushRecentEvent(`${r.characterName} ganhou ${r.xpAwarded} XP`);
-          }
-        }
-      }
+      this.awardCombatVictoryXp();
+    } else {
+      this.lastCombatXpAwards = [];
     }
 
     try {

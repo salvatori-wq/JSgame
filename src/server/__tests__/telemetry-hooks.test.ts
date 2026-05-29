@@ -95,6 +95,37 @@ describe('Sprint 3 — Telemetria hooks', () => {
     expect((await waitForEvent('combat_lost')).length).toBe(0);
   });
 
+  // M1 — bug: vitória narrada pelo DM (rendição/fuga/intervenção) zerava o
+  // combate sem conceder XP. Só o kill mecânico dava XP. Agora ambos concedem.
+  it('M1 — end_combat_with_outcome victory concede XP à party (lastCombatXpAwards)', async () => {
+    const camp = new Campaign(new MockDM() as unknown as DMInterface, { id: 'c2xp', name: 'C2XP' });
+    const pj = mkPj();
+    const xpBefore = pj.xp;
+    camp.addCharacter(pj);
+    applyValidatedToolToCampaign(camp, {
+      kind: 'start_combat', surprise: false,
+      enemies: [{ name: 'Orc', hp: 10, ac: 13, attackBonus: 4, damageDice: '1d8', damageBonus: 2, description: '', isBoss: false, xpAward: 75 }],
+    });
+    applyValidatedToolToCampaign(camp, { kind: 'end_combat_with_outcome', outcome: 'victory', reason: 'O orc se rendeu' });
+    expect(camp.lastCombatXpAwards.length).toBe(1);
+    expect(camp.lastCombatXpAwards[0]!.xpAwarded).toBe(75);
+    expect(camp.party[0]!.xp).toBe(xpBefore + 75);
+  });
+
+  it('M1 — end_combat_with_outcome defeat NÃO concede XP (lastCombatXpAwards vazio)', async () => {
+    const camp = new Campaign(new MockDM() as unknown as DMInterface, { id: 'c3xp', name: 'C3XP' });
+    const pj = mkPj();
+    const xpBefore = pj.xp;
+    camp.addCharacter(pj);
+    applyValidatedToolToCampaign(camp, {
+      kind: 'start_combat', surprise: false,
+      enemies: [{ name: 'Dragão', hp: 200, ac: 18, attackBonus: 11, damageDice: '2d10', damageBonus: 6, description: '', isBoss: true, xpAward: 1800 }],
+    });
+    applyValidatedToolToCampaign(camp, { kind: 'end_combat_with_outcome', outcome: 'defeat', reason: 'Tomaram bola de fogo' });
+    expect(camp.lastCombatXpAwards.length).toBe(0);
+    expect(camp.party[0]!.xp).toBe(xpBefore);
+  });
+
   it('end_combat_with_outcome dispara combat_lost quando defeat', async () => {
     const camp = new Campaign(new MockDM() as unknown as DMInterface, { id: 'c3', name: 'C3' });
     camp.addCharacter(mkPj());

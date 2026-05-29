@@ -132,6 +132,13 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           tags: `combate desfecho ${tool.outcome}`,
           importance: 1.2,
         });
+        // M1 — Vitória NARRADA pelo DM (rendição/fuga/intervenção) também
+        // concede XP + level-ups. Antes só o kill mecânico (endCombatNarrate)
+        // dava XP; este path zerava o combate sem recompensa. Roda ANTES de
+        // anular combat (lê combat.enemies). Espelha o caminho mecânico.
+        if (tool.outcome === 'victory') {
+          camp.awardCombatVictoryXp();
+        }
         camp.state.combat = null;
         // Sprint 3 — Telemetria combat_won/combat_lost por outcome.
         const eventKind = tool.outcome === 'victory' ? 'combat_won' : 'combat_lost';

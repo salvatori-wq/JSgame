@@ -137,6 +137,9 @@ export async function rollPhysicalDie(opts: RollPhysicalOpts): Promise<boolean> 
     // Timeout de segurança: se onRollComplete não disparar (lib travou), assenta mesmo assim.
     const safety = window.setTimeout(settle, 6000);
     try {
+      // D1 — reexibe o container (clearPhysicalDice o escondeu ao fim do roll anterior).
+      const mount = document.getElementById('dice-box-mount');
+      if (mount) mount.style.display = '';
       b.onRollComplete = () => { window.clearTimeout(safety); settle(); };
       b.show();
       // Resultado predeterminado: "1dN@valor" cai exatamente no valor do server.
@@ -153,6 +156,14 @@ export async function rollPhysicalDie(opts: RollPhysicalOpts): Promise<boolean> 
 /** Limpa o dado da tela (chamado quando o overlay fecha). */
 export function clearPhysicalDice(): void {
   try { box?.clear(); box?.hide(); } catch { /* silent */ }
+  // D1 — Esconde o container full-screen. Sem isso, após o 1º roll o canvas
+  // (#dice-box-mount, z-index 9600) fica órfão no DOM ACIMA de todos os
+  // overlays (skill-check, death-save, chat, target-sheet). box.hide() limpa
+  // a cena 3D mas não esconde o nosso mount. pointer-events:none já evitava
+  // bloquear cliques, mas a camada continuava por cima. rollPhysicalDie
+  // reexibe no próximo roll.
+  const mount = document.getElementById('dice-box-mount');
+  if (mount) mount.style.display = 'none';
 }
 
 // Test-only: reset do singleton entre testes.

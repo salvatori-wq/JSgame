@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Mock da lib: o import real puxa BabylonJS (não roda em happy-dom).
 vi.mock('@3d-dice/dice-box', () => ({ default: class { init() { return Promise.resolve(); } roll() { return Promise.resolve(); } clear() {} hide() {} show() {} } }));
 
-import { physicalDiceEnabled, rollPhysicalDie, __resetDiceBoxEngineForTest } from '../dice-box-engine';
+import { physicalDiceEnabled, rollPhysicalDie, clearPhysicalDice, __resetDiceBoxEngineForTest } from '../dice-box-engine';
 import { setUxPrefs, _resetCacheForTest } from '../../ux-prefs';
 
 beforeEach(() => {
@@ -51,5 +51,22 @@ describe('rollPhysicalDie — fallback seguro', () => {
     setUxPrefs({ physicalDice: true });
     // happy-dom getContext('webgl') → null, então hasWebGL()=false → unsupported → false.
     await expect(rollPhysicalDie({ kind: 'd20', final: 15 })).resolves.toBe(false);
+  });
+});
+
+describe('clearPhysicalDice — D1 (mount não fica órfão acima dos overlays)', () => {
+  it('esconde o #dice-box-mount (display:none) ao fechar o overlay', () => {
+    const mount = document.createElement('div');
+    mount.id = 'dice-box-mount';
+    mount.style.display = 'block';
+    document.body.appendChild(mount);
+    clearPhysicalDice();
+    expect(mount.style.display).toBe('none');
+    mount.remove();
+  });
+
+  it('não lança quando não há mount nem engine inicializada', () => {
+    document.getElementById('dice-box-mount')?.remove();
+    expect(() => clearPhysicalDice()).not.toThrow();
   });
 });
