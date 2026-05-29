@@ -942,6 +942,13 @@ describe('Sprint W3 — Combate Target-First', () => {
     expect(combat).toMatch(/@keyframes\s+dmgFlashFade/);
   });
 
+  it('Rank 14 — flash de dano usa .camp-screen::after (shell real), não .campaign-screen morto', () => {
+    expect(combat).toMatch(/body\.is-took-damage\s+\.camp-screen::after/);
+    expect(combat).toMatch(/body\.is-took-damage-crit\s+\.camp-screen::after/);
+    // o seletor morto .campaign-screen::after não pode mais existir como regra
+    expect(combat).not.toMatch(/\.campaign-screen::after/);
+  });
+
   it('W3-DnD — irb-next-hint cor por kind (enemy red, player gold, me-next bg)', () => {
     expect(ribbon).toMatch(/\.irb-next-hint\.irb-next-enemy/);
     expect(ribbon).toMatch(/\.irb-next-hint\.irb-next-player/);

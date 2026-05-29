@@ -808,14 +808,13 @@ body.is-took-damage,
 body.is-took-damage-crit {
   animation: bodyDamageShake 250ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
-body.is-took-damage .campaign-screen,
-body.is-took-damage .combat-screen,
-body.is-took-damage-crit .campaign-screen,
-body.is-took-damage-crit .combat-screen {
-  position: relative;
-}
-body.is-took-damage .campaign-screen::after,
-body.is-took-damage .combat-screen::after {
+/* Rank 14 fix — o shell é .camp-screen (NÃO .campaign-screen, que não existe no
+ * DOM: o seletor estava morto). Antes o flash de dano só pegava via
+ * .combat-screen e SÓ em combate; trapa/AoE narrada na exploração não dava
+ * feedback. Agora pega o shell em qualquer modo. .camp-screen já é
+ * position:relative + isolation:isolate, e ::after está livre (só ::before é a
+ * textura). Consolidado em .camp-screen evita flash dobrado no combate. */
+body.is-took-damage .camp-screen::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -825,8 +824,7 @@ body.is-took-damage .combat-screen::after {
               inset 0 0 60px rgba(180, 30, 20, 0.45);
   animation: dmgFlashFade 600ms ease-out forwards;
 }
-body.is-took-damage-crit .campaign-screen::after,
-body.is-took-damage-crit .combat-screen::after {
+body.is-took-damage-crit .camp-screen::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -851,10 +849,8 @@ body.is-took-damage-crit .combat-screen::after {
 @media (prefers-reduced-motion: reduce) {
   body.is-took-damage,
   body.is-took-damage-crit { animation: none; }
-  body.is-took-damage .campaign-screen::after,
-  body.is-took-damage .combat-screen::after,
-  body.is-took-damage-crit .campaign-screen::after,
-  body.is-took-damage-crit .combat-screen::after { animation: none; opacity: 0; }
+  body.is-took-damage .camp-screen::after,
+  body.is-took-damage-crit .camp-screen::after { animation: none; opacity: 0; }
 }
 
 /* W3.4 — Sprint W: "AGORA É VOCÊ" — body.is-my-turn aplica border dourado
