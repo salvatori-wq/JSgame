@@ -12,6 +12,26 @@ import { startCombat, applyConditionTo } from './combat.js';
 import { awardXpToParty } from '../dnd/leveling.js';
 import { pickEncounter, picksToEnemyInputs } from '../dnd/encounter-builder.js';
 import { balanceFreeformEnemies } from '../dnd/combat-balance.js';
+import { tryBreakConcentration } from './spells-engine.js';
+import type { CharacterSheet } from '../shared/types.js';
+
+/** Rank 9 — dano narrado via apply_damage (trapa/AoE/queda fora do turno inimigo)
+ * também força save de concentração (PHB p.203). A 0 HP perde automaticamente
+ * (inconsciente, sem save). Antes só o ataque inimigo em combate quebrava
+ * concentração — o chip de concentração no mobile ficava aceso após um trap hit. */
+function concentrationCheckOnDamage(camp: Campaign, p: CharacterSheet, damage: number): void {
+  if (!p.concentratingOn || damage <= 0) return;
+  if (p.currentHp <= 0) {
+    const dropped = p.concentratingOn;
+    p.concentratingOn = null;
+    camp.pushRecentEvent(`${p.characterName} perdeu concentração em ${dropped} (caiu inconsciente).`);
+    return;
+  }
+  const res = tryBreakConcentration(p, damage);
+  if (res.broken) {
+    camp.pushRecentEvent(`${p.characterName} perdeu concentração em ${res.spellDropped} (CON ${res.rollTotal} < CD ${res.dc}).`);
+  }
+}
 
 export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool): void {
   switch (tool.kind) {
@@ -83,6 +103,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
             p.conditions.push('inconsciente');
           }
+          concentrationCheckOnDamage(camp, p, tool.damage);
         }
       } else {
         const p = camp.party.find((x) => x.id === tool.playerId);
@@ -91,6 +112,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
           if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
             p.conditions.push('inconsciente');
           }
+          concentrationCheckOnDamage(camp, p, tool.damage);
         }
       }
       camp.pushRecentEvent(`Dano (${tool.type}): ${tool.damage} — ${tool.reason}`);
