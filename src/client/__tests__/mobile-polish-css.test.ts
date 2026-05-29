@@ -337,14 +337,35 @@ describe('Redesign ① — proporção mode-aware em combate (portrait-narrow)',
     );
   });
 
-  it('① combate CRESCE o dock: flex 1 1 auto + max-height 58vh', () => {
+  it('① combate CRESCE o dock: flex 1 1 auto + max-height none (③ libera o cap)', () => {
     expect(dock).toMatch(
-      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-slot-main-content\s*\{[\s\S]*?flex:\s*1\s+1\s+auto[\s\S]*?max-height:\s*58vh/,
+      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-slot-main-content\s*\{[\s\S]*?flex:\s*1\s+1\s+auto[\s\S]*?max-height:\s*none/,
     );
   });
 
   it('① exploração INTOCADA: dock base segue 35vh (Ω.9 preservado)', () => {
     expect(dock).toMatch(/body\.is-portrait-narrow\s+\.ch-slot-main-content\s*\{[^}]*max-height:\s*35vh/);
+  });
+});
+
+describe('Redesign ③ — party faixa fina solo (m-camp-dock.css)', () => {
+  const dock = readCss('m-camp-dock.css');
+
+  it('③ slot host (.is-thin-host) zera padding + cap pra faixa full-bleed/curta', () => {
+    expect(dock).toMatch(/\.ch-slot-party\.is-thin-host\s*\{[\s\S]*?max-height:\s*none[\s\S]*?padding:\s*0/);
+  });
+
+  it('③ .cp-strip é flex de 1 linha (portrait+nome+HP+CA)', () => {
+    expect(dock).toMatch(/body\.is-portrait-narrow\s+\.cp-strip\s*\{[\s\S]*?display:\s*flex/);
+  });
+
+  it('③ portrait da faixa é 28px (override do float:right do card cheio)', () => {
+    expect(dock).toMatch(/\.cp-strip\s+\.cp-strip-av\s*\{[\s\S]*?width:\s*28px/);
+    expect(dock).toMatch(/\.cp-strip\s+\.cp-strip-av\s*\{[\s\S]*?float:\s*none/);
+  });
+
+  it('③ barra HP da faixa cresce (flex 1 1 auto)', () => {
+    expect(dock).toMatch(/\.cp-strip\s+\.cp-strip-bar\s*\{[\s\S]*?flex:\s*1\s+1\s+auto/);
   });
 });
 

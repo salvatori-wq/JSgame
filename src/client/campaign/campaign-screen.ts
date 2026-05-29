@@ -1052,6 +1052,12 @@ export class CampaignScreen {
     }
     // M1.1 — Solo (1 PJ) compacta o slot pra liberar 6vh ao narration.
     this.slots.party.classList.toggle('is-solo', this.party.length === 1);
+    // ③ Redesign mobile: solo + portrait-narrow → faixa fina de 1 linha.
+    // is-thin-host zera o padding/cap do slot pra a faixa ser full-bleed e curta.
+    const thinHost = this.party.length === 1
+      && typeof document !== 'undefined'
+      && document.body.classList.contains('is-portrait-narrow');
+    this.slots.party.classList.toggle('is-thin-host', thinHost);
     this.replaceSlot(this.slots.party, this.renderPartyPanel());
   }
 
@@ -1621,6 +1627,14 @@ export class CampaignScreen {
   }
 
   private renderPartyPanel(): HTMLElement {
+    // ③ Redesign mobile: solo + portrait-narrow → faixa fina de 1 linha
+    // (portrait + nome + HP + CA), sem XP/slots in-game. Libera ~90px: na
+    // exploração a narração (flex:1) absorve, no combate o dock (flex:1, sem
+    // cap) preenche. Coop e desktop mantêm o card completo.
+    const isNarrow = typeof document !== 'undefined' && document.body.classList.contains('is-portrait-narrow');
+    if (isNarrow && this.party.length === 1 && this.party[0]) {
+      return this.renderPartyStrip(this.party[0]);
+    }
     const panel = el('section', { class: 'camp-party' });
     panel.appendChild(el('div', { class: 'cp-title', text: '🛡 Party' }));
     // O2.2 — Em coop (2+ PJs), .cp-list ganha is-coop pra ativar layout
@@ -1708,6 +1722,50 @@ export class CampaignScreen {
     }
     panel.appendChild(list);
     return panel;
+  }
+
+  /** ③ Faixa fina solo (portrait): 1 linha portrait+nome+HP+CA, sem XP/slots.
+   * Badges críticos (conditions/conc/fúria/exaustão/inspiração) caem numa
+   * 2ª mini-linha só quando existem. Death saves seguem no banner dedicado. */
+  private renderPartyStrip(p: CharacterSheet): HTMLElement {
+    const isMe = p.id === this.opts.characterId;
+    const isDown = p.currentHp <= 0;
+    const hpPct = p.maxHp > 0 ? Math.round((p.currentHp / p.maxHp) * 100) : 0;
+    const ac = effectiveArmorClass(p);
+    const portrait = portraitFor({ raceId: p.raceId, classId: p.classId });
+
+    const badges: string[] = [];
+    if (p.conditions.length > 0) badges.push(p.conditions.join(' · '));
+    if (p.concentratingOn) badges.push(`🧠 ${p.concentratingOn}`);
+    if (this.combatFlags[p.id] && this.combatFlags[p.id]!.includes('rage')) badges.push('🔥 Fúria');
+    if (p.exhaustion > 0) badges.push(`💀 Exaustão ${p.exhaustion}/6`);
+    if (p.inspirations && p.inspirations > 0) badges.push('🌟'.repeat(Math.min(3, p.inspirations)));
+
+    const strip = el('div', {
+      class: `cp-strip ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}`,
+      attrs: { 'data-combat-target': p.id },
+    }, [
+      el('div', { class: 'cp-pj-portrait cp-strip-av', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
+        el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
+        iconEl(classIconName(p.classId), portrait.class, { className: 'cp-pj-portrait-class' }),
+      ]),
+      el('span', { class: 'cp-strip-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
+      el('div', { class: 'cp-pj-hp-bar cp-strip-bar' }, [
+        el('div', {
+          class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,
+          style: { width: `${hpPct}%` },
+        }),
+      ]),
+      el('span', { class: 'cp-strip-hp', text: `${p.currentHp}/${p.maxHp}` }),
+      el('span', { class: 'cp-strip-ca', attrs: { title: 'Classe de Armadura' }, text: `🛡 ${ac}${ac !== p.armorClass ? '✦' : ''}` }),
+    ]);
+
+    const section = el('section', { class: 'camp-party is-thin-strip' }, [strip]);
+    if (badges.length > 0) {
+      section.appendChild(el('div', { class: 'cp-strip-badges' },
+        badges.map((b) => el('span', { class: 'cp-strip-badge', text: b }))));
+    }
+    return section;
   }
 
   private renderDeathSaveBanner(): HTMLElement | null {

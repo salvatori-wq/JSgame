@@ -64,6 +64,97 @@ body.is-portrait-narrow .ch-slot-party.is-solo {
   padding: 4px var(--m-padding-screen);
 }
 
+/* ════════════════════════════════════════════════════════════════════
+ * ③ PARTY FAIXA FINA (solo + portrait) — renderPartyPanel devolve uma
+ * faixa de 1 linha (.camp-party.is-thin-strip) em vez do card cheio.
+ * Portrait 28px + nome + barra HP + HP num + CA, SEM XP/slots in-game.
+ * O slot host (.is-thin-host) zera padding/cap pra a faixa ser full-bleed
+ * e curta (~42px); badges críticos caem numa 2ª mini-linha só quando há. */
+body.is-portrait-narrow .ch-slot-party.is-thin-host {
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+}
+body.is-portrait-narrow .camp-party.is-thin-strip {
+  padding: 0;
+  background: transparent;
+  /* zera o margin 12px 0 do .camp-party base: como flex item NÃO há margin
+   * collapsing, então ele somaria ~24px à faixa (faria ~69px em vez de ~45). */
+  margin: 0;
+}
+body.is-portrait-narrow .cp-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px var(--m-padding-screen);
+  background: rgba(20, 12, 8, 0.55);
+  border-bottom: 1px solid rgba(244, 208, 127, 0.22);
+}
+body.is-portrait-narrow .cp-strip.is-me {
+  box-shadow: inset 2px 0 0 var(--ink-gold, #d4af5a);
+}
+body.is-portrait-narrow .cp-strip.is-down {
+  filter: grayscale(0.4);
+  opacity: 0.85;
+}
+/* Override do .cp-pj-portrait (float:right do card cheio) pra alinhar na faixa */
+body.is-portrait-narrow .cp-strip .cp-strip-av {
+  float: none;
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+body.is-portrait-narrow .cp-strip .cp-pj-portrait-race { font-size: 15px; }
+body.is-portrait-narrow .cp-strip-name {
+  font-family: var(--font-heading, 'Cinzel'), serif;
+  font-size: 12px;
+  color: var(--gold-bright, #f4d07f);
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.is-portrait-narrow .cp-strip .cp-strip-bar {
+  flex: 1 1 auto;
+  height: 9px;
+  min-width: 0;
+  margin: 0;
+}
+body.is-portrait-narrow .cp-strip-hp {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7ed957;
+  flex-shrink: 0;
+}
+body.is-portrait-narrow .cp-strip.is-down .cp-strip-hp { color: #e09a8e; }
+body.is-portrait-narrow .cp-strip-ca {
+  font-size: 11px;
+  color: var(--ink, #e9dcc0);
+  flex-shrink: 0;
+}
+body.is-portrait-narrow .cp-strip-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px var(--m-padding-screen) 5px;
+  background: rgba(20, 12, 8, 0.4);
+  border-bottom: 1px solid rgba(244, 208, 127, 0.12);
+}
+body.is-portrait-narrow .cp-strip-badge {
+  font-family: 'Cardo', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--ink-warm, #e4c896);
+  background: rgba(60, 40, 20, 0.4);
+  border: 1px solid rgba(244, 208, 127, 0.2);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
+
 /* O2.2 — Em coop (2+ PJs) mobile, party vira scroll-x horizontal com snap.
  * Cada PJ vira card 200px wide em vez de empilhar vertical (que squeezia
  * 3 PJs em 179px = só 1.5 visíveis). Cards menores mas TODOS legíveis.
@@ -291,7 +382,12 @@ body.is-portrait-narrow .camp-screen.is-in-combat .ch-narration-host {
   flex: 0 0 auto;
   max-height: 18vh;
 }
+/* ③ libera o cap: o dock é o ÚNICO grower em combate (narração é fixa 18vh,
+ * header/party/tabs são flex-shrink:0). Com a party em faixa fina (③) sobram
+ * ~90px — sem cap, o dock os absorve e a tab bar fica colada no fim (sem
+ * banda morta). Com a party cheia (① isolado) o dock ainda fica em ~451px,
+ * idêntico ao verificado, porque o espaço disponível é menor que o conteúdo. */
 body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
   flex: 1 1 auto;
-  max-height: 58vh;
+  max-height: none;
 }
