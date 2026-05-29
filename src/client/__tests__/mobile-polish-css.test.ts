@@ -348,6 +348,21 @@ describe('Redesign ① — proporção mode-aware em combate (portrait-narrow)',
   });
 });
 
+describe('Redesign ② — combate sem abas em portrait (combat.css)', () => {
+  const combat = readCss('combat.css');
+
+  it('② log inline do dock fica oculto em portrait (absorvido pelos echoes)', () => {
+    expect(combat).toMatch(/body\.is-portrait-narrow\s+\.combat-screen\s+\.cb-tab-log\s*\{[^}]*display:\s*none/);
+  });
+
+  it('② regras de esconde-aba seguem gated por data-active-tab (fallback)', () => {
+    // O combat-screen em portrait não seta mais data-active-tab, então estas
+    // regras não disparam — mas continuam presentes como fallback.
+    expect(combat).toMatch(/\.combat-screen\[data-active-tab="enemies"\]\s+\.cb-tab-content:not\(\.cb-tab-enemies\)/);
+    expect(combat).toMatch(/\.combat-screen\[data-active-tab="actions"\]\s+\.cb-tab-content:not\(\.cb-tab-actions\)/);
+  });
+});
+
 describe('M3.1 — duolingo-tutorial.css mobile padding + hit', () => {
   const css = readCss('duolingo-tutorial.css');
 

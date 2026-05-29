@@ -781,10 +781,20 @@ body.is-portrait-narrow .cb-tab-btn.is-active .cb-tab-badge {
   box-shadow: 0 0 8px rgba(244, 208, 127, 0.55);
 }
 
-/* Filtra sections em mobile: cada tab esconde a que não é a ativa */
+/* Filtra sections em mobile: cada tab esconde a que não é a ativa.
+ * ② pós-redesign: em portrait o combat-screen NÃO seta mais data-active-tab
+ * (combat-screen.ts), então estas 3 regras não disparam e inimigos + ações
+ * empilham juntos. Mantidas como fallback p/ qualquer caminho que ainda
+ * sete o atributo, e o desktop não usa estas regras (sem is-portrait-narrow). */
 body.is-portrait-narrow .combat-screen[data-active-tab="enemies"] .cb-tab-content:not(.cb-tab-enemies) { display: none !important; }
 body.is-portrait-narrow .combat-screen[data-active-tab="actions"] .cb-tab-content:not(.cb-tab-actions) { display: none !important; }
 body.is-portrait-narrow .combat-screen[data-active-tab="log"] .cb-tab-content:not(.cb-tab-log) { display: none !important; }
+
+/* ② Combate sem abas — o log inline do dock fica oculto em portrait: os
+ * eventos de combate já vivem nos echoes da narração (.is-combat-echo,
+ * Sprint Y) e o mockup validado omite o log no dock. Desktop mantém o log
+ * (mostra tudo junto, sem is-portrait-narrow). Reversível trivialmente. */
+body.is-portrait-narrow .combat-screen .cb-tab-log { display: none; }
 
 /* Swipe hint sutil (mobile only) */
 body.is-portrait-narrow .combat-screen { touch-action: pan-y; }

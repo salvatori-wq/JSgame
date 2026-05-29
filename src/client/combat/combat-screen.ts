@@ -68,63 +68,69 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
   }
   lastMyTurnState = myTurnNow;
 
+  // ② Combate sem abas (portrait): com o dock grande do ① não precisamos mais
+  // do split por abas. Em is-portrait-narrow NÃO setamos data-active-tab nem
+  // renderizamos a .cb-tabs — assim as regras "esconder aba não-ativa"
+  // (combat.css:785-787) não disparam e inimigos + economia + ações empilham
+  // JUNTOS. Desktop segue idêntico (tab strip já era CSS-hidden, tudo junto).
+  const isNarrow = typeof document !== 'undefined' && document.body.classList.contains('is-portrait-narrow');
   const activeTab = getActiveTab();
-  const root = el('section', { class: 'combat-screen', attrs: { 'data-active-tab': activeTab } });
+  const root = el('section', { class: 'combat-screen', attrs: isNarrow ? {} : { 'data-active-tab': activeTab } });
 
-  // C1 — Tab strip (mobile only via CSS; desktop hide via .cb-tabs { display: none })
-  // O3.2 — Counts extraídos pra .cb-tab-badge dourado destacado (não inline)
-  const enemyCount = combat.enemies.filter((e) => e.currentHp > 0).length;
-  const logCount = combatLog.length;
-  const tabStrip = el('div', { class: 'cb-tabs' }, [
-    el('button', {
-      class: `cb-tab-btn ${activeTab === 'enemies' ? 'is-active' : ''}`,
-      attrs: { type: 'button', 'data-tab': 'enemies' },
-      on: { click: () => setActiveTab('enemies') },
-    }, [
-      el('span', { class: 'cb-tab-label', text: '⚔ Inimigos' }),
-      enemyCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(enemyCount) }) : null,
-    ].filter(Boolean) as HTMLElement[]),
-    el('button', {
-      class: `cb-tab-btn ${activeTab === 'actions' ? 'is-active' : ''}`,
-      attrs: { type: 'button', 'data-tab': 'actions' },
-      on: { click: () => setActiveTab('actions') },
-    }, [
-      el('span', { class: 'cb-tab-label', text: '🎲 Ações' }),
-    ]),
-    el('button', {
-      class: `cb-tab-btn ${activeTab === 'log' ? 'is-active' : ''}`,
-      attrs: { type: 'button', 'data-tab': 'log' },
-      on: { click: () => setActiveTab('log') },
-    }, [
-      el('span', { class: 'cb-tab-label', text: '📜 Log' }),
-      logCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(logCount) }) : null,
-    ].filter(Boolean) as HTMLElement[]),
-  ]);
-  root.appendChild(tabStrip);
+  if (!isNarrow) {
+    // C1 — Tab strip (desktop esconde via .cb-tabs { display: none }; portrait
+    // não chega aqui pós-②). O3.2 — Counts em .cb-tab-badge dourado destacado.
+    const enemyCount = combat.enemies.filter((e) => e.currentHp > 0).length;
+    const logCount = combatLog.length;
+    const tabStrip = el('div', { class: 'cb-tabs' }, [
+      el('button', {
+        class: `cb-tab-btn ${activeTab === 'enemies' ? 'is-active' : ''}`,
+        attrs: { type: 'button', 'data-tab': 'enemies' },
+        on: { click: () => setActiveTab('enemies') },
+      }, [
+        el('span', { class: 'cb-tab-label', text: '⚔ Inimigos' }),
+        enemyCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(enemyCount) }) : null,
+      ].filter(Boolean) as HTMLElement[]),
+      el('button', {
+        class: `cb-tab-btn ${activeTab === 'actions' ? 'is-active' : ''}`,
+        attrs: { type: 'button', 'data-tab': 'actions' },
+        on: { click: () => setActiveTab('actions') },
+      }, [
+        el('span', { class: 'cb-tab-label', text: '🎲 Ações' }),
+      ]),
+      el('button', {
+        class: `cb-tab-btn ${activeTab === 'log' ? 'is-active' : ''}`,
+        attrs: { type: 'button', 'data-tab': 'log' },
+        on: { click: () => setActiveTab('log') },
+      }, [
+        el('span', { class: 'cb-tab-label', text: '📜 Log' }),
+        logCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(logCount) }) : null,
+      ].filter(Boolean) as HTMLElement[]),
+    ]);
+    root.appendChild(tabStrip);
 
-  // Swipe handlers (mobile)
-  // ψ.5 — Guard: só dispara se gesto for predominantemente horizontal
-  // (dx > 2*dy). Antes triggava com scroll vertical leve, atrapalhando.
-  let touchStartX = 0;
-  let touchStartY = 0;
-  root.addEventListener('touchstart', (e: TouchEvent) => {
-    touchStartX = e.touches[0]?.clientX ?? 0;
-    touchStartY = e.touches[0]?.clientY ?? 0;
-  }, { passive: true });
-  root.addEventListener('touchend', (e: TouchEvent) => {
-    const endX = e.changedTouches[0]?.clientX ?? 0;
-    const endY = e.changedTouches[0]?.clientY ?? 0;
-    const dx = endX - touchStartX;
-    const dy = endY - touchStartY;
-    if (Math.abs(dx) < 60) return;
-    // ψ.5 — Só conta como swipe horizontal se dx for 2× maior que dy.
-    // Mata false-positive quando player rola log vertical.
-    if (Math.abs(dx) < Math.abs(dy) * 2) return;
-    const tabs: CombatTab[] = ['enemies', 'actions', 'log'];
-    const idx = tabs.indexOf(getActiveTab());
-    if (dx > 0 && idx > 0) setActiveTab(tabs[idx - 1]!);
-    else if (dx < 0 && idx < tabs.length - 1) setActiveTab(tabs[idx + 1]!);
-  });
+    // Swipe handlers — navegação entre abas (só existe com abas = não-portrait).
+    // ψ.5 — Guard: só dispara se gesto for predominantemente horizontal (dx > 2*dy).
+    let touchStartX = 0;
+    let touchStartY = 0;
+    root.addEventListener('touchstart', (e: TouchEvent) => {
+      touchStartX = e.touches[0]?.clientX ?? 0;
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    }, { passive: true });
+    root.addEventListener('touchend', (e: TouchEvent) => {
+      const endX = e.changedTouches[0]?.clientX ?? 0;
+      const endY = e.changedTouches[0]?.clientY ?? 0;
+      const dx = endX - touchStartX;
+      const dy = endY - touchStartY;
+      if (Math.abs(dx) < 60) return;
+      // ψ.5 — Só conta como swipe horizontal se dx for 2× maior que dy.
+      if (Math.abs(dx) < Math.abs(dy) * 2) return;
+      const tabs: CombatTab[] = ['enemies', 'actions', 'log'];
+      const idx = tabs.indexOf(getActiveTab());
+      if (dx > 0 && idx > 0) setActiveTab(tabs[idx - 1]!);
+      else if (dx < 0 && idx < tabs.length - 1) setActiveTab(tabs[idx + 1]!);
+    });
+  }
 
   // ── Header: turno (dominante) + round (secundário)
   // U4 — antes "Round N" era grande e "Vez de X" minúsculo itálico apagado.
@@ -255,12 +261,12 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
         on: {
           click: () => {
             if (a.id === 'attack' || a.id === 'grapple' || a.id === 'shove' || a.id === 'two-weapon') {
-              // Marca ação pendente E revela a aba de inimigos (U2). O default
-              // é 'actions', que ESCONDE os enemy cards em mobile (combat.css
-              // display:none) — o player era mandado clicar em cards invisíveis.
-              // setActiveTab só troca data-active-tab; o pending persiste no window.
+              // Marca ação pendente. Desktop: revela a aba de inimigos (U2).
+              // Portrait pós-②: inimigos já estão SEMPRE visíveis (sem abas) —
+              // então NÃO trocamos de aba (setActiveTab setaria data-active-tab
+              // e reativaria o esconde-aba). O pending persiste no window.
               (window as unknown as { __pendingCombatAction?: CombatActionKind }).__pendingCombatAction = a.id;
-              setActiveTab('enemies');
+              if (!isNarrow) setActiveTab('enemies');
               void import('../toast').then(({ toastInfo }) => toastInfo(`Escolha o inimigo alvo. Ação: ${a.label}.`));
               return;
             }
