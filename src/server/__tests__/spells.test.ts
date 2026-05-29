@@ -99,6 +99,28 @@ describe('spells engine', () => {
     });
   });
 
+  // Rank 5 — spell attack com nat20 dobra os dados de dano (PHB p.196), igual
+  // arma. Antes Fire Bolt/Eldritch Blast crit davam dano normal.
+  describe('spell attack crit dobra dados', () => {
+    it('fire-bolt nat20 → 2d10 (=20 com rolls max), não 1d10 (=10)', () => {
+      const spy = vi.spyOn(Math, 'random').mockReturnValue(0.999); // todo dado no máximo; d20=20 (crit)
+      const mago = makeMago();
+      const combat = startCombat({
+        party: [mago],
+        enemies: [{ name: 'Boneco', hp: 100, ac: 5 }], // AC baixa: nat20 sempre acerta
+      });
+      const beforeHp = combat.enemies[0]!.currentHp;
+      const r = resolvePlayerCastSpell({
+        caster: mago, spellId: 'fire-bolt', targetIds: [combat.enemies[0]!.id],
+        slotLevel: 0, party: [mago], combat,
+      });
+      expect(r.ok).toBe(true);
+      const dealt = beforeHp - combat.enemies[0]!.currentHp;
+      expect(dealt).toBe(20); // sem o fix seria 10
+      spy.mockRestore();
+    });
+  });
+
   describe('spell nv 1 gasta slot', () => {
     it('magic-missile gasta 1 slot', () => {
       const mago = makeMago();

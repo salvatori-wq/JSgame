@@ -185,9 +185,12 @@ function applyDamageSpell(
       const attackRoll = rollD20({ modifier: pb + castingMod });
       const hit = attackRoll.nat20 || (!attackRoll.nat1 && attackRoll.total >= targetAc);
       if (hit) {
-        const dmgRoll = rollNotation(effect.dice);
+        // Rank 5 fix — spell attack com nat20 dobra os dados de dano (PHB p.196),
+        // igual o ataque com arma. Antes Fire Bolt/Eldritch Blast/Ray of Frost
+        // crítico davam dano normal (rollNotation sem o flag critical).
+        const dmgRoll = rollNotation(effect.dice, { critical: !!attackRoll.nat20 });
         dmg = (dmgRoll?.total ?? 0) + upcastBonus;
-        outcome = `${attackRoll.total} vs CA ${targetAc} → HIT · ${dmg}`;
+        outcome = `${attackRoll.total} vs CA ${targetAc} → HIT${attackRoll.nat20 ? ' CRÍTICO' : ''} · ${dmg}`;
       } else {
         dmg = 0;
         outcome = `${attackRoll.total} vs CA ${targetAc} → MISS`;
