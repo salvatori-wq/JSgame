@@ -889,4 +889,20 @@ describe('U4/U5 — combate: hierarquia de turno + end-turn alcançável', () =>
   it('U5 — .cb-end-turn-chip sticky no fim do dock em portrait', () => {
     expect(polish).toMatch(/is-portrait-narrow\s+\.cb-end-turn-chip\s*\{[^}]*position:\s*sticky/);
   });
+
+  it('U3 — .cb-actions-hint existe (clareza target-first)', () => {
+    expect(combat).toMatch(/\.cb-actions-hint\s*\{/);
+  });
+});
+
+describe('Trade-offs dado — overlay D2/D4', () => {
+  const dice = readCss('dice.css');
+
+  it('D4 — .dice-roll-overlay tem overflow-y:auto (não corta em viewport curto)', () => {
+    expect(dice).toMatch(/\.dice-roll-overlay\s*\{[^}]*overflow-y:\s*auto/);
+  });
+
+  it('D2 — .dice-roll-overlay.is-physical remove o blur (dado físico legível)', () => {
+    expect(dice).toMatch(/\.dice-roll-overlay\.is-physical\s*\{[^}]*backdrop-filter:\s*none/);
+  });
 });

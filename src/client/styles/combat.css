@@ -267,6 +267,16 @@
   text-align: center;
   text-shadow: 0 0 12px rgba(244, 208, 127, 0.5);
 }
+/* U3 — hint do fluxo target-first: discreto, subordinado ao título. */
+.cb-actions-hint {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  color: var(--ink-mute);
+  text-align: center;
+  margin: -4px 0 10px;
+  line-height: 1.35;
+}
 .cb-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));

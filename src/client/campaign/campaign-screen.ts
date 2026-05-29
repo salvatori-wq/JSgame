@@ -17,6 +17,7 @@ import { getCharacter, trackClientMetric } from '../api';
 import { confirmDialog, inputDialog, pickerDialog } from '../ui-modal';
 import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type PendingCheck } from './skill-check-overlay';
 import { showDiceRollOverlay } from '../dice/dice-roll-overlay';
+import { prewarmPhysicalDice } from '../dice/dice-box-engine';
 import { renderCombatScreen } from '../combat/combat-screen';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
@@ -163,6 +164,9 @@ export class CampaignScreen {
     this.character = await getCharacter(this.opts.characterId);
     this.party = [this.character];
     this.render();
+    // D2 — pré-aquece o dado físico em idle (carrega ~600KB fora do 1º roll,
+    // pra ele não aparecer tarde). No-op se físico off / reduced-motion / SSR.
+    prewarmPhysicalDice();
     this.bindSocket();
     // ο.1 — Re-render header em resize/orientationchange pra alternar entre
     // ribbon (portrait-narrow) e header full (desktop) conforme viewport muda.

@@ -2,18 +2,25 @@
 // Dado físico (@3d-dice/dice-box) — gating + fallback. NÃO testa a física real
 // (precisa WebGL/WASM); testa que o wrapper decide certo e cai pro CSS quando deve.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock da lib: o import real puxa BabylonJS (não roda em happy-dom).
 vi.mock('@3d-dice/dice-box', () => ({ default: class { init() { return Promise.resolve(); } roll() { return Promise.resolve(); } clear() {} hide() {} show() {} } }));
 
-import { physicalDiceEnabled, rollPhysicalDie, clearPhysicalDice, __resetDiceBoxEngineForTest } from '../dice-box-engine';
+import { physicalDiceEnabled, rollPhysicalDie, clearPhysicalDice, prewarmPhysicalDice, __resetDiceBoxEngineForTest } from '../dice-box-engine';
 import { setUxPrefs, _resetCacheForTest } from '../../ux-prefs';
 
 beforeEach(() => {
   __resetDiceBoxEngineForTest();
   _resetCacheForTest();
   try { localStorage.clear(); } catch { /* noop */ }
+  document.body.classList.remove('force-motion');
+});
+
+// Higiene: vários testes aqui adicionam body.force-motion mas não removiam
+// depois — em singleFork isso VAZAVA pro próximo arquivo (long-rest-ritual
+// passava a ver force-motion e não tomava o caminho reduced-motion). Limpa.
+afterEach(() => {
   document.body.classList.remove('force-motion');
 });
 
@@ -68,5 +75,25 @@ describe('clearPhysicalDice — D1 (mount não fica órfão acima dos overlays)'
   it('não lança quando não há mount nem engine inicializada', () => {
     document.getElementById('dice-box-mount')?.remove();
     expect(() => clearPhysicalDice()).not.toThrow();
+  });
+});
+
+describe('prewarmPhysicalDice — D2 (gated, idle, não lança)', () => {
+  // Fake timers: o warm agenda um setTimeout/idle real que, sem isso, vazaria
+  // pra outros testes no singleFork (dispara ensureReady tardio). clearAllTimers
+  // descarta o agendamento — testamos só o gating + que a chamada não lança.
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
+
+  it('no-op sem lançar quando físico off', () => {
+    document.body.classList.add('force-motion');
+    setUxPrefs({ physicalDice: false });
+    expect(() => prewarmPhysicalDice()).not.toThrow();
+  });
+
+  it('não lança quando físico on (agenda warm em idle)', () => {
+    document.body.classList.add('force-motion');
+    setUxPrefs({ physicalDice: true });
+    expect(() => prewarmPhysicalDice()).not.toThrow();
   });
 });

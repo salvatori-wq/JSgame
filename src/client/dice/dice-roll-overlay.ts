@@ -80,7 +80,12 @@ export function showDiceRollOverlay(opts: DiceRollOverlayOpts): void {
   stage.appendChild(verdict);
 
   overlay.appendChild(stage);
-  (document.getElementById('app') ?? document.body).appendChild(overlay);
+  // D3 — monta no <body>, NÃO em #app. No modo físico o canvas (#dice-box-mount,
+  // z-9600) também vive no body; com o overlay em #app, a transição de rota
+  // (#app.route-fade-in aplica transform → cria stacking context temporário)
+  // podia jogar o overlay (9500) ACIMA do canvas (9600) e tapar o dado físico.
+  // No body os dois competem no mesmo contexto raiz: canvas 9600 > overlay 9500.
+  document.body.appendChild(overlay);
   currentEl = overlay;
 
   // Camada 1 (visual+som): roll start

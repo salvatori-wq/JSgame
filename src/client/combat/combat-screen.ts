@@ -226,6 +226,10 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     ];
     const bar = el('div', { class: 'cb-actions cb-tab-content cb-tab-actions' });
     bar.appendChild(el('div', { class: 'cb-actions-title', text: `🎯 Seu turno, ${escapeHtml(myChar.characterName)}` }));
+    // U3 — clareza do fluxo target-first SEM remover a grade (consultor W3.5
+    // manteve-a opt-in de propósito). Uma linha curta explica que ações de
+    // alvo passam pelo inimigo — dissolve a sensação de "2 sistemas competindo".
+    bar.appendChild(el('div', { class: 'cb-actions-hint', text: 'Ações com alvo (⚔ 🤼 👐 🗡) abrem a ficha do inimigo pra confirmar.' }));
     const grid = el('div', { class: 'cb-actions-grid' });
 
     // β.4 V2 — Action Economy: desabilita botões cujo slot já foi gasto.

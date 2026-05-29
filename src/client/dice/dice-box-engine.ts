@@ -153,6 +153,19 @@ export async function rollPhysicalDie(opts: RollPhysicalOpts): Promise<boolean> 
   });
 }
 
+/** D2 — pré-aquece o engine físico (carrega lib + assets ~600KB) ANTES do 1º
+ * roll, pra o dado não aparecer tarde ("uma hora quase vi ele rodando"). Só se
+ * o físico está habilitado; roda em idle pra não competir com o boot da tela.
+ * Idempotente (ensureReady é cacheado). No-op em SSR/sem físico. */
+export function prewarmPhysicalDice(): void {
+  if (typeof document === 'undefined') return;
+  if (!physicalDiceEnabled()) return;
+  const warm = (): void => { void ensureReady(); };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => void }).requestIdleCallback;
+  if (typeof ric === 'function') ric(warm, { timeout: 3000 });
+  else window.setTimeout(warm, 1500);
+}
+
 /** Limpa o dado da tela (chamado quando o overlay fecha). */
 export function clearPhysicalDice(): void {
   try { box?.clear(); box?.hide(); } catch { /* silent */ }
