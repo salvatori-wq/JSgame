@@ -70,7 +70,7 @@ import { openShortRestPicker } from './short-rest-overlay';
 import { playLongRestRitual } from './long-rest-ritual';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
-import { createBottomTabBar, type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
+import { type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
 import { popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
 import { openUxSettingsModal } from '../ux-settings-modal';
@@ -1154,11 +1154,13 @@ export class CampaignScreen {
       });
       this.replaceSlot(this.slots.mainContent, combatWrap);
     } else {
-      // ο.3 — Em portrait-narrow, usa Action Dock Topicizado (4-5 tópicos
-      // cards + drill-down). Desktop mantém grid flat antigo.
+      // Redesign WhatsApp: em portrait-narrow a EXPLORAÇÃO não usa mais o dock.
+      // As ações vivem na barra inferior (.camp-action-bar, updateBottomTabBar)
+      // e a narração toma a tela inteira. main-content fica vazio (:empty →
+      // some). Desktop mantém o grid flat antigo no main-content.
       const isNarrow = document.body.classList.contains('is-portrait-narrow');
       if (isNarrow) {
-        this.replaceSlot(this.slots.mainContent, this.renderActionDockTopics());
+        this.replaceSlot(this.slots.mainContent, null);
       } else {
         this.replaceSlot(this.slots.mainContent, this.renderActionsBar());
       }
@@ -1218,20 +1220,13 @@ export class CampaignScreen {
 
   private updateChatBar(): void {
     if (!this.slots) return;
-    const isNarrow = document.body.classList.contains('is-portrait-narrow');
     if (this.party.length > 1) {
-      // ο.2 — Coop ativo: chat-bar inline some, pill flutuante toma lugar
+      // ο.2 — Coop ativo: chat-bar inline some, pill flutuante toma lugar.
       this.replaceSlot(this.slots.chatBar, null);
-      // π.3 — Em portrait-narrow, chat é absorvido pelo Bottom Tab Bar (slot Chat).
-      // Em desktop, mantém pill flutuante (sem tab bar visível).
-      if (isNarrow) {
-        if (this.chatPill) {
-          this.chatPill.destroy();
-          this.chatPill = null;
-        }
-      } else {
-        this.ensureChatPill();
-      }
+      // Redesign WhatsApp — a nav bar que hospedava o Chat em coop foi removida
+      // (o rodapé virou barra de ações). O chat volta pro pill flutuante em
+      // mobile E desktop (o "Mais" também não traz chat — pill é mais rápido).
+      this.ensureChatPill();
     } else {
       this.replaceSlot(this.slots.chatBar, null);
       if (this.chatPill) {
@@ -1245,31 +1240,115 @@ export class CampaignScreen {
   /** π.1 — Cria/atualiza Bottom Tab Bar conforme viewport + coop state. */
   private updateBottomTabBar(): void {
     if (!this.slots) return;
+    // Redesign WhatsApp — o rodapé deixa de ser nav (Missões/Glórias/NPCs/
+    // Convite) e vira a BARRA DE AÇÕES do jogo. Exploração: Explorar/Social/
+    // Tentar/Livre/Mais (e o dock de 35vh some → narração domina). Combate:
+    // só [⋯ Mais] (o dock ①② tem as ações táticas). Desktop: sem barra.
+    if (this.bottomTabBar) { this.bottomTabBar.destroy(); this.bottomTabBar = null; }
     const isNarrow = document.body.classList.contains('is-portrait-narrow');
     if (!isNarrow) {
-      // Desktop: destrói tab bar se existir (orientationchange)
-      if (this.bottomTabBar) {
-        this.bottomTabBar.destroy();
-        this.bottomTabBar = null;
-      }
       this.replaceSlot(this.slots.bottomTabs, null);
       return;
     }
-    const isCoop = this.party.length > 1;
-    if (!this.bottomTabBar) {
-      this.bottomTabBar = createBottomTabBar({
-        isCoop,
-        unreadChatCount: this.unreadChatCount,
-        onTabClick: (tab, anchor) => this.onBottomTabClick(tab, anchor),
-      });
-      this.slots.bottomTabs.appendChild(this.bottomTabBar.element);
-    } else {
-      this.bottomTabBar.setCoop(isCoop);
+    const isCombat = this.currentState?.mode === 'combat' && !!this.currentState.combat?.active;
+    this.replaceSlot(this.slots.bottomTabs, this.renderActionBar(isCombat));
+  }
+
+  /** Redesign WhatsApp — barra de ações no rodapé (substitui o dock + a nav
+   * antiga). Exploração: 4 ações diretas + Mais. Combate: só Mais (dock ①②
+   * tem o tático). O "Mais" (único agora) abre a folha de ferramentas/nav. */
+  private renderActionBar(isCombat: boolean): HTMLElement {
+    const bar = el('div', { class: `camp-action-bar ${isCombat ? 'is-combat' : ''}` });
+    const disabled = this.isDmThinking;
+    const mkBtn = (glyph: string, label: string, onClick: () => void, opts: { more?: boolean; alwaysEnabled?: boolean } = {}): HTMLElement =>
+      el('button', {
+        class: `cab-btn ${opts.more ? 'is-more' : ''}`,
+        attrs: { type: 'button', title: label, ...(opts.alwaysEnabled ? {} : disabled ? { disabled: true } : {}) },
+        on: { click: onClick },
+      }, [
+        el('span', { class: 'cab-glyph', text: glyph }),
+        el('span', { class: 'cab-label', text: label }),
+      ]);
+
+    if (!isCombat) {
+      bar.appendChild(mkBtn('🔍', 'Explorar', () => this.takeAction('explore', '')));
+      bar.appendChild(mkBtn('🗣', 'Social', () => this.takeAction('talk', '')));
+      bar.appendChild(mkBtn('🎲', 'Tentar', () => { void this.openSkillPickerAndRoll(); }));
+      bar.appendChild(mkBtn('✎', 'Livre', () => { void this.openFreeAction(); }));
     }
-    // Sync badges com state atual
-    const activeQuests = this.currentState?.quests?.filter((q) => q.status === 'active').length ?? 0;
-    this.bottomTabBar.setQuestBadge(activeQuests);
-    this.bottomTabBar.setUnreadCount(this.unreadChatCount);
+    // Mais sempre disponível (mesmo pensando — é navegação/ferramentas).
+    bar.appendChild(mkBtn('⋯', 'Mais', () => { void this.openToolsSheet(); }, { more: true, alwaysEnabled: true }));
+    return bar;
+  }
+
+  /** ✎ Livre — modal de ação em texto. Envia como takeAction('explore', texto). */
+  private async openFreeAction(): Promise<void> {
+    if (this.isDmThinking) { toastWarn('Aguarde o Mestre terminar antes de agir.'); return; }
+    const result = await inputDialog({
+      title: '✎ Ação livre',
+      text: 'Descreva o que seu personagem faz. O Mestre interpreta e responde.',
+      placeholder: 'ex: abro o baú devagar, olhando se tem armadilha',
+      maxLength: 500,
+      multiline: true,
+      confirmText: 'Enviar',
+      cancelText: 'Cancelar',
+      validator: (v) => (v.trim().length === 0 ? 'Descreva o que você faz.' : null),
+    });
+    if (result && result.trim().length > 0) this.takeAction('explore', result.trim());
+  }
+
+  /** ⋯ Mais — folha unificada (ferramentas + navegação). Substitui o popover
+   * antigo (que abria fora da tela quando ancorado no rodapé) + a nav bar. */
+  private async openToolsSheet(): Promise<void> {
+    const campId = this.currentState?.id;
+    const isCaster = shouldShowCastButton(this.character);
+    const canRest = this.currentState?.mode !== 'combat';
+    type Tool =
+      | 'investigate' | 'sneak' | 'travel' | 'inventory' | 'magic' | 'use-item'
+      | 'short-rest' | 'long-rest' | 'quests' | 'npcs' | 'achievements'
+      | 'share' | 'glossary' | 'settings';
+    const opts: Array<{ value: Tool; label: string; description?: string }> = [];
+    if (canRest) {
+      opts.push({ value: 'investigate', label: '🔎 Investigar', description: 'analisar uma pista' });
+      opts.push({ value: 'sneak', label: '🥷 Furtar-se', description: 'esconder / passar' });
+      opts.push({ value: 'travel', label: '🚶 Viajar', description: 'ir pra outro lugar' });
+    }
+    opts.push({ value: 'inventory', label: '🎒 Inventário' });
+    if (isCaster) opts.push({ value: 'magic', label: '🔮 Magia' });
+    opts.push({ value: 'use-item', label: '🧪 Usar Item' });
+    if (canRest) {
+      opts.push({ value: 'short-rest', label: '🛌 Descanso Curto', description: 'gasta hit dice' });
+      opts.push({ value: 'long-rest', label: '🏕 Descanso Longo', description: '8h, restaura tudo' });
+    }
+    opts.push({ value: 'quests', label: '🗺 Missões' });
+    opts.push({ value: 'npcs', label: '👥 NPCs' });
+    opts.push({ value: 'achievements', label: '🏆 Glórias' });
+    if (campId) opts.push({ value: 'share', label: '🤝 Convite', description: 'copiar ID da crônica' });
+    opts.push({ value: 'glossary', label: '📖 Glossário' });
+    opts.push({ value: 'settings', label: '⚙ Ajustes' });
+
+    const choice = await pickerDialog<Tool>({
+      title: '⋯ Mais',
+      text: 'Ferramentas e navegação',
+      options: opts,
+    });
+    if (!choice) return;
+    switch (choice) {
+      case 'investigate': this.takeAction('investigate', ''); break;
+      case 'sneak': this.takeAction('sneak', ''); break;
+      case 'travel': this.takeAction('travel', ''); break;
+      case 'use-item': this.takeAction('use-item', ''); break;
+      case 'inventory': this.openInventory(); break;
+      case 'magic': this.openSpellModal(); break;
+      case 'short-rest': void this.openShortRestModal(); break;
+      case 'long-rest': void this.confirmLongRest(); break;
+      case 'quests': openQuestLog({ quests: this.currentState?.quests ?? [], onClose: () => { /* noop */ } }); break;
+      case 'npcs': if (campId) openNpcRosterModal({ campaignId: campId, onClose: () => { /* noop */ } }); break;
+      case 'achievements': openAchievementsModal({ onClose: () => { /* noop */ } }); break;
+      case 'share': if (campId) void this.shareCampaignId(campId); break;
+      case 'glossary': openGlossaryModal(); break;
+      case 'settings': openUxSettingsModal(); break;
+    }
   }
 
   /** π.1 — Click handler — abre modal/sheet correspondente e marca tab ativa. */

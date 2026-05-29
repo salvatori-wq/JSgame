@@ -383,6 +383,23 @@ describe('Redesign ④ — scene-pin sem sobreposição + narração centrada', 
   });
 });
 
+describe('Redesign WhatsApp — barra de ações no rodapé (.camp-action-bar)', () => {
+  const dock = readCss('m-camp-dock.css');
+
+  it('barra de ações é flex no rodapé (portrait)', () => {
+    expect(dock).toMatch(/body\.is-portrait-narrow\s+\.camp-action-bar\s*\{[\s\S]*?display:\s*flex/);
+  });
+
+  it('botões da barra (.cab-btn) crescem iguais + hit ≥54px', () => {
+    expect(dock).toMatch(/\.camp-action-bar\s+\.cab-btn\s*\{[\s\S]*?flex:\s*1\s+1\s+0/);
+    expect(dock).toMatch(/\.camp-action-bar\s+\.cab-btn\s*\{[\s\S]*?min-height:\s*54px/);
+  });
+
+  it('combate: barra vira só [Mais] centrado', () => {
+    expect(dock).toMatch(/\.camp-action-bar\.is-combat\s*\{[\s\S]*?justify-content:\s*center/);
+  });
+});
+
 describe('Redesign ② — combate sem abas em portrait (combat.css)', () => {
   const combat = readCss('combat.css');
 
