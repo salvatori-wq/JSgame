@@ -9,6 +9,12 @@
   gap: 20px;
   padding: 12px 14px 88px;
   max-width: 720px;
+  /* FIX overflow mobile: #app é flex-row → .home-tavern (flex item) tinha
+   * min-width:auto e crescia até o min-content (~407px), estourando o viewport
+   * (360px) → body overflow-x:hidden cortava a direita. width:100% + min-width:0
+   * prende a home à largura real do app. Desktop: max-width:720 + margin auto. */
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
   --home-card-radius: 14px;
   --home-gold: #d4a84a;
