@@ -719,7 +719,11 @@ export class Campaign {
       switch (action) {
         case 'attack': {
           if (!targetId) return { ok: false, events: [], log: 'precisa de alvo' };
-          const result = resolvePlayerAttack(player, targetId, combat);
+          // η.4 fix (Rank 4) — consome apply_advantage (next-attack) do DM, igual
+          // skill/save já fazem. Sem isto "ataca com vantagem" era no-op no ataque.
+          const { consumePendingAdvantage } = await import('../dnd/condition-advantage-rules.js');
+          const dmAdv = consumePendingAdvantage(this.state, player.id, 'attack');
+          const result = resolvePlayerAttack(player, targetId, combat, dmAdv ? { advantageOverride: dmAdv } : {});
           if (!result) return { ok: false, events: [], log: 'alvo inválido' };
           events.push(...result.events);
           log = result.log;

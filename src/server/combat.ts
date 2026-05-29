@@ -343,7 +343,7 @@ export function resolvePlayerAttack(
   attacker: CharacterSheet,
   targetEnemyId: string,
   combat: CombatState,
-  opts: { damageDice?: string; isRanged?: boolean; damageType?: DamageType } = {},
+  opts: { damageDice?: string; isRanged?: boolean; damageType?: DamageType; advantageOverride?: 'advantage' | 'disadvantage' } = {},
 ): PlayerAttackResult | null {
   const target = combat.enemies.find((e) => e.id === targetEnemyId);
   if (!target || target.currentHp <= 0) return null;
@@ -376,10 +376,12 @@ export function resolvePlayerAttack(
   const buffs = consumeBuffs(attacker, 'attack');
   if (buffs.advantage) mode = combineAdvantage(mode, 'advantage');
   if (buffs.disadvantage) mode = combineAdvantage(mode, 'disadvantage');
-  // η.4 — Consume DM-declared apply_advantage pendente
-  // Note: pendingAdvantages está em CampaignState; combat receive combat ref only.
-  // Caller (campaign.ts) deve consumir antes de chamar resolvePlayerAttack — V2.
-  // Por ora, advantage/disadvantage flags vêm via mode acima.
+  // η.4 fix (Rank 4) — apply_advantage (next-attack) declarado pelo DM. O caller
+  // (campaign.ts) consome de CampaignState.pendingAdvantages e passa o modo aqui
+  // (resolvePlayerAttack só recebe o ref de combat, não o state inteiro). Antes
+  // isto era um TODO "V2" e o "ataca com vantagem" do Mestre era IGNORADO no
+  // ataque — a superfície mais escrutinada do jogo.
+  if (opts.advantageOverride) mode = combineAdvantage(mode, opts.advantageOverride);
 
   const advantage = mode === 'advantage';
   const disadvantage = mode === 'disadvantage';
