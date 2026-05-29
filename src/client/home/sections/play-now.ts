@@ -5,10 +5,15 @@
 import { el, ensureOwnerName } from '../../util';
 import { toastError } from '../../toast';
 import { trackClientMetric } from '../../api';
+import { renderPrefabPortrait } from '../prefab-portrait';
+import type { RaceId } from '../../../dnd/races';
+import type { ClassId } from '../../../dnd/classes';
 
 export interface PrefabCard {
   id: 'borin' | 'lyra' | 'sina';
-  icon: string;
+  icon: string;             // emoji fallback (mantido por compat/test)
+  raceId: RaceId;
+  classId: ClassId;
   label: string;
   archetype: string;
   teaser: string;
@@ -18,9 +23,9 @@ export interface PrefabCard {
 // (Classe Raça · habilidade icônica) em vez de gamer-speak "TANK · BATE FORTE".
 // Teaser fica como flavor narrativo, sem repetir raça/classe.
 export const PREFAB_CARDS: readonly PrefabCard[] = [
-  { id: 'borin', icon: '🪨', label: 'Borin Forjarocha', archetype: 'Lutador Anão · Linha de frente',     teaser: 'Veterano de guerras. Dois golpes por turno.' },
-  { id: 'lyra',  icon: '🌟', label: 'Lyra Estrelaluz', archetype: 'Maga Alta-elfa · Mistérios arcanos',   teaser: 'Arquivista das torres. Magias e segredos antigos.' },
-  { id: 'sina',  icon: '🗡', label: 'Sina Tribuna',    archetype: 'Ladina Halfling · Ataque furtivo',    teaser: 'Mãos leves nas sombras. Acerto crítico ao surpreender.' },
+  { id: 'borin', icon: '🪨', raceId: 'anao-montanha',     classId: 'guerreiro', label: 'Borin Forjarocha', archetype: 'Lutador Anão · Linha de frente',   teaser: 'Veterano de guerras. Dois golpes por turno.' },
+  { id: 'lyra',  icon: '🌟', raceId: 'alto-elfo',         classId: 'mago',      label: 'Lyra Estrelaluz',  archetype: 'Maga Alta-elfa · Mistérios arcanos', teaser: 'Arquivista das torres. Magias e segredos antigos.' },
+  { id: 'sina',  icon: '🗡', raceId: 'halfling-pes-leve', classId: 'ladino',    label: 'Sina Tribuna',     archetype: 'Ladina Halfling · Ataque furtivo',   teaser: 'Mãos leves nas sombras. Acerto crítico ao surpreender.' },
 ] as const;
 
 export interface PlayNowOpts {
@@ -98,7 +103,7 @@ function renderPrefabCard(card: PrefabCard, opts: PlayNowOpts): HTMLElement {
       },
     },
   }, [
-    el('div', { class: 'home-prefab-icon', text: card.icon }),
+    renderPrefabPortrait({ raceId: card.raceId, classId: card.classId, className: 'home-prefab-icon', ariaLabel: card.label }),
     el('div', { class: 'home-prefab-label', text: card.label }),
     el('div', { class: 'home-prefab-archetype', text: card.archetype }),
     el('div', { class: 'home-prefab-teaser', text: card.teaser }),

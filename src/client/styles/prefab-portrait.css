@@ -1,0 +1,50 @@
+/* JSgame · Fase 1B — Medalhão de retrato (classe SVG + aura + raça).
+ * Zero asset: aura via --pf-aura (cor da classe), ícone SVG game-icons centrado. */
+
+.pf-portrait {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  /* Aura da classe: radial quente no centro → escuro na borda. */
+  background:
+    radial-gradient(70% 70% at 50% 38%, color-mix(in srgb, var(--pf-aura, #666) 70%, #fff 0%) 0%,
+      color-mix(in srgb, var(--pf-aura, #666) 85%, #000 35%) 70%,
+      #14100c 100%);
+  border: 1px solid color-mix(in srgb, var(--pf-aura, #666) 60%, #d4a84a 40%);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* Ícone de classe — claro pra contrastar com a aura. */
+.pf-portrait .pf-portrait-class {
+  font-size: 28px;
+  color: #fff6e2;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
+  line-height: 1;
+}
+.pf-portrait .pf-portrait-class .gi { width: 1em; height: 1em; }
+
+/* Badge de raça (emoji) — canto inferior direito, pequeno disco escuro. */
+.pf-portrait-race {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  font-size: 14px;
+  line-height: 1;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(10, 8, 6, 0.82);
+  border: 1px solid rgba(212, 168, 74, 0.5);
+}
+
+/* Fallback emoji (ícone de classe não encontrado): não força cor de SVG. */
+.pf-portrait .gi-wrap-emoji { font-size: 26px; }
