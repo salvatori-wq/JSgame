@@ -78,32 +78,24 @@
   .home-screen > .home-coop             { grid-area: coop; margin-top: 0; }
   .home-screen > .home-graveyard        { grid-area: graveyard; margin-top: 0; }
 
-  /* Campaign — 2 colunas: party panel sticky à esquerda, main à direita */
+  /* Campaign (desktop) — coluna central legível.
+   * NOTA: as classes do grid antigo (.camp-party/.camp-narration/.camp-actions)
+   * foram REMOVIDAS no refactor dock (sprint ψ/π). O DOM real é
+   * <main.camp-screen> com filhos .ch-slot-* + .ch-narration-host (flex column).
+   * Em vez de um grid esticado por 1900px (vão morto no meio), centramos a
+   * coluna num width de leitura — pegada VTT/Discord, ideal pra RPG textual. */
   .camp-screen {
-    max-width: 1200px;
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    grid-template-areas:
-      "header     header"
-      "party      narration"
-      "party      thinking"
-      "party      actions";
-    column-gap: var(--gap-section);
-    row-gap: var(--gap-loose);
-    align-items: start;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
-  .camp-screen > .camp-header     { grid-area: header; }
-  .camp-screen > .camp-party      { grid-area: party; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
-  .camp-screen > .camp-narration  { grid-area: narration; }
-  .camp-screen > .camp-thinking   { grid-area: thinking; }
-  .camp-screen > .camp-actions    { grid-area: actions; }
-  /* Spectating banner ainda no fluxo natural */
-
-  /* Em combat, combat-screen ocupa a área de narration+actions juntos */
-  .camp-screen > .combat-screen {
-    grid-column: 2;
-    grid-row: 2 / 5;
-  }
+  /* Header respira no topo da coluna. */
+  .camp-screen > .ch-slot-header { margin-bottom: 2px; }
+  /* Slots vazios não ocupam espaço (gap fantasma). */
+  .camp-screen > .ch-slot:empty { display: none; }
 
   /* Action grid mais largo */
   .camp-actions-grid {
@@ -154,31 +146,9 @@
 @media (min-width: 1440px) {
   .home-screen { max-width: 1280px; }
 
-  /* Campaign 3-col em wide — party | narração | actions sidebar */
-  .camp-screen {
-    max-width: 1400px;
-    grid-template-columns: 280px 1fr 320px;
-    grid-template-areas:
-      "header     header     header"
-      "party      narration  actions"
-      "party      thinking   actions";
-  }
-  .camp-screen > .camp-actions {
-    grid-area: actions;
-    position: sticky;
-    top: 16px;
-    max-height: calc(100vh - 32px);
-    overflow-y: auto;
-  }
-  /* Action grid em coluna única lateral */
-  .camp-actions-grid {
-    grid-template-columns: 1fr;
-  }
-  /* Combat ocupa só narration column (actions ficam visíveis ainda) */
-  .camp-screen > .combat-screen {
-    grid-column: 2;
-    grid-row: 2 / 4;
-  }
+  /* Campaign em wide — coluna um pouco mais larga, ainda centrada e legível
+   * (a linha de leitura não deve correr 1400px). */
+  .camp-screen { max-width: 980px; }
 
   /* F31 — wide: combat enemies 3-col */
   .cb-enemies { grid-template-columns: repeat(3, 1fr); }
