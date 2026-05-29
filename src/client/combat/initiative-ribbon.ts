@@ -8,6 +8,7 @@ import { el } from '../util';
 import { portraitFor } from '../../dnd/portrait';
 import { getCondition } from '../../dnd/conditions';
 import { iconEl, enemyIconName } from '../icons/game-icons';
+import { effectiveArmorClass } from '../../dnd/active-buffs';
 
 export interface InitiativeRibbonContext {
   combat: CombatState;
@@ -155,7 +156,7 @@ function renderExpandedCard(
       ]),
       el('div', { class: 'irb-exp-row' }, [
         el('span', { class: 'irb-exp-stat', text: `❤ ${pj.currentHp}/${pj.maxHp}` }),
-        el('span', { class: 'irb-exp-stat', text: `🛡 CA ${pj.armorClass}` }),
+        el('span', { class: 'irb-exp-stat', text: `🛡 CA ${effectiveArmorClass(pj)}${effectiveArmorClass(pj) !== pj.armorClass ? '✦' : ''}` }),
         el('span', { class: 'irb-exp-stat', text: `🎲 Init ${order.initiative}` }),
       ]),
       conditions

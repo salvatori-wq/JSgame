@@ -34,6 +34,7 @@ import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveli
 import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { iconEl, classIconName } from '../icons/game-icons';
+import { effectiveArmorClass } from '../../dnd/active-buffs';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
@@ -1646,7 +1647,7 @@ export class CampaignScreen {
           iconEl(classIconName(p.classId), portrait.class, { className: 'cp-pj-portrait-class' }),
         ]),
         el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
-        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass} · HD ${p.hitDiceRemaining}/${p.level}` }),
+        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${effectiveArmorClass(p)}${effectiveArmorClass(p) !== p.armorClass ? '✦' : ''} · HD ${p.hitDiceRemaining}/${p.level}` }),
         el('div', { class: 'cp-pj-hp-bar' }, [
           el('div', {
             class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,

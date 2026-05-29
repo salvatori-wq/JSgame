@@ -12,6 +12,8 @@ import { isPreparedCaster } from '../dnd/prepared-casters.js';
 import { rollD20, rollNotation } from '../dnd/dice.js';
 import { proficiencyBonus, abilityModifier } from '../dnd/attributes.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
+import { addBuff, spellToBuffs } from './buff-engine.js';
+import { effectiveArmorClass } from '../dnd/active-buffs.js';
 
 export interface CastSpellResult {
   ok: boolean;
@@ -113,8 +115,7 @@ export function resolvePlayerCastSpell(input: CastSpellInput): CastSpellResult {
       narration = applyConditionSpell(spell, spell.effect, caster, targetIds, party, combat, events, saveDC);
       break;
     case 'buff':
-      narration = `${caster.characterName} lança ${spell.name} — ${spell.effect.description}`;
-      events.push({ type: 'spell-cast', sourceId: caster.id, text: narration });
+      narration = applyBuffSpell(spell, caster, targetIds, party, slotLevel, events);
       break;
     case 'utility':
       narration = `${caster.characterName} lança ${spell.name}${isRitualCast ? ' (ritual)' : ''}: ${spell.effect.description}`;
@@ -278,6 +279,58 @@ function applyHealSpell(
 
   const narration = `${caster.characterName} lança ${spell.name}: ${parts.join(' · ')}`;
   return { narration, healTotal };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Fase 2 — Buff mecânico. Mapeia o buff-spell pra ActiveBuff(s) e aplica no
+// alvo (default: o próprio caster). Antes só narrava — agora a CA/ataques mudam.
+// ════════════════════════════════════════════════════════════════════════════
+function applyBuffSpell(
+  spell: SpellDef,
+  caster: CharacterSheet,
+  targetIds: string[],
+  party: CharacterSheet[],
+  slotLevel: number,
+  events: CombatEvent[],
+): string {
+  const effect = spell.effect as Extract<SpellEffect, { kind: 'buff' }>;
+
+  // Resolve alvos: buffs de magia geralmente miram um aliado (Mage Armor/Escudo
+  // da Fé num colega) ou o próprio caster. Default = caster se nenhum id casar.
+  const resolved = targetIds
+    .map((tid) => party.find((p) => p.id === tid))
+    .filter((p): p is CharacterSheet => !!p);
+  const targets = resolved.length > 0 ? resolved : [caster];
+
+  const appliedTo: string[] = [];
+  let mechanical = false;
+
+  for (const target of targets) {
+    const buffs = spellToBuffs(spell.id, slotLevel, target);
+    if (buffs === null) continue; // sem mecânica modelada → só narração
+    if (buffs.length === 0) {
+      // Tinha mecânica mas não se aplica (ex: Mage Armor em quem já tem armadura)
+      continue;
+    }
+    for (const b of buffs) addBuff(target, b);
+    mechanical = true;
+    const acNote = buffs.some((b) => b.appliesTo === 'ac') ? ` (CA agora ${effectiveArmorClass(target)})` : '';
+    appliedTo.push(`${target.characterName}${acNote}`);
+    events.push({
+      type: 'condition-applied',
+      sourceId: caster.id,
+      targetId: target.id,
+      text: `${spell.name} em ${target.characterName}${acNote}`,
+    });
+  }
+
+  if (mechanical) {
+    return `${caster.characterName} lança ${spell.name}: ${appliedTo.join(' · ')}`;
+  }
+  // Fallback: buff sem mecânica modelada (ou não aplicável) — narra como antes.
+  const narration = `${caster.characterName} lança ${spell.name} — ${effect.description}`;
+  events.push({ type: 'spell-cast', sourceId: caster.id, text: narration });
+  return narration;
 }
 
 function applyConditionSpell(

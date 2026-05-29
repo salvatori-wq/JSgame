@@ -11,6 +11,7 @@ import { ABILITY_KEYS, ABILITY_LABELS, ABILITY_SHORT, abilityModifier, formatMod
 import { SKILLS, type SkillId } from '../../dnd/skills';
 import { portraitFor } from '../../dnd/portrait';
 import { getSpell } from '../../dnd/spells';
+import { effectiveArmorClass } from '../../dnd/active-buffs';
 import { effectiveLevel } from '../../dnd/multiclass';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 
@@ -110,8 +111,10 @@ export class SheetScreen {
       ].filter(Boolean) as HTMLElement[]),
       el('div', { class: 'sheet-vital sheet-vital-ac' }, [
         el('div', { class: 'sv-label', text: 'CA' }),
-        el('div', { class: 'sv-value', text: String(sheet.armorClass) }),
-      ]),
+        el('div', { class: 'sv-value', text: String(effectiveArmorClass(sheet)) }),
+        effectiveArmorClass(sheet) !== sheet.armorClass
+          ? el('div', { class: 'sv-sub', text: `base ${sheet.armorClass} + magia` }) : null,
+      ].filter(Boolean) as HTMLElement[]),
       el('div', { class: 'sheet-vital sheet-vital-init' }, [
         el('div', { class: 'sv-label', text: 'Iniciativa' }),
         el('div', { class: 'sv-value', text: formatModifier(abilityModifier(sheet.abilityScores.des)) }),

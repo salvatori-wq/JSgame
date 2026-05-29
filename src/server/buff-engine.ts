@@ -4,6 +4,7 @@
 
 import type { ActiveBuff, BuffEffect, CharacterSheet } from '../shared/types.js';
 import { rollNotation } from '../dnd/dice.js';
+import { acBonusFromBuffs } from '../dnd/active-buffs.js';
 
 // Adiciona buff novo. Idempotente em source — substitui se já houver mesmo source.
 export function addBuff(target: CharacterSheet, buff: ActiveBuff): void {
@@ -55,19 +56,10 @@ export function consumeBuffs(
   return result;
 }
 
-// AC bonus é "passive read" — não consome, só soma.
+// AC bonus é "passive read" — não consome, só soma. Delega à matemática pura
+// compartilhada (src/dnd/active-buffs.ts) pra client e server baterem.
 export function readAcBonus(target: CharacterSheet): { flatBonus: number; sources: string[] } {
-  const sources: string[] = [];
-  let flatBonus = 0;
-  if (!target.activeBuffs) return { flatBonus, sources };
-  for (const b of target.activeBuffs) {
-    if (b.appliesTo !== 'ac') continue;
-    if (b.effect.kind === 'flat-bonus') {
-      flatBonus += b.effect.value;
-      sources.push(b.source);
-    }
-  }
-  return { flatBonus, sources };
+  return acBonusFromBuffs(target.activeBuffs);
 }
 
 function applyBuffEffect(effect: BuffEffect, result: ConsumeBuffsResult): void {
@@ -178,4 +170,81 @@ export function makeFaerieFire(slotLevel = 1): ActiveBuff {
     turnsLeft: 10,
     sourceSpellLevel: slotLevel,
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Fase 2 — Buffs de CA mecânicos. Antes Mage Armor / Escudo da Fé gastavam slot
+// e a CA não mudava (só narração). Agora viram ActiveBuff de verdade.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Armadura Arcana (Mage Armor): CA base = 13 + Des (PHB pág 257). Pra criatura
+// SEM armadura, isso é exatamente +3 sobre a CA base (10 + Des). Duração 8h →
+// sem turnsLeft (persiste até long rest limpar). Só aplica em alvo sem armadura.
+export function makeMageArmor(): ActiveBuff {
+  return {
+    id: `mage-armor-${Date.now()}`,
+    source: 'Armadura Arcana',
+    appliesTo: 'ac',
+    effect: { kind: 'flat-bonus', value: 3 },
+    sourceSpellLevel: 1,
+    // 8 horas — sem turnsLeft, dura até descanso longo
+  };
+}
+
+// Escudo da Fé (Shield of Faith): +2 CA, concentração, 10 min (PHB pág 275).
+// 10 min = 100 rounds → cobre o combate inteiro.
+export function makeShieldOfFaith(slotLevel = 1): ActiveBuff {
+  return {
+    id: `shield-of-faith-${Date.now()}`,
+    source: 'Escudo da Fé',
+    appliesTo: 'ac',
+    effect: { kind: 'flat-bonus', value: 2 },
+    turnsLeft: 100,
+    sourceSpellLevel: slotLevel,
+  };
+}
+
+// Pressa (Haste): +2 CA (entre outros efeitos), concentração, 1 min (PHB pág 250).
+// Aqui modelamos só o +2 CA mecânico; mov/ação extra ficam narrativos por ora.
+export function makeHasteAc(slotLevel = 3): ActiveBuff {
+  return {
+    id: `haste-${Date.now()}`,
+    source: 'Pressa',
+    appliesTo: 'ac',
+    effect: { kind: 'flat-bonus', value: 2 },
+    turnsLeft: 10,
+    sourceSpellLevel: slotLevel,
+  };
+}
+
+// Mapeia um buff-spell pro(s) ActiveBuff(s) mecânico(s) a aplicar no alvo.
+// Retorna:
+//   - ActiveBuff[]  → buffs a aplicar (pode ser [] = gasta slot mas sem efeito)
+//   - null          → spell não tem efeito mecânico de buff (só narração)
+// `target` é necessário pro Mage Armor checar se está sem armadura.
+export function spellToBuffs(
+  spellId: string,
+  slotLevel: number,
+  target: CharacterSheet,
+): ActiveBuff[] | null {
+  switch (spellId) {
+    case 'mage-armor':
+      // PHB: "An unarmored creature." Com armadura equipada → sem efeito.
+      if (target.equippedArmor) return [];
+      return [makeMageArmor()];
+    case 'shield-of-faith':
+      return [makeShieldOfFaith(slotLevel)];
+    case 'shield':
+      return [makeShield()];
+    case 'bless':
+      return makeBless(slotLevel);
+    case 'guidance':
+      return [makeGuidance()];
+    case 'faerie-fire':
+      return [makeFaerieFire(slotLevel)];
+    case 'haste':
+      return [makeHasteAc(slotLevel)];
+    default:
+      return null; // buff sem mecânica modelada → narração pura
+  }
 }

@@ -14,7 +14,7 @@ import {
 } from './class-features-engine.js';
 import { tryBreakConcentration, dropConcentrationIfUnconscious } from './spells-engine.js';
 import { applyDamageMultiplier, damageVerdict, type DamageType } from '../dnd/damage-types.js';
-import { consumeBuffs, readAcBonus } from './buff-engine.js';
+import { consumeBuffs, readAcBonus, tickBuffsEndOfTurn } from './buff-engine.js';
 import { resetReactionsForRound } from './reaction-engine.js';
 import { enrichAttackLog, buildKoNarration } from './combat-narrator.js';
 import { getInitiativeBonus } from '../dnd/feat-effects-engine.js';
@@ -234,7 +234,18 @@ export function advanceTurn(combat: CombatState, party: CharacterSheet[]): { par
   }
   // F23 — limpa flags de turn (sneak-attack-used, action-surge) do participante saindo
   const exiting = combat.initiativeOrder[combat.currentTurnIndex];
-  if (exiting) clearTurnFlags(combat, exiting.id);
+  if (exiting) {
+    clearTurnFlags(combat, exiting.id);
+    // Fase 2 — decrementa turnsLeft dos buffs do PJ que está SAINDO do turno.
+    // Shield (+5 CA, 1 turno) expira aqui; Bless/Escudo da Fé contam down.
+    if (exiting.kind === 'player') {
+      const pj = party.find((p) => p.id === exiting.id);
+      if (pj) {
+        const { expired } = tickBuffsEndOfTurn(pj);
+        for (const src of expired) combat.log.push(`${pj.characterName}: ${src} acabou.`);
+      }
+    }
+  }
 
   // Tenta até N voltas — se TODOS pulam, encerra.
   const max = combat.initiativeOrder.length * 2;
