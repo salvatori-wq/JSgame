@@ -5,6 +5,7 @@
 
 import type { CampaignState, CharacterSheet } from '../../shared/types';
 import { el, escapeHtml } from '../util';
+import { effectiveArmorClass } from '../../dnd/active-buffs';
 
 export interface RibbonContext {
   state: CampaignState | null;
@@ -98,16 +99,36 @@ function renderCombatBody(state: CampaignState, character: CharacterSheet | null
   // W3-DnD — Concentração visível mesmo em combate (consultor D&D pediu)
   const concEl = renderConcentrationChip(character);
 
-  return el('span', { class: 'sr-text' }, [
+  const items: (HTMLElement | null)[] = [
     el('span', { class: 'sr-glyph', text: '⚔️' }),
     el('span', { class: 'sr-mode-label', text: `R${combat.round}` }),
     el('span', { class: 'sr-sep', text: '·' }),
     el('span', { class: `sr-turn ${isMyTurn ? 'is-my-turn' : ''}`, text: turnText }),
-    economyGlyphs ? el('span', { class: 'sr-sep', text: '·' }) : null,
-    economyGlyphs,
-    concEl ? el('span', { class: 'sr-sep', text: '·' }) : null,
-    concEl,
-  ].filter(Boolean) as HTMLElement[]);
+  ];
+
+  // U1 — HP/CA do PRÓPRIO PJ na ribbon de combate. Antes só turno + economia;
+  // no momento de maior risco o jogador tinha que abrir a party panel pra ver
+  // a vida. HP é a info #1 em luta (cor crítica <25% via is-critical).
+  if (character) {
+    items.push(el('span', { class: 'sr-sep', text: '·' }));
+    items.push(el('span', {
+      class: `sr-hp ${hpIsCritical(character) ? 'is-critical' : ''}`,
+      text: `❤${character.currentHp}/${character.maxHp}`,
+    }));
+    items.push(el('span', { class: 'sr-sep', text: '·' }));
+    items.push(el('span', { class: 'sr-ac', text: `🛡${effectiveArmorClass(character)}`, attrs: { title: 'Classe de Armadura (com buffs ativos)' } }));
+  }
+
+  if (economyGlyphs) {
+    items.push(el('span', { class: 'sr-sep', text: '·' }));
+    items.push(economyGlyphs);
+  }
+  if (concEl) {
+    items.push(el('span', { class: 'sr-sep', text: '·' }));
+    items.push(concEl);
+  }
+
+  return el('span', { class: 'sr-text' }, items.filter(Boolean) as HTMLElement[]);
 }
 
 /**

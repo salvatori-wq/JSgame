@@ -247,9 +247,13 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
         on: {
           click: () => {
             if (a.id === 'attack' || a.id === 'grapple' || a.id === 'shove' || a.id === 'two-weapon') {
-              void import('../toast').then(({ toastInfo }) => toastInfo(`Clique no inimigo alvo (cards acima). Ação: ${a.label}.`));
-              // Marca ação pendente
+              // Marca ação pendente E revela a aba de inimigos (U2). O default
+              // é 'actions', que ESCONDE os enemy cards em mobile (combat.css
+              // display:none) — o player era mandado clicar em cards invisíveis.
+              // setActiveTab só troca data-active-tab; o pending persiste no window.
               (window as unknown as { __pendingCombatAction?: CombatActionKind }).__pendingCombatAction = a.id;
+              setActiveTab('enemies');
+              void import('../toast').then(({ toastInfo }) => toastInfo(`Escolha o inimigo alvo. Ação: ${a.label}.`));
               return;
             }
             if (a.id === 'help') {

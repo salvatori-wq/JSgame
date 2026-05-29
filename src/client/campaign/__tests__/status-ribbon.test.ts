@@ -176,6 +176,41 @@ describe('renderStatusRibbon', () => {
     expect(turn?.classList.contains('is-my-turn')).toBe(false);
   });
 
+  // U1 — HP/CA do PJ visível na ribbon de COMBATE (antes só turno + economia;
+  // jogador tinha que abrir a party panel pra ver a vida no auge do risco).
+  it('U1 — combat mostra HP e CA do próprio PJ', () => {
+    const character = makeCharacter({ currentHp: 22, maxHp: 30, armorClass: 16 });
+    const state = makeState({
+      mode: 'combat',
+      combat: {
+        active: true, round: 2,
+        initiativeOrder: [{ id: 'pc-1', kind: 'player', initiative: 15, name: 'Borin' }],
+        currentTurnIndex: 0, enemies: [], log: [],
+        actionEconomy: { 'pc-1': { action: true, bonusAction: true, reaction: true, movement: 30 } },
+      },
+    });
+    const el = renderStatusRibbon({ state, character, onExpand: () => {}, onExit: () => {} });
+    expect(el.textContent).toContain('22/30');
+    expect(el.querySelector('.sr-hp')).not.toBeNull();
+    const ac = el.querySelector('.sr-ac');
+    expect(ac).not.toBeNull();
+    expect(ac?.textContent).toContain('16');
+  });
+
+  it('U1 — combat HP crítico (<25%) marca is-critical', () => {
+    const character = makeCharacter({ currentHp: 6, maxHp: 30 });
+    const state = makeState({
+      mode: 'combat',
+      combat: {
+        active: true, round: 4,
+        initiativeOrder: [{ id: 'pc-1', kind: 'player', initiative: 10, name: 'Borin' }],
+        currentTurnIndex: 0, enemies: [], log: [],
+      },
+    });
+    const el = renderStatusRibbon({ state, character, onExpand: () => {}, onExit: () => {} });
+    expect(el.querySelector('.sr-hp')?.classList.contains('is-critical')).toBe(true);
+  });
+
   it('exit button dispara onExit', () => {
     const el = renderStatusRibbon({
       state: makeState(),
