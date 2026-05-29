@@ -86,3 +86,18 @@ describe('Φ.1 — Não regrediu tokens de tema existentes', () => {
     expect(TOKENS).toMatch(/--font-body:\s*'Cardo'/);
   });
 });
+
+// Rank 2 fix — var(--gold)/var(--ink) eram definidos SÓ em body.ux-contrast-boost
+// (ux-settings.css); muito CSS (status-ribbon = header mobile, chat, toasts,
+// glossary, initiative-ribbon...) usa esses vars crus, então sem o boost
+// resolviam vazio e caíam pra cor herdada (header mobile flat). Default canônico
+// em _tokens.css :root; o boost só intensifica.
+describe('Rank 2 — --gold/--ink têm default no :root (não dependem do contrast boost)', () => {
+  it('define --gold no _tokens.css (mapeado pro gold canônico)', () => {
+    expect(TOKENS).toMatch(/--gold:\s*var\(--ink-gold\)/);
+  });
+
+  it('define --ink no _tokens.css (mapeado pro warm canônico)', () => {
+    expect(TOKENS).toMatch(/--ink:\s*var\(--ink-warm\)/);
+  });
+});

@@ -17,6 +17,16 @@
   --accent-rune: #d4a857;
   --accent-blood: #c84032;
   --accent-life: #8cd070;
+  /* Aliases legados (Rank 2 fix): muito CSS (status-ribbon — que VIRA o header no
+   * portrait — + chat/toasts/glossary/initiative-ribbon/step-personality/
+   * ux-settings/action-dock) usa var(--gold)/var(--ink) CRUS, sem fallback.
+   * Eram definidos SÓ em body.ux-contrast-boost → sem o boost resolviam VAZIO e
+   * o gold/ink caía pra cor herdada (header mobile flat, sem o dourado de
+   * "Sair"/"Sua vez"). Default canônico aqui; o contrast boost (ux-settings.css)
+   * sobrescreve pra versão mais brilhante (#ffd884/#fff5dc). Mesma pegada do
+   * --accent-blood logo acima. */
+  --gold: var(--ink-gold);
+  --ink: var(--ink-warm);
 
   /* Tipografia — Sprint Φ.5: Cinzel (heading) + Cardo (body) via Google Fonts (index.html).
    * Cinzel = small caps elegantes dos títulos D&D oficial.
