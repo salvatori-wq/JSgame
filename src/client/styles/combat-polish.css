@@ -175,6 +175,18 @@
   box-shadow: 0 0 12px rgba(244, 208, 127, 0.5);
 }
 
+/* U5 — em portrait o combat-screen vive num dock de 35vh com scroll (Ω.9). O
+ * "Encerrar turno" caía abaixo do fold sem affordance. Sticky no fim do scroll
+ * mantém ele SEMPRE alcançável, sem aumentar o dock (respeita Ω.9). Fundo
+ * quase opaco + sombra: os botões de ação rolam por baixo sem vazar. */
+body.is-portrait-narrow .cb-end-turn-chip {
+  position: sticky;
+  bottom: 6px;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(60, 50, 30, 0.97), rgba(40, 32, 18, 0.99));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
 .cb-end-turn-chip.is-pulsing {
   animation: end-turn-pulse 1.6s ease-in-out infinite;
   border-width: 2px;

@@ -585,7 +585,9 @@ export class CampaignScreen {
           kind: 'd20',
           label: 'ATAQUE',
           preview: ev.preview,
-          final: ev.value,
+          // D5 — o dado cai na face d20 crua (ev.nat); o total (ev.value) fica
+          // no verdict. Fallback pro total se nat ausente (server antigo no deploy).
+          final: ev.nat ?? ev.value,
           special,
           verdictText: ev.crit ? 'CRÍTICO!' : ev.nat1 ? 'FALHA CRÍTICA' : `Resultado ${ev.value}`,
           // W1.3 — sem showAfterMs manual: deixa default (2500ms / 4000ms crit/fumble)

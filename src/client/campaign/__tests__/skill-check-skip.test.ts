@@ -68,3 +68,32 @@ describe('M1.2 — Skip button no skill-check overlay', () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 });
+
+// D6 — o dado em si é clicável (o verdict idle diz "toque pra rolar").
+describe('D6 — dado clicável no skill-check', () => {
+  const check: PendingCheck = { skill: 'percepcao', dc: 12, reason: 'Notar emboscada', bonus: 3, inspirations: 0 };
+
+  beforeEach(() => {
+    document.body.innerHTML = '<div id="app"></div>';
+    try { localStorage.setItem('jsgame:skillCheckTutorialSeen', '1'); } catch { /* */ }
+  });
+  afterEach(() => { closeSkillCheck(); document.body.innerHTML = ''; });
+
+  it('clicar no dado dispara onRoll', () => {
+    const onRoll = vi.fn();
+    showPendingSkillCheck(check, onRoll);
+    const die = document.querySelector('.sc-overlay .die-3d') as HTMLElement | null;
+    expect(die).not.toBeNull();
+    die!.click();
+    expect(onRoll).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicar no dado 2x rola só 1x (one-shot)', () => {
+    const onRoll = vi.fn();
+    showPendingSkillCheck(check, onRoll);
+    const die = document.querySelector('.sc-overlay .die-3d') as HTMLElement;
+    die.click();
+    die.click();
+    expect(onRoll).toHaveBeenCalledTimes(1);
+  });
+});

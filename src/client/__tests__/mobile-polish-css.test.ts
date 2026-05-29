@@ -873,3 +873,20 @@ describe('C1 — chat.css contador ancorado ao footer (não sobre o input)', () 
     expect(css).toMatch(/\.cs-char-counter\s*\{[^}]*bottom:\s*calc\(100%/);
   });
 });
+
+describe('U4/U5 — combate: hierarquia de turno + end-turn alcançável', () => {
+  const combat = readCss('combat.css');
+  const polish = readCss('combat-polish.css');
+
+  it('U4 — .cb-turn.is-my-turn destacado (bold dourado)', () => {
+    expect(combat).toMatch(/\.cb-turn\.is-my-turn\s*\{[^}]*font-weight:\s*700/);
+  });
+
+  it('U4 — .cb-round recuado pra secundário (fs-sm)', () => {
+    expect(combat).toMatch(/\.cb-round\s*\{[^}]*font-size:\s*var\(--fs-sm\)/);
+  });
+
+  it('U5 — .cb-end-turn-chip sticky no fim do dock em portrait', () => {
+    expect(polish).toMatch(/is-portrait-narrow\s+\.cb-end-turn-chip\s*\{[^}]*position:\s*sticky/);
+  });
+});

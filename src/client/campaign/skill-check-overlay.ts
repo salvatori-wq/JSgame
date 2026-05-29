@@ -114,6 +114,13 @@ export function showPendingSkillCheck(
     }, WATCHDOG_MS);
   };
 
+  // D6 — o próprio dado é clicável (o verdict idle diz "toque pra rolar"). Antes
+  // só o botão rolava; em mobile o dado 140px é o alvo de toque natural.
+  die.style.cursor = 'pointer';
+  die.setAttribute('role', 'button');
+  die.setAttribute('aria-label', 'Rolar o dado');
+  die.addEventListener('click', () => rollAndDisable(false));
+
   const rollBtn = el('button', {
     class: 'sc-roll-btn',
     text: '🎲 Rolar d20',

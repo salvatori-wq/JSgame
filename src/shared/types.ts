@@ -665,6 +665,10 @@ export interface CombatEvent {
   // γ.1 — Attack roll metadata: emitido ANTES de damage/attack-miss pra cliente
   // disparar overlay do dado. value = roll total (d20+bonus), crit/nat1 flags.
   nat1?: boolean;
+  // D5 — face natural do d20 (rolls[0], já escolhida sob vantagem/desvantagem).
+  // O dado FÍSICO cai nessa face (1-20); `value` continua o total (d20+bônus)
+  // pro verdict/preview. Sem isso o físico clampava totais >20 em 20.
+  nat?: number;
   // γ.1 — Texto curto pra preview no overlay (ex: "d20+5 vs CA 13").
   preview?: string;
 }

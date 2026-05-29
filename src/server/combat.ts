@@ -402,6 +402,7 @@ export function resolvePlayerAttack(
     sourceId: attacker.id,
     targetId: target.id,
     value: attackRoll.total,
+    nat: attackRoll.rolls[0], // D5 — face d20 crua (o dado físico cai nela; value = total)
     crit,
     nat1: !!attackRoll.nat1,
     preview: `d20${attackBonus >= 0 ? '+' : ''}${attackBonus} vs CA ${target.armorClass}`,
@@ -575,6 +576,7 @@ export function resolveEnemyTurn(
     sourceId: enemy.id,
     targetId: target.id,
     value: attackRoll.total,
+    nat: attackRoll.rolls[0], // D5 — face d20 crua (consistência; só player abre overlay)
     crit,
     nat1: !!attackRoll.nat1,
     preview: `d20+${enemy.attackBonus} vs CA ${effectiveAc}`,

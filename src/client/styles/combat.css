@@ -28,18 +28,26 @@
   border-radius: var(--r-md);
   box-shadow: 0 2px 8px rgba(120, 30, 25, 0.25);
 }
+/* U4 — Round recua pra info secundária (era o elemento grande/brilhante). */
 .cb-round {
   font-family: var(--font-heading);
-  font-size: var(--fs-md);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #ff9070;
-  text-shadow: 0 0 8px rgba(255, 144, 112, 0.5);
-}
-.cb-turn {
   font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 144, 112, 0.7);
+}
+/* U4 — "Sua vez"/"Vez de X" vira o protagonista do header de combate. */
+.cb-turn {
+  font-family: var(--font-heading);
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
   color: var(--ink-warm);
-  font-style: italic;
+  font-style: normal;
+}
+.cb-turn.is-my-turn {
+  color: var(--ink-gold, #f4d07f);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(244, 208, 127, 0.5);
 }
 
 /* F31: initiative tracker em horizontal scroll (cinematic, ocupa pouca altura) */

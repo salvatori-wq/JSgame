@@ -126,11 +126,15 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     else if (dx < 0 && idx < tabs.length - 1) setActiveTab(tabs[idx + 1]!);
   });
 
-  // ── Header: round + current turn
+  // ── Header: turno (dominante) + round (secundário)
+  // U4 — antes "Round N" era grande e "Vez de X" minúsculo itálico apagado.
+  // Inverte: de quem é a vez é a info #1 do combate; "Sua vez" ganha destaque
+  // dourado. Round recua pra secundário.
   const current = combat.initiativeOrder[combat.currentTurnIndex];
+  const headerIsMine = isMyTurn(combat, myCharacterId);
   root.appendChild(el('div', { class: 'cb-header' }, [
+    el('span', { class: `cb-turn ${headerIsMine ? 'is-my-turn' : ''}`, text: headerIsMine ? '▶ Sua vez' : (current ? `Vez de ${current.name}` : '—') }),
     el('span', { class: 'cb-round', text: `Round ${combat.round}` }),
-    el('span', { class: 'cb-turn', text: current ? `Vez de ${current.name}` : '—' }),
   ]));
 
   // W3.3 — Sprint W: Action Economy STICKY top.

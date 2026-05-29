@@ -105,4 +105,28 @@ describe('γ.1 — attack-roll combat event', () => {
     const res = resolvePlayerAttack(attacker, targetId, combat);
     expect(res!.events[0]!.preview).toContain('CA 18');
   });
+
+  // D5 — o evento carrega a face d20 CRUA (nat) pro dado físico cair nela.
+  // Antes só `value` (total d20+bônus) era emitido → o físico clampava >20 em 20.
+  it('D5 — attack-roll inclui nat (face d20 em [1,20]), distinta do total', () => {
+    const attacker = makeChar('p1', 'Borin', { abilityScores: { for: 18, des: 10, con: 14, int: 8, sab: 10, car: 8 } });
+    const combat = startCombat({
+      party: [attacker],
+      enemies: [{ name: 'Treino', hp: 500, ac: 5 }], // CA baixa = sempre hit, hp alto = não morre
+    });
+    const targetId = combat.enemies[0]!.id;
+    let sawTotalAboveNat = false;
+    for (let i = 0; i < 80; i++) {
+      combat.enemies[0]!.currentHp = 500;
+      const res = resolvePlayerAttack(attacker, targetId, combat);
+      if (!res) continue;
+      const ar = res.events[0]!;
+      expect(typeof ar.nat).toBe('number');
+      expect(ar.nat!).toBeGreaterThanOrEqual(1);
+      expect(ar.nat!).toBeLessThanOrEqual(20);
+      if ((ar.value ?? 0) > (ar.nat ?? 0)) sawTotalAboveNat = true;
+    }
+    // total = nat + bônus positivo → ao menos uma vez value > nat (provam ser distintos)
+    expect(sawTotalAboveNat).toBe(true);
+  });
 });
