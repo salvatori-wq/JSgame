@@ -7,6 +7,7 @@ import type { CombatState, CharacterSheet } from '../../shared/types';
 import { el } from '../util';
 import { portraitFor } from '../../dnd/portrait';
 import { getCondition } from '../../dnd/conditions';
+import { iconEl, enemyIconName } from '../icons/game-icons';
 
 export interface InitiativeRibbonContext {
   combat: CombatState;
@@ -75,7 +76,7 @@ export function renderInitiativeRibbon(ctx: InitiativeRibbonContext): HTMLElemen
           avatar = el('span', { class: 'irb-avatar irb-avatar-default', text: '🧙' });
         }
       } else {
-        avatar = el('span', { class: 'irb-avatar irb-avatar-enemy', text: '👹' });
+        avatar = iconEl(enemyIconName(p.name), '👹', { className: 'irb-avatar irb-avatar-enemy' });
       }
 
       const node = el('button', {

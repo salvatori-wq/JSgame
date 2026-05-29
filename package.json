@@ -10,6 +10,7 @@
     "dev:client": "vite",
     "build": "vite build",
     "build:check": "tsc --noEmit && vite build",
+    "gen:icons": "node scripts/gen-game-icons.mjs",
     "preview": "vite preview",
     "start": "tsx src/server/index.ts",
     "typecheck": "tsc --noEmit",

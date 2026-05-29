@@ -3,6 +3,7 @@
 // via tokens --dnd-rarity-*. Atunement badge dourado quando aplicável.
 
 import { el } from '../util';
+import { iconEl, itemTypeIconName } from '../icons/game-icons';
 import type { InventoryItem, ItemRarity } from '../../shared/types';
 
 export interface RenderItemCardOpts {
@@ -30,7 +31,7 @@ export function renderItemCard(item: InventoryItem, opts: RenderItemCardOpts = {
 
   // ── Header row: icon + name + rarity gem ──────────────────────────────
   const head = el('div', { class: 'ic-head' });
-  head.appendChild(el('span', { class: 'ic-icon', text: iconFor(item.type) }));
+  head.appendChild(iconEl(itemTypeIconName(item.type), iconFor(item.type), { className: 'ic-icon' }));
   head.appendChild(el('div', { class: 'ic-name', text: item.name }));
   // Rarity gem indicator (small dot colored by rarity)
   head.appendChild(el('span', {

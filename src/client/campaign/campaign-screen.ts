@@ -33,6 +33,7 @@ import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
 import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
+import { iconEl, classIconName } from '../icons/game-icons';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
@@ -1642,7 +1643,7 @@ export class CampaignScreen {
       }, [
         el('div', { class: 'cp-pj-portrait', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
           el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
-          el('span', { class: 'cp-pj-portrait-class', text: portrait.class }),
+          iconEl(classIconName(p.classId), portrait.class, { className: 'cp-pj-portrait-class' }),
         ]),
         el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
         el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${p.armorClass} · HD ${p.hitDiceRemaining}/${p.level}` }),

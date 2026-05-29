@@ -12,6 +12,7 @@ import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-m
 import { portraitFor } from '../../dnd/portrait';
 import { renderClassFeaturesBar } from './class-features-bar';
 import { getConditionIcon, getConditionDescription } from './condition-icons';
+import { iconEl, enemyIconName, conditionIconName } from '../icons/game-icons';
 import { renderInitiativeRibbon } from './initiative-ribbon';
 import { enemyToStatBlock } from '../components/stat-block';
 import { openStatBlockModal } from '../components/stat-block-modal';
@@ -418,7 +419,10 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
         openStatBlockModal(enemyToStatBlock(en));
       } },
     }),
-    el('div', { class: 'cb-enemy-name', text: en.name }),
+    el('div', { class: 'cb-enemy-name-row' }, [
+      iconEl(enemyIconName(en.name, en.isBoss), en.isBoss ? '👺' : '👹', { className: `cb-enemy-glyph ${en.isBoss ? 'is-boss-glyph' : ''}` }),
+      el('span', { class: 'cb-enemy-name', text: en.name }),
+    ]),
     // W3.1 — Adjetivo HP em vez de stats numéricos. Tooltip explica como ver detalhes.
     el('div', {
       class: `cb-enemy-meta cb-enemy-hp-adj cb-enemy-hp-${hpAdj.replace(/\s+/g, '-')}`,
@@ -439,9 +443,11 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
       const desc = getConditionDescription(c);
       condRow.appendChild(el('span', {
         class: `cb-cond-pill cb-cond-${conditionSeverity(c)}`,
-        text: `${getConditionIcon(c)} ${c}`,
         attrs: desc ? { title: desc } : {},
-      }));
+      }, [
+        iconEl(conditionIconName(c), getConditionIcon(c), { className: 'cb-cond-icon' }),
+        ` ${c}`,
+      ]));
     }
     card.appendChild(condRow);
   }

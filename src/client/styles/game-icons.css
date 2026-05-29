@@ -1,0 +1,63 @@
+/* JSgame · Fase 1A — Motor de ícones SVG (game-icons.net, CC BY 3.0).
+ * Base: SVG herda cor via currentColor e tamanho via font-size do container.
+ * Sizing fino é por contexto (enemy avatar, chip de condição, etc). */
+
+.gi {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  fill: currentColor;
+  /* alinha como um glifo de texto */
+  vertical-align: -0.125em;
+  flex: 0 0 auto;
+  /* nitidez em telas comuns */
+  shape-rendering: geometricPrecision;
+}
+
+/* Wrapper produzido por iconEl() — centra SVG ou emoji de reserva. */
+.gi-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.gi-wrap .gi {
+  width: 1em;
+  height: 1em;
+}
+
+/* Quando caiu no emoji de reserva, não força fill/size do SVG. */
+.gi-wrap-emoji {
+  font-variant-emoji: emoji;
+}
+
+/* Transição sutil de cor (combina com hover/severidade dos cards). */
+@media (prefers-reduced-motion: no-preference) {
+  .gi { transition: fill 160ms ease, color 160ms ease; }
+}
+
+/* ── Contexto: avatar de inimigo no combate (Fase 1A) ──────────────────── */
+/* O SVG herda cor do span (currentColor → fill). Tom osso pra comum,
+ * vermelho-sangue pro chefe. .is-down do card já dessatura via grayscale. */
+.cb-enemy-glyph.gi-wrap {
+  font-size: 26px;
+  color: #d8c5a0;
+}
+.cb-enemy-glyph.is-boss-glyph {
+  color: #e0563b;
+  filter: drop-shadow(0 0 5px rgba(224, 86, 59, .45));
+}
+
+/* Linha nome+ícone no card de inimigo (Fase 1A) */
+.cb-enemy-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.cb-enemy-name-row .cb-enemy-name { min-width: 0; }
+
+/* ── Contexto: avatar na fita de iniciativa ────────────────────────────── */
+.irb-avatar-enemy.gi-wrap { color: #e0a0a0; }
+.irb-avatar-enemy.gi-wrap .gi { width: .9em; height: .9em; }

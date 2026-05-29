@@ -4,6 +4,7 @@
 // Usado em cast-spell-modal (compact) + tooltips/details (full).
 
 import { el, escapeHtml } from '../util';
+import { iconEl, schoolIconName } from '../icons/game-icons';
 import type { SpellDef, SpellSchool } from '../../dnd/spells';
 
 export interface RenderSpellCardOpts {
@@ -25,7 +26,7 @@ export function renderSpellCard(sp: SpellDef, opts: RenderSpellCardOpts = {}): H
 
   // ── School badge: ícone + cor ─────────────────────────────────────────
   card.appendChild(el('div', { class: 'sc-school-badge', attrs: { title: schoolLabel(sp.school) } }, [
-    el('span', { class: 'sc-school-icon', text: schoolIcon(sp.school) }),
+    iconEl(schoolIconName(sp.school), schoolIcon(sp.school), { className: 'sc-school-icon' }),
   ]));
 
   // ── Level chip ────────────────────────────────────────────────────────

@@ -57,7 +57,9 @@ describe('Φ.4 — renderItemCard', () => {
   it('renderiza nome + ícone + descrição', () => {
     const card = renderItemCard(baseItem());
     expect(card.querySelector('.ic-name')?.textContent).toBe('Espada Longa');
-    expect(card.querySelector('.ic-icon')?.textContent).toBe('⚔');
+    // Fase 1A — ícone agora é SVG (game-icons) com fallback emoji.
+    const icon = card.querySelector('.ic-icon');
+    expect(icon?.querySelector('svg') ?? icon?.textContent).toBeTruthy();
     expect(card.querySelector('.ic-desc')?.textContent).toBe('Espada de aço afiada.');
   });
 

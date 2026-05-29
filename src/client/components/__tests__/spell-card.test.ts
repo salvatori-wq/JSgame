@@ -111,7 +111,9 @@ describe('Φ.3 — renderSpellCard', () => {
   it('renderiza school icon dentro do badge', () => {
     const card = renderSpellCard(fireBolt);
     const icon = card.querySelector('.sc-school-icon');
-    expect(icon?.textContent).toBe('🔥');
+    expect(icon).toBeTruthy();
+    // Fase 1A — ícone agora é SVG (game-icons) com fallback emoji.
+    expect(icon?.querySelector('svg') ?? icon?.textContent).toBeTruthy();
   });
 
   it('renderiza stats grid com Alcance / Componentes / Duração', () => {
