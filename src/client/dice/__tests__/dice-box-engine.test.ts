@@ -25,8 +25,14 @@ afterEach(() => {
 });
 
 describe('physicalDiceEnabled — gating', () => {
-  it('default ON quando pref não setada e há force-motion', () => {
+  it('default OFF quando pref não setada (CSS é o confiável; físico é opt-in)', () => {
     document.body.classList.add('force-motion'); // vence reduced-motion
+    expect(physicalDiceEnabled()).toBe(false);
+  });
+
+  it('ON só quando physicalDice=true explícito + force-motion', () => {
+    document.body.classList.add('force-motion');
+    setUxPrefs({ physicalDice: true });
     expect(physicalDiceEnabled()).toBe(true);
   });
 

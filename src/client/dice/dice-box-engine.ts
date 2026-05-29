@@ -10,7 +10,8 @@
 //      o server decidiu (mantém aparência aleatória).
 //   3. FALLBACK TOTAL: se init falhar (sem WebGL/WASM, browser velho, asset 404),
 //      marca indisponível pra sempre e o caller usa o dado CSS. try/catch em tudo.
-//   4. TOGGLE: UX pref `physicalDice` (default ON). reduced-motion → desliga.
+//   4. TOGGLE: UX pref `physicalDice` (default OFF — opt-in em Ajustes; o CSS
+//      é o confiável). reduced-motion → desliga.
 //
 // API pública:
 //   physicalDiceEnabled(): boolean          — deve tentar usar o físico?
@@ -39,12 +40,14 @@ export interface RollPhysicalOpts {
   onSettle?: () => void;
 }
 
-/** O físico deve ser tentado? (pref ligada + não reduced-motion + não marcado unsupported). */
+/** O físico deve ser tentado? (pref EXPLICITAMENTE ligada + não reduced-motion
+ * + não marcado unsupported). Default OFF — o dado CSS (dice-3d) é o confiável;
+ * o físico cobria o dado CSS no celular (canvas z-9600). Opt-in em Ajustes. */
 export function physicalDiceEnabled(): boolean {
   if (state === 'unsupported') return false;
   if (prefersReducedMotion()) return false; // reduced-motion → dado CSS leve
   try {
-    return getUxPrefs().physicalDice !== false; // default ON
+    return getUxPrefs().physicalDice === true; // default OFF (opt-in)
   } catch {
     return false;
   }

@@ -33,7 +33,11 @@ export const DEFAULT_PREFS: UxPrefs = {
   animSpeed: 'normal',
   typewriterSpeed: 'normal',
   forceMotion: true,
-  physicalDice: true,
+  // Dado físico 3D (dice-box) default OFF: em mobile ele carrega ~600KB lazy e
+  // o canvas full-screen (#dice-box-mount, z-9600) cobria o dado CSS do skill-
+  // check (z-9000) → "dado não cai" no celular. O dado CSS (dice-3d) é o
+  // confiável e sempre visível. Físico vira opt-in em Ajustes.
+  physicalDice: false,
 };
 
 let cached: UxPrefs | null = null;

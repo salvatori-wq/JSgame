@@ -121,6 +121,12 @@ export class CampaignScreen {
   private lastAction: { action: string; details?: string } | null = null;
   private lastActionAt = 0;
   private autoRetriedThisCycle = false;
+  // Watchdog do Mestre: se o DM não responder (LLM mudo/sem chave em prod), o
+  // thinking spinner ficava girando pra sempre = "nada ocorre" (feedback do
+  // João no celular). Após uma ação, se nenhum dmDone/error chega em N s,
+  // limpamos o spinner + mostramos erro visível + reabilitamos as ações.
+  private responseWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly DM_RESPONSE_TIMEOUT_MS = 30000;
   // Quando faz retry silent OU click "Tentar de novo", o server vai emitir
   // OUTRO echo "▶ Player: action" — supressNextPlayerEcho consome o próximo
   // echo do player pra evitar dupla mensagem visual no log.
@@ -183,6 +189,7 @@ export class CampaignScreen {
   }
 
   destroy(): void {
+    this.clearResponseWatchdog();
     for (const off of this.socketCleanups) off();
     this.socketCleanups = [];
     for (const off of this.viewportCleanups) off();
@@ -738,6 +745,7 @@ export class CampaignScreen {
     const clearThinking = (): void => {
       this.isDmThinking = false;
       if (this.narrationLog) this.narrationLog.setThinking(null);
+      this.clearResponseWatchdog(); // Mestre respondeu (ou erro) — cancela o watchdog
     };
 
     const onDone = (): void => {
@@ -2039,6 +2047,27 @@ export class CampaignScreen {
     this.lastActionAt = Date.now();
     this.autoRetriedThisCycle = false; // novo ciclo
     this.opts.socket.emit('takeAction', { action, details });
+    this.startResponseWatchdog();
+  }
+
+  /** Watchdog do Mestre — arma o timer ao enviar uma ação. clearThinking()
+   * (dmDone/error) cancela. Se estourar, o Mestre ficou mudo → erro visível. */
+  private startResponseWatchdog(): void {
+    this.clearResponseWatchdog();
+    this.responseWatchdogTimer = setTimeout(() => {
+      this.responseWatchdogTimer = null;
+      this.isDmThinking = false;
+      if (this.narrationLog) this.narrationLog.setThinking(null);
+      this.updateMainContent(); // reabilita a barra de ações
+      toastError('🌙 O Mestre não respondeu. Toque numa ação pra tentar de novo.');
+    }, this.DM_RESPONSE_TIMEOUT_MS);
+  }
+
+  private clearResponseWatchdog(): void {
+    if (this.responseWatchdogTimer) {
+      clearTimeout(this.responseWatchdogTimer);
+      this.responseWatchdogTimer = null;
+    }
   }
 
   private openSpellModal(): void {
