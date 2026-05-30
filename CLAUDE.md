@@ -82,7 +82,48 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-29 (Redesign layout mobile mode-aware — 4 movimentos + docs, 5 commits, suite 2042 verde, combate domina a tela)
+> Última atualização: 2026-05-30 (Plano profundo WhatsApp+dado+batalha — 6 fases, 6 commits, suite 2073→2103 verde, **NÃO pushado ainda — aguarda OK do João pro deploy**)
+
+### Plano profundo "Mobile WhatsApp + Dado que sempre rola + Batalha que cabe" — entregue (6 fases, +30 tests)
+
+Executado o plano `radiant-hopping-swing.md` INTEIRO. 6 commits sobre `b86c697`
+(HEAD anterior = origin/main). **Ainda NÃO pushado** — deploy (Fase 5) aguarda OK
+do João. Tudo atrás de `is-portrait-narrow` (desktop não regride — provado por
+DOM no preview: exploração mantém grid no main-content, combate mantém abas+grid
+direto, sem barra inferior). Cada fase medida a 390×844 E 360×800 via
+`preview_eval`+`getBoundingClientRect` (screenshot trava).
+
+- **Fase 1 — Dado gira no toque** (`7b66d96`): partiu `rollAndReveal` em
+  `startSpinning` (gira agora, sem valor) + `settle` (assenta quando o servidor
+  responde). `skill-check-overlay` gira no `rollAndDisable` (tap→is-rolling
+  **3.2ms** medido, não LLM-gated) e assenta no `showSkillCheckResult`. Watchdog
+  inline conserta o "Tentar de novo" (era preso pelo guard `rolled`). +12 tests.
+- **Fase 2 — Menu WhatsApp** (`51e5f5d`): barra inferior `🧭 Explorar · 💬 Falar ·
+  ⚔ Batalha · 🎲 Dado · ⋯ Mais` (Batalha=`takeAction('attack')`, Livre foi pro
+  Mais). Faixa de party solo (45px) vira `role=button` + chevron → tap abre a
+  ficha num bottom-sheet (`renderPartyCard` extraído). Narração domina (689px),
+  zero sobreposições (elementFromPoint). +3 tests.
+- **Fase 3 — Batalha cabe** (`6ecb7e3`): `min-height:0` no dock de combate (o
+  overflow engata, não estoura mais o fold em 921px). Barra de combate `[⚔ Atacar
+  dominante 2×, 🎲 Dado, ⋯ Mais]` (era só Mais); Atacar=target-first (auto 1
+  inimigo ou picker → combat-target-sheet). Grid de 10 botões colapsa num
+  `<details>` "+ ações" → dock cai **852→544px**. Inimigo+economia sem rolar.
+- **Fase 4 — Faxina** (`675e31a`): sweep DOM de cada tela. 2 achados: botão coop
+  ~36px→44px; body do member-sheet `flex:1` (rola se ficha alta). Resto limpo
+  (zero overflow-x/sobreposição). Checklist em `FASE4_FAXINA_LAYOUT.md`.
+- **Fase 5 — Deploy+keep-alive** (`3b5fb4c`): `.github/workflows/keep-alive.yml`
+  (cron 10min → `/api/health`, mata cold-start, grátis em repo público) +
+  `FASE5_DEPLOY.md` (passo a passo Manual Deploy). **Push + deploy = ação do João.**
+- **Fase 6 — Regras** (`8eafbba`): Rank 8 (inimigo free-form ganha abilityScores
+  por proxy de CR — saves não são +0), Rank 11 (`'active'` mira o ator da vez via
+  `Campaign.lastActingPlayerId`, não party[0]), Rank 12 (golpe de misericórdia:
+  apply_damage em PJ caído conta falha de morte). +11 tests.
+
+**Pendente (BLOQUEANTE pro João VER)**: `git push origin main` + Manual Deploy no
+Render (prod ainda no bundle velho `vi39x_TX`). Ver `FASE5_DEPLOY.md`. Depois:
+confirmar no celular real (dado gira, menu, batalha cabe, tap na ficha).
+
+> Última atualização anterior: 2026-05-29 (Redesign layout mobile mode-aware — 4 movimentos + docs, 5 commits, suite 2042 verde, combate domina a tela)
 
 ### Redesign de layout mobile (mode-aware) — entregue (4 movimentos, +33 tests)
 
