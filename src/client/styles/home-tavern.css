@@ -587,6 +587,11 @@
   padding-top: 8px;
 }
 .home-coop-btn-advanced {
+  /* Fase 4 (faxina) — min-height 44px (era ~36px): hit target WCAG no mobile. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   padding: 10px 18px;
   font-size: 12px;
   background: rgba(180, 150, 90, 0.16);

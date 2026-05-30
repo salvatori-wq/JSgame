@@ -91,4 +91,10 @@ describe('② Combate — desktop mantém abas (sem is-portrait-narrow)', () => 
     const screen = c.querySelector('.combat-screen')!;
     expect(screen.getAttribute('data-active-tab')).toBe('actions');
   });
+
+  it('Fase 3 — desktop NÃO colapsa o grid (sem <details>, grid direto)', () => {
+    const c = render();
+    expect(c.querySelector('details.cb-actions-collapse')).toBeNull();
+    expect(c.querySelector('.cb-actions-grid')).toBeTruthy();
+  });
 });
