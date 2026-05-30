@@ -1107,4 +1107,16 @@ describe('Responsivo F1-F4 — sistema fluido', () => {
     const combat = readCss('combat.css');
     expect(combat).toMatch(/\.cb-cond-pill\s*\{[\s\S]*?font-size:\s*var\(--fs-xs\)/);
   });
+
+  // F6.QA — ciclos de teste (glossário/ajustes/inventário)
+  it('F6.QA — .cs-close (× compartilhado dos sheets) tem base + 44px no mobile', () => {
+    const modals = readCss('modals.css');
+    expect(modals).toMatch(/\.cs-close\s*\{[\s\S]*?width:\s*36px/);
+    expect(modals).toMatch(/body\.is-portrait-narrow\s+\.cs-close\s*\{[^}]*(width|height):\s*44px/);
+  });
+
+  it('F6.QA — inputs de texto ≥16px no mobile (mata o auto-zoom do iOS)', () => {
+    const ml = readCss('m-layout.css');
+    expect(ml).toMatch(/body\.is-portrait-narrow\s+input[\s\S]*?font-size:\s*max\(16px,\s*var\(--fs-base\)\)/);
+  });
 });

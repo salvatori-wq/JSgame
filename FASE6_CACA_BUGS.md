@@ -18,6 +18,10 @@ dice overlay e tutorial não estouram em NENHUM tamanho da matriz**; font-scale
 (2 corrigidos, 1 polish adiado) e **desmascarou a maioria dos achados do
 esquadrão como falso-positivo ou código morto** — a verificação empírica valeu.
 
+> **Ciclos de teste extra (a pedido do João, pós-F6):** varri os modais/telas
+> que não tinha tocado (glossário, ajustes, inventário, sheet). +2 fixes reais
+> (`.cs-close` e iOS auto-zoom) — ver seção própria abaixo. Suite 2123→2125.
+
 ---
 
 ## Ciclo A — Sweep empírico multi-tamanho (medição DOM)
@@ -73,6 +77,37 @@ a linha de bônus em raças de string longa (ex. Humano — medido a 320). O alv
 maior pede reposicionar/reestruturar o card — fora do escopo de um sweep de CSS.
 
 ---
+
+## Ciclos de teste extra (pós-F6) — modais/telas reachable + montadas
+
+Varredura empírica de telas não cobertas antes (preview a 320×568), medindo
+overflow / hit-targets / font-size de input. Telas: glossário, ajustes (UX
+settings), inventário (montado com PJ mock), login (rota de fundo).
+
+### ✅ QA#1 — `.cs-close` (× dos sheets) era 12×19px (P1, CORRIGIDO)
+O "×" de fechar é compartilhado por glossário/ajustes/chat, mas só o chat tinha
+tamanho (`.chat-sheet .cs-close`=32px). Glossário e ajustes caíam no default do
+`<button>` → **12×19px** (intocável). **Fix:** base `.cs-close` (36px) +
+`body.is-portrait-narrow .cs-close` 44px (`modals.css`). Re-medido: **44×44**.
+
+### ✅ QA#2 — inputs <16px disparavam auto-zoom do iOS (P2, CORRIGIDO)
+gl-search 15, home-coop 12, owner 15, chat 14 — todos < 16px → iOS Safari dá
+zoom ao focar (e o usuário pinça de volta). Nota: o Ciclo S2.5 tinha posto
+gl-search a 15px "pra evitar o zoom", mas o limiar é **16**. **Fix:** uma regra
+em `m-layout.css` — `body.is-portrait-narrow input/textarea/select { font-size:
+max(16px, var(--fs-base)) }` (≥16 sempre + cresce com font-scale). Re-medido:
+`zoomInputCount 4 → 0`.
+
+### Sweep limpo / P2 adiados (extra)
+- **Inventário** @320: zero overflow, close 44×44, zoom 0. `.inv-mini-btn` (✕
+  remover item) é w20 mas h44 — estreito-mas-alto, ação destrutiva secundária
+  (P2, talvez intencional pra evitar toque acidental).
+- **Ajustes** `.uxs-seg-btn` 36px (densidade/font-scale/anim) — 4px abaixo do
+  piso 40; crescer deixaria o modal mais alto (P2, secundário).
+- **Sheet** fontes 9px (`.sv-sub`/`.sa-name`) — montagem standalone do
+  `renderSheet` é frágil (mock parcial); como é área densa de referência e o
+  swap pra `--fs-*` tem risco de shift NÃO verificável agora, fica P2 (igual F6).
+- **login-anon-btn** h39 (1px sob o piso 40) — tolerância de arredondamento.
 
 ## Falsos-positivos do esquadrão (verificados, NÃO são bug)
 

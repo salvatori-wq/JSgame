@@ -674,6 +674,29 @@ body.is-portrait-narrow .cb-eco-slot {
 /* ═══════════════════════════════════════════════════════════════════════
    Login Screen — F15 magic link auth
    ═══════════════════════════════════════════════════════════════════════ */
+/* Responsivo F6.QA — .cs-close é o "×" COMPARTILHADO dos sheets (glossário,
+ * ajustes, chat). Só o chat tinha tamanho (.chat-sheet .cs-close = 32px); nos
+ * outros caía no default do <button> (~12×19px, intocável no toque). Base com
+ * hit decente + 44px no mobile (vence o 32 do chat em portrait por
+ * especificidade). Medido: glossário/ajustes fechavam num alvo de 12px. */
+.cs-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--ink-mute);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.cs-close:hover { color: var(--ink); background: rgba(244, 208, 127, 0.08); }
+body.is-portrait-narrow .cs-close { width: 44px; height: 44px; }
+
 .login-screen {
   /* Responsivo F6 — 100dvh (não 100vh): com a barra do browser mobile visível
    * o 100vh resolve MAIOR que a área visível e empurra o botão de login pra

@@ -368,3 +368,15 @@ body.is-portrait-narrow {
 body.is-portrait-narrow .home-container {
   padding: var(--m-padding-screen, 12px);
 }
+
+/* Responsivo F6.QA — inputs de texto NUNCA abaixo de 16px no mobile: o iOS
+ * Safari faz AUTO-ZOOM ao focar um input com font<16px (e o usuário tem que
+ * pinçar de volta). max(16px, var(--fs-base)) garante ≥16 (sem zoom) E ainda
+ * cresce com a pref de font-scale. Medido: gl-search 15, coop 12, chat 14,
+ * owner 15 — todos disparavam o zoom. Inputs são funcionais (não texto
+ * narrativo), então 16px de piso é seguro pro layout. */
+body.is-portrait-narrow input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+body.is-portrait-narrow textarea,
+body.is-portrait-narrow select {
+  font-size: max(16px, var(--fs-base));
+}
