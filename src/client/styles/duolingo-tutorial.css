@@ -240,6 +240,25 @@
   }
 }
 
+/* Responsivo F4 — viewport curto (landscape, telas baixas): o card do tutorial
+ * (glyph + título + texto + nav) pode passar da altura e, centrado, cortar topo
+ * e base sem rolar. Cap 80dvh + scroll interno + padding/margens menores. O hit
+ * de Pular/Próximo/Voltar sobe pra 44px mesmo em landscape LARGO (onde o
+ * @media max-width:480 não pega). */
+@media (max-height: 600px) {
+  .dt-tooltip {
+    max-height: 80dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px;
+  }
+  .dt-tooltip-glyph { font-size: 28px; margin: 2px 0 6px; }
+  .dt-tooltip-title { font-size: 16px; margin: 0 0 6px; }
+  .dt-tooltip-text { margin: 0 0 10px; }
+  .dt-skip { min-height: 44px; }
+  .dt-nav-btn { min-height: 44px; }
+}
+
 /* Reduced motion: sem animação */
 @media (prefers-reduced-motion: reduce) {
   .dt-tooltip,

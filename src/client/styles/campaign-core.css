@@ -1183,6 +1183,21 @@ body.is-death-save-pending::after {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Responsivo F4 — fit-or-scroll: em viewport curto (320×568, landscape) o
+   * stage (~609px com tutorial) excede a altura → overflow-y:auto deixa rolar
+   * em vez de cortar o topo (label) e empurrar o "Pular" pra fora. Padding com
+   * safe-area pra o "Rolar"/"Pular" não ficarem sob o notch / home-indicator.
+   * O scroll é do overlay (fixed) — a PÁGINA atrás continua travada. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding:
+    calc(var(--m-safe-top, 0px) + 8px) calc(var(--m-safe-right, 0px) + 8px)
+    calc(var(--m-safe-bottom, 0px) + 8px) calc(var(--m-safe-left, 0px) + 8px);
+}
+/* Viewport baixo: topo-alinha (senão o flex align-items:center corta o topo e
+ * o bug clássico de flex+overflow impede rolar até ele). Cobre 568h e landscape. */
+@media (max-height: 660px) {
+  .sc-overlay { align-items: flex-start; }
 }
 
 /* W1-Mobile — Backdrop com blur (consultor Mobile: dado precisa de "screen dim"
@@ -1543,10 +1558,13 @@ body.is-portrait-narrow .camp-action-btn {
  *   └─────────────────────┘
  */
 body.is-portrait-narrow .sc-stage {
-  min-width: 280px;
+  min-width: 0;
   padding: 22px 18px 18px;
   width: 100%;
-  max-width: 100vw;
+  /* Responsivo F4 — 100% (não 100vw): respeita o padding+safe-area do overlay,
+   * senão o stage corre os 100vw cheios e estoura ~16px → scroll horizontal.
+   * min-width 0 (era 280) deixa o stage encolher abaixo de 280 em 320w-padding. */
+  max-width: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1572,7 +1590,9 @@ body.is-portrait-narrow .sc-row {
   row-gap: 18px;
   column-gap: 14px;
   margin: 0;
-  padding-top: 28px; /* buffer pra drop-in --die-drop-y: -60px */
+  /* Responsivo F4 — buffer do drop-in fluido por altura: encolhe a ~12px em
+   * tela curta (poupa altura pro stage caber), 28px no normal. */
+  padding-top: clamp(12px, 4vh, 28px); /* buffer pra drop-in --die-drop-y: -60px */
   align-items: center;
   justify-items: center;
   width: 100%;

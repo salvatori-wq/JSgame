@@ -262,6 +262,11 @@
    * a altura; overflow-y:auto deixa rolar em vez de cortar o topo do dado. A
    * 390x844 o stage cabe e segue centralizado (sem regressão). */
   overflow-y: auto;
+  /* Responsivo F4 — safe-area pra o dado/verdito não ficarem sob o notch /
+   * home-indicator (o overlay é fixed inset:0, não herda o padding do body). */
+  padding:
+    calc(var(--m-safe-top, 0px) + 8px) calc(var(--m-safe-right, 0px) + 8px)
+    calc(var(--m-safe-bottom, 0px) + 8px) calc(var(--m-safe-left, 0px) + 8px);
   background: rgba(0, 0, 0, 0.72);
   z-index: 9500;
   backdrop-filter: blur(6px);
@@ -291,6 +296,8 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
   min-width: 260px;
   max-width: 90vw;
+  /* Responsivo F4 — nunca passa da altura do viewport (com o overlay rolando) */
+  max-height: 100dvh;
 }
 
 .dice-roll-overlay .dro-label {
@@ -507,4 +514,22 @@ body.force-motion .dice-roll-overlay .dro-stage {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* ── Responsivo F4 — overlay robusto em viewport curto ──────────────────────
+ * O drop-in dramático empurra o stage 220px pra baixo (espaço pro dado cair de
+ * -180px). Em tela curta (landscape, 568h) isso joga o dado/verdito pra fora.
+ * Aqui (≤680h) o buffer vira fluido por altura e o overlay topo-alinha (senão o
+ * flex align-items:center corta o topo e o bug flex+overflow impede rolar até
+ * ele). :not(.is-physical) — modo físico (canvas full-screen) tem buffer 24px
+ * próprio. force-motion (default ON) precisa de !important pra vencer o seu
+ * override de 220px. */
+@media (max-height: 680px) {
+  .dice-roll-overlay { align-items: flex-start; }
+  .dice-roll-overlay:not(.is-physical) .dro-stage {
+    padding-top: clamp(80px, 24vh, 200px);
+  }
+  body.force-motion .dice-roll-overlay:not(.is-physical) .dro-stage {
+    padding-top: clamp(80px, 24vh, 200px) !important;
+  }
 }
