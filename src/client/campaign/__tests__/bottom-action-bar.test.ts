@@ -102,13 +102,21 @@ describe('Redesign — exploração: barra de ações no rodapé, sem dock', () 
   });
 });
 
-describe('Redesign — combate: dock mantido, rodapé só [Mais]', () => {
-  it('rodapé tem .camp-action-bar.is-combat com só o botão Mais', () => {
+describe('Redesign — combate (Fase 3): barra [Atacar, Dado, Mais]; dock mantido', () => {
+  it('rodapé tem .camp-action-bar.is-combat com [Atacar, Dado, Mais]', () => {
     const c = mount(combatState());
     const bar = c.querySelector('.ch-slot-bottom-tabs .camp-action-bar.is-combat');
     expect(bar).toBeTruthy();
     const labels = [...bar!.querySelectorAll('.cab-label')].map((e) => e.textContent);
-    expect(labels).toEqual(['Mais']);
+    expect(labels).toEqual(['Atacar', 'Dado', 'Mais']);
+  });
+
+  it('⚔ Atacar é o botão DOMINANTE (.is-primary) e fica ATIVO no meu turno', () => {
+    const c = mount(combatState()); // initiativeOrder me dá o turno (currentTurnIndex 0 = pc-1)
+    const atk = c.querySelector('.camp-action-bar.is-combat .cab-btn.is-primary') as HTMLButtonElement;
+    expect(atk).toBeTruthy();
+    expect(atk.querySelector('.cab-label')?.textContent).toBe('Atacar');
+    expect(atk.hasAttribute('disabled')).toBe(false);
   });
 
   it('combat-screen (dock ①②) montado no main-content', () => {

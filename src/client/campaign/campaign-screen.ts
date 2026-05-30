@@ -9,6 +9,7 @@ import type { Socket } from 'socket.io-client';
 import type {
   ClientToServerEvents, ServerToClientEvents,
   CampaignState, CharacterSheet, DiceRoll, ExplorationAction, CombatEvent,
+  EnemySnapshot, CombatActionKind,
 } from '../../shared/types';
 import { SKILLS } from '../../dnd/skills';
 import { abilityModifier, proficiencyBonus } from '../../dnd/attributes';
@@ -19,6 +20,8 @@ import { showPendingSkillCheck, showSkillCheckResult, closeSkillCheck, type Pend
 import { showDiceRollOverlay } from '../dice/dice-roll-overlay';
 import { prewarmPhysicalDice } from '../dice/dice-box-engine';
 import { renderCombatScreen } from '../combat/combat-screen';
+import { openCombatTargetSheet } from '../combat/combat-target-sheet';
+import { enemyHpAdjective } from '../combat/combat-screen-helpers';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
 import { openMemoryModal } from './memory-modal';
@@ -1290,17 +1293,26 @@ export class CampaignScreen {
   private renderActionBar(isCombat: boolean): HTMLElement {
     const bar = el('div', { class: `camp-action-bar ${isCombat ? 'is-combat' : ''}` });
     const disabled = this.isDmThinking;
-    const mkBtn = (glyph: string, label: string, onClick: () => void, opts: { more?: boolean; alwaysEnabled?: boolean } = {}): HTMLElement =>
-      el('button', {
-        class: `cab-btn ${opts.more ? 'is-more' : ''}`,
-        attrs: { type: 'button', title: label, ...(opts.alwaysEnabled ? {} : disabled ? { disabled: true } : {}) },
+    const mkBtn = (glyph: string, label: string, onClick: () => void, opts: { more?: boolean; alwaysEnabled?: boolean; primary?: boolean; forceDisabled?: boolean } = {}): HTMLElement => {
+      const isDisabled = opts.forceDisabled || (!opts.alwaysEnabled && disabled);
+      return el('button', {
+        class: `cab-btn ${opts.more ? 'is-more' : ''} ${opts.primary ? 'is-primary' : ''}`,
+        attrs: { type: 'button', title: label, ...(isDisabled ? { disabled: true } : {}) },
         on: { click: onClick },
       }, [
         el('span', { class: 'cab-glyph', text: glyph }),
         el('span', { class: 'cab-label', text: label }),
       ]);
+    };
 
-    if (!isCombat) {
+    if (isCombat) {
+      // Fase 3 — barra de combate: ⚔ Atacar DOMINANTE (target-first) + 🎲 Dado + ⋯ Mais.
+      // O loop núcleo (alvo → Atacar → resolve) fica SEMPRE à mão no rodapé fixo,
+      // sem exigir rolar o dock. Atacar só ativo no meu turno.
+      const myTurn = this.isMyCombatTurn();
+      bar.appendChild(mkBtn('⚔', 'Atacar', () => this.openCombatAttack(), { primary: true, forceDisabled: !myTurn }));
+      bar.appendChild(mkBtn('🎲', 'Dado', () => { void this.openSkillPickerAndRoll(); }));
+    } else {
       // Fase 2 — menu WhatsApp: Explorar · Falar · Batalha · Dado · Mais.
       bar.appendChild(mkBtn('🧭', 'Explorar', () => this.takeAction('explore', '')));
       bar.appendChild(mkBtn('💬', 'Falar', () => this.takeAction('talk', '')));
@@ -1313,6 +1325,43 @@ export class CampaignScreen {
     // Mais sempre disponível (mesmo pensando — é navegação/ferramentas).
     bar.appendChild(mkBtn('⋯', 'Mais', () => { void this.openToolsSheet(); }, { more: true, alwaysEnabled: true }));
     return bar;
+  }
+
+  /** Fase 3 — É o meu turno no combate ativo? */
+  private isMyCombatTurn(): boolean {
+    const c = this.currentState?.combat;
+    if (!c || !c.active) return false;
+    const cur = c.initiativeOrder[c.currentTurnIndex];
+    return !!cur && cur.kind === 'player' && cur.id === this.opts.characterId;
+  }
+
+  /** Fase 3 — ⚔ Atacar da barra de combate (target-first). Auto-seleciona se há
+   * 1 inimigo vivo; senão pede o alvo. Abre o combat-target-sheet (reuso) e o
+   * onConfirm emite combatAction — o loop núcleo nunca exige rolar o dock. */
+  private openCombatAttack(): void {
+    const combat = this.currentState?.combat;
+    const myChar = this.character;
+    if (!combat || !combat.active || !myChar) return;
+    if (!this.isMyCombatTurn()) { toastWarn('Ainda não é seu turno.'); return; }
+    const alive = combat.enemies.filter((e) => e.currentHp > 0);
+    if (alive.length === 0) { toastWarn('Nenhum inimigo de pé pra atacar.'); return; }
+    const attack = (enemy: EnemySnapshot): void => {
+      openCombatTargetSheet({
+        enemy,
+        myChar,
+        onConfirm: (action: CombatActionKind) => this.opts.socket.emit('combatAction', { action, targetId: enemy.id }),
+        onUseFeature: (key) => this.opts.socket.emit('useClassFeature', { feature: key }),
+      });
+    };
+    if (alive.length === 1) { attack(alive[0]!); return; }
+    void pickerDialog<string>({
+      title: '⚔ Atacar quem?',
+      text: 'Escolha o alvo',
+      options: alive.map((e) => ({ value: e.id, label: e.name, description: enemyHpAdjective(e.currentHp, e.maxHp) })),
+    }).then((id) => {
+      const e = alive.find((x) => x.id === id);
+      if (e) attack(e);
+    });
   }
 
   /** ✎ Livre — modal de ação em texto. Envia como takeAction('explore', texto). */
@@ -1337,11 +1386,21 @@ export class CampaignScreen {
     const campId = this.currentState?.id;
     const isCaster = shouldShowCastButton(this.character);
     const canRest = this.currentState?.mode !== 'combat';
+    const inCombat = !canRest && !!this.currentState?.combat?.active;
     type Tool =
+      | 'dodge' | 'dash' | 'disengage' | 'hide'
       | 'free' | 'investigate' | 'sneak' | 'travel' | 'inventory' | 'magic' | 'use-item'
       | 'short-rest' | 'long-rest' | 'quests' | 'npcs' | 'achievements'
       | 'share' | 'glossary' | 'settings';
     const opts: Array<{ value: Tool; label: string; description?: string }> = [];
+    // Fase 3 — em combate o "Mais" oferece as ações táticas secundárias (sem
+    // alvo) no topo; ⚔ Atacar fica no botão dominante. Só no meu turno.
+    if (inCombat && this.isMyCombatTurn()) {
+      opts.push({ value: 'dodge', label: '🛡 Esquivar', description: 'ataques contra você têm desvantagem' });
+      opts.push({ value: 'dash', label: '💨 Disparar', description: 'movimento dobrado neste turno' });
+      opts.push({ value: 'disengage', label: '↩ Desengajar', description: 'recua sem ataque de oportunidade' });
+      opts.push({ value: 'hide', label: '🥷 Esconder', description: 'teste de Furtividade' });
+    }
     if (canRest) {
       // Fase 2 — ✎ Livre saiu da barra inferior (deu lugar a ⚔ Batalha) e mora
       // aqui no topo do "Mais": ação narrada em texto livre.
@@ -1371,6 +1430,9 @@ export class CampaignScreen {
     });
     if (!choice) return;
     switch (choice) {
+      case 'dodge': case 'dash': case 'disengage': case 'hide':
+        this.opts.socket.emit('combatAction', { action: choice });
+        break;
       case 'free': void this.openFreeAction(); break;
       case 'investigate': this.takeAction('investigate', ''); break;
       case 'sneak': this.takeAction('sneak', ''); break;

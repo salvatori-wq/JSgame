@@ -67,6 +67,18 @@ describe('② Combate sem abas — portrait (is-portrait-narrow)', () => {
     expect(c.querySelector('.cb-tab-enemies')).toBeTruthy(); // cards de inimigo
     expect(c.querySelector('.cb-tab-actions')).toBeTruthy(); // grade de ações
   });
+
+  it('Fase 3 — o grid completo colapsa num <details> "+ ações" (default fechado) pra caber', () => {
+    const c = render();
+    const details = c.querySelector('details.cb-actions-collapse') as HTMLDetailsElement | null;
+    expect(details).toBeTruthy();
+    // grid vive DENTRO do details (honra "grid completo continua no combat-screen")
+    expect(details!.querySelector('.cb-actions-grid')).toBeTruthy();
+    // default fechado → não empurra o dock pra fora do fold
+    expect(details!.open).toBe(false);
+    // a seção de ações (cb-tab-actions) e o end-turn seguem fora do details
+    expect(c.querySelector('.cb-tab-actions')).toBeTruthy();
+  });
 });
 
 describe('② Combate — desktop mantém abas (sem is-portrait-narrow)', () => {

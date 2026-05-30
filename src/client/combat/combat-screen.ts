@@ -235,7 +235,12 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     // U3 — clareza do fluxo target-first SEM remover a grade (consultor W3.5
     // manteve-a opt-in de propósito). Uma linha curta explica que ações de
     // alvo passam pelo inimigo — dissolve a sensação de "2 sistemas competindo".
-    bar.appendChild(el('div', { class: 'cb-actions-hint', text: 'Ações com alvo (⚔ 🤼 👐 🗡) abrem a ficha do inimigo pra confirmar.' }));
+    bar.appendChild(el('div', {
+      class: 'cb-actions-hint',
+      text: isNarrow
+        ? 'Toque ⚔ Atacar (abaixo) ou no inimigo. Esquivar/Disparar/etc. em ⋯ Mais ou aqui em "+ ações".'
+        : 'Ações com alvo (⚔ 🤼 👐 🗡) abrem a ficha do inimigo pra confirmar.',
+    }));
     const grid = el('div', { class: 'cb-actions-grid' });
 
     // β.4 V2 — Action Economy: desabilita botões cujo slot já foi gasto.
@@ -322,7 +327,19 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
         el('span', { class: 'cba-label', text: 'Magia' }),
       ]));
     }
-    bar.appendChild(grid);
+    // Fase 3 — em portrait a ação núcleo (⚔ Atacar) vive na barra inferior fixa
+    // + tap no inimigo. Pra a batalha CABER na tela, o grid completo (10 botões
+    // + magia) colapsa num <details> "+ ações táticas" (default fechado). Desktop
+    // mantém o grid sempre aberto. O grid continua no DOM (honra "grid completo
+    // continua no combat-screen"), só não empurra mais o dock pra fora do fold.
+    if (isNarrow) {
+      const details = el('details', { class: 'cb-actions-collapse' });
+      details.appendChild(el('summary', { class: 'cb-actions-summary', text: '⚔ Todas as ações táticas' }));
+      details.appendChild(grid);
+      bar.appendChild(details);
+    } else {
+      bar.appendChild(grid);
+    }
 
     // POLISH β.7 — Encerrar turno chip. Aparece quando action principal já
     // foi gasta (player provavelmente não tem mais o que fazer útil). Pulsa

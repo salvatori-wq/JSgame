@@ -395,8 +395,12 @@ describe('Redesign WhatsApp — barra de ações no rodapé (.camp-action-bar)',
     expect(dock).toMatch(/\.camp-action-bar\s+\.cab-btn\s*\{[\s\S]*?min-height:\s*54px/);
   });
 
-  it('combate: barra vira só [Mais] centrado', () => {
-    expect(dock).toMatch(/\.camp-action-bar\.is-combat\s*\{[\s\S]*?justify-content:\s*center/);
+  it('Fase 3 — combate: ⚔ Atacar é o botão dominante (.is-primary flex 2)', () => {
+    expect(dock).toMatch(/\.camp-action-bar\.is-combat\s+\.cab-btn\.is-primary\s*\{[\s\S]*?flex:\s*2\s+1\s+0/);
+  });
+
+  it('Fase 3 — dock de combate tem min-height:0 (overflow engata, batalha cabe)', () => {
+    expect(dock).toMatch(/\.camp-screen\.is-in-combat\s+\.ch-slot-main-content\s*\{[\s\S]*?min-height:\s*0/);
   });
 });
 

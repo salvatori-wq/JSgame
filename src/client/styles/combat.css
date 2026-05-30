@@ -282,6 +282,33 @@
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 8px;
 }
+
+/* Fase 3 — expander "+ ações táticas" (só renderizado em portrait). Colapsa o
+ * grid completo pra a batalha caber na tela; a ação núcleo (⚔ Atacar) vive na
+ * barra inferior fixa. Default fechado. */
+.cb-actions-collapse { margin-top: 6px; }
+.cb-actions-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-heading, 'Cinzel'), serif;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--ink-warm, #e4c896);
+  background: rgba(30, 20, 12, 0.5);
+  border: 1px dashed rgba(244, 208, 127, 0.32);
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cb-actions-collapse > summary::-webkit-details-marker { display: none; }
+.cb-actions-collapse > summary::after { content: '▾'; opacity: 0.7; }
+.cb-actions-collapse[open] > summary { margin-bottom: 8px; border-style: solid; }
+.cb-actions-collapse[open] > summary::after { content: '▴'; }
 .cb-action-btn {
   /* Sub-sprint B (Tiago) — min-height 50px garante hit target ≥44 com folga.
    * Mobile 3 cols × 11 botões = polegar precisa precisão. */

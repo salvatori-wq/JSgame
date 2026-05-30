@@ -373,14 +373,27 @@ body.is-portrait-narrow .camp-action-bar .cab-btn.is-more {
   min-width: 52px;
   background: rgba(20, 14, 10, 0.6);
 }
-/* Combate: só [⋯ Mais], confortável e centrado (dock ①② tem o tático) */
-body.is-portrait-narrow .camp-action-bar.is-combat { justify-content: center; }
-body.is-portrait-narrow .camp-action-bar.is-combat .cab-btn.is-more {
-  flex: 0 1 auto;
-  min-width: 60%;
+/* Fase 3 — Barra de COMBATE: ⚔ Atacar DOMINANTE + 🎲 Dado + ⋯ Mais. Atacar
+ * ocupa ~2× a largura (a ação núcleo está sempre à mão, fixa no rodapé). */
+body.is-portrait-narrow .camp-action-bar.is-combat .cab-btn.is-primary {
+  flex: 2 1 0;
   flex-direction: row;
   gap: 8px;
-  border-color: rgba(200, 64, 50, 0.45);
+  background: linear-gradient(180deg, rgba(120, 30, 22, 0.85) 0%, rgba(70, 18, 14, 0.92) 100%);
+  border-color: rgba(244, 208, 127, 0.55);
+  color: var(--gold-bright, #f4d07f);
+  box-shadow: 0 0 0 1px rgba(200, 64, 50, 0.35), 0 2px 12px rgba(200, 64, 50, 0.3);
+}
+body.is-portrait-narrow .camp-action-bar.is-combat .cab-btn.is-primary .cab-glyph { font-size: 24px; }
+body.is-portrait-narrow .camp-action-bar.is-combat .cab-btn.is-primary:disabled {
+  background: rgba(30, 20, 12, 0.5);
+  color: var(--ink-warm, #e4c896);
+  box-shadow: none;
+}
+body.is-portrait-narrow .camp-action-bar.is-combat .cab-btn.is-more {
+  flex: 0 0 auto;
+  min-width: 54px;
+  border-color: rgba(200, 64, 50, 0.4);
 }
 
 /* CHAT BAR — sticky bottom, sempre visível */
@@ -503,4 +516,8 @@ body.is-portrait-narrow .camp-screen.is-in-combat .ch-narration-host {
 body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
   flex: 1 1 auto;
   max-height: none;
+  /* Fase 3 — min-height:0 deixa o flex child encolher abaixo do conteúdo, então
+   * o overflow-y:auto engata de fato (sem isso o dock estoura o viewport e a
+   * batalha some abaixo do fold). É o que faz a luta CABER na tela. */
+  min-height: 0;
 }
