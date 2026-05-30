@@ -11,7 +11,7 @@ import { SKILLS } from '../../dnd/skills';
 import { ABILITY_SHORT } from '../../dnd/attributes';
 import { el, escapeHtml } from '../util';
 import { playDiceRolling, playDiceLand, playDiceCritTing, playDiceFumble } from '../audio';
-import { renderDie, rollAndReveal, prefersReducedMotion } from '../dice/dice-3d';
+import { renderDie, rollAndReveal, startSpinning, prefersReducedMotion, type SpinHandle } from '../dice/dice-3d';
 import { hapticTap, hapticCrit, hapticFumble, hapticSuccess } from '../haptic';
 import { showToast } from '../toast';
 import { trackClientMetric } from '../api';
@@ -25,6 +25,10 @@ export interface PendingCheck {
 }
 
 let currentEl: HTMLDivElement | null = null;
+/** Fase 1 — Handle do giro client-side em andamento. Começa no toque
+ * (rollAndDisable) e é assentado no valor quando o servidor responde
+ * (showSkillCheckResult). Watchdog para nele (volta pro "?"). */
+let spinHandle: SpinHandle | null = null;
 /** W1.4 — Watchdog 10s (era Ω.1 5s). Consultor Mobile: "latência LLM real é
  * 3-12s, player vê 'Rolando…' e desiste antes da animação completar. 5s mata
  * o flow". 10s cobre p95 sem prender UI indefinidamente. Toast também muda
@@ -107,10 +111,30 @@ export function showPendingSkillCheck(
     rollBtn.classList.add('is-rolling');
     if (inspBtn) inspBtn.setAttribute('disabled', '');
     onRoll({ useInspiration });
-    // Ω.1 — Watchdog: se showSkillCheckResult não chamar em 5s, libera UI.
+    // Fase 1 — O GIRO COMEÇA AGORA, 100% client-side. Não espera o servidor:
+    // mesmo num Render frio (30-50s pra acordar) o dado gira na hora do toque.
+    // Quando o diceRollResult chega, showSkillCheckResult assenta no valor.
+    try { spinHandle?.stop(); } catch { /* silent */ }
+    try { spinHandle = startSpinning(die); } catch { spinHandle = null; }
+    hapticTap();
+    // Ω.1 + W1.4 — Watchdog 10s. Se o servidor não responder, o dado PARA visivelmente
+    // no "?" (não congela girando) e o botão vira "Tentar novamente" funcional.
     if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
     watchdogTimer = window.setTimeout(() => {
-      handleWatchdogTimeout(rollBtn, inspBtn);
+      watchdogTimer = null;
+      // Fase 1 — para o giro e volta o dado pro "?" (nunca congela).
+      try { spinHandle?.stop(); } catch { /* silent */ }
+      spinHandle = null;
+      rolled = false; // permite re-rolar ("Tentar novamente" agora funciona)
+      rollBtn.removeAttribute('disabled');
+      rollBtn.textContent = '🎲 Tentar novamente';
+      rollBtn.classList.remove('is-rolling');
+      if (inspBtn) inspBtn.removeAttribute('disabled');
+      // W1.4 — mensagem não-disruptiva pra cobrir latência LLM normal.
+      try {
+        showToast({ kind: 'info', message: '🎲 O Mestre está pensando… toque pra rolar de novo se travou.', durationMs: 5000 });
+      } catch { /* silent */ }
+      try { trackClientMetric('dice_roll_timeout', { kind: 'skill-check' }); } catch { /* silent */ }
     }, WATCHDOG_MS);
   };
 
@@ -205,12 +229,9 @@ export function showSkillCheckResult(
   const special = roll.nat20 ? 'crit' : roll.nat1 ? 'fumble' : success ? 'success' : 'fail';
   const finalValue = roll.rolls[0] ?? 0;
 
-  rollAndReveal(die, {
-    final: finalValue,
-    special,
-    // ψ.1-fix — Aumentado 1000→1500ms pra player ver o dado caindo+girando
-    durationMs: prefersReducedMotion() ? 200 : 1500,
-    onDone: () => {
+  // ψ.1-fix — 1500ms de aterrissagem pra player ver o dado caindo+girando.
+  const landingMs = prefersReducedMotion() ? 200 : 1500;
+  const onReveal = (): void => {
       // Camada 2 (som): land thud
       playDiceLand();
 
@@ -245,8 +266,17 @@ export function showSkillCheckResult(
         closeSkillCheck();
         onClose();
       }, closeAfter);
-    },
-  });
+  };
+
+  // Fase 1 — Se o giro já começou no toque (rollAndDisable), ASSENTA nele no
+  // valor que o servidor mandou. Senão (espectador, ou result chegou antes do
+  // tap animar), gira do zero. Em ambos o dado termina pousando no valor.
+  if (spinHandle && !spinHandle.done) {
+    spinHandle.settle(finalValue, { special, durationMs: landingMs, onDone: onReveal });
+  } else {
+    rollAndReveal(die, { final: finalValue, special, durationMs: landingMs, onDone: onReveal });
+  }
+  spinHandle = null;
 
   // Silencia parâmetro não usado (legado)
   void escapeHtml;
@@ -257,26 +287,11 @@ export function closeSkillCheck(): void {
     window.clearTimeout(watchdogTimer);
     watchdogTimer = null;
   }
+  // Fase 1 — para qualquer giro pendente pra não vazar timers entre overlays.
+  try { spinHandle?.stop(); } catch { /* silent */ }
+  spinHandle = null;
   currentEl?.remove();
   currentEl = null;
-}
-
-/** Ω.1 — Watchdog handler: server timeout (5s sem diceRollResult). */
-function handleWatchdogTimeout(rollBtn: HTMLButtonElement, inspBtn: HTMLButtonElement | null): void {
-  watchdogTimer = null;
-  // Restaura botão pra player tentar de novo
-  rollBtn.removeAttribute('disabled');
-  rollBtn.textContent = '🎲 Tentar novamente';
-  rollBtn.classList.remove('is-rolling');
-  if (inspBtn) inspBtn.removeAttribute('disabled');
-  // W1.4 — mensagem não-disruptiva pra cobrir latência LLM normal.
-  // "O Mestre está pensando" sugere imersão, não erro.
-  try {
-    showToast({ kind: 'info', message: '🎲 O Mestre está pensando… tente rolar de novo se travou.', durationMs: 5000 });
-  } catch { /* silent */ }
-  try {
-    trackClientMetric('dice_roll_timeout', { kind: 'skill-check' });
-  } catch { /* silent */ }
 }
 
 function formatMod(n: number): string {

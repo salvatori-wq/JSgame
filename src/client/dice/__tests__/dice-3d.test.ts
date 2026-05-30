@@ -207,6 +207,110 @@ describe('rollAndReveal', () => {
   });
 });
 
+describe('startSpinning / settle / stop (Fase 1 — gira-agora/assenta-depois)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.classList.remove('force-motion');
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('startSpinning gira AGORA sem valor final (is-rolling + ticks, data-value fica "?")', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    document.body.appendChild(die);
+    const handle = startSpinning(die);
+    expect(die.classList.contains('is-rolling')).toBe(true);
+    expect(handle.done).toBe(false);
+    // Após alguns ticks a face mostra um número aleatório (não "?")…
+    vi.advanceTimersByTime(130);
+    expect(die.querySelector('.die-face')?.textContent).not.toBe('?');
+    // …mas o valor final NÃO foi decidido ainda (não assentou).
+    expect(die.getAttribute('data-value')).toBe('?');
+    handle.stop();
+  });
+
+  it('settle assenta no valor final após durationMs e chama onDone', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    document.body.appendChild(die);
+    const handle = startSpinning(die);
+    const onDone = vi.fn();
+    handle.settle(15, { special: 'success', durationMs: 500, onDone });
+    // Continua girando durante a aterrissagem.
+    expect(die.classList.contains('is-rolling')).toBe(true);
+    vi.advanceTimersByTime(600);
+    expect(die.classList.contains('is-rolling')).toBe(false);
+    expect(die.getAttribute('data-value')).toBe('15');
+    expect(die.querySelector('.die-face')?.textContent).toBe('15');
+    expect(die.classList.contains('die-success')).toBe(true);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(handle.done).toBe(true);
+  });
+
+  it('settle com durationMs=0 revela na hora', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const handle = startSpinning(die);
+    const onDone = vi.fn();
+    handle.settle(20, { durationMs: 0, onDone });
+    expect(die.getAttribute('data-value')).toBe('20');
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(handle.done).toBe(true);
+  });
+
+  it('stop aborta o giro e volta o dado pro "?" (watchdog) — nunca congela', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    document.body.appendChild(die);
+    const handle = startSpinning(die);
+    vi.advanceTimersByTime(130);
+    handle.stop();
+    expect(die.classList.contains('is-rolling')).toBe(false);
+    expect(die.querySelector('.die-face')?.textContent).toBe('?');
+    expect(die.getAttribute('data-value')).toBe('?');
+    expect(handle.done).toBe(true);
+  });
+
+  it('settle após stop é no-op (não revela)', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20', value: '?' });
+    const handle = startSpinning(die);
+    handle.stop();
+    const onDone = vi.fn();
+    handle.settle(10, { durationMs: 100, onDone });
+    vi.advanceTimersByTime(200);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(die.getAttribute('data-value')).toBe('?');
+  });
+
+  it('settle chamado 2× revela só uma vez (primeiro valor vence)', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const handle = startSpinning(die);
+    const onDone = vi.fn();
+    handle.settle(8, { durationMs: 300, onDone });
+    handle.settle(12, { durationMs: 300, onDone }); // ignorado — já assentando
+    vi.advanceTimersByTime(400);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(die.getAttribute('data-value')).toBe('8');
+  });
+
+  it('settle dispara onLand antes de onDone (durante a aterrissagem)', async () => {
+    const { renderDie, startSpinning } = await import('../dice-3d');
+    const die = renderDie({ kind: 'd20' });
+    const handle = startSpinning(die);
+    const order: string[] = [];
+    handle.settle(15, { durationMs: 1000, onLand: () => order.push('land'), onDone: () => order.push('done') });
+    vi.advanceTimersByTime(400); // land a 35% = 350ms
+    expect(order).toContain('land');
+    expect(order).not.toContain('done');
+    vi.advanceTimersByTime(700);
+    expect(order).toEqual(['land', 'done']);
+  });
+});
+
 describe('haptic wrapper', () => {
   it('degrade gracefully sem navigator.vibrate', async () => {
     // Sobrescreve vibrate por função que joga erro (simula browser sem suporte
