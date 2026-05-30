@@ -17,9 +17,10 @@ function readCss(filename: string): string {
 describe('MP1 — _tokens.css mobile tokens', () => {
   const css = readCss('_tokens.css');
 
-  it('expõe tokens --m-* de spacing/hit/modal', () => {
-    expect(css).toMatch(/--m-padding-screen:\s*12px/);
-    expect(css).toMatch(/--m-padding-modal:\s*14px/);
+  it('expõe tokens --m-* de spacing (fluidos F1) + hit/modal (pisos fixos)', () => {
+    // Responsivo F1 — padding/gap agora fluidos (clamp vw); pisos de toque fixos.
+    expect(css).toMatch(/--m-padding-screen:\s*clamp\(/);
+    expect(css).toMatch(/--m-padding-modal:\s*clamp\(/);
     expect(css).toMatch(/--m-hit-min:\s*40px/);
     expect(css).toMatch(/--m-hit-comfortable:\s*44px/);
     expect(css).toMatch(/--m-modal-max-h:\s*90dvh/);

@@ -53,15 +53,18 @@
    *   mobile <600 · tablet 600-1023 · desktop 1024-1439 · wide ≥1440
    */
 
-  /* Type scale */
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-base: 14px;
-  --fs-md: 16px;
-  --fs-lg: 18px;
-  --fs-xl: 22px;
-  --fs-2xl: 28px;
-  --fs-3xl: 36px;
+  /* Type scale — FLUIDA (responsivo F1). clamp(min, vw, max) escala suave de
+   * 320→430px e capa; * var(--ux-font-scale) compõe o multiplicador do usuário
+   * UMA vez só (o body NÃO re-multiplica — ver ux-settings.css). Mínimos ≈ os px
+   * de hoje em ~360-375 → telas médias ficam pixel-idênticas. */
+  --fs-xs:  calc(clamp(10px, 2.9vw, 12px) * var(--ux-font-scale, 1));
+  --fs-sm:  calc(clamp(11px, 3.2vw, 13px) * var(--ux-font-scale, 1));
+  --fs-base:calc(clamp(13px, 3.7vw, 16px) * var(--ux-font-scale, 1));
+  --fs-md:  calc(clamp(14px, 4.1vw, 17px) * var(--ux-font-scale, 1));
+  --fs-lg:  calc(clamp(16px, 4.7vw, 20px) * var(--ux-font-scale, 1));
+  --fs-xl:  calc(clamp(19px, 5.6vw, 24px) * var(--ux-font-scale, 1));
+  --fs-2xl: calc(clamp(23px, 7.0vw, 30px) * var(--ux-font-scale, 1));
+  --fs-3xl: calc(clamp(28px, 9.0vw, 38px) * var(--ux-font-scale, 1));
 
   /* Z-index scale */
   --z-base: 1;
@@ -84,18 +87,25 @@
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
   --shadow-glow-gold: 0 0 12px rgba(240, 192, 80, 0.4);
 
-  /* MP1 — Mobile spacing tokens (overrideáveis em portrait-narrow body) */
-  --m-padding-screen: 12px;
-  --m-padding-card: 12px;
-  --m-padding-modal: 14px;
-  --m-gap-tight: 6px;
-  --m-gap-base: 10px;
-  --m-gap-loose: 14px;
-  --m-hit-min: 40px;
-  --m-hit-comfortable: 44px;
+  /* MP1 — Mobile spacing tokens (overrideáveis em portrait-narrow body).
+   * Responsivo F1 — FLUIDOS (clamp vw, SEM font-scale: padding não acompanha o
+   * knob de fonte). Mínimos ≈ px de hoje em ~375 → telas médias idênticas. */
+  --m-padding-screen: clamp(10px, 3.2vw, 16px);
+  --m-padding-card: clamp(10px, 3.2vw, 16px);
+  --m-padding-modal: clamp(12px, 3.6vw, 18px);
+  --m-gap-tight: clamp(4px, 1.4vw, 7px);
+  --m-gap-base: clamp(7px, 2.4vw, 12px);
+  --m-gap-loose: clamp(10px, 3.2vw, 16px);
+  --m-hit-min: 40px;          /* PISO de toque — fixo (nunca cede) */
+  --m-hit-comfortable: 44px;  /* PISO WCAG — fixo */
   --m-modal-max-h: 90dvh;
   --m-modal-radius: 12px;
   --m-text-min: 12px;
+  /* Responsivo F1 — tokens de componente QUADRADO (vmin: não incham no
+   * landscape, ficam presos ao lado curto). Dados + avatar da faixa. */
+  --m-die-skillcheck: clamp(104px, 34vmin, 150px);
+  --m-die-overlay: clamp(88px, 26vmin, 120px);
+  --m-avatar-strip: clamp(26px, 7.5vmin, 32px);
 
   /* Sprint Φ.1 — Paleta D&D 5e oficial (extraída de rpgtex/DND-5e-LaTeX-Template
    * lib/dndcolors.sty, MIT). Usada por componentes autênticos do livro:

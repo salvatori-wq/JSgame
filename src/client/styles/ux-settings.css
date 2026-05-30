@@ -10,9 +10,10 @@
   --ux-anim-multiplier: 1;
 }
 
-/* Apply font scale globally — multiplica todos os textos */
+/* Responsivo F1 — o body usa --fs-base (que JÁ embute clamp fluido +
+ * var(--ux-font-scale)). NÃO re-multiplicar aqui, senão escala em DOBRO. */
 body {
-  font-size: calc(15px * var(--ux-font-scale));
+  font-size: var(--fs-base);
 }
 
 /* Density profiles — afeta padding em containers principais */
