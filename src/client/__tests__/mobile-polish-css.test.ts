@@ -1025,3 +1025,75 @@ describe('U7 — eco do roll colorido por desfecho', () => {
     expect(core).toMatch(/\.is-roll-echo-fail\s+\.cnn-text\s*\{[^}]*color:/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Responsivo F1-F4 — sistema fluido (tokens + dado + landscape + overlays).
+// Guards CSS determinísticos (a forma do token/seletor; pixel → preview). F5.2.
+// ════════════════════════════════════════════════════════════════════════════
+describe('Responsivo F1-F4 — sistema fluido', () => {
+  const tokens = readCss('_tokens.css');
+  const uxs = readCss('ux-settings.css');
+  const dock = readCss('m-camp-dock.css');
+  const core = readCss('campaign-core.css');
+  const dice = readCss('dice.css');
+  const duo = readCss('duolingo-tutorial.css');
+
+  it('F1 — todos os --fs-* são calc(clamp(...) * var(--ux-font-scale))', () => {
+    for (const t of ['xs', 'sm', 'base', 'md', 'lg', 'xl', '2xl', '3xl']) {
+      const re = new RegExp(`--fs-${t}:\\s*calc\\(\\s*clamp\\([^)]*\\)\\s*\\*\\s*var\\(--ux-font-scale`);
+      expect(tokens, `--fs-${t}`).toMatch(re);
+    }
+  });
+
+  it('F1 — --m-gap-* fluidos (clamp); pisos de toque FIXOS (40/44)', () => {
+    expect(tokens).toMatch(/--m-gap-tight:\s*clamp\(/);
+    expect(tokens).toMatch(/--m-gap-base:\s*clamp\(/);
+    expect(tokens).toMatch(/--m-gap-loose:\s*clamp\(/);
+    expect(tokens).toMatch(/--m-hit-min:\s*40px/);
+    expect(tokens).toMatch(/--m-hit-comfortable:\s*44px/);
+  });
+
+  it('F1 — tokens de componente QUADRADO em vmin (não incham no landscape)', () => {
+    expect(tokens).toMatch(/--m-die-skillcheck:\s*clamp\([^)]*vmin[^)]*\)/);
+    expect(tokens).toMatch(/--m-die-overlay:\s*clamp\([^)]*vmin[^)]*\)/);
+    expect(tokens).toMatch(/--m-avatar-strip:\s*clamp\([^)]*vmin[^)]*\)/);
+  });
+
+  it('F1.4 — body usa var(--fs-base), NÃO re-multiplica calc(15px*…) (sem escala dupla)', () => {
+    expect(uxs).toMatch(/body\s*\{[^}]*font-size:\s*var\(--fs-base\)/);
+    expect(uxs).not.toMatch(/font-size:\s*calc\(\s*15px\s*\*/);
+  });
+
+  it('F2 — dado skill-check via var(--m-die-skillcheck); overlay via var(--m-die-overlay)', () => {
+    expect(core).toMatch(/\.sc-die\s*\{[\s\S]*?width:\s*var\(--m-die-skillcheck\)/);
+    expect(dice).toMatch(/\.dice-roll-overlay\s+\.die-3d\s*\{[\s\S]*?width:\s*var\(--m-die-overlay\)/);
+    // o bump fixo 112px do overlay foi REMOVIDO (o clamp vmin cobre 320→430)
+    expect(dice).not.toMatch(/\.dice-roll-overlay\s+\.die-3d\s*\{[^}]*width:\s*112px/);
+  });
+
+  it('F3 — m-camp-dock tem deltas de landscape (is-landscape-phone)', () => {
+    expect(dock).toMatch(/body\.is-landscape-phone\s+\.ch-slot-party\s*\{[^}]*max-height:\s*clamp\(/);
+    expect(dock).toMatch(/body\.is-landscape-phone\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[^}]*max-height:\s*clamp\(/);
+    expect(dock).toMatch(/body\.is-landscape-phone\s+\.ch-narration-host\s*>\s*\*\s*\{[^}]*max-width:\s*760px/);
+    expect(dock).toMatch(/body\.is-landscape-phone\s+\.camp-action-bar\s+\.cab-btn\s*\{[^}]*min-height:\s*max\(/);
+  });
+
+  it('F4 — skill-check overlay: overflow-y auto + safe-area + flex-start em altura curta', () => {
+    expect(core).toMatch(/\.sc-overlay\s*\{[\s\S]*?overflow-y:\s*auto/);
+    // safe-area via os tokens --m-safe-* (que = env(safe-area-inset-*) no _tokens.css)
+    expect(core).toMatch(/\.sc-overlay\s*\{[\s\S]*?var\(--m-safe-/);
+    expect(core).toMatch(/@media\s*\(max-height:\s*660px\)[\s\S]*?\.sc-overlay\s*\{[^}]*align-items:\s*flex-start/);
+  });
+
+  it('F4 — dice overlay: dro-stage max-height 100dvh + drop-in gated por altura + safe-area', () => {
+    expect(dice).toMatch(/\.dro-stage\s*\{[\s\S]*?max-height:\s*100dvh/);
+    expect(dice).toMatch(/@media\s*\(max-height:\s*680px\)[\s\S]*?padding-top:\s*clamp\(/);
+    // safe-area via os tokens --m-safe-* (que = env(safe-area-inset-*) no _tokens.css)
+    expect(dice).toMatch(/\.dice-roll-overlay\s*\{[\s\S]*?var\(--m-safe-/);
+  });
+
+  it('F4 — tutorial Duolingo: fit-or-scroll (80dvh + overflow) em altura curta', () => {
+    expect(duo).toMatch(/@media\s*\(max-height:\s*600px\)[\s\S]*?\.dt-tooltip\s*\{[\s\S]*?max-height:\s*80dvh/);
+    expect(duo).toMatch(/@media\s*\(max-height:\s*600px\)[\s\S]*?overflow-y:\s*auto/);
+  });
+});
