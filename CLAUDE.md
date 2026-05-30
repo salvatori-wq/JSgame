@@ -82,7 +82,48 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-30 (Plano profundo WhatsApp+dado+batalha — 6 fases, 6 commits, suite 2073→2103 verde, **NÃO pushado ainda — aguarda OK do João pro deploy**)
+> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 — 6 commits, suite 2103→2123 verde, **NÃO pushado — aguarda OK do João pro push+deploy**)
+
+### Plano "Responsividade perfeita em qualquer celular" (F1-F6) — entregue
+
+Executado o plano `peaceful-seeking-parrot.md` INTEIRO (6 fases). Objetivo: UI
+fluida 320→430 retrato + celular DEITADO usável (era injogável — caía no layout
+desktop). 6 commits sobre `b3ca42d` (=origin/main): `6040993` `6facd35` `25d76c6`
+`7128f39` `b7296e6` `238b5af`. **NÃO pushado.** Tudo atrás de
+`is-portrait-narrow`/`is-landscape-phone`/`@media(max-height)` — desktop não
+regride (provado por DOM a 1280×800). Cada fase medida no preview na matriz
+(320×568/360×640/390×844/430×932/844×390) via `preview_eval`+`getBoundingClientRect`.
+
+- **F1 — Tokens fluidos** (`6040993`, sessão anterior): `--fs-*` viraram
+  `calc(clamp(vw)*var(--ux-font-scale))`; `--m-padding/gap-*` clamp(vw); novos
+  `--m-die-*`/`--m-avatar-strip` em **vmin** (quadrados não incham no landscape);
+  `ux-settings.css` body usa `var(--fs-base)` (mata escala dupla).
+- **F2 — Dado fluido + vh-budget** (`6facd35`): dado skill-check `140px!important`
+  → `var(--m-die-skillcheck)`; overlay → `var(--m-die-overlay)` (apagado o bump
+  112px); caps vh → `clamp(px,vh,px)` (party, narração-combate, dock); cards coop
+  → clamp(vw). Caps engatam a 430×932; vmin segura o dado a 132px no landscape.
+- **F3 — Breakpoint device-aware + landscape** (`25d76c6`): `environment.ts` NOVO
+  (`applyEnvironmentClasses` exportado). `compact = w<600 || (coarse && h<600 &&
+  w<950)`; `landscapePhone = compact && w>=600 && w>h`. Gate `coarse` protege o
+  desktop. Deltas landscape em `m-camp-dock.css`. Provado: 844×390 coarse → Atacar
+  alcançável; desktop 1280×800 intacto.
+- **F4 — Overlays robustos + safe-area** (`7128f39`): skill-check overflow-y:auto
+  + safe-area + flex-start@max-height:660; stage `100vw→100%` (mata h-scroll).
+  Dice overlay safe-area + 100dvh + drop-in `220px→clamp` gated por altura
+  (espelhado force-motion `!important`). Tutorial 80dvh@max-height:600.
+- **F5 — Harness** (`b7296e6`): `responsive-sweep.test.ts` NOVO (predicado testado
+  com pointer:coarse mockado — prova o caminho do celular que o preview non-coarse
+  não testa) + 9 guards CSS F1-F4. +18 tests.
+- **F6 — Caça-bugs** (`238b5af`): 4 auditores + sweep empírico. 2 fixes reais
+  (login `100vh→100dvh`; cond-pill combate `9px→var(--fs-xs)`); 1 P2 adiado
+  (wizard compare-btn). Maioria dos achados = falso-positivo/código morto
+  (verificado empiricamente). `FASE6_CACA_BUGS.md`.
+
+**Pendente (ação do João)**: `git push origin main` + Manual Deploy + **Ciclo D
+smoke no celular real** (girar landscape em cada tela, login com chrome, notch,
+dado, sem zoom-input iOS). Ver `FASE6_CACA_BUGS.md` §Ciclo D.
+
+> Última atualização anterior: 2026-05-30 (Plano profundo WhatsApp+dado+batalha — 6 fases, 6 commits, suite 2073→2103 verde, **NÃO pushado ainda — aguarda OK do João pro deploy**)
 
 ### Plano profundo "Mobile WhatsApp + Dado que sempre rola + Batalha que cabe" — entregue (6 fases, +30 tests)
 
