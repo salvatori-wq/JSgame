@@ -534,3 +534,49 @@ body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
    * batalha some abaixo do fold). É o que faz a luta CABER na tela. */
   min-height: 0;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * Responsivo F3 — DELTAS DE LANDSCAPE (celular deitado).
+ *
+ * is-landscape-phone é setado por environment.ts JUNTO com is-portrait-narrow
+ * quando o aparelho está deitado (coarse && h<600 && w<950 && w>h). O shell
+ * compacto INTEIRO (ribbon fina + barra de ações + height:100dvh) já vem de
+ * graça do is-portrait-narrow — antes do F3 o deitado caía no layout DESKTOP
+ * (header 143px + party 177px = 82% da altura, injogável). Aqui só ajustamos
+ * o que a ALTURA CURTA pede. Tudo aditivo — o retrato não é tocado.
+ *
+ * Mesma especificidade das regras-base de retrato + aparece DEPOIS → vence só
+ * quando is-landscape-phone está no body. */
+
+/* Party COOP menor no deitado (altura é o eixo escasso). O SOLO não entra aqui
+ * de propósito: solo+portrait-narrow já vira a faixa fina .is-thin-host
+ * (max-height:none, ~45px self-sizing) — capá-la com overflow:visible faria os
+ * badges vazarem sobre a narração. A faixa já é mínima, não precisa de cap. */
+body.is-landscape-phone .ch-slot-party {
+  max-height: clamp(64px, 24vh, 110px);
+}
+
+/* Recap de combate ainda menor no deitado → o dock (a luta) cresce mais */
+body.is-landscape-phone .camp-screen.is-in-combat .ch-narration-host {
+  max-height: clamp(64px, 26vh, 120px);
+}
+
+/* Narração no deitado: notch lateral (safe-area) + a linha NÃO corre os 844px
+ * (cap 760 + centralizada) — texto largo demais é ilegível. */
+body.is-landscape-phone .ch-narration-host {
+  padding-left: max(var(--m-padding-screen), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--m-padding-screen), env(safe-area-inset-right, 0px));
+}
+body.is-landscape-phone .ch-narration-host > * {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+/* Barra de ações mais baixa no deitado (44 é o piso de toque; só cresce em
+ * landscape mais alto). Em 390h dá 44 — 10px a menos que o 54 do retrato. */
+body.is-landscape-phone .camp-action-bar .cab-btn {
+  min-height: max(44px, 11vh);
+}
+body.is-landscape-phone .camp-action-bar .cab-label {
+  font-size: clamp(9px, 1.4vh, 11px);
+}
