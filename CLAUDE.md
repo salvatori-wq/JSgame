@@ -82,7 +82,7 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 — 6 commits, suite 2103→2123 verde, **NÃO pushado — aguarda OK do João pro push+deploy**)
+> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 8 commits, suite 2103→2125 verde, **NÃO pushado — aguarda OK do João pro push+deploy**)
 
 ### Plano "Responsividade perfeita em qualquer celular" (F1-F6) — entregue
 
@@ -118,6 +118,11 @@ regride (provado por DOM a 1280×800). Cada fase medida no preview na matriz
   (login `100vh→100dvh`; cond-pill combate `9px→var(--fs-xs)`); 1 P2 adiado
   (wizard compare-btn). Maioria dos achados = falso-positivo/código morto
   (verificado empiricamente). `FASE6_CACA_BUGS.md`.
+- **F6.QA — ciclos de teste extra** (`2945806`, a pedido do João): varri os
+  modais/telas não cobertos (glossário, ajustes, inventário, login). +2 fixes:
+  `.cs-close` (× dos sheets) era 12×19px no glossário/ajustes → base 36px + 44px
+  mobile; inputs <16px (gl-search/coop/owner/chat) davam auto-zoom no iOS →
+  `max(16px, var(--fs-base))` no mobile. Inventário limpo. Suite 2123→2125.
 
 **Pendente (ação do João)**: `git push origin main` + Manual Deploy + **Ciclo D
 smoke no celular real** (girar landscape em cada tela, login com chrome, notch,
