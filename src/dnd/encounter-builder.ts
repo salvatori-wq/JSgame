@@ -2,7 +2,7 @@
 // Server-side. Recebe party + dificuldade, retorna seleção balanceada de monstros
 // do bestiary. Usado por DM tool start_combat_balanced.
 
-import { MONSTERS, type MonsterDef, type CR } from './monsters.js';
+import { MONSTERS, inferAbilityScores, type MonsterDef, type CR } from './monsters.js';
 import { xpForCR } from './leveling.js';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'deadly';
@@ -144,6 +144,7 @@ export function picksToEnemyInputs(picks: EncounterPick[]): Array<{
   immunities?: import('./damage-types').DamageType[];
   vulnerabilities?: import('./damage-types').DamageType[];
   attackDamageType?: import('./damage-types').DamageType;
+  abilityScores?: { for: number; des: number; con: number; int: number; sab: number; car: number };
 }> {
   const out: ReturnType<typeof picksToEnemyInputs> = [];
   for (const pick of picks) {
@@ -163,6 +164,8 @@ export function picksToEnemyInputs(picks: EncounterPick[]): Array<{
         immunities: m.immunities,
         vulnerabilities: m.vulnerabilities,
         attackDamageType: m.attackDamageType,
+        // Rank 8 — saves não-triviais também no encontro balanceado (era +0).
+        abilityScores: inferAbilityScores(m),
       });
     }
   }

@@ -6,7 +6,7 @@ import type { SkillId } from '../../dnd/skills.js';
 import type { ConditionId } from '../../dnd/conditions.js';
 import { SKILLS } from '../../dnd/skills.js';
 import { CONDITIONS } from '../../dnd/conditions.js';
-import { getMonster, inferAbilityScores } from '../../dnd/monsters.js';
+import { getMonster, inferAbilityScores, inferAbilityScoresFromCr } from '../../dnd/monsters.js';
 import { xpForCR } from '../../dnd/leveling.js';
 
 export type ValidatedTool =
@@ -102,21 +102,30 @@ export function validateToolCall(tc: DMToolCall): ValidatedTool | null {
           // Caso contrário, free-form (DM declara stats custom)
           const rawDice = String(e.damageDice ?? '1d6').replace(/\s+/g, '');
           const damageDice = DICE_NOTATION_RE.test(rawDice) ? rawDice : '1d6';
+          const hp = clamp(Number(e.hp) || 10, 1, 999);
+          const attackBonus = clamp(Number(e.attackBonus) || 3, -2, 15);
+          const isBoss = !!e.isBoss;
           // CR custom opcional — DM pode declarar; senão, deriva de hp (heurística simples)
           const customCr = Number(e.cr);
-          const xpAward = Number.isFinite(customCr) && customCr >= 0
-            ? xpForCR(customCr)
-            : estimateXpFromHp(Number(e.hp) || 10);
+          const hasCustomCr = Number.isFinite(customCr) && customCr >= 0;
+          const xpAward = hasCustomCr ? xpForCR(customCr) : estimateXpFromHp(hp);
+          // Rank 8 — CR proxy (HP + bônus de ataque + boss) pra inferir ability
+          // scores. Sem isto o save do inimigo free-form é +0 e magias de save
+          // (Hold Person, Tasha's, etc.) trivializam qualquer chefe improvisado.
+          const crProxy = hasCustomCr
+            ? customCr
+            : Math.max(0, hp / 18 + Math.max(0, attackBonus - 3) / 2 + (isBoss ? 1.5 : 0));
           return {
             name: String(e.name ?? 'Inimigo').slice(0, 60),
-            hp: clamp(Number(e.hp) || 10, 1, 999),
+            hp,
             ac: clamp(Number(e.ac) || 12, 5, 30),
-            attackBonus: clamp(Number(e.attackBonus) || 3, -2, 15),
+            attackBonus,
             damageDice,
             damageBonus: clamp(Number(e.damageBonus) || 0, -2, 20),
             description: e.description ? String(e.description).slice(0, 200) : undefined,
             xpAward,
-            isBoss: !!e.isBoss,
+            isBoss,
+            abilityScores: inferAbilityScoresFromCr(crProxy),
           };
         })
         .slice(0, 12);

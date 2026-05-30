@@ -33,10 +33,52 @@ function concentrationCheckOnDamage(camp: Campaign, p: CharacterSheet, damage: n
   }
 }
 
+/** Rank 12 — dano narrado (apply_damage) a 1 PJ, com a regra PHB de 0 HP:
+ * GOLPE DE MISERICÓRDIA. Dano em quem JÁ está caído (0 HP) conta uma FALHA de
+ * morte; dano >= máximo de HP = morte instantânea. Antes o PJ a 0 HP só
+ * absorvia o dano (HP clampado em 0) sem acumular falha — um inimigo batendo no
+ * herói caído nunca o matava. */
+function applyNarratedDamageToPlayer(camp: Campaign, p: CharacterSheet, damage: number, type: string): void {
+  if (damage <= 0) return;
+  const wasDowned = p.currentHp <= 0;
+  const alreadyDead = (p.deathSaveFailures ?? 0) >= 3;
+  p.currentHp = Math.max(0, p.currentHp - damage);
+  if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
+    p.conditions.push('inconsciente');
+  }
+  if (wasDowned && !alreadyDead) {
+    if (damage >= p.maxHp) {
+      p.deathSaveFailures = 3;
+      camp.pushRecentEvent(`${p.characterName} sofre dano massivo caído — MORTE (${type}).`);
+    } else {
+      p.deathSaveFailures = Math.min(3, (p.deathSaveFailures ?? 0) + 1);
+      camp.pushRecentEvent(`${p.characterName} leva dano caído — falha de morte ${p.deathSaveFailures}/3.`);
+    }
+  }
+  concentrationCheckOnDamage(camp, p, damage);
+}
+
+/** Rank 11 (coop) — resolve playerId:'active' pro player CERTO. Antes mirava
+ * sempre party[0] (o 1º a entrar), então em coop um save/teste/vantagem/
+ * inspiração ia pro herói errado. Prioridade: turno de combate atual → quem
+ * disparou a vez do Mestre (lastActingPlayerId) → party[0]. */
+function resolveActivePlayerId(camp: Campaign, rawId: string): string {
+  if (rawId !== 'active') return rawId;
+  const combat = camp.state.combat;
+  if (combat?.active) {
+    const cur = combat.initiativeOrder[combat.currentTurnIndex];
+    if (cur && cur.kind === 'player' && camp.party.some((p) => p.id === cur.id)) return cur.id;
+  }
+  if (camp.lastActingPlayerId && camp.party.some((p) => p.id === camp.lastActingPlayerId)) {
+    return camp.lastActingPlayerId;
+  }
+  return camp.party[0]?.id ?? rawId;
+}
+
 export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool): void {
   switch (tool.kind) {
     case 'request_skill_check': {
-      const resolvedPlayerId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const resolvedPlayerId = resolveActivePlayerId(camp, tool.playerId);
       const owner = camp.party.find((p) => p.id === resolvedPlayerId)?.id ?? camp.party[0]?.id ?? resolvedPlayerId;
       camp.state.pendingCheck = {
         skill: tool.skill,
@@ -98,22 +140,10 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         break;
       }
       if (tool.playerId === 'all') {
-        for (const p of camp.party) {
-          p.currentHp = Math.max(0, p.currentHp - tool.damage);
-          if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
-            p.conditions.push('inconsciente');
-          }
-          concentrationCheckOnDamage(camp, p, tool.damage);
-        }
+        for (const p of camp.party) applyNarratedDamageToPlayer(camp, p, tool.damage, tool.type);
       } else {
         const p = camp.party.find((x) => x.id === tool.playerId);
-        if (p) {
-          p.currentHp = Math.max(0, p.currentHp - tool.damage);
-          if (p.currentHp === 0 && !p.conditions.includes('inconsciente')) {
-            p.conditions.push('inconsciente');
-          }
-          concentrationCheckOnDamage(camp, p, tool.damage);
-        }
+        if (p) applyNarratedDamageToPlayer(camp, p, tool.damage, tool.type);
       }
       camp.pushRecentEvent(`Dano (${tool.type}): ${tool.damage} — ${tool.reason}`);
       // Limpa pendingEnemySpell após aplicar damage (resolveu a sequência cast→damage)
@@ -360,7 +390,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
     }
 
     case 'request_saving_throw': {
-      const resolvedPlayerId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const resolvedPlayerId = resolveActivePlayerId(camp, tool.playerId);
       const owner = camp.party.find((p) => p.id === resolvedPlayerId)?.id ?? camp.party[0]?.id ?? resolvedPlayerId;
       camp.state.pendingSave = {
         ability: tool.ability,
@@ -517,7 +547,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
 
     case 'apply_advantage': {
       // η.4 — DM declara vantagem/desvantagem no próximo roll do player matching targetRoll.
-      const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const resolvedId = resolveActivePlayerId(camp, tool.playerId);
       const p = camp.party.find((x) => x.id === resolvedId);
       if (p) {
         if (!camp.state.pendingAdvantages) camp.state.pendingAdvantages = {};
@@ -537,7 +567,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
 
     case 'grant_inspiration': {
       // α.3 — Concede 1 inspiração ao player. Clamp max 3 (PHB).
-      const resolvedId = tool.playerId === 'active' && camp.party[0] ? camp.party[0].id : tool.playerId;
+      const resolvedId = resolveActivePlayerId(camp, tool.playerId);
       const p = camp.party.find((x) => x.id === resolvedId);
       if (p) {
         const cur = p.inspirations ?? 0;

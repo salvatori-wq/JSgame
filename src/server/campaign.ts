@@ -70,6 +70,10 @@ const AUTO_SUMMARIZE_ENABLED = process.env.MEMORY_AUTOSUMMARIZE !== 'false';
 export class Campaign {
   state: CampaignState;
   party: CharacterSheet[] = [];
+  // Rank 11 (coop) — quem disparou a vez ATUAL do Mestre. O tool-applier resolve
+  // playerId:'active' por aqui (em vez de party[0], que mirava o player errado em
+  // coop). Setado no início de takeAction/resolveSkillCheck/resolveSavingThrow.
+  lastActingPlayerId: string | null = null;
   private narrationLog: string[] = [];
   private dm: DMInterface;
   private memory: MemoryStore | undefined;
@@ -396,6 +400,8 @@ export class Campaign {
 
   async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
     return this.enqueue(async () => {
+      // Rank 11 — lembra quem agiu pra o tool-applier resolver 'active' certo.
+      this.lastActingPlayerId = playerId;
       // γ.2 — Pré-check: se action implica skill check (regex em details) e o DM
       // AINDA não setou pendingCheck, server injeta automaticamente. DM respeita.
       // Skip se: já tem pendingCheck ativo, combate ativo, ou action não-aplicável.
@@ -480,6 +486,8 @@ export class Campaign {
       const check = this.state.pendingCheck;
       if (!check) return null;
       if (check.playerId !== playerId) return null;
+      // Rank 11 — quem rolou é o ator da vez (resolve 'active' no tool-applier).
+      this.lastActingPlayerId = playerId;
 
       const player = this.party.find((p) => p.id === playerId);
       if (!player) return null;
@@ -618,6 +626,8 @@ export class Campaign {
       const save = this.state.pendingSave;
       if (!save) return null;
       if (save.playerId !== playerId) return null;
+      // Rank 11 — ator da vez (resolve 'active' no tool-applier).
+      this.lastActingPlayerId = playerId;
 
       const player = this.party.find((p) => p.id === playerId);
       if (!player) return null;

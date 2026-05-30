@@ -46,8 +46,14 @@ export interface MonsterDef {
 // mortos-vivos CON-, construtos STR/CON+/INT- etc.
 export function inferAbilityScores(m: MonsterDef): { for: number; des: number; con: number; int: number; sab: number; car: number } {
   if (m.abilityScores) return m.abilityScores;
+  return inferAbilityScoresFromCr(Number(m.cr), m.type);
+}
+
+// Rank 8 — inferência por CR (+ tipo opcional) SEM precisar de um MonsterDef
+// completo. Usado pra inimigos FREE-FORM (start_combat custom): sem isto o save
+// do inimigo cai pra +0 e magias de save trivializam chefes improvisados.
+export function inferAbilityScoresFromCr(cr: number, type?: string): { for: number; des: number; con: number; int: number; sab: number; car: number } {
   // Base por CR
-  const cr = Number(m.cr);
   let base: number;
   if (cr < 0.5) base = 10;
   else if (cr < 3) base = 12;
@@ -57,7 +63,7 @@ export function inferAbilityScores(m: MonsterDef): { for: number; des: number; c
   else base = 20;
   const scores = { for: base, des: base, con: base, int: base, sab: base, car: base };
   // Ajustes por tipo (idiomas D&D 5e clássicos)
-  switch (m.type) {
+  switch (type) {
     case 'fera':
       scores.int = Math.max(2, base - 8); scores.car = Math.max(4, base - 6); scores.for += 2; scores.con += 1; break;
     case 'morto-vivo':
