@@ -269,8 +269,10 @@ describe('M1 — m-camp-dock + status-ribbon + campaign-core CSS', () => {
   const ribbon = readCss('status-ribbon.css');
   const core = readCss('campaign-core.css');
 
-  it('M1.1 — slot party.is-solo tem max-height reduzido pra 16vh', () => {
-    expect(dock).toMatch(/\.ch-slot-party\.is-solo\s*\{[^}]*max-height:\s*16vh/);
+  // Responsivo F2 — o cap rígido 16vh virou clamp(54px,16vh,110px): tela curta
+  // não esmaga, tela alta não desperdiça (cap). O 16vh segue no meio do clamp.
+  it('M1.1/F2 — slot party.is-solo tem max-height fluido clamp(…16vh…)', () => {
+    expect(dock).toMatch(/\.ch-slot-party\.is-solo\s*\{[^}]*max-height:\s*clamp\([^)]*16vh[^)]*\)/);
   });
 
   it('M1.1 — dock-attention keyframe + classe pulse one-shot', () => {
@@ -332,9 +334,11 @@ describe('M1 — m-camp-dock + status-ribbon + campaign-core CSS', () => {
 describe('Redesign ① — proporção mode-aware em combate (portrait-narrow)', () => {
   const dock = readCss('m-camp-dock.css');
 
-  it('① combate ENCOLHE a narração: flex 0 0 auto + max-height 18vh', () => {
+  // Responsivo F2 — o 18vh rígido virou clamp(96px,20vh,168px): piso ~4 linhas
+  // a 568h, cap a 932h. flex 0 0 auto preservado (narração não cresce em combate).
+  it('①/F2 combate ENCOLHE a narração: flex 0 0 auto + max-height fluido clamp(…20vh…)', () => {
     expect(dock).toMatch(
-      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[\s\S]*?flex:\s*0\s+0\s+auto[\s\S]*?max-height:\s*18vh/,
+      /body\.is-portrait-narrow\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[\s\S]*?flex:\s*0\s+0\s+auto[\s\S]*?max-height:\s*clamp\([^)]*20vh[^)]*\)/,
     );
   });
 
@@ -344,8 +348,10 @@ describe('Redesign ① — proporção mode-aware em combate (portrait-narrow)',
     );
   });
 
-  it('① exploração INTOCADA: dock base segue 35vh (Ω.9 preservado)', () => {
-    expect(dock).toMatch(/body\.is-portrait-narrow\s+\.ch-slot-main-content\s*\{[^}]*max-height:\s*35vh/);
+  // Responsivo F2 — o 35vh rígido virou clamp(180px,35vh,300px): piso pro
+  // drill-down caber em tela curta, cap pra não virar meia tela em tela alta.
+  it('①/F2 exploração: dock base fluido clamp(…35vh…) (Ω.9 preservado)', () => {
+    expect(dock).toMatch(/body\.is-portrait-narrow\s+\.ch-slot-main-content\s*\{[^}]*max-height:\s*clamp\([^)]*35vh[^)]*\)/);
   });
 });
 
@@ -571,8 +577,10 @@ describe('O1/O2/O3 — ciclo 5 (combat hit + party coop + economy gasto)', () =>
     expect(dock).toMatch(/\.cp-list\.is-coop\s*\{[^}]*scroll-snap-type:\s*x\s+mandatory/);
   });
 
-  it('O2.2 — cp-pj em coop ganha width 200px + scroll-snap-align', () => {
-    expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\s*\{[^}]*width:\s*200px/);
+  // Responsivo F2 — o 200px rígido virou clamp(168px,56vw,220px): a 320w cabem
+  // mais cards visíveis, a 430w sobe sem esticar. scroll-snap-align preservado.
+  it('O2.2/F2 — cp-pj em coop ganha width fluido clamp(…56vw…) + scroll-snap-align', () => {
+    expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\s*\{[^}]*width:\s*clamp\([^)]*56vw[^)]*\)/);
     expect(dock).toMatch(/\.cp-list\.is-coop\s+\.cp-pj\s*\{[^}]*scroll-snap-align:\s*start/);
   });
 

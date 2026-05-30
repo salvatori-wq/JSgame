@@ -1591,13 +1591,16 @@ body.is-portrait-narrow .sc-row .sc-chip-dc {
   justify-self: start;
   margin-left: 4px;
 }
-/* W1.2 — Dado SKILL-CHECK 140×140 em mobile (era 72×72). Font-size 64px
- * faz o número ocupar visualmente o centro. Override do dice.css default. */
+/* W1.2 — Dado SKILL-CHECK protagonista em mobile (era 72×72). Font grande
+ * centraliza o número. Override do dice.css default.
+ * Responsivo F2 — FLUIDO via --m-die-skillcheck (clamp 104→150, vmin: não
+ * incha no landscape). A 320w cai pra ~109px (era 44% travado em 140) e a 430w
+ * sobe pra ~146px. Face em vmin acompanha. */
 body.is-portrait-narrow .sc-stage .die-3d.sc-die-slot,
 body.is-portrait-narrow .sc-die {
-  width: 140px !important;
-  height: 140px !important;
-  font-size: 64px !important;
+  width: var(--m-die-skillcheck) !important;
+  height: var(--m-die-skillcheck) !important;
+  font-size: clamp(48px, 16vmin, 70px) !important;
   border-radius: 18px;
 }
 /* W1.2 — Chip maior pro touch (legibilidade alinhada ao dado grande) */

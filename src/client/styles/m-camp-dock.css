@@ -54,13 +54,15 @@ body.is-portrait-narrow .ch-slot-header {
  * .is-solo quando party.length === 1. */
 body.is-portrait-narrow .ch-slot-party {
   flex-shrink: 0;
-  max-height: 22vh;
+  /* Responsivo F2 — clamp(piso, vh, teto): tela curta (568h) não esmaga a
+   * faixa abaixo de ~4 PJs; tela alta (932h) não desperdiça (cap 150). */
+  max-height: clamp(96px, 22vh, 150px);
   overflow-y: auto;
   padding: 6px var(--m-padding-screen);
   background: rgba(20, 12, 8, 0.45);
 }
 body.is-portrait-narrow .ch-slot-party.is-solo {
-  max-height: 16vh;
+  max-height: clamp(54px, 16vh, 110px);
   padding: 4px var(--m-padding-screen);
 }
 
@@ -224,13 +226,15 @@ body.is-portrait-narrow .ch-slot-party .cp-list.is-coop::-webkit-scrollbar {
 }
 body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj {
   flex: 0 0 auto;
-  width: 200px;
+  /* Responsivo F2 — clamp(piso, vw, teto): a 320w cai pra ~179px (cabem ~1,7
+   * cards visíveis em vez de só 1,5), a 430w sobe a 220 sem esticar demais. */
+  width: clamp(168px, 56vw, 220px);
   scroll-snap-align: start;
   padding: 6px 8px;
 }
 /* "Você" sempre PRIMEIRO + ligeiramente maior pra destacar */
 body.is-portrait-narrow .ch-slot-party .cp-list.is-coop .cp-pj.is-me {
-  width: 220px;
+  width: clamp(184px, 60vw, 240px);
   order: -1;
 }
 /* Compacta meta em coop pra caber */
@@ -293,7 +297,9 @@ body.is-portrait-narrow .ch-slot-main-content:empty {
 }
 body.is-portrait-narrow .ch-slot-main-content {
   flex-shrink: 0;
-  max-height: 35vh;
+  /* Responsivo F2 — clamp(piso, vh, teto): tela curta garante ~180px pro
+   * drill-down de sub-ações caber; tela alta capa em 300 (não vira meia tela). */
+  max-height: clamp(180px, 35vh, 300px);
   overflow-y: auto;
   background: linear-gradient(180deg, rgba(20, 12, 8, 0.96) 0%, rgba(10, 6, 8, 0.99) 100%);
   border-top: 2px solid rgba(244, 208, 127, 0.45);
@@ -510,7 +516,10 @@ body.is-portrait-narrow .camp-screen.is-in-combat .ch-slot-main-content {
  * exploração ficam intactos. (Movimento ① do redesign de layout mobile.) */
 body.is-portrait-narrow .camp-screen.is-in-combat .ch-narration-host {
   flex: 0 0 auto;
-  max-height: 18vh;
+  /* Responsivo F2 — clamp(piso, vh, teto): o recap de combate nunca cai abaixo
+   * de ~4 linhas (96px) mesmo a 568h, e não passa de 168 a 932h (o dock cresce
+   * com o resto). 20vh ≈ o 18vh de antes nas telas médias. */
+  max-height: clamp(96px, 20vh, 168px);
 }
 /* ③ libera o cap: o dock é o ÚNICO grower em combate (narração é fixa 18vh,
  * header/party/tabs são flex-shrink:0). Com a party em faixa fina (③) sobram

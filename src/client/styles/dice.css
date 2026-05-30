@@ -358,11 +358,14 @@
 .dice-roll-overlay .dro-verdict.is-fail   { color: #c0c4d0; }
 
 /* ψ.1 — Dado MAIOR no overlay (protagonista visual). Resto continua 58px
- * em outros lugares (skill-check inline, sheet, etc). */
+ * em outros lugares (skill-check inline, sheet, etc).
+ * Responsivo F2 — FLUIDO via --m-die-overlay (clamp 88→120, vmin: preso ao
+ * lado curto, não incha no landscape). Substitui 96px desktop + bump fixo
+ * 112px @≤480 (apagado abaixo — o clamp cobre toda a faixa 320→430). */
 .dice-roll-overlay .die-3d {
-  width: 96px;
-  height: 96px;
-  font-size: 42px;
+  width: var(--m-die-overlay);
+  height: var(--m-die-overlay);
+  font-size: clamp(40px, 13vmin, 52px);
   border-radius: 16px;
   margin: 16px 0 8px;
 }
@@ -377,18 +380,14 @@
   overflow: visible;
 }
 
-/* Mobile — dado maior em telas pequenas pra hit target */
+/* Mobile — dado-base (inline/ficha) maior em telas pequenas pra hit target.
+ * Responsivo F2 — o bump fixo do OVERLAY (112px) foi REMOVIDO daqui: o
+ * --m-die-overlay (clamp vmin) já cobre toda a faixa 320→430 sem salto. */
 @media (max-width: 480px) {
   .die-3d {
     width: 64px;
     height: 64px;
     font-size: 28px;
-  }
-  .dice-roll-overlay .die-3d {
-    width: 112px;
-    height: 112px;
-    font-size: 48px;
-    border-radius: 18px;
   }
   .dice-roll-overlay .dro-stage {
     padding: 200px 22px 24px;
