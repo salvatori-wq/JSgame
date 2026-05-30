@@ -82,7 +82,7 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 8 commits, suite 2103→2125 verde, **NÃO pushado — aguarda OK do João pro push+deploy**)
+> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 9 commits, suite 2103→2125 verde, **PUSHADO (origin/main=`5b160e2`). DEPLOY PENDENTE: auto-deploy do Render free está OFF (poll 8min + uptime confirmam) → João precisa do Manual Deploy no painel**)
 
 ### Plano "Responsividade perfeita em qualquer celular" (F1-F6) — entregue
 
@@ -124,9 +124,13 @@ regride (provado por DOM a 1280×800). Cada fase medida no preview na matriz
   mobile; inputs <16px (gl-search/coop/owner/chat) davam auto-zoom no iOS →
   `max(16px, var(--fs-base))` no mobile. Inventário limpo. Suite 2123→2125.
 
-**Pendente (ação do João)**: `git push origin main` + Manual Deploy + **Ciclo D
-smoke no celular real** (girar landscape em cada tela, login com chrome, notch,
-dado, sem zoom-input iOS). Ver `FASE6_CACA_BUGS.md` §Ciclo D.
+**Status push/deploy**: ✅ `git push origin main` FEITO (origin/main=`5b160e2`).
+❌ **Deploy NÃO subiu** — auto-deploy do Render free está OFF (confirmado: poll de
+8min no bundle + `/api/health` uptime sem reset). **João precisa**: Render dashboard
+→ serviço `jsgame` → **Manual Deploy → "Deploy latest commit"** (`5b160e2`). (Não
+há deploy-hook nem RENDER_API_KEY no repo/.env, então eu NÃO consigo disparar — é
+clique no painel.) Depois: **Ciclo D smoke no celular real** (girar landscape em
+cada tela, login com chrome, notch, dado, sem zoom-input iOS) — `FASE6_CACA_BUGS.md` §Ciclo D.
 
 > Última atualização anterior: 2026-05-30 (Plano profundo WhatsApp+dado+batalha — 6 fases, 6 commits, suite 2073→2103 verde, **NÃO pushado ainda — aguarda OK do João pro deploy**)
 
