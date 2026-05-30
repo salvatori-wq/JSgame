@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
-// Redesign WhatsApp — o rodapé vira a BARRA DE AÇÕES e a exploração não usa
-// mais o dock (narração domina). Contrato:
-//  - exploração+portrait → .camp-action-bar com 5 botões (Explorar/Social/
-//    Tentar/Livre/Mais) no slot de baixo; main-content VAZIO (sem dock).
-//  - combate+portrait → .camp-action-bar.is-combat com só [Mais]; dock
+// Redesign WhatsApp (Fase 2) — o rodapé vira a BARRA DE AÇÕES e a exploração
+// não usa mais o dock (narração domina). Contrato:
+//  - exploração+portrait → .camp-action-bar com 5 botões (Explorar/Falar/
+//    Batalha/Dado/Mais) no slot de baixo; main-content VAZIO (sem dock).
+//  - combate+portrait → .camp-action-bar.is-combat (combat: ver Fase 3); dock
 //    (combat-screen) montado no main-content.
 //
 // singleFork vaza body.* → afterEach limpa.
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CampaignScreen } from '../campaign-screen';
 import type { CharacterSheet, CampaignState } from '../../../shared/types';
 
@@ -55,12 +55,12 @@ function mount(state: CampaignState, narrow = true): HTMLElement {
 afterEach(() => { document.body.className = ''; });
 
 describe('Redesign — exploração: barra de ações no rodapé, sem dock', () => {
-  it('rodapé tem .camp-action-bar com 5 botões (Explorar/Social/Tentar/Livre/Mais)', () => {
+  it('rodapé tem .camp-action-bar com 5 botões (Explorar/Falar/Batalha/Dado/Mais)', () => {
     const c = mount(exploreState());
     const bar = c.querySelector('.ch-slot-bottom-tabs .camp-action-bar');
     expect(bar).toBeTruthy();
     const labels = [...bar!.querySelectorAll('.cab-label')].map((e) => e.textContent);
-    expect(labels).toEqual(['Explorar', 'Social', 'Tentar', 'Livre', 'Mais']);
+    expect(labels).toEqual(['Explorar', 'Falar', 'Batalha', 'Dado', 'Mais']);
   });
 
   it('main-content (dock) fica VAZIO em exploração+portrait (narração domina)', () => {
@@ -74,6 +74,31 @@ describe('Redesign — exploração: barra de ações no rodapé, sem dock', () 
   it('não renderiza a nav bar antiga (Missões/Glórias/...)', () => {
     const c = mount(exploreState());
     expect(c.querySelector('.bottom-tab-bar')).toBeNull();
+  });
+
+  it('botão ⚔ Batalha dispara takeAction("attack", "") — DM decide se inicia combate', () => {
+    document.body.className = 'is-portrait-narrow';
+    const container = document.createElement('div');
+    const screen = new CampaignScreen(container, {
+      characterId: 'pc-1', socket: { emit: () => {} } as unknown as never, ownerName: 'João', onExit: () => {},
+    } as never);
+    const s = screen as unknown as {
+      character: CharacterSheet; party: CharacterSheet[]; currentState: CampaignState;
+      buildShell(): void; updateBottomTabBar(): void; takeAction(a: string, d?: string): void;
+    };
+    s.character = makeChar();
+    s.party = [makeChar()];
+    s.currentState = exploreState();
+    s.buildShell();
+    s.updateBottomTabBar();
+    const spy = vi.fn();
+    s.takeAction = spy; // shadowing instance method — o closure resolve no click
+    const bar = container.querySelector('.ch-slot-bottom-tabs .camp-action-bar')!;
+    const batalha = [...bar.querySelectorAll('.cab-btn')]
+      .find((b) => b.querySelector('.cab-label')?.textContent === 'Batalha') as HTMLButtonElement;
+    expect(batalha).toBeTruthy();
+    batalha.click();
+    expect(spy).toHaveBeenCalledWith('attack', '');
   });
 });
 

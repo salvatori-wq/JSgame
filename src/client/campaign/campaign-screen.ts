@@ -71,7 +71,7 @@ import { playLongRestRitual } from './long-rest-ritual';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
 import { type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
-import { popAll as popAllSheets } from '../sheet-stack-manager';
+import { push as pushSheet, popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
 import { openUxSettingsModal } from '../ux-settings-modal';
 import { openGlossaryModal } from '../glossary-modal';
@@ -1301,10 +1301,14 @@ export class CampaignScreen {
       ]);
 
     if (!isCombat) {
-      bar.appendChild(mkBtn('🔍', 'Explorar', () => this.takeAction('explore', '')));
-      bar.appendChild(mkBtn('🗣', 'Social', () => this.takeAction('talk', '')));
-      bar.appendChild(mkBtn('🎲', 'Tentar', () => { void this.openSkillPickerAndRoll(); }));
-      bar.appendChild(mkBtn('✎', 'Livre', () => { void this.openFreeAction(); }));
+      // Fase 2 — menu WhatsApp: Explorar · Falar · Batalha · Dado · Mais.
+      bar.appendChild(mkBtn('🧭', 'Explorar', () => this.takeAction('explore', '')));
+      bar.appendChild(mkBtn('💬', 'Falar', () => this.takeAction('talk', '')));
+      // ⚔ Batalha — sinaliza ao Mestre que o player quer partir pra briga; o DM
+      // decide se inicia combate (há inimigo na cena ou não). ✎ Livre virou item
+      // do "⋯ Mais" pra liberar este slot.
+      bar.appendChild(mkBtn('⚔', 'Batalha', () => this.takeAction('attack', '')));
+      bar.appendChild(mkBtn('🎲', 'Dado', () => { void this.openSkillPickerAndRoll(); }));
     }
     // Mais sempre disponível (mesmo pensando — é navegação/ferramentas).
     bar.appendChild(mkBtn('⋯', 'Mais', () => { void this.openToolsSheet(); }, { more: true, alwaysEnabled: true }));
@@ -1334,11 +1338,14 @@ export class CampaignScreen {
     const isCaster = shouldShowCastButton(this.character);
     const canRest = this.currentState?.mode !== 'combat';
     type Tool =
-      | 'investigate' | 'sneak' | 'travel' | 'inventory' | 'magic' | 'use-item'
+      | 'free' | 'investigate' | 'sneak' | 'travel' | 'inventory' | 'magic' | 'use-item'
       | 'short-rest' | 'long-rest' | 'quests' | 'npcs' | 'achievements'
       | 'share' | 'glossary' | 'settings';
     const opts: Array<{ value: Tool; label: string; description?: string }> = [];
     if (canRest) {
+      // Fase 2 — ✎ Livre saiu da barra inferior (deu lugar a ⚔ Batalha) e mora
+      // aqui no topo do "Mais": ação narrada em texto livre.
+      opts.push({ value: 'free', label: '✎ Ação livre', description: 'descreva o que você faz' });
       opts.push({ value: 'investigate', label: '🔎 Investigar', description: 'analisar uma pista' });
       opts.push({ value: 'sneak', label: '🥷 Furtar-se', description: 'esconder / passar' });
       opts.push({ value: 'travel', label: '🚶 Viajar', description: 'ir pra outro lugar' });
@@ -1364,6 +1371,7 @@ export class CampaignScreen {
     });
     if (!choice) return;
     switch (choice) {
+      case 'free': void this.openFreeAction(); break;
       case 'investigate': this.takeAction('investigate', ''); break;
       case 'sneak': this.takeAction('sneak', ''); break;
       case 'travel': this.takeAction('travel', ''); break;
@@ -1753,87 +1761,93 @@ export class CampaignScreen {
     // horizontal scroll-snap em mobile (cada PJ vira card compact 200px).
     const list = el('div', { class: `cp-list${this.party.length > 1 ? ' is-coop' : ''}` });
     for (const p of this.party) {
-      const isMe = p.id === this.opts.characterId;
-      const isDown = p.currentHp <= 0;
-      const hpPct = p.maxHp > 0 ? Math.round((p.currentHp / p.maxHp) * 100) : 0;
-      // Slots resumidos
-      const slotsInfo: string[] = [];
-      for (let lvl = 1; lvl <= 5; lvl++) {
-        const s = p.spellSlots[lvl as 1 | 2 | 3 | 4 | 5];
-        if (s && s.max > 0) slotsInfo.push(`L${lvl}: ${s.max - s.used}/${s.max}`);
-      }
-      // F16: XP progress 0..1 dentro do nível atual
-      const xpPct = Math.round(xpProgressInLevel(p.xp, p.level) * 100);
-      const xpToNext = xpToNextLevel(p.xp, p.level);
-      const xpAtMax = p.level >= 20;
-      const xpFloor = XP_FOR_LEVEL[p.level] ?? 0;
-      const xpInLevel = p.xp - xpFloor;
-
-      const portrait = portraitFor({ raceId: p.raceId, classId: p.classId });
-      list.appendChild(el('div', {
-        class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}`,
-        attrs: { 'data-combat-target': p.id },
-      }, [
-        el('div', { class: 'cp-pj-portrait', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
-          el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
-          iconEl(classIconName(p.classId), portrait.class, { className: 'cp-pj-portrait-class' }),
-        ]),
-        el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
-        el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${effectiveArmorClass(p)}${effectiveArmorClass(p) !== p.armorClass ? '✦' : ''} · HD ${p.hitDiceRemaining}/${p.level}` }),
-        el('div', { class: 'cp-pj-hp-bar' }, [
-          el('div', {
-            class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,
-            style: { width: `${hpPct}%` },
-          }),
-        ]),
-        el('div', { class: 'cp-pj-hp-txt', text: `HP ${p.currentHp}/${p.maxHp}` }),
-        // F16 — XP bar
-        el('div', { class: 'cp-pj-xp-bar', attrs: { title: xpAtMax ? 'Nível máximo' : `${xpInLevel} XP no nv ${p.level} · faltam ${xpToNext} pro nv ${p.level + 1}` } }, [
-          el('div', { class: 'cp-pj-xp-fill', style: { width: `${xpPct}%` } }),
-        ]),
-        el('div', { class: 'cp-pj-xp-txt', text: xpAtMax ? '★ MAX (nv 20)' : `XP ${p.xp.toLocaleString('pt-BR')}${xpToNext > 0 ? ` · faltam ${xpToNext.toLocaleString('pt-BR')}` : ''}` }),
-        slotsInfo.length > 0
-          ? el('div', { class: 'cp-pj-slots', text: `🔮 ${slotsInfo.join(' · ')}` })
-          : null,
-        isDown
-          ? el('div', { class: 'cp-pj-death' }, [
-              el('span', { class: 'cp-pj-death-label', text: '💀 Death saves' }),
-              el('span', { class: 'cp-pj-death-marks' }, [
-                el('span', { class: 'cp-pj-death-s', text: `✓${p.deathSaveSuccesses}/3` }),
-                el('span', { class: 'cp-pj-death-f', text: `✗${p.deathSaveFailures}/3` }),
-              ]),
-            ])
-          : null,
-        p.conditions.length > 0
-          ? el('div', { class: 'cp-pj-cond', text: p.conditions.join(' · ') })
-          : null,
-        p.exhaustion > 0
-          ? el('div', { class: 'cp-pj-exhaustion', text: `💀 Exaustão ${p.exhaustion}/6` })
-          : null,
-        // 1B — Concentration badge (F25): exibe magia ativa em concentração.
-        p.concentratingOn
-          ? el('div', { class: 'cp-pj-conc', text: `🧠 Conc: ${p.concentratingOn}` })
-          : null,
-        // 1B — Active buffs badge (A2): Bardic, Bless, Guidance, Shield, Faerie Fire.
-        p.activeBuffs && p.activeBuffs.length > 0
-          ? el('div', { class: 'cp-pj-buffs', text: `✨ ${p.activeBuffs.map((b) => b.source).join(' · ')}` })
-          : null,
-        // 1B — Rage badge (F23): flag combat-local serializada via combatFlags event.
-        (this.combatFlags[p.id] && this.combatFlags[p.id]!.includes('rage'))
-          ? el('div', { class: 'cp-pj-rage', text: '🔥 FÚRIA' })
-          : null,
-        // α.3 — Inspiração badge (PHB pág 125): 1-3 estrelas douradas
-        (p.inspirations && p.inspirations > 0)
-          ? el('div', {
-              class: 'cp-pj-inspiration',
-              attrs: { title: `${p.inspirations} inspiração(ões) — gasta antes de rolar pra advantage` },
-              text: '🌟'.repeat(Math.min(3, p.inspirations)),
-            })
-          : null,
-      ].filter(Boolean) as HTMLElement[]));
+      list.appendChild(this.renderPartyCard(p));
     }
     panel.appendChild(list);
     return panel;
+  }
+
+  /** Card completo de 1 PJ. Usado no coop (.cp-list) e na ficha expandida que
+   * abre ao tocar a faixa fina solo (Fase 2 — WhatsApp tap-to-expand). */
+  private renderPartyCard(p: CharacterSheet): HTMLElement {
+    const isMe = p.id === this.opts.characterId;
+    const isDown = p.currentHp <= 0;
+    const hpPct = p.maxHp > 0 ? Math.round((p.currentHp / p.maxHp) * 100) : 0;
+    // Slots resumidos
+    const slotsInfo: string[] = [];
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      const s = p.spellSlots[lvl as 1 | 2 | 3 | 4 | 5];
+      if (s && s.max > 0) slotsInfo.push(`L${lvl}: ${s.max - s.used}/${s.max}`);
+    }
+    // F16: XP progress 0..1 dentro do nível atual
+    const xpPct = Math.round(xpProgressInLevel(p.xp, p.level) * 100);
+    const xpToNext = xpToNextLevel(p.xp, p.level);
+    const xpAtMax = p.level >= 20;
+    const xpFloor = XP_FOR_LEVEL[p.level] ?? 0;
+    const xpInLevel = p.xp - xpFloor;
+
+    const portrait = portraitFor({ raceId: p.raceId, classId: p.classId });
+    return el('div', {
+      class: `cp-pj ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}`,
+      attrs: { 'data-combat-target': p.id },
+    }, [
+      el('div', { class: 'cp-pj-portrait', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
+        el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
+        iconEl(classIconName(p.classId), portrait.class, { className: 'cp-pj-portrait-class' }),
+      ]),
+      el('div', { class: 'cp-pj-name', text: `${p.characterName}${isMe ? ' (você)' : ''}` }),
+      el('div', { class: 'cp-pj-meta', text: `Nv ${p.level} · CA ${effectiveArmorClass(p)}${effectiveArmorClass(p) !== p.armorClass ? '✦' : ''} · HD ${p.hitDiceRemaining}/${p.level}` }),
+      el('div', { class: 'cp-pj-hp-bar' }, [
+        el('div', {
+          class: `cp-pj-hp-fill ${hpPct < 33 ? 'is-low' : hpPct < 66 ? 'is-mid' : ''}`,
+          style: { width: `${hpPct}%` },
+        }),
+      ]),
+      el('div', { class: 'cp-pj-hp-txt', text: `HP ${p.currentHp}/${p.maxHp}` }),
+      // F16 — XP bar
+      el('div', { class: 'cp-pj-xp-bar', attrs: { title: xpAtMax ? 'Nível máximo' : `${xpInLevel} XP no nv ${p.level} · faltam ${xpToNext} pro nv ${p.level + 1}` } }, [
+        el('div', { class: 'cp-pj-xp-fill', style: { width: `${xpPct}%` } }),
+      ]),
+      el('div', { class: 'cp-pj-xp-txt', text: xpAtMax ? '★ MAX (nv 20)' : `XP ${p.xp.toLocaleString('pt-BR')}${xpToNext > 0 ? ` · faltam ${xpToNext.toLocaleString('pt-BR')}` : ''}` }),
+      slotsInfo.length > 0
+        ? el('div', { class: 'cp-pj-slots', text: `🔮 ${slotsInfo.join(' · ')}` })
+        : null,
+      isDown
+        ? el('div', { class: 'cp-pj-death' }, [
+            el('span', { class: 'cp-pj-death-label', text: '💀 Death saves' }),
+            el('span', { class: 'cp-pj-death-marks' }, [
+              el('span', { class: 'cp-pj-death-s', text: `✓${p.deathSaveSuccesses}/3` }),
+              el('span', { class: 'cp-pj-death-f', text: `✗${p.deathSaveFailures}/3` }),
+            ]),
+          ])
+        : null,
+      p.conditions.length > 0
+        ? el('div', { class: 'cp-pj-cond', text: p.conditions.join(' · ') })
+        : null,
+      p.exhaustion > 0
+        ? el('div', { class: 'cp-pj-exhaustion', text: `💀 Exaustão ${p.exhaustion}/6` })
+        : null,
+      // 1B — Concentration badge (F25): exibe magia ativa em concentração.
+      p.concentratingOn
+        ? el('div', { class: 'cp-pj-conc', text: `🧠 Conc: ${p.concentratingOn}` })
+        : null,
+      // 1B — Active buffs badge (A2): Bardic, Bless, Guidance, Shield, Faerie Fire.
+      p.activeBuffs && p.activeBuffs.length > 0
+        ? el('div', { class: 'cp-pj-buffs', text: `✨ ${p.activeBuffs.map((b) => b.source).join(' · ')}` })
+        : null,
+      // 1B — Rage badge (F23): flag combat-local serializada via combatFlags event.
+      (this.combatFlags[p.id] && this.combatFlags[p.id]!.includes('rage'))
+        ? el('div', { class: 'cp-pj-rage', text: '🔥 FÚRIA' })
+        : null,
+      // α.3 — Inspiração badge (PHB pág 125): 1-3 estrelas douradas
+      (p.inspirations && p.inspirations > 0)
+        ? el('div', {
+            class: 'cp-pj-inspiration',
+            attrs: { title: `${p.inspirations} inspiração(ões) — gasta antes de rolar pra advantage` },
+            text: '🌟'.repeat(Math.min(3, p.inspirations)),
+          })
+        : null,
+    ].filter(Boolean) as HTMLElement[]);
   }
 
   /** ③ Faixa fina solo (portrait): 1 linha portrait+nome+HP+CA, sem XP/slots.
@@ -1853,9 +1867,24 @@ export class CampaignScreen {
     if (p.exhaustion > 0) badges.push(`💀 Exaustão ${p.exhaustion}/6`);
     if (p.inspirations && p.inspirations > 0) badges.push('🌟'.repeat(Math.min(3, p.inspirations)));
 
+    // Fase 2 — WhatsApp: a faixa é tocável (role=button) e expande a ficha
+    // completa num bottom-sheet. Chevron › sinaliza a affordance.
     const strip = el('div', {
       class: `cp-strip ${isMe ? 'is-me' : ''} ${isDown ? 'is-down' : ''}`,
-      attrs: { 'data-combat-target': p.id },
+      attrs: {
+        'data-combat-target': p.id,
+        role: 'button',
+        tabindex: '0',
+        title: 'Toque pra ver a ficha completa',
+        'aria-label': `${p.characterName} — toque pra ver a ficha completa`,
+      },
+      on: {
+        click: () => this.openPartyMemberSheet(p),
+        keydown: (e: Event) => {
+          const ke = e as KeyboardEvent;
+          if (ke.key === 'Enter' || ke.key === ' ') { ke.preventDefault(); this.openPartyMemberSheet(p); }
+        },
+      },
     }, [
       el('div', { class: 'cp-pj-portrait cp-strip-av', style: { background: portrait.aura }, attrs: { title: `${p.raceId} ${p.classId}` } }, [
         el('span', { class: 'cp-pj-portrait-race', text: portrait.race }),
@@ -1870,6 +1899,7 @@ export class CampaignScreen {
       ]),
       el('span', { class: 'cp-strip-hp', text: `${p.currentHp}/${p.maxHp}` }),
       el('span', { class: 'cp-strip-ca', attrs: { title: 'Classe de Armadura' }, text: `🛡 ${ac}${ac !== p.armorClass ? '✦' : ''}` }),
+      el('span', { class: 'cp-strip-chevron', attrs: { 'aria-hidden': 'true' }, text: '›' }),
     ]);
 
     const section = el('section', { class: 'camp-party is-thin-strip' }, [strip]);
@@ -1878,6 +1908,17 @@ export class CampaignScreen {
         badges.map((b) => el('span', { class: 'cp-strip-badge', text: b }))));
     }
     return section;
+  }
+
+  /** Fase 2 — WhatsApp tap-to-expand: abre a ficha completa do PJ num
+   * bottom-sheet (sheet-stack) ao tocar a faixa fina. Reusa renderPartyCard. */
+  private openPartyMemberSheet(p: CharacterSheet): void {
+    const sheet = el('div', { class: 'cp-member-sheet' }, [
+      el('div', { class: 'cp-member-sheet-grip', attrs: { 'aria-hidden': 'true' } }),
+      el('div', { class: 'cp-member-sheet-title', text: `${p.characterName}${p.id === this.opts.characterId ? ' (você)' : ''}` }),
+      el('div', { class: 'cp-member-sheet-body' }, [this.renderPartyCard(p)]),
+    ]);
+    pushSheet({ id: 'party-member', element: sheet, onClose: () => { /* nada a limpar */ } });
   }
 
   private renderDeathSaveBanner(): HTMLElement | null {
