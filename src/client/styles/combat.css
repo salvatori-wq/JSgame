@@ -223,7 +223,11 @@
 .cb-cond-pill {
   padding: 1px 5px;
   border-radius: 6px;
-  font-size: 9px;
+  /* Responsivo F6 — era 9px FIXO (não escalava com font-scale e ficava ilegível
+   * a 320). var(--fs-xs) = clamp(10→12) * font-scale: a condição de combate
+   * (info crítica) cresce com a pref de acessibilidade. O min-height:22px do
+   * .cb-cond-pill (combat-polish.css) absorve o texto maior sem estourar. */
+  font-size: var(--fs-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: 600;

@@ -1231,6 +1231,14 @@ body.is-portrait-narrow .ab-slider {
   border-color: var(--accent-rune);
   opacity: 1;
 }
+/* Responsivo F6 — no toque não há :hover, então o "⚖ comparar" fica opaco
+ * (touch não revela). Mantém o tamanho atual de propósito: crescê-lo (≥36px)
+ * fazia a borda inferior do botão (absolute, canto sup-dir) cobrir a linha de
+ * bônus em raças de string longa (ex. Humano) — medido a 320. O alvo de toque
+ * maior pede reposicionar/reestruturar o card (P2, fora do escopo do sweep). */
+body.is-portrait-narrow .wc-compare-btn {
+  opacity: 1;
+}
 .wiz-card.is-comparing {
   border-color: var(--accent-rune);
   box-shadow: 0 0 0 2px rgba(212, 175, 90, 0.25);

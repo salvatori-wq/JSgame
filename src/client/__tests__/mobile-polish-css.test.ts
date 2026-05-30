@@ -1096,4 +1096,15 @@ describe('Responsivo F1-F4 — sistema fluido', () => {
     expect(duo).toMatch(/@media\s*\(max-height:\s*600px\)[\s\S]*?\.dt-tooltip\s*\{[\s\S]*?max-height:\s*80dvh/);
     expect(duo).toMatch(/@media\s*\(max-height:\s*600px\)[\s\S]*?overflow-y:\s*auto/);
   });
+
+  // F6 — caça-bugs: fixes confirmados empiricamente
+  it('F6 — login-screen usa 100dvh (não só 100vh — chrome do browser mobile)', () => {
+    const modals = readCss('modals.css');
+    expect(modals).toMatch(/\.login-screen\s*\{[\s\S]*?min-height:\s*100dvh/);
+  });
+
+  it('F6 — cond-pill de combate usa var(--fs-xs) (escala com font-scale, era 9px)', () => {
+    const combat = readCss('combat.css');
+    expect(combat).toMatch(/\.cb-cond-pill\s*\{[\s\S]*?font-size:\s*var\(--fs-xs\)/);
+  });
 });

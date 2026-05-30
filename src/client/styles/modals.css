@@ -675,7 +675,12 @@ body.is-portrait-narrow .cb-eco-slot {
    Login Screen — F15 magic link auth
    ═══════════════════════════════════════════════════════════════════════ */
 .login-screen {
+  /* Responsivo F6 — 100dvh (não 100vh): com a barra do browser mobile visível
+   * o 100vh resolve MAIOR que a área visível e empurra o botão de login pra
+   * fora (pior no landscape, h~390). dvh acompanha o chrome. Casa o body em
+   * _tokens.css, que já usa var(--m-vh)=100dvh com fallback 100vh. */
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 32px 16px;
   display: flex;
   flex-direction: column;
