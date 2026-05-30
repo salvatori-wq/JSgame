@@ -111,9 +111,11 @@ direto, sem barra inferior). Cada fase medida a 390×844 E 360×800 via
 - **Fase 4 — Faxina** (`675e31a`): sweep DOM de cada tela. 2 achados: botão coop
   ~36px→44px; body do member-sheet `flex:1` (rola se ficha alta). Resto limpo
   (zero overflow-x/sobreposição). Checklist em `FASE4_FAXINA_LAYOUT.md`.
-- **Fase 5 — Deploy+keep-alive** (`3b5fb4c`): `.github/workflows/keep-alive.yml`
-  (cron 10min → `/api/health`, mata cold-start, grátis em repo público) +
-  `FASE5_DEPLOY.md` (passo a passo Manual Deploy). **Push + deploy = ação do João.**
+- **Fase 5 — Deploy+keep-alive**: `FASE5_DEPLOY.md` (passo a passo Manual Deploy
+  + smoke). O keep-alive (cron 10min → `/api/health`, mata cold-start) está como
+  YAML no guia — o token OAuth do CLI não tem escopo `workflow` pra commitar
+  `.github/workflows/*`; João adiciona via web UI ou credencial própria.
+  **Push + deploy + keep-alive = ação do João.**
 - **Fase 6 — Regras** (`8eafbba`): Rank 8 (inimigo free-form ganha abilityScores
   por proxy de CR — saves não são +0), Rank 11 (`'active'` mira o ator da vez via
   `Campaign.lastActingPlayerId`, não party[0]), Rank 12 (golpe de misericórdia:
