@@ -11,7 +11,7 @@ import type { DiceRoll } from '../../../shared/types';
 const check: PendingCheck = { skill: 'percepcao', dc: 12, reason: 'Notar emboscada', bonus: 3, inspirations: 0 };
 
 const makeRoll = (face: number, total: number): DiceRoll => ({
-  notation: '1d20+3', rolls: [face], modifier: 3, total, kind: 'd20', count: 1,
+  notation: '1d20+3', rolls: [face], modifier: 3, total, kind: 20, count: 1,
   nat20: face === 20, nat1: face === 1,
 });
 
