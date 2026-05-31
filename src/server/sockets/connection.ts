@@ -49,6 +49,32 @@ export function explorationActionLabel(action: string): string {
   return map[action] ?? action;
 }
 
+/**
+ * Label PT-BR pro echo de COMBATE. Espelha explorationActionLabel (Ciclo U) e o
+ * combatActionLabel do client (combat-target-sheet.ts), mas server-side. Sem
+ * isso o echo cuspia o enum cru ('attack', 'two-weapon'…) no log — o MESMO bug
+ * do Ciclo U que só foi fechado pro echo de exploração; o de combate ficou de fora.
+ */
+export function combatActionLabel(action: string): string {
+  const map: Record<string, string> = {
+    'attack':      '⚔ Atacar',
+    'cast-spell':  '🔮 Lançar Magia',
+    'dodge':       '🛡 Esquivar',
+    'dash':        '💨 Disparar',
+    'disengage':   '↩ Desengajar',
+    'help':        '🤝 Ajudar',
+    'hide':        '🥷 Esconder',
+    'ready':       '⏳ Preparar',
+    'search':      '🔎 Procurar',
+    'use-object':  '✋ Usar Objeto',
+    'use-item':    '🧪 Usar Item',
+    'shove':       '👐 Empurrar',
+    'grapple':     '🤼 Agarrar',
+    'two-weapon':  '🗡 Ataque com 2 Armas',
+  };
+  return map[action] ?? action;
+}
+
 export function registerConnectionHandler(ctx: ConnectionCtx): void {
   const { io, dm, lobbyManager, campaigns, helpers, getOrCreateCampaign } = ctx;
   const { broadcastState, drainHighlights, drainAchievements, flushPostCombatRewards, withThinkingBroadcast } = helpers;
@@ -522,8 +548,14 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         // imediatamente, ANTES do resultado do roll/dano. Resolve race condition
         // onde echo aparecia DEPOIS dos combatEvents (visual confuso).
         const attackerName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
+        // Ciclo de correção — echo em PT-BR. Era `→ attack (alvo enemy-…id)` cru:
+        // enum de ação + ID interno do inimigo na cara do jogador (mesmo bug do
+        // Ciclo U, fechado só pro echo de EXPLORAÇÃO). Agora label PT-BR + NOME.
+        const targetName = targetId
+          ? camp.state.combat?.enemies.find((e) => e.id === targetId)?.name
+          : undefined;
         io.to(camp.state.id).emit('dmNarration', {
-          text: `→ ${String(action)}${targetId ? ` (alvo ${targetId})` : ''}`,
+          text: `→ ${combatActionLabel(String(action))}${targetName ? ` · ${targetName}` : ''}`,
           speaker: `⚔ ${attackerName}`,
           mood: 'neutral',
         });

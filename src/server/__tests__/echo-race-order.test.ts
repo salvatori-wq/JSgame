@@ -6,6 +6,7 @@
 // Teste mocka socket.io e captura a sequência de emits.
 
 import { describe, it, expect, vi } from 'vitest';
+import { combatActionLabel } from '../sockets/connection';
 
 // Simula io.to(roomId).emit(...) capturando ordem dos calls.
 function makeFakeIo(): {
@@ -77,9 +78,10 @@ describe('γ.3 — echo player race ordering', () => {
     const campaignId = 'camp1';
 
     async function handleCombatAction(): Promise<void> {
-      // 1. ECHO síncrono (γ.3 fix)
+      // 1. ECHO síncrono (γ.3 fix) — formato PT-BR (label + NOME do inimigo),
+      //    espelha o real em connection.ts (Ciclo de correção: era enum cru).
       io.to(campaignId).emit('dmNarration', {
-        text: `→ ${action} (alvo ${targetId})`,
+        text: `→ ${combatActionLabel(action)}${targetId ? ' · Goblin' : ''}`,
         speaker: `⚔ ${playerName}`,
         mood: 'neutral',
       });
@@ -102,7 +104,7 @@ describe('γ.3 — echo player race ordering', () => {
     await handleCombatAction();
 
     expect(emitLog[0]!.event).toBe('dmNarration');
-    expect((emitLog[0]!.payload as { text: string }).text).toContain('→ attack');
+    expect((emitLog[0]!.payload as { text: string }).text).toContain('→ ⚔ Atacar');
     expect((emitLog[0]!.payload as { speaker: string }).speaker).toContain('⚔');
     // Próximos = result log + combat events
     expect(emitLog[1]!.event).toBe('dmNarration'); // log final

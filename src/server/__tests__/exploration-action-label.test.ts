@@ -4,7 +4,7 @@
 // pra "⚔ Atacar" PT-BR com ícone consistente com action-dock-topics.
 
 import { describe, it, expect } from 'vitest';
-import { explorationActionLabel } from '../sockets/connection';
+import { explorationActionLabel, combatActionLabel } from '../sockets/connection';
 
 describe('U.2 — explorationActionLabel', () => {
   it('attack → "⚔ Atacar"', () => {
@@ -60,6 +60,30 @@ describe('U.2 — explorationActionLabel', () => {
       expect(label).not.toBe(a);
       // Tem ícone unicode (não-ASCII)
       expect(label).toMatch(/[^\x00-\x7F]/);
+    }
+  });
+});
+
+// Ciclo de correção — echo de COMBATE. O bug do Ciclo U (enum 'attack' cru no
+// log) foi fechado só pro echo de exploração; o de combate cuspia
+// `→ attack (alvo enemy-…id)`. combatActionLabel fecha o gap server-side.
+describe('combatActionLabel — echo de combate PT-BR (gap do Ciclo U)', () => {
+  it('attack → "⚔ Atacar"', () => expect(combatActionLabel('attack')).toBe('⚔ Atacar'));
+  it('two-weapon → "🗡 Ataque com 2 Armas"', () => expect(combatActionLabel('two-weapon')).toBe('🗡 Ataque com 2 Armas'));
+  it('grapple → "🤼 Agarrar"', () => expect(combatActionLabel('grapple')).toBe('🤼 Agarrar'));
+  it('shove → "👐 Empurrar"', () => expect(combatActionLabel('shove')).toBe('👐 Empurrar'));
+  it('disengage → "↩ Desengajar"', () => expect(combatActionLabel('disengage')).toBe('↩ Desengajar'));
+  it('action desconhecida cai no fallback raw (defensivo)', () => {
+    expect(combatActionLabel('xyz-unknown')).toBe('xyz-unknown');
+  });
+  it('cobre TODAS CombatActionKind (14) com ícone, sem vazar enum cru', () => {
+    const all = ['attack', 'cast-spell', 'dodge', 'dash', 'disengage', 'help',
+                 'hide', 'ready', 'search', 'use-object', 'use-item', 'shove',
+                 'grapple', 'two-weapon'];
+    for (const a of all) {
+      const label = combatActionLabel(a);
+      expect(label, a).not.toBe(a);
+      expect(label, a).toMatch(/[^\x00-\x7F]/);
     }
   });
 });

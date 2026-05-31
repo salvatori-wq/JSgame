@@ -15,6 +15,20 @@ import { balanceFreeformEnemies } from '../dnd/combat-balance.js';
 import { tryBreakConcentration } from './spells-engine.js';
 import type { CharacterSheet } from '../shared/types.js';
 
+// Ciclo de correção — labels PT-BR pros enums que entram no TEXTO da memória
+// (visível no modal "🧠 Memória"). Os slugs do schema de tool (amigavel,
+// consumivel, misc…) vazavam crus pro jogador. Só o texto da memória precisa —
+// o roster/stat-block já mapeiam por conta própria.
+const ATTITUDE_PT: Record<string, string> = {
+  amigavel: 'amigável', neutro: 'neutro', hostil: 'hostil', misterioso: 'misterioso',
+};
+const ITEM_TYPE_PT: Record<string, string> = {
+  arma: 'arma', armadura: 'armadura', escudo: 'escudo', consumivel: 'consumível',
+  tesouro: 'tesouro', ferramenta: 'ferramenta', misc: 'diverso',
+};
+const attitudePt = (a: string): string => ATTITUDE_PT[a] ?? a;
+const itemTypePt = (t: string): string => ITEM_TYPE_PT[t] ?? t;
+
 /** Rank 9 — dano narrado via apply_damage (trapa/AoE/queda fora do turno inimigo)
  * também força save de concentração (PHB p.203). A 0 HP perde automaticamente
  * (inconsciente, sem save). Antes só o ataque inimigo em combate quebrava
@@ -234,7 +248,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         });
         camp.indexFact({
           kind: 'npc',
-          text: `NPC ${tool.name} (${tool.archetype}, atitude ${tool.attitude}) apareceu em ${camp.state.currentLocation}.`,
+          text: `NPC ${tool.name} (${tool.archetype}, atitude ${attitudePt(tool.attitude)}) apareceu em ${camp.state.currentLocation}.`,
           tags: `npc ${tool.name.toLowerCase()} ${tool.archetype.toLowerCase()}`,
           importance: 1.4,
         });
@@ -278,7 +292,7 @@ export function applyValidatedToolToCampaign(camp: Campaign, tool: ValidatedTool
         camp.pushRecentEvent(`${p.characterName} recebeu ${tool.itemName} × ${tool.quantity}`);
         camp.indexFact({
           kind: 'inventory',
-          text: `${p.characterName} recebeu ${tool.itemName} (${tool.type}) × ${tool.quantity}${tool.description ? ` — ${tool.description}` : ''}.`,
+          text: `${p.characterName} recebeu ${tool.itemName} (${itemTypePt(tool.type)}) × ${tool.quantity}${tool.description ? ` — ${tool.description}` : ''}.`,
           tags: `inventario item ${tool.itemName.toLowerCase()} ${tool.type}`,
           importance: tool.type === 'tesouro' ? 1.3 : 1.0,
         });

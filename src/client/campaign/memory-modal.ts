@@ -198,7 +198,10 @@ function renderFactCard(fact: MemoryFact): HTMLElement {
       <span class="mc-meta">S${fact.sessionN} · ${ageLabel}${fact.importance >= 1.4 ? ' · ★' : ''}</span>
     </div>
     <div class="mc-text">${escapeHtml(fact.text)}</div>
-    ${fact.tags ? `<div class="mc-tags">${escapeHtml(fact.tags)}</div>` : ''}
   `;
+  // Ciclo de correção — as tags (slugs de indexação tipo "inventario item poção
+  // de cura consumivel") são metadado de BUSCA interno, não conteúdo pro jogador.
+  // Vazavam cruas no modal de Memória. Não renderiza mais (a busca usa fact.tags
+  // por baixo, sem expor).
   return card;
 }

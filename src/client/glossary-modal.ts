@@ -34,7 +34,7 @@ export function openGlossaryModal(opts: { focusTerm?: string } = {}): void {
     class: 'gl-search',
     attrs: {
       type: 'text',
-      placeholder: '🔍 Buscar termo (ex: DC, advantage, slot)',
+      placeholder: '🔍 Buscar termo (ex: CD, vantagem, perícia)',
       'aria-label': 'Buscar no glossário',
     },
   }) as HTMLInputElement;
