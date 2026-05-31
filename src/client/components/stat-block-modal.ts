@@ -7,11 +7,18 @@ import { renderStatBlock, type StatBlockData } from './stat-block';
 let currentEl: HTMLDivElement | null = null;
 let escHandler: ((e: KeyboardEvent) => void) | null = null;
 
-export function openStatBlockModal(data: StatBlockData, onClose?: () => void): void {
+export function openStatBlockModal(
+  data: StatBlockData,
+  onClose?: () => void,
+  opts?: { elevated?: boolean },
+): void {
   closeStatBlockModal();
 
   const overlay = document.createElement('div');
-  overlay.className = 'stat-block-modal-overlay';
+  // QA-lançamento (Ciclo Combate): `elevated` sobe o z-index acima do
+  // combat-target-sheet (z-9400). Sem isso, "ℹ Ficha" abria a ficha ATRÁS do
+  // sheet (z-9000 < 9400) e o player não via nada.
+  overlay.className = `stat-block-modal-overlay${opts?.elevated ? ' is-elevated' : ''}`;
   overlay.innerHTML = `<div class="stat-block-modal-backdrop"></div>`;
 
   const sheet = el('div', { class: 'stat-block-modal-sheet' });

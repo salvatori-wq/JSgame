@@ -306,3 +306,26 @@
 .npc-card-sheet-btn:hover {
   background: rgba(212, 168, 87, 0.22);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * QA-lançamento (Ciclo Combate) — fixes do Inspetor Visual
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Z-INVERSÃO: quando a ficha do inimigo é aberta a partir do combat-target-sheet
+ * (.cts-overlay z-9400), ela precisa ficar ACIMA do sheet. Sem isso (z-modal=9000)
+ * a ficha abria ATRÁS do sheet e o player não via os stats. 9450 < dice (9500). */
+.stat-block-modal-overlay.is-elevated {
+  z-index: 9450;
+}
+
+/* HIT-TARGET: a ℹ do enemy card tem 26px — abaixo do piso de toque 44px. Em
+ * portrait, expande a ÁREA tocável pra ~44px via ::after transparente, SEM
+ * crescer o círculo visual (não cobre o nome/glyph do inimigo). Desktop intocado. */
+body.is-portrait-narrow .cb-enemy-info-btn {
+  position: absolute; /* garante containing block pro ::after */
+}
+body.is-portrait-narrow .cb-enemy-info-btn::after {
+  content: '';
+  position: absolute;
+  inset: -9px; /* 26 + 9*2 = 44px de área de toque */
+}

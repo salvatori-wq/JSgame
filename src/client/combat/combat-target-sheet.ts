@@ -177,7 +177,9 @@ export function openCombatTargetSheet(opts: CombatTargetSheetOpts): void {
       text: 'ℹ Ficha',
       on: {
         click: () => {
-          openStatBlockModal(enemyToStatBlock(opts.enemy));
+          // QA-lançamento (Ciclo Combate): elevated pra a ficha abrir ACIMA do
+          // sheet (z-9400) — antes abria atrás e o player não via os stats.
+          openStatBlockModal(enemyToStatBlock(opts.enemy), undefined, { elevated: true });
         },
       },
     }),
