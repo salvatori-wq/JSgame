@@ -51,7 +51,25 @@ export function getConditionDescription(condition: string): string {
   return CONDITION_DESCRIPTIONS[condition.toLowerCase()] ?? '';
 }
 
+/** Nome PT-BR canônico (capitalizado + com acento) pra exibir no chip.
+ *  Fonte: PHB Apêndice A (espelha CONDITIONS em src/dnd/conditions.ts).
+ *  QA-lançamento (Ciclo Combate): o pill do inimigo vazava o slug cru
+ *  ("caido", "enfeiticado", "invisivel", "restrito") em vez do nome. */
+const CONDITION_NAMES: Record<string, string> = {
+  agarrado: 'Agarrado', amedrontado: 'Amedrontado', atordoado: 'Atordoado',
+  caido: 'Caído', cego: 'Cego', enfeiticado: 'Enfeitiçado',
+  envenenado: 'Envenenado', incapacitado: 'Incapacitado', inconsciente: 'Inconsciente',
+  invisivel: 'Invisível', paralisado: 'Paralisado', petrificado: 'Petrificado',
+  restrito: 'Restrito', surdo: 'Surdo', enfraquecido: 'Enfraquecido',
+};
+
+/** Retorna o nome PT-BR pra exibição. Fallback: capitaliza a 1ª letra do slug. */
+export function getConditionName(condition: string): string {
+  const key = condition.toLowerCase();
+  return CONDITION_NAMES[key] ?? (condition.charAt(0).toUpperCase() + condition.slice(1));
+}
+
 /** Retorna formato "ICON Label" pronto pra exibir no chip. */
 export function formatConditionLabel(condition: string): string {
-  return `${getConditionIcon(condition)} ${condition}`;
+  return `${getConditionIcon(condition)} ${getConditionName(condition)}`;
 }

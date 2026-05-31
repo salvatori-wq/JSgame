@@ -11,7 +11,7 @@ import { el, escapeHtml } from '../util';
 import { openCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { portraitFor } from '../../dnd/portrait';
 import { renderClassFeaturesBar } from './class-features-bar';
-import { getConditionIcon, getConditionDescription } from './condition-icons';
+import { getConditionIcon, getConditionDescription, getConditionName } from './condition-icons';
 import { iconEl, enemyIconName, conditionIconName } from '../icons/game-icons';
 import { renderInitiativeRibbon } from './initiative-ribbon';
 import { enemyToStatBlock } from '../components/stat-block';
@@ -481,7 +481,7 @@ function renderEnemyCard(en: EnemySnapshot, onClick: () => void, clickable: bool
         attrs: desc ? { title: desc } : {},
       }, [
         iconEl(conditionIconName(c), getConditionIcon(c), { className: 'cb-cond-icon' }),
-        ` ${c}`,
+        ` ${getConditionName(c)}`,
       ]));
     }
     card.appendChild(condRow);
