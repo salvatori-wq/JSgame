@@ -128,10 +128,28 @@ Atualize a cada ciclo. Cada linha diz o MÉTODO de teste.
 - [ ] "Mandar texto livre" é fácil e funcional (campo, envio, DM entende o intent).
 
 ### C. Loop de combate
-- [❌] Batalha inicia; iniciativa; atacar/esquivar/etc; target picker; action
-  economy; condições; IA inimiga; fim de combate; XP + level-up. *Método: Rules
-  Lawyer + playtest. 105 unit tests verdes, mas o END-TO-END no preview falta.*
-- [ ] Echo de combate PT-BR (corrigido nesta sessão) confirmado em jogo real.
+- [✅] Batalha inicia; iniciativa; target picker; action economy; IA inimiga.
+  *END-TO-END verificado no preview (390×844, combate vivo prefab Lyra): "Batalha"
+  → DM start_combat → iniciativa R1, IA inimiga atacou (Lyra 7→1 HP), minha vez
+  com grade completa de ações, target-sheet, economia 2×2, 0 overflow-x.*
+- [✅] Echo de combate PT-BR confirmado em jogo real ("▶ Lyra Estrelaluz ⚔ Atacar").
+- [✅] 3 fixes do Ciclo Combate (DISCOVER 3 hunters → REPRODUCE → FIX → VERIFY):
+  - `8166f08` fix(jargão): pill de condição do inimigo vazava slug cru
+    (`caido`/`enfeiticado`/`invisivel`/`restrito`) → `getConditionName()` PT-BR.
+  - `9351813` fix(visual): "ℹ Ficha" abria a ficha ATRÁS do target-sheet
+    (z-9000<9400) → `elevated` z-9450 (provado no browser); ℹ 26px→44px de toque.
+  - Suite 2219 verde, tsc limpo, guards em condition-icons + combat-qa-launch.
+- [⚠️] **Rules P2 (MÉDIA) deferidos** (Rules Lawyer confirmou; combat.ts teve
+  instabilidade de leitura nesta sessão; impacto MÉDIO, não bloqueia sessão):
+  1. **Ataque com 2ª arma soma o modificador de atributo ao dano** (PHB p.195: a
+     mão-fraca NÃO soma o mod, salvo negativo). `combat.ts:419`
+     (`useMod + parsed.modifier`) chamado por `campaign.ts` case `'two-weapon'`
+     sem flag de supressão. Fix: `suppressAbilityMod` no opts → `Math.min(0,useMod)`.
+  2. **Ataque/save de magia ignora vantagem por condição do alvo** (Fire Bolt vs
+     alvo `restrito`/`caido` rola reto). `spells-engine.ts:185/170/363` não importa
+     `condition-advantage-rules` (ataque com ARMA já usa). Consistência.
+- [ ] Resta confirmar em jogo real: fim de combate + XP + level-up (LLM-gated;
+  não escalou nesta sessão). Itens/condições live → temas D + via grapple/shove.
 
 ### D. Itens & inventário
 - [❌] give_item; modal de inventário; equipar; usar; raridade; sintonia; loja.
