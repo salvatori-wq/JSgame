@@ -9,6 +9,8 @@
 const STORAGE_KEY = 'jsgame.sfx.enabled';
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+let sfxGain: GainNode | null = null;   // bus de SFX (volume independente da música)
+let sfxVolume = 1.0;                    // 0..1.5 — controle do jogador (Onda 6)
 let enabled = (() => {
   try { return localStorage.getItem(STORAGE_KEY) !== '0'; }
   catch { return true; }
@@ -41,6 +43,10 @@ function ensureCtx(): AudioContext | null {
     } catch {
       masterGain.connect(ctx.destination);
     }
+    // Onda 6 — bus de SFX: efeitos passam por aqui (volume separado da música).
+    sfxGain = ctx.createGain();
+    sfxGain.gain.value = sfxVolume;
+    sfxGain.connect(masterGain);
     return ctx;
   } catch {
     return null;
@@ -70,6 +76,13 @@ export function setSfxEnabled(v: boolean): void {
   try { localStorage.setItem(STORAGE_KEY, v ? '1' : '0'); }
   catch { /* private mode → ignore */ }
 }
+
+/** Volume dos efeitos sonoros (0..1.5) — independente da música. Onda 6. */
+export function setSfxVolume(v: number): void {
+  sfxVolume = Math.max(0, Math.min(1.5, v));
+  if (sfxGain) { try { sfxGain.gain.value = sfxVolume; } catch { /* */ } }
+}
+export function getSfxVolume(): number { return sfxVolume; }
 
 /** Audio: shared context getter pra ambient.ts (mesma AudioContext, mesmo masterGain). */
 export function _getAudioCtx(): AudioContext | null { return ensureCtx(); }
@@ -105,7 +118,7 @@ function tone(opts: {
   env.gain.linearRampToValueAtTime(peak, now + (opts.attack ?? 0.005));
   env.gain.exponentialRampToValueAtTime(0.001, now + opts.duration);
   osc.connect(env);
-  env.connect(masterGain);
+  env.connect(sfxGain ?? masterGain);
   osc.start(now);
   osc.stop(now + opts.duration + 0.05);
 }
@@ -144,7 +157,7 @@ function noise(opts: {
   env.gain.linearRampToValueAtTime(peak, now + (opts.attack ?? 0.005));
   env.gain.exponentialRampToValueAtTime(0.001, now + opts.duration);
   node.connect(env);
-  env.connect(masterGain);
+  env.connect(sfxGain ?? masterGain);
   src.start(now);
   src.stop(now + opts.duration + 0.05);
 }

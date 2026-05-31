@@ -177,3 +177,53 @@ body {
     transition: none;
   }
 }
+
+/* ──────────────── Onda 6 — seção de áudio + sliders ──────────────── */
+
+.uxs-section-h {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-top: 6px;
+  border-top: 1px solid rgba(244, 208, 127, 0.2);
+}
+
+.uxs-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uxs-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.uxs-slider-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.uxs-slider-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.uxs-slider-input {
+  width: 100%;
+  height: 28px;             /* alvo de toque confortável */
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.uxs-slider-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}

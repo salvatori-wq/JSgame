@@ -2,6 +2,9 @@
 // Persiste em localStorage. Aplica via CSS vars no documentElement.
 // initUxPrefs() chamado no boot pra aplicar prefs salvas antes de qualquer render.
 
+import { setSfxVolume } from './audio';
+import { setMusicVolume, setReverbAmount } from './audio/mixer';
+
 const STORAGE_KEY = 'jsgame.uxPrefs';
 
 export type Density = 'compact' | 'standard' | 'comfortable';
@@ -23,6 +26,12 @@ export interface UxPrefs {
   /** Dado 3D com física real (@3d-dice/dice-box) — cai e quica. Default ON.
    * Fallback automático pro dado CSS se off, sem WebGL, ou se a lib falhar. */
   physicalDice: boolean;
+  /** Onda 6 — volume da música (0..1.5). Aplica no bus de música do mixer. */
+  musicVolume: number;
+  /** Onda 6 — volume dos efeitos sonoros (0..1.5). Aplica no bus de SFX. */
+  sfxVolume: number;
+  /** Onda 6 — quantidade de reverb/eco da música (0..1). */
+  reverbAmount: number;
 }
 
 export const DEFAULT_PREFS: UxPrefs = {
@@ -38,6 +47,9 @@ export const DEFAULT_PREFS: UxPrefs = {
   // check (z-9000) → "dado não cai" no celular. O dado CSS (dice-3d) é o
   // confiável e sempre visível. Físico vira opt-in em Ajustes.
   physicalDice: false,
+  musicVolume: 1.0,
+  sfxVolume: 1.0,
+  reverbAmount: 0.3,
 };
 
 let cached: UxPrefs | null = null;
@@ -104,6 +116,14 @@ export function applyUxPrefs(prefs: UxPrefs = getUxPrefs()): void {
   // CSS em dice.css usa body.force-motion .die-3d.is-rolling { animation: ... !important }
   // pra ignorar media query do OS.
   document.body.classList.toggle('force-motion', prefs.forceMotion);
+
+  // Onda 6 — aplica volumes/reverb nos buses de áudio (no-op se o AudioContext
+  // ainda não existe; o mixer/sfx lêem esses valores ao montar no 1º gesto).
+  try {
+    setMusicVolume(prefs.musicVolume);
+    setSfxVolume(prefs.sfxVolume);
+    setReverbAmount(prefs.reverbAmount);
+  } catch { /* áudio indisponível — ignora */ }
 }
 
 /** Migração one-time: completa o 289673f. Aquele commit virou o default de
@@ -167,6 +187,15 @@ function sanitize(patch: Partial<UxPrefs>): Partial<UxPrefs> {
   }
   if (typeof patch.forceMotion === 'boolean') out.forceMotion = patch.forceMotion;
   if (typeof patch.physicalDice === 'boolean') out.physicalDice = patch.physicalDice;
+  if (typeof patch.musicVolume === 'number' && isFinite(patch.musicVolume)) {
+    out.musicVolume = Math.max(0, Math.min(1.5, patch.musicVolume));
+  }
+  if (typeof patch.sfxVolume === 'number' && isFinite(patch.sfxVolume)) {
+    out.sfxVolume = Math.max(0, Math.min(1.5, patch.sfxVolume));
+  }
+  if (typeof patch.reverbAmount === 'number' && isFinite(patch.reverbAmount)) {
+    out.reverbAmount = Math.max(0, Math.min(1, patch.reverbAmount));
+  }
   return out;
 }
 

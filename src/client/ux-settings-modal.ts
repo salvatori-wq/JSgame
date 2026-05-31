@@ -130,6 +130,22 @@ export function openUxSettingsModal(): void {
     },
   ));
 
+  // ───────── Onda 6 — Áudio (volumes + reverb da trilha medieval)
+  body.appendChild(el('div', { class: 'uxs-section-h', text: '🎵 Áudio' }));
+  const pct = (v: number): string => `${Math.round(v * 100)}%`;
+  body.appendChild(renderSlider(
+    '🎵 Música', 'Volume da trilha sonora medieval', 0, 1.5, 0.05, prefs.musicVolume, pct,
+    (v) => { prefs = setUxPrefs({ musicVolume: v }); },
+  ));
+  body.appendChild(renderSlider(
+    '🔊 Efeitos', 'Volume dos sons (dado, golpes, magias)', 0, 1.5, 0.05, prefs.sfxVolume, pct,
+    (v) => { prefs = setUxPrefs({ sfxVolume: v }); },
+  ));
+  body.appendChild(renderSlider(
+    '⛪ Eco de salão', 'Reverberação da música (catedral, caverna, taverna)', 0, 1, 0.05, prefs.reverbAmount, pct,
+    (v) => { prefs = setUxPrefs({ reverbAmount: v }); },
+  ));
+
   root.appendChild(body);
 
   pushSheet({
@@ -206,5 +222,40 @@ function renderToggle(
   ]);
   wrap.appendChild(labelEl);
   wrap.appendChild(toggle);
+  return wrap;
+}
+
+function renderSlider(
+  label: string,
+  hint: string,
+  min: number,
+  max: number,
+  step: number,
+  value: number,
+  format: (v: number) => string,
+  onChange: (v: number) => void,
+): HTMLElement {
+  const wrap = el('div', { class: 'uxs-slider' });
+  const valEl = el('span', { class: 'uxs-slider-val', text: format(value) });
+  wrap.appendChild(el('div', { class: 'uxs-slider-head' }, [
+    el('div', { class: 'uxs-slider-label', text: label }),
+    valEl,
+  ]));
+  const input = el('input', {
+    class: 'uxs-slider-input',
+    attrs: {
+      type: 'range', min: String(min), max: String(max), step: String(step),
+      value: String(value), 'aria-label': label,
+    },
+    on: {
+      input: (e: Event) => {
+        const v = parseFloat((e.target as HTMLInputElement).value);
+        valEl.textContent = format(v);
+        onChange(v);
+      },
+    },
+  });
+  wrap.appendChild(input);
+  if (hint) wrap.appendChild(el('div', { class: 'uxs-slider-hint', text: hint }));
   return wrap;
 }
