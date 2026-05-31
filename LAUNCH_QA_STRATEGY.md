@@ -160,8 +160,33 @@ Atualize a cada ciclo. Cada linha diz o MÉTODO de teste.
   playtest + Rules Lawyer.*
 
 ### F. Coop (2+ jogadores)
-- [❌] Lobby criar/entrar; presença; turnos; chat broadcast; sync de estado;
-  reconnect; 1 jogador caído. *Método: Coop Tester (2 sockets).*
+- [✅] **Core verificado com 2 sockets reais** (harness `__coop_harness.mjs`,
+  descartável): criar sala → entrar (código) → ambos "pronto" → host inicia →
+  `lobbyRedirect` pros dois → cada um `joinCampaign` → **mesma campanha**, party
+  sincroniza (n=2), **chat broadcast nos dois sentidos**, typing indicator,
+  cold-open de coop narrado. Isolamento de sala OK (tudo em `io.to(camp.id)`).
+- [✅] **Fix do Caça-Jargão na sala** (`fix(coop)`): a sala NÃO escutava `'error'`
+  → código de sala errado/expirado deixava o jogador travado em "Conectando…" SEM
+  feedback (reproduzido: server emite `lobby não encontrado`). Agora humaniza +
+  toast + volta pra home. Jargão: "Lobby"→"Sala", "No wizard"→"Criando PJ", slug
+  `wizardStep`→PT-BR ("passo Talento"), "host"→"quem criou a sala".
+  `humanizeServerError` ganhou regex PT-BR pras reasons de sala. Guards em
+  `lobby-screen-qa`.
+- [⚠️] **Resiliência server-side (Resiliência hunter, ALTA — precisa ciclo próprio
+  cuidadoso; core de coop funciona)**:
+  1. Restart/sleep do dyno **perde a party** (HP/combate): `party` não é
+     serializado em `CampaignState` (só `partyCharacterIds`); revivência deixa
+     `camp.party=[]`. Render free hiberna → combate no meio quebra.
+  2. **`joinCampaign` (cold-open) sem watchdog** — 1º LLM trava → tela branca sem
+     timeout/retry (o `takeAction` tem). Em coop, host falha antes de emitir → os
+     dois travam.
+  3. **Entrar NO MEIO do combate não adiciona à `initiativeOrder`** → quem entra
+     nunca pega turno (UI "Vez de X" eterna).
+  4. **Disconnect não remove da `initiativeOrder`** → fantasma trava o turno do
+     outro.
+  5. `rejoinCampaign` no type (`types.ts:474`) sem handler no server (morto) — o
+     reconnect real usa `joinCampaign` re-emitido no `'connect'`.
+- [ ] Confirmar no aparelho: 2 celulares reais (smoke do João).
 
 ### G. Qualidade & coerência do Mestre (o mais difícil)
 - [❌] Narrativa boa; PT-BR; fog-of-war (nunca cita HP/CA/DC do oponente);
