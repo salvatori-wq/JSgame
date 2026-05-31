@@ -210,6 +210,13 @@ function navigate(view: View): void {
   void render();
 }
 
+// DEV-only: hook de navegação pro sweep de responsividade headless (Ciclo D).
+// Gated por import.meta.env.DEV — NUNCA entra no bundle de produção (Vite
+// tree-shaka o branch). Permite `window.__nav({kind:'login'})` no preview.
+if (import.meta.env.DEV) {
+  (window as unknown as { __nav?: (v: View) => void }).__nav = navigate;
+}
+
 // === Views ===
 
 async function renderHome(): Promise<void> {

@@ -1120,3 +1120,32 @@ describe('Responsivo F1-F4 — sistema fluido', () => {
     expect(ml).toMatch(/body\.is-portrait-narrow\s+input[\s\S]*?font-size:\s*max\(16px,\s*var\(--fs-base\)\)/);
   });
 });
+
+// Ciclo D — fixes do smoke "no aparelho" (emulado no preview: classes forçadas,
+// browser-bar/notch simulados). Cada guard trava um fix re-medido empiricamente.
+describe('Responsivo Ciclo D — fixes do smoke mobile', () => {
+  it('D1 — economia redundante (⚡✦↩️ 9m) some da ribbon em portrait (era clipada a 320; slot sticky tem)', () => {
+    const sr = readCss('status-ribbon.css');
+    expect(sr).toMatch(/body\.is-portrait-narrow\s+\.sr-economy\s*\{[^}]*display:\s*none/);
+  });
+
+  it('D2 — combat-tutorial "Pular" vira alvo de 44px no mobile (era link de 11px)', () => {
+    const combat = readCss('combat.css');
+    expect(combat).toMatch(/body\.is-portrait-narrow\s+\.ct-skip\s*\{[^}]*min-height:\s*44px/);
+  });
+
+  it('D3 — login respeita safe-area no padding (notch lateral no deitado)', () => {
+    const modals = readCss('modals.css');
+    expect(modals).toMatch(/\.login-screen\s*\{[\s\S]*?padding:[\s\S]*?env\(safe-area-inset-left/);
+  });
+
+  it('D3 — login comprime o cabeçalho em viewport curto (@media max-height:500 → title 26px)', () => {
+    const modals = readCss('modals.css');
+    expect(modals).toMatch(/@media\s*\(max-height:\s*500px\)[\s\S]*?\.login-screen\s+\.login-title\s*\{[^}]*font-size:\s*26px/);
+  });
+
+  it('D4 — recap de combate no deitado aperta (18vh, era 26vh) → o dock cresce', () => {
+    const dock = readCss('m-camp-dock.css');
+    expect(dock).toMatch(/body\.is-landscape-phone\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[^}]*max-height:\s*clamp\(56px,\s*18vh,\s*110px\)/);
+  });
+});

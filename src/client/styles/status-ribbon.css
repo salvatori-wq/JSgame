@@ -170,11 +170,13 @@ body.is-portrait-narrow .sr-turn.is-my-turn {
   text-shadow: 0 0 8px rgba(244, 208, 127, 0.45);
 }
 
+/* Responsivo Ciclo D — a economia (⚡✦↩️ 9m) também vive no slot de economia
+ * STICKY do combat-screen (W3.3, "renderizado SEMPRE"). Na ribbon ela só
+ * aparece em combate e, a 320, era CLIPADA ~19px pelo overflow:hidden do
+ * .sr-text (o movimento "9m" cortado no meio do glifo). Some na ribbon —
+ * sem perda de informação, o slot dedicado mostra o mesmo de forma legível. */
 body.is-portrait-narrow .sr-economy {
-  flex-shrink: 0;
-  font-family: monospace;
-  letter-spacing: 0.05em;
-  opacity: 0.82;
+  display: none;
 }
 
 body.is-portrait-narrow .sr-attitude {

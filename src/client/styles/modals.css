@@ -704,11 +704,30 @@ body.is-portrait-narrow .cs-close { width: 44px; height: 44px; }
    * _tokens.css, que já usa var(--m-vh)=100dvh com fallback 100vh. */
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 32px 16px;
+  /* Responsivo Ciclo D — safe-area: no celular DEITADO com notch lateral o
+   * padding fixo de 16px deixava o card/CTA escorregar pra baixo do notch.
+   * max(px, env) mantém o desktop (env=0 → 16/32) e respeita o entalhe no
+   * device real. O body já rola (overflow:auto) se o conteúdo passar do fold. */
+  padding:
+    max(32px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(32px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
   align-items: center;
   background: linear-gradient(180deg, #1a120a 0%, #0d0805 100%);
+}
+/* Responsivo Ciclo D — viewport curto (celular deitado, h≈390): comprime o
+ * cabeçalho (logo 38→26, respiro 32→12) pra subir o card e deixar mais do
+ * formulário acima do fold. Não persegue "zero scroll" (o form não encolhe
+ * tanto) — só dá folga. Gated por altura → desktop normal não é tocado. */
+@media (max-height: 500px) {
+  /* selector com ancestral .login-screen → specificity 0,2,0 vence as regras-base
+   * .login-header/.login-title (0,1,0) que vêm DEPOIS no arquivo, sem depender
+   * de ordem de fonte. */
+  .login-screen { padding-top: 12px; padding-bottom: 12px; }
+  .login-screen .login-header { margin-bottom: 12px; }
+  .login-screen .login-title { font-size: 26px; }
+  .login-screen .login-card { padding: 16px 20px; }
 }
 .login-header {
   text-align: center;

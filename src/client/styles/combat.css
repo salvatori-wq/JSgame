@@ -731,6 +731,14 @@
   cursor: pointer;
 }
 .ct-skip:hover { color: var(--accent-blood, #c04030); }
+/* Responsivo Ciclo D — no celular o "Pular tutorial" era um link de 11px (alvo
+ * ~11px de alto): impossível de acertar com o polegar. Vira alvo de 44px (piso
+ * de toque) sem mudar o visual discreto no desktop. */
+body.is-portrait-narrow .ct-skip {
+  min-height: 44px;
+  padding: 12px 16px;
+  font-size: 13px;
+}
 
 /* ════════════════════════════════════════════════════════════════════════
    C1 — Mobile combat tabs (Inimigos / Ações / Log)

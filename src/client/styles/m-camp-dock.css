@@ -556,9 +556,13 @@ body.is-landscape-phone .ch-slot-party {
   max-height: clamp(64px, 24vh, 110px);
 }
 
-/* Recap de combate ainda menor no deitado → o dock (a luta) cresce mais */
+/* Recap de combate ainda menor no deitado → o dock (a luta) cresce mais.
+ * Ciclo D — a 390h o cap de 26vh dava 101px de recap e deixava o dock com só
+ * 71px (não cabia nem 1 card de inimigo; Atacar funcionava via target-first +
+ * scroll, mas a luta ficava espremida). 18vh ≈ 70px a 390h → o dock ganha
+ * ~31px (≈102px). O recap segue legível (3-4 linhas) e o resto rola no log. */
 body.is-landscape-phone .camp-screen.is-in-combat .ch-narration-host {
-  max-height: clamp(64px, 26vh, 120px);
+  max-height: clamp(56px, 18vh, 110px);
 }
 
 /* Narração no deitado: notch lateral (safe-area) + a linha NÃO corre os 844px
