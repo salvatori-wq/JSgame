@@ -115,17 +115,24 @@ export async function handleEquipItem(
     }
   } else if (slot === 'armor') {
     player.equippedArmor = itemId;
-    // Re-calcula AC: leve = 11 + DEX; média = 13 + min(2, DEX); pesada = 18 fixo; default 12 + DEX.
-    // Match por nome enquanto não há catálogo de armaduras.
-    const conMod = Math.floor((player.abilityScores.des - 10) / 2);
+    // Re-calcula AC: leve = 11 + DEX; pesada (cota de malha/placas) = fixa, sem DEX;
+    // default (média) = 12 + DEX. PRESERVA o +2 do escudo já equipado.
+    // QA-lançamento (Ciclo D/E): antes a cota de malha vinha 13+min(2,DEX) (valor de
+    // armadura MÉDIA; PHB p.145 = PESADA, CA 16 fixa) e equipar o corpo ZERAVA o
+    // escudo equipado (recalculava AC do zero sem somar o +2 → CA caía na surdina).
+    const dexMod = Math.floor((player.abilityScores.des - 10) / 2);
+    const shieldBonus = player.equippedShield ? 2 : 0;
     const armorName = item.name.toLowerCase();
-    if (/couro/.test(armorName)) player.armorClass = 11 + conMod;
-    else if (/cota.*malha|chain/.test(armorName)) player.armorClass = 13 + Math.min(2, conMod);
-    else if (/cota.*placas|plate/.test(armorName)) player.armorClass = 18;
-    else player.armorClass = 12 + conMod;
+    if (/couro/.test(armorName)) player.armorClass = 11 + dexMod + shieldBonus;
+    else if (/cota.*malha|chain/.test(armorName)) player.armorClass = 16 + shieldBonus;
+    else if (/cota.*placas|plate/.test(armorName)) player.armorClass = 18 + shieldBonus;
+    else player.armorClass = 12 + dexMod + shieldBonus;
   } else if (slot === 'shield') {
-    player.equippedShield = itemId;
-    player.armorClass += 2;
+    // Guard: só 1 escudo (PHB p.144) — não empilha +2 se já há escudo equipado.
+    if (!player.equippedShield) {
+      player.equippedShield = itemId;
+      player.armorClass += 2;
+    }
   }
   camp.pushRecentEvent(`${player.characterName} equipou ${item.name}`);
   return { ok: true, message: `${player.characterName} equipou ${item.name}` };
