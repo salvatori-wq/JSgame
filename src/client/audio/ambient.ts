@@ -190,7 +190,7 @@ export function setAmbient(mood: AmbientMood): void {
 
   const bus = ctx.createGain();
   bus.gain.value = 0;
-  bus.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 1.2);
+  bus.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 1.2); // presença sem clipping
   bus.connect(getMusicInput() ?? master);
 
   const ic: InstrumentCtx = { ctx, dest: bus };

@@ -82,7 +82,31 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-31 (**Ciclo profundo de correção** — 2 caça-candidatos read-only (jargão/leak + erros técnicos) + playtest empírico no preview. Achados CONFIRMADOS antes de corrigir. 3 commits: echo de combate em PT-BR (gap do Ciclo U — vazava `→ attack (alvo enemy-…id)`), memória sem enums crus (amigavel/consumivel/misc), `humanizeServerError` nos caminhos quentes + cold-start (era usado só em 1 lugar). Suite 2132→**2142** verde. **PUSHADO** origin/main=`518877d`. Render auto-deploy OFF → deploy = Manual do João.)
+> Última atualização: 2026-05-31 (**Trilha Sonora "Bardo"** — reescrita completa
+da trilha de "gerador de textura ambiente" pra **compositor medieval generativo
+adaptativo**, 100% procedural/zero-budget (respeita a decisão Web Audio > MP3). 7
+ondas/commits (`87fbc4d`→Onda 7): **(1)** `mixer.ts` reverb IR procedural (hall/
+cave/tavern/cathedral, estéreo) + compressor + lowpass mestre de "energia" +
+limiter; `theory.ts` (organum, cadências ouvert/clos, RNG seedável, walk modal).
+**(2)** 12 instrumentos sintetizados (alaúde/vielle/recorder/shawm/saltério/harpa/
+tabor/bodhrán/nakers/sino com parciais inarmônicos/hurdy buzz) + ornamentos.
+**(3)** `composer.ts` melodia generativa A·A'·B·A'' com cadências (nunca repete
+idêntica, leitmotif "A Estrada do Mestre" volta) + 7 grooves de dança (estampie/
+saltarello/trotto/war/etc). **(4)** 11 moods em CAMADAS (drone/ritmo/melodia/
+harmonia) + `setAmbientIntensity()`. **(5)** `computeIntensity(state)` no campaign-
+screen (combate SOBE, exploração RESPIRA) + stingers musicais em tom. **(6)**
+sliders Música/Efeitos/Reverb no UX Settings + bus de SFX separado. **(7)** harness
+DEV `window.__audio` + QA empírico no preview + fix do drone mudo (bug latente).
+**Prova empírica (AnalyserNode no browser real)**: som em TODOS os moods,
+intensidade escala (exploração 0.058 < skirmish 0.066 < boss 0.075 RMS), **ZERO
+clipping** (peaks ≤0.21 « 1.0), silêncio zera, stinger eleva o sinal, zero erro de
+console. Suite 2142→**2252** verde (+110), typecheck limpo. **PUSHADO** origin/main.
+Deploy = Manual do João (auto-deploy Render OFF). Detalhes + como o João audiciona
+via `window.__audio`: `HANDOFF_2026-05-31_trilha-sonora-bardo.md` +
+`PLANO_TRILHA_SONORA.md`. **Próximo: feedback de ouvido do João (ele escuta, eu
+não) pra fine-tuning de timbre/nível por mood — o harness `__audio` agiliza.**)
+
+> Última atualização anterior: 2026-05-31 (**Ciclo profundo de correção** — 2 caça-candidatos read-only (jargão/leak + erros técnicos) + playtest empírico no preview. Achados CONFIRMADOS antes de corrigir. 3 commits: echo de combate em PT-BR (gap do Ciclo U — vazava `→ attack (alvo enemy-…id)`), memória sem enums crus (amigavel/consumivel/misc), `humanizeServerError` nos caminhos quentes + cold-start (era usado só em 1 lugar). Suite 2132→**2142** verde. **PUSHADO** origin/main=`518877d`. Render auto-deploy OFF → deploy = Manual do João.)
 
 ### Ciclo profundo de correção — entregue (3 commits, +10 tests)
 

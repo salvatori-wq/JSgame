@@ -171,6 +171,7 @@ export function padDrone(
   freqs: number[],
   type: OscillatorType = 'sine',
   lowpassFreq?: number,
+  peakGain = 0.85,
 ): { stop: (releaseTime: number) => void; gainNode: GainNode } {
   const { ctx, dest } = ic;
   const padGain = ctx.createGain();
@@ -206,6 +207,11 @@ export function padDrone(
     lfo.start(t0);
     nodes.push(osc, lfo, lfoGain);
   }
+
+  // Onda 7 — fade-in do drone até peakGain. O padGain nascia em 0 e nunca subia
+  // (drone mudo — bug latente herdado). O nível REAL é da camada que recebe o pad.
+  padGain.gain.setValueAtTime(0, t0);
+  padGain.gain.linearRampToValueAtTime(peakGain, t0 + 1.2);
 
   return {
     gainNode: padGain,

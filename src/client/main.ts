@@ -42,6 +42,12 @@ window.addEventListener('orientationchange', applyEnvironmentClasses, { passive:
 // === Audio gesture (mobile autoplay policy) — resume AudioContext em qualquer click ===
 setupAudioGesture();
 
+// Onda 7 — harness de audição DEV-only (window.__audio): audicionar moods/
+// instrumentos/stingers + medir sinal. Gated import.meta.env.DEV → some no build.
+if (import.meta.env.DEV) {
+  void import('./audio/audition').then((m) => m.installAudioAudition());
+}
+
 // === POLISH ε — Acessibilidade & Resiliência ===
 // initA11yEnhancements: MutationObserver aplica aria-label/role em todo DOM dinâmico
 // initEscapeKeyHandler: ESC fecha modais bottom-sheet sem refactor por componente
