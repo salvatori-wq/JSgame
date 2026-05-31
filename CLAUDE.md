@@ -82,7 +82,41 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 9 commits, suite 2103→2125 verde, **PUSHADO (origin/main=`5b160e2`). DEPLOY PENDENTE: auto-deploy do Render free está OFF (poll 8min + uptime confirmam) → João precisa do Manual Deploy no painel**)
+> Última atualização: 2026-05-31 (**Ciclo D — smoke mobile "no aparelho" (emulado no preview)**: empurrei a emulação ao limite — forcei `is-landscape-phone`, simulei browser-bar/notch, dirigi PJ prefab real → exploração → skill-check → combate na matriz. Pilares F1-F6 CONFIRMADOS + **4 fixes** do que escapou do headless + **5 guards**. Suite 2125→2130 verde, commit `ef6bc42` em `main` — **NÃO pushado** (deploy é decisão do João). F1-F6 JÁ no ar, bundle `CUZEQW_w`.)
+
+### Ciclo D "Smoke mobile emulado" — entregue (1 commit `ef6bc42`, +5 tests)
+
+Executado o Ciclo D do `FASE6_CACA_BUGS.md` (a pedido do João). O preview é
+headless/non-coarse e `env(safe-area)`=0, então em vez de só delegar pro aparelho,
+fiz a emulação mais profunda possível + travei os contratos device-only em testes.
+
+**Pilares F1-F6 confirmados por medição** (não inferência): 0 overflow-x na matriz
+toda; deitado usa o shell compacto (`desktopTabsLeaking:false` — o modo-falha que o
+F3 matou); ⚔ Atacar alcançável no deitado (49px in-view); dado gira no toque em
+**1.3ms** (`is-rolling`+`dieRolling`, assenta e auto-fecha); skill-check cabe a 320
+(dado 109px vmin, Rolar/Pular in-view); input 16px (anti zoom iOS); font-scale 1.3
+→ body 16.9px (sem escala dupla) e 0 overflow novo; safe-area presente em
+campanha/overlays/tabs.
+
+**4 fixes do que escapou** (todos atrás de `is-portrait-narrow`/`is-landscape-phone`,
+desktop re-conferido a 1280×800):
+- **D1** `.sr-economy` clipada ~19px a 320 em combate (movimento "9m" cortado) →
+  `display:none` em portrait (é redundante — o slot de economia STICKY W3.3 tem).
+- **D2** combat-tutorial "Pular" era link de 11px → alvo de 44px no mobile.
+- **D3** login sem safe-area (notch lateral escorregava o card) → `max(px, env(...))`
+  + compacta header em `@media (max-height:500px)` (conteúdo 585→483px, CTA acima
+  do fold).
+- **D4** dock de combate no deitado espremido (71px) → recap 26vh→18vh a 390h
+  (101→70px) faz o dock crescer pra 84px (intenção do redesign ①).
+
+**Residual SÓ-aparelho (2 min do João, não bloqueante)**: notch real, browser-bar
+dinâmica, física do dado em rAF real, auto-zoom iOS, auto-detecção do deitado
+(coarse). **P2 maior**: header de campanha 110px no deitado (gargalo do dock —
+pede redesign do `camp-header`, fora do escopo de sweep CSS). Detalhes +
+matriz medida: `FASE6_CACA_BUGS.md` §Ciclo D. Infra: `main.ts` ganhou hook
+DEV-only `window.__nav` (gated `import.meta.env.DEV`) pro sweep determinístico.
+
+> Última atualização anterior: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 9 commits, suite 2103→2125 verde, **PUSHADO (origin/main=`5b160e2`) + deployado: bundle `CUZEQW_w` no ar via Manual Deploy do João**)
 
 ### Plano "Responsividade perfeita em qualquer celular" (F1-F6) — entregue
 

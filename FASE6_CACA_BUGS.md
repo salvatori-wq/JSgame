@@ -134,20 +134,83 @@ max(16px, var(--fs-base)) }` (≥16 sempre + cresce com font-scale). Re-medido:
 
 ---
 
-## Ciclo D — Smoke no celular real (PENDENTE — ação do João)
+## Ciclo D — Smoke "no aparelho" (EXECUTADO — emulado no preview, 2026-05-31)
 
-O preview é headless e **não-coarse** (sem toque) e `env(safe-area-inset-*)`
-resolve 0 — então o que escapa do headless precisa do aparelho real. Após
-`git push` + Manual Deploy no Render (ver `FASE5_DEPLOY.md`), confirmar no celular:
+O preview é headless/**não-coarse** e `env(safe-area-inset-*)`=0. Em vez de só
+delegar pro João, **empurrei a emulação ao limite**: forcei as classes
+`is-landscape-phone` que o caminho non-coarse pula, simulei a barra do browser
+encolhendo a altura, simulei o caminho do dado no toque, e auditei os
+**contratos** de safe-area/dvh/≥16px direto no CSS. Sessão dirigida com um PJ
+prefab real (Borin) → exploração → skill-check (dado) → combate, na matriz
+320/390/844×390. Hook DEV `window.__nav` (gated `import.meta.env.DEV`) pra
+navegar determinístico.
 
-- [ ] **Girar pra landscape** em cada tela: exploração/combate usam o shell
-      compacto (ribbon fina + barra inferior, Atacar alcançável), NÃO o desktop.
-- [ ] **login** com a barra do browser visível: botão de login não some (fix #1).
-- [ ] **notch lateral** no deitado: narração não fica sob o notch (safe-area F3).
-- [ ] **dado** gira no toque (físico/CSS) — o preho trava em rAF/física headless.
-- [ ] **skill-check** a 320 real: Rolar/Pular sem cortar; **combate cabe**.
-- [ ] **sem zoom-no-input iOS**: inputs com `font-size ≥16px` (checar login/chat).
-- [ ] font-scale 1.3 + densidade no aparelho: legível, sem corte.
+### Pilares F1-F6 CONFIRMADOS (medição empírica)
+
+| Verificação | Resultado |
+|---|---|
+| Overflow-x (home/login/wizard/exploração/combate/skill-check) | **0 culprits** em toda a matriz |
+| Deitado usa o shell compacto, NÃO o desktop | `desktopTabsLeaking:false` em combate 844×390 (o modo-falha que o F3 matou) |
+| Atacar alcançável no deitado | ⚔ Atacar 49px, `inView:true` (bottom 384 ≤ 390) |
+| Dado gira no toque (não LLM-gated) | tap → `is-rolling` em **1.3ms**, `animationName:dieRolling`; assenta e auto-fecha |
+| Skill-check a 320 | dado 109px (vmin), overlay cabe 568 com `overflow-y:auto`, Rolar(y346)/Pular(y418) in-view |
+| Input ≥16px (anti zoom iOS) | login input = **16px** computado |
+| font-scale **1.3** | body 16.9px (clamp floor 13×1.3 — sem escala dupla), **0 overflow novo** |
+| Safe-area (contrato) | campanha L/R, skill-check 4 lados, dice 4 lados, bottom-tab `--m-safe-bottom`, action-bar bottom ✅ |
+
+### Achados reais (escaparam do headless) — 4 fixes (commit `ef6bc42`)
+
+- **D1 — economia da ribbon CLIPADA a 320 em combate** (P2 corrigido).
+  `.sr-economy` (⚡✦↩️ 9m) `nowrap` estourava ~19px o `.sr-text` (overflow:hidden)
+  → o "9m" cortava no meio do glifo. É **redundante** (o slot de economia STICKY,
+  W3.3, mostra o mesmo). Fix: `display:none` em portrait. Re-medido: 0 culprits.
+- **D2 — combat-tutorial "Pular" 11px** (P2 corrigido). Link de 11px de alto =
+  intocável no polegar. Fix: 44px + padding em portrait. Re-medido: 44px.
+- **D3 — login sem safe-area + cabeçalho pesado no deitado** (P1/P2 corrigido).
+  `padding:32px 16px` fixo → no deitado com notch lateral o card escorrega sob o
+  entalhe. Fix: `padding: max(px, env(safe-area-inset-*))` (desktop inalterado,
+  env=0). + compacta o header em `@media (max-height:500px)` (logo 38→26, respiro
+  32→12): conteúdo **585→483px**, CTA primária ("Jogar sem cadastro") acima do
+  fold; o link mágico (secundário) fica a um scroll curto (o body rola).
+- **D4 — dock de combate espremido no deitado** (P2 corrigido). A 390h o recap de
+  combate pegava 101px (cap 26vh) e o dock ficava com **71px** (não cabia 1 card
+  de inimigo; Atacar funcionava via target-first + scroll). Fix: cap 26vh→18vh
+  (390h: 101→70px) → dock **71→84px**. É a intenção JÁ documentada do redesign ①
+  ("recap ainda menor no deitado → o dock cresce"). O header de 110px segue o
+  maior gargalo do deitado — ver P2 abaixo.
+
+Desktop re-conferido (login 1280×800): padding `32px 16px` + title 38px
+**inalterados** (a `@media max-height:500` não casa a 800h; `max(32px,env=0)`=32).
++5 guards CSS (`mobile-polish-css.test.ts` → "Responsivo Ciclo D"). Suite
+2125→2130 verde, typecheck limpo.
+
+### Residual — SÓ o aparelho real do João prova (2 min, não bloqueante)
+
+A emulação cobre geometria/contrato; estes 5 dependem do hardware/SO real:
+
+- [ ] **Notch real** (iPhone/Android com entalhe), deitado: login + narração de
+      campanha não ficam sob o notch (o CSS tem `env(safe-area-inset-*)`, mas o
+      headless resolve 0 — só o device prova o valor real).
+- [ ] **Barra do browser** (Chrome/Safari mobile): rolar a página mostra/esconde a
+      URL bar; o login (100dvh) acompanha o chrome sem empurrar o CTA pra fora.
+- [ ] **Física do dado** (`@3d-dice/dice-box` em rAF real): o dado 3D rola e
+      assenta de fato no toque (o caminho CSS `is-rolling` já foi provado a 1.3ms).
+- [ ] **iOS Safari**: focar um input NÃO dá auto-zoom (os inputs computam ≥16px;
+      o comportamento em si é específico do iOS).
+- [ ] **Auto-detecção do deitado**: girar um celular real liga `is-landscape-phone`
+      sozinho (no headless non-coarse eu forcei a classe; o predicado `coarse &&
+      h<600` só dispara com toque real).
+
+### P2 remanescente (gap real, fora do escopo de um sweep de CSS)
+
+- **Header de campanha 110px no deitado** (28% de 390h). É o maior gargalo do
+  combate deitado (empurra o dock pra 84px). Comprimir pede reestruturar o
+  `camp-header` (grid: back+título+localização+toolbar 📜🏆👥🔗⋯) — redesign de
+  chrome, não um tweak. Recomendação: linha única densa OU toolbar no bottom em
+  `is-landscape-phone`. Medir o dock antes/depois.
+- Os 9-10px hardcoded que não escalam com font-scale (`.sv-sub`/`.sa-name`/
+  `.wlp-ab-key`/`.cp-pj-xp-txt`/`.btb-tab-label`) e `.wc-compare-btn` seguem
+  abertos (ver §Adiados acima) — acessibilidade, não bug de layout.
 
 ---
 
