@@ -266,9 +266,11 @@ export class CharacterWizard {
       this.onComplete(sheet);
     } catch (err) {
       console.error('[wizard] save failed:', err);
-      // B6 — Toast em vez de alert
+      // B6 — Toast em vez de alert. Ciclo de correção — humaniza (era String(err)
+      // cru: "Erro ao salvar: Error: 500 ..." perdendo o trabalho dos 8 steps).
       const { toastError } = await import('../toast');
-      toastError(`Erro ao salvar: ${String(err)}`);
+      const { humanizeServerError } = await import('../humanize-error');
+      toastError(humanizeServerError(String(err)));
     }
   }
 }

@@ -4,6 +4,7 @@
 import type { CharacterSheet } from '../../shared/types';
 import { el, escapeHtml } from '../util';
 import { getCharacter } from '../api';
+import { humanizeServerError } from '../humanize-error';
 import { getRace } from '../../dnd/races';
 import { getClass } from '../../dnd/classes';
 import { getBackground } from '../../dnd/backgrounds';
@@ -40,7 +41,12 @@ export class SheetScreen {
       this.container.appendChild(this.renderSheet(sheet));
     } catch (err) {
       this.container.innerHTML = '';
-      this.container.appendChild(el('div', { class: 'sheet-error', text: `Erro: ${String(err)}` }));
+      // Ciclo de correção — era `Erro: ${String(err)}` (ex.: "500 Internal Server
+      // Error: <body...>") em tela cheia. Mensagem amigável + voltar pra home.
+      this.container.appendChild(el('div', { class: 'sheet-error' }, [
+        el('p', { text: humanizeServerError(String(err)) }),
+        el('button', { class: 'sheet-error-back', text: '← Voltar', on: { click: () => this.opts.onExit() } }),
+      ]));
     }
   }
 

@@ -3,6 +3,7 @@
 
 import { el, getOwnerName } from '../../util';
 import { listCharacters, deleteCharacter } from '../../api';
+import { humanizeServerError } from '../../humanize-error';
 import { confirmDialog } from '../../ui-modal';
 import { getRace } from '../../../dnd/races';
 import { getClass } from '../../../dnd/classes';
@@ -135,8 +136,10 @@ export async function renderMyCharacters(opts: MyCharactersOpts): Promise<MyChar
       }
       opts.onAfterRefresh?.();
     } catch (err) {
+      // Ciclo de correção — era `Erro: ${String(err)}` (ex.: "500 Internal Server
+      // Error: ...") no lugar dos PJs. Mensagem amigável (igual my-chronicles).
       listContainer.innerHTML = '';
-      listContainer.appendChild(el('div', { class: 'home-empty', text: `Erro: ${String(err)}` }));
+      listContainer.appendChild(el('div', { class: 'home-empty', text: humanizeServerError(String(err)) }));
     }
   };
 

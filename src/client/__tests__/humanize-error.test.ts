@@ -36,6 +36,16 @@ describe('humanizeServerError — Network', () => {
   it('traduz 503', () => {
     expect(humanizeServerError('503 service unavailable')).toMatch(/manutenção/);
   });
+
+  it('traduz 502 bad gateway (proxy do Render free no cold-start)', () => {
+    expect(humanizeServerError('502 Bad Gateway')).toMatch(/manutenção/);
+  });
+
+  it('traduz SyntaxError de cold-start (servidor responde HTML em vez de JSON)', () => {
+    expect(humanizeServerError("SyntaxError: Unexpected token '<', \"<!DOCTYPE\"... is not valid JSON"))
+      .toMatch(/🌙.*acordando/);
+    expect(humanizeServerError('Unexpected end of JSON input')).toMatch(/🌙.*acordando/);
+  });
 });
 
 describe('humanizeServerError — combate', () => {
@@ -80,6 +90,14 @@ describe('humanizeServerError — fallback', () => {
 
   it('string vazia', () => {
     expect(humanizeServerError('')).toMatch(/🌙/);
+  });
+
+  it('erro técnico CURTO sem padrão conhecido NÃO vaza (looksTechnical pega)', () => {
+    // Antes: ≤80 chars + sem "TypeError" passava direto pro usuário. Agora
+    // SyntaxError/ReferenceError/Error:/Exception caem no fallback genérico.
+    const r = humanizeServerError('ReferenceError: x is not defined');
+    expect(r).toMatch(/🌙/);
+    expect(r).not.toMatch(/ReferenceError/);
   });
 
   it('mensagem com stack trace é escondida', () => {

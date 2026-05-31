@@ -4,6 +4,7 @@
 
 import { el, ensureOwnerName } from '../../util';
 import { toastError } from '../../toast';
+import { humanizeServerError } from '../../humanize-error';
 import { trackClientMetric } from '../../api';
 import { renderPrefabPortrait } from '../prefab-portrait';
 import type { RaceId } from '../../../dnd/races';
@@ -87,16 +88,27 @@ function renderPrefabCard(card: PrefabCard, opts: PlayNowOpts): HTMLElement {
             credentials: 'include',
             body: JSON.stringify({ prefabId: card.id, ownerName: owner }),
           });
-          const data = await res.json();
-          if (!res.ok || !data?.ok || !data.sheet?.id) {
-            toastError(data?.error ?? 'falha ao criar prefab');
+          // Ciclo de correção — checa res.ok ANTES de .json(): em cold-start/502
+          // o servidor responde HTML (página de proxy) e .json() lançaria
+          // SyntaxError cru na cara do jogador (no botão #1 do jogo). Erros agora
+          // passam por humanizeServerError (era data.error / String(err) cru).
+          if (!res.ok) {
+            const body = await res.text().catch(() => '');
+            toastError(humanizeServerError(body || `Erro ${res.status}`));
+            btn.removeAttribute('disabled');
+            btn.classList.remove('is-loading');
+            return;
+          }
+          const data = await res.json().catch(() => null);
+          if (!data?.ok || !data.sheet?.id) {
+            toastError(humanizeServerError(data?.error ?? 'falha ao criar prefab'));
             btn.removeAttribute('disabled');
             btn.classList.remove('is-loading');
             return;
           }
           opts.onChronicleStart(data.sheet.id);
         } catch (err) {
-          toastError(`erro: ${String(err)}`);
+          toastError(humanizeServerError(String(err)));
           btn.removeAttribute('disabled');
           btn.classList.remove('is-loading');
         }

@@ -20,8 +20,12 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
    '📡 Sem sinal com o servidor. Verifique sua conexão e tente novamente.'],
   [/500 Internal Server Error|500|Internal Server/i,
    '🌙 Algo se quebrou no servidor. Tente novamente em alguns segundos.'],
-  [/503|service unavailable/i,
+  [/503|service unavailable|502|bad gateway/i,
    '🌙 Servidor em manutenção. Volte daqui a pouco.'],
+  // Cold-start do Render free devolve HTML (página de proxy) em vez de JSON →
+  // res.json() lança SyntaxError. Trata como "servidor acordando".
+  [/SyntaxError|Unexpected token|not valid JSON|Unexpected end of (JSON|input)/i,
+   '🌙 O servidor está acordando. Tente de novo em alguns segundos.'],
 
   // ─── Combate / regras ──────────────────────────────────────────────────
   [/not your turn|turno de outro/i,
@@ -55,7 +59,7 @@ export function humanizeServerError(raw: string): string {
   }
   // Heurística: se a string tem ≤80 chars e não tem termos técnicos
   // suspeitos, mostrar como veio (pode ser um aviso já amigável do servidor).
-  const looksTechnical = /TypeError|undefined|null|stack|throw|at \w+/.test(trimmed);
+  const looksTechnical = /TypeError|SyntaxError|ReferenceError|RangeError|Error:|Exception|undefined|null|stack|throw|at \w+/.test(trimmed);
   if (!looksTechnical && trimmed.length <= 80) {
     return trimmed;
   }

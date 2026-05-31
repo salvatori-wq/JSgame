@@ -22,6 +22,21 @@
   font-style: italic;
 }
 .sheet-error { color: var(--accent-blood); }
+/* Ciclo de correção — botão "← Voltar" no erro de ficha (tela não fica sem saída). */
+.sheet-error-back {
+  display: inline-block;
+  margin-top: 16px;
+  min-height: 44px;
+  padding: 10px 22px;
+  background: rgba(60, 40, 18, 0.7);
+  border: 1px solid var(--ink-gold);
+  border-radius: 6px;
+  color: var(--ink-warm);
+  font-family: var(--font-ui);
+  font-style: normal;
+  cursor: pointer;
+}
+.sheet-error-back:hover { background: rgba(120, 80, 30, 0.5); }
 
 /* ─── Header ─── */
 .sheet-header {
