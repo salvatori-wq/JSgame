@@ -1,28 +1,36 @@
-// Trilha Medieval Procedural — Web Audio API + Sequencer + Modos eclesiásticos.
-// API: setAmbient(mood) troca trilha com crossfade. setAmbientEnabled(false) silencia tudo.
+// Trilha Medieval Procedural — Moods ADAPTATIVOS em camadas (Onda 4).
+// Cada mood = pilha de stems (drone / ritmo / melodia / harmonia), cada um no seu
+// GainNode. setAmbientIntensity(0..1) faz crossfade das camadas + abre o filtro
+// mestre → a música ESCALA com a tensão do jogo (exploração respira, combate sobe,
+// boss/perigo no auge). A melodia é GERADA pelo Composer (forma A·A'·B·A''), então
+// NUNCA repete idêntica, mas o leitmotif sempre volta.
 //
-// Moods medievais:
-//   silence              — sem música
-//   exploration-calm     — Dorian em A3, pad + flauta esparsa (default exploration)
-//   exploration-tension  — Aeolian em D3, drone grave + ostinato lento
-//   combat-skirmish      — Mixolydian em E3, frame drum 6/8 + bass pulsante (default combat)
-//   combat-boss          — Phrygian em D3, drum mais intenso + drone agudo dissonante + pluck
-//   victory              — Lydian em G3, plucked fanfare ascendente (one-shot, volta a calm)
-//   danger-low-hp        — Phrygian em A2, heartbeat low + bell distante
-//   mystery              — Lydian em E4, bells aleatórias + pad etéreo
-//   rest                 — Major em C4, harpa arpejo + pad warm
-//   shop                 — Dorian em D4, alaúde walking arpeggio jovial
+// API pública (retrocompat): setAmbient(mood), isAmbientEnabled, setAmbientEnabled.
+// Novo: setAmbientIntensity(x), getAmbientIntensity().
 //
-// Aliases legacy: 'exploration' → 'exploration-calm', 'combat' → 'combat-skirmish'.
+// Moods (mode→mood pela pesquisa §2): exploration-calm (Dorian, leitmotif),
+// exploration-tension (Aeolian), combat-skirmish (Mixolydian/saltarello),
+// combat-boss (Phrygian/war), danger-low-hp (Phrygian/heartbeat/lamento),
+// mystery (Lydian/bells), rest (Ionian/harpa), shop (Dorian/carole),
+// tavern (Mixolydian/saltarello/festa), sacred (Dorian/órgãoum/catedral),
+// travel (Mixolydian/estampie/leitmotif na estrada), victory (fanfarra one-shot).
 
-import { _getAudioCtx, _getMasterGain, isSfxEnabled } from '../audio';
+import { _getAudioCtx, _getMasterGain } from '../audio';
 import {
-  pluck, flute, drumKick, drumTom, drumHat, bell, heartbeat, padDrone,
-  type InstrumentCtx,
+  padDrone, drumKick, drumTom, drumHat, tabor, bodhran, nakers, churchBell,
+  hurdyBuzz, heartbeat, lute, vielle, recorder, shawm, psaltery, harp,
+  type InstrumentCtx, type MelodicVoice,
 } from './instruments';
 import { Sequencer } from './sequencer';
-import { getScale, midiToHz, ROOTS, degree, type Mode } from './modes';
-import { getMusicInput } from './mixer';
+import { getScale, midiToHz, ROOTS, type Mode } from './modes';
+import { makeRng } from './theory';
+import {
+  Composer, drumPattern, RHYTHMS, buildStepMap,
+  type DanceForm, type Note, type DrumHit,
+} from './composer';
+import { themeToFreqs, MAIN_THEME, VICTORY_FANFARE, LAMENT_THEME } from './themes';
+import { getMusicInput, setReverbKind, setMusicBrightness, type ReverbKind } from './mixer';
+import { computeLayers, intensityToBrightness, type LayerCaps } from './intensity';
 
 export type AmbientMood =
   | 'silence'
@@ -32,22 +40,18 @@ export type AmbientMood =
   | 'danger-low-hp'
   | 'mystery'
   | 'rest'
-  | 'shop';
+  | 'shop'
+  | 'tavern'
+  | 'sacred'
+  | 'travel';
 
 const STORAGE_KEY_AMBIENT = 'jsgame.ambient.enabled';
-// Sprint X.A2 — default ON (era OFF/intrusivo). Consultores D&D + Mobile
-// convergiram em "som diegético = gap #1" pós Sprint W. Ambient procedural
-// já é baixo volume (gain via masterGain 0.35) e respeita scene mood
-// (exploration-calm / combat-skirmish / rest etc). Player que não gostar
-// muta em UX Settings → "🎵 Ambient" toggle. SFX dice + page-turn permanecem
-// independentes (jsgame.sfx.enabled — default ON desde sempre).
 let ambientEnabled = (() => {
   try {
     const v = localStorage.getItem(STORAGE_KEY_AMBIENT);
-    if (v === null) return true;  // primeira vez = ON
-    return v !== '0';              // explicit '0' = OFF
-  }
-  catch { return true; }
+    if (v === null) return true;
+    return v !== '0';
+  } catch { return true; }
 })();
 
 export function isAmbientEnabled(): boolean { return ambientEnabled; }
@@ -58,20 +62,115 @@ export function setAmbientEnabled(v: boolean): void {
   if (!v) setAmbient('silence');
 }
 
-// ── Estado interno ─────────────────────────────────────────────────────────
+// ── Configuração de cada mood ────────────────────────────────────────────────
+type Percussion = 'dance' | 'heartbeat' | 'none';
+
+interface MoodConfig {
+  mode: Mode;
+  rootMidi: number;
+  form: DanceForm;
+  reverb: ReverbKind;
+  melody: MelodicVoice;
+  harmony?: MelodicVoice;
+  melodyGain?: number;
+  harmonyGain?: number;
+  /** Tema-semente (leitmotif) usado como base da melodia. */
+  seedTheme?: Note[];
+  droneType?: OscillatorType;
+  droneLowpass?: number;
+  baseIntensity: number;
+  caps?: LayerCaps;
+  percussion?: Percussion;
+  /** Buzz do hurdy-gurdy no tempo forte (festa/combate). */
+  buzz?: boolean;
+  /** Sino/sparkle esporádico (mística/sagrado). */
+  sparkle?: { voice: MelodicVoice; chance: number; gain?: number };
+  seed: number;
+}
+
+export const MOOD_CONFIGS: Record<string, MoodConfig> = {
+  'exploration-calm': {
+    mode: 'dorian', rootMidi: ROOTS.D3, form: 'ductia', reverb: 'hall',
+    melody: recorder, harmony: vielle, melodyGain: 0.13, harmonyGain: 0.09,
+    seedTheme: MAIN_THEME, droneLowpass: 2200, baseIntensity: 0.28, seed: 101,
+  },
+  'exploration-tension': {
+    mode: 'aeolian', rootMidi: ROOTS.D3, form: 'estampie', reverb: 'cave',
+    melody: vielle, harmony: vielle, melodyGain: 0.12, harmonyGain: 0.08,
+    droneLowpass: 1600, baseIntensity: 0.42, caps: { harmony: 0.6 }, seed: 202,
+  },
+  'combat-skirmish': {
+    mode: 'mixolydian', rootMidi: ROOTS.E3, form: 'saltarello', reverb: 'hall',
+    melody: lute, harmony: shawm, melodyGain: 0.14, harmonyGain: 0.1,
+    droneLowpass: 2400, baseIntensity: 0.58, buzz: true, seed: 303,
+  },
+  'combat-boss': {
+    mode: 'phrygian', rootMidi: ROOTS.D3, form: 'war', reverb: 'cathedral',
+    melody: shawm, harmony: shawm, melodyGain: 0.13, harmonyGain: 0.12,
+    droneLowpass: 1400, baseIntensity: 0.82, seed: 404,
+  },
+  'danger-low-hp': {
+    mode: 'phrygian', rootMidi: ROOTS.A2, form: 'basse-danse', reverb: 'cave',
+    melody: vielle, melodyGain: 0.12, seedTheme: LAMENT_THEME,
+    droneType: 'sine', droneLowpass: 900, baseIntensity: 0.5,
+    percussion: 'heartbeat', caps: { rhythm: 0.6 }, seed: 212,
+  },
+  mystery: {
+    mode: 'lydian', rootMidi: ROOTS.E4, form: 'basse-danse', reverb: 'cathedral',
+    melody: harp, melodyGain: 0.12, droneType: 'sine', droneLowpass: 3000,
+    baseIntensity: 0.2, percussion: 'none', caps: { rhythm: 0 },
+    sparkle: { voice: churchBell, chance: 0.22, gain: 0.1 }, seed: 505,
+  },
+  rest: {
+    mode: 'major', rootMidi: ROOTS.C4, form: 'basse-danse', reverb: 'hall',
+    melody: harp, melodyGain: 0.13, droneType: 'sine', droneLowpass: 2600,
+    baseIntensity: 0.14, percussion: 'none', caps: { rhythm: 0, harmony: 0.4 }, seed: 606,
+  },
+  shop: {
+    mode: 'dorian', rootMidi: ROOTS.D4, form: 'carole', reverb: 'tavern',
+    melody: lute, melodyGain: 0.14, droneLowpass: 2800, baseIntensity: 0.4, seed: 707,
+  },
+  tavern: {
+    mode: 'mixolydian', rootMidi: ROOTS.D4, form: 'saltarello', reverb: 'tavern',
+    melody: lute, harmony: psaltery, melodyGain: 0.14, harmonyGain: 0.1,
+    droneLowpass: 3000, baseIntensity: 0.5, buzz: true, seed: 808,
+  },
+  sacred: {
+    mode: 'dorian', rootMidi: ROOTS.A3, form: 'basse-danse', reverb: 'cathedral',
+    melody: harp, harmony: recorder, melodyGain: 0.12, harmonyGain: 0.1,
+    droneType: 'sine', droneLowpass: 2400, baseIntensity: 0.3, percussion: 'none',
+    caps: { rhythm: 0 }, sparkle: { voice: churchBell, chance: 0.1, gain: 0.09 }, seed: 909,
+  },
+  travel: {
+    mode: 'mixolydian', rootMidi: ROOTS.G3, form: 'estampie', reverb: 'hall',
+    melody: recorder, harmony: vielle, melodyGain: 0.13, harmonyGain: 0.09,
+    seedTheme: MAIN_THEME, droneLowpass: 2400, baseIntensity: 0.45, seed: 111,
+  },
+};
+
+/** Moods "tocáveis" (sem silence/victory/aliases) — pro harness de audição (Onda 7). */
+export const LISTED_MOODS: AmbientMood[] = [
+  'exploration-calm', 'exploration-tension', 'combat-skirmish', 'combat-boss',
+  'danger-low-hp', 'mystery', 'rest', 'shop', 'tavern', 'sacred', 'travel', 'victory',
+];
+
+// ── Estado interno ───────────────────────────────────────────────────────────
+interface MoodLayers { drone: GainNode; rhythm: GainNode; melody: GainNode; harmony: GainNode; }
+
 interface ActiveMood {
   mood: AmbientMood;
   pads: Array<{ stop: (release: number) => void; gainNode: GainNode }>;
   sequencers: Sequencer[];
   oneShotTimeouts: Array<ReturnType<typeof setTimeout>>;
-  /** Master gain pra fade-out coordenado. */
   bus: GainNode;
+  layers: MoodLayers | null;
+  caps: LayerCaps;
 }
 
 let activeMood: ActiveMood | null = null;
 let currentMoodName: AmbientMood = 'silence';
+let currentIntensity = 0.3;
 
-/** Normaliza alias legacy → canonical. */
 function canonical(mood: AmbientMood): AmbientMood {
   if (mood === 'exploration') return 'exploration-calm';
   if (mood === 'combat') return 'combat-skirmish';
@@ -81,7 +180,6 @@ function canonical(mood: AmbientMood): AmbientMood {
 export function setAmbient(mood: AmbientMood): void {
   const target = canonical(mood);
   if (currentMoodName === target) return;
-  // Fade-out atual + start novo
   stopActive(0.6);
   currentMoodName = target;
   if (!ambientEnabled || target === 'silence') return;
@@ -90,266 +188,182 @@ export function setAmbient(mood: AmbientMood): void {
   const master = _getMasterGain();
   if (!ctx || !master) return;
 
-  // Bus de mood novo — entra fade-in suave
   const bus = ctx.createGain();
   bus.gain.value = 0;
-  bus.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 1.2); // master mood gain
-  // Onda 1 — roteia a música pelo mixer (reverb de salão + compressor). Se o
-  // mixer não puder montar (sem ConvolverNode), cai no masterGain direto.
+  bus.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 1.2);
   bus.connect(getMusicInput() ?? master);
 
   const ic: InstrumentCtx = { ctx, dest: bus };
-  activeMood = {
-    mood: target,
-    pads: [],
-    sequencers: [],
-    oneShotTimeouts: [],
-    bus,
-  };
+  activeMood = { mood: target, pads: [], sequencers: [], oneShotTimeouts: [], bus, layers: null, caps: {} };
 
-  switch (target) {
-    case 'exploration-calm':       buildExplorationCalm(ic); break;
-    case 'exploration-tension':    buildExplorationTension(ic); break;
-    case 'combat-skirmish':        buildCombatSkirmish(ic); break;
-    case 'combat-boss':            buildCombatBoss(ic); break;
-    case 'victory':                buildVictory(ic); break;
-    case 'danger-low-hp':          buildDangerLowHp(ic); break;
-    case 'mystery':                buildMystery(ic); break;
-    case 'rest':                   buildRest(ic); break;
-    case 'shop':                   buildShop(ic); break;
+  if (target === 'victory') { buildVictory(ic); return; }
+
+  const cfg = MOOD_CONFIGS[target];
+  if (!cfg) return;
+  setReverbKind(cfg.reverb);
+  buildLayeredMood(ic, cfg);
+  currentIntensity = cfg.baseIntensity;
+  applyIntensity();
+}
+
+/** Intensidade adaptativa 0..1 — dirigida pelo gameplay (Onda 5). */
+export function setAmbientIntensity(x: number): void {
+  currentIntensity = Math.max(0, Math.min(1, x));
+  applyIntensity();
+}
+export function getAmbientIntensity(): number { return currentIntensity; }
+
+function applyIntensity(): void {
+  if (!activeMood || !activeMood.layers) return;
+  const ctx = _getAudioCtx();
+  const now = ctx ? ctx.currentTime : 0;
+  const L = computeLayers(currentIntensity, activeMood.caps);
+  rampGain(activeMood.layers.drone, L.drone, now);
+  rampGain(activeMood.layers.rhythm, L.rhythm, now);
+  rampGain(activeMood.layers.melody, L.melody, now);
+  rampGain(activeMood.layers.harmony, L.harmony, now);
+  setMusicBrightness(intensityToBrightness(currentIntensity));
+}
+
+function rampGain(g: GainNode, target: number, now: number): void {
+  try {
+    g.gain.cancelScheduledValues(now);
+    g.gain.setValueAtTime(g.gain.value, now);
+    g.gain.linearRampToValueAtTime(target, now + 1.5); // fade 1.5s (pesquisa: 1-4s)
+  } catch { g.gain.value = target; }
+}
+
+function makeLayers(ic: InstrumentCtx): MoodLayers {
+  const mk = (): GainNode => {
+    const g = ic.ctx.createGain();
+    g.gain.value = 0;
+    g.connect(ic.dest);
+    return g;
+  };
+  return { drone: mk(), rhythm: mk(), melody: mk(), harmony: mk() };
+}
+
+function fireDrum(ic: InstrumentCtx, hit: DrumHit, time: number, tonicHz: number): void {
+  switch (hit.drum) {
+    case 'kick': drumKick(ic, time, hit.gain); break;
+    case 'tom': drumTom(ic, time, 170, hit.gain); break;
+    case 'hat': drumHat(ic, time, hit.gain); break;
+    case 'tabor': tabor(ic, time, hit.gain); break;
+    case 'bodhran': bodhran(ic, time, hit.gain); break;
+    case 'nakers': nakers(ic, tonicHz, time, hit.gain); break;
   }
+}
+
+// ── Builder genérico em camadas ──────────────────────────────────────────────
+function buildLayeredMood(ic: InstrumentCtx, cfg: MoodConfig): void {
+  const scale = getScale(cfg.rootMidi, cfg.mode); // 8 freqs (oitava incluída)
+  const layers = makeLayers(ic);
+  if (activeMood) { activeMood.layers = layers; activeMood.caps = cfg.caps ?? {}; }
+
+  // Drone (sempre presente): oitava abaixo + tônica + 5ª (quinta aberta medieval).
+  const droneDest: InstrumentCtx = { ctx: ic.ctx, dest: layers.drone };
+  const drone = padDrone(
+    droneDest,
+    [midiToHz(cfg.rootMidi - 12), scale[0]!, scale[4]!],
+    cfg.droneType ?? 'sawtooth',
+    cfg.droneLowpass ?? 2200,
+  );
+  registerPad(drone);
+
+  const rhythmIc: InstrumentCtx = { ctx: ic.ctx, dest: layers.rhythm };
+  const melodyIc: InstrumentCtx = { ctx: ic.ctx, dest: layers.melody };
+  const harmonyIc: InstrumentCtx = { ctx: ic.ctx, dest: layers.harmony };
+
+  const spec = RHYTHMS[cfg.form];
+  const stepDur = 60 / spec.bpm / spec.stepsPerBeat;
+  const tonicLow = scale[0]! / 2;
+
+  // Melodia generativa — Composer com leitmotif opcional.
+  const composer = new Composer({
+    rng: makeRng(cfg.seed), bars: 2, stepsPerBar: 6, ...(cfg.seedTheme ? { seedTheme: cfg.seedTheme } : {}),
+  });
+  const phraseSteps = composer.phraseSteps();
+  let melMap = buildStepMap(themeToFreqs(composer.nextPhrase(), scale));
+  const fxRng = makeRng(cfg.seed ^ 0x5151);
+  const percussion: Percussion = cfg.percussion ?? 'dance';
+
+  const seq = new Sequencer({
+    ctx: ic.ctx, bpm: spec.bpm, patternLength: phraseSteps, stepsPerBeat: spec.stepsPerBeat,
+    onStep: ({ step, time }) => {
+      // ── Percussão ──
+      if (percussion === 'dance') {
+        for (const hit of drumPattern(cfg.form, step)) fireDrum(rhythmIc, hit, time, tonicLow);
+        if (cfg.buzz && step % spec.length === 0) hurdyBuzz(rhythmIc, time, 0.1);
+      }
+      // ── Melodia (regenera a frase a cada loop → evolui) ──
+      const offset = ((step % phraseSteps) + phraseSteps) % phraseSteps;
+      if (offset === 0 && step !== 0) {
+        melMap = buildStepMap(themeToFreqs(composer.nextPhrase(), scale));
+      }
+      const fn = melMap[offset];
+      if (fn) {
+        const dur = Math.max(0.12, fn.durSteps * stepDur * 0.92);
+        cfg.melody(melodyIc, fn.freq, time, dur, cfg.melodyGain ?? 0.13);
+        // Harmonia: organum (5ª abaixo) na nota da melodia.
+        if (cfg.harmony) {
+          cfg.harmony(harmonyIc, fn.freq * Math.pow(2, -7 / 12), time, dur, cfg.harmonyGain ?? 0.09);
+        }
+      }
+      // ── Sparkle (sinos místicos) ──
+      if (cfg.sparkle && fxRng() < cfg.sparkle.chance) {
+        const note = scale[3 + Math.floor(fxRng() * 5)] ?? scale[4]!;
+        cfg.sparkle.voice(melodyIc, note, time, 2.6, cfg.sparkle.gain ?? 0.1);
+      }
+    },
+  });
+  seq.start();
+  registerSeq(seq);
+
+  // Heartbeat (perigo) — sequencer lento separado na camada de ritmo.
+  if (percussion === 'heartbeat') {
+    const hb = new Sequencer({
+      ctx: ic.ctx, bpm: 37, patternLength: 1, stepsPerBeat: 1,
+      onStep: ({ time }) => heartbeat(rhythmIc, time, 0.4),
+    });
+    hb.start();
+    registerSeq(hb);
+  }
+}
+
+/** Vitória — fanfarra ascendente one-shot (Lydian), volta a exploration-calm. */
+function buildVictory(ic: InstrumentCtx): void {
+  setReverbKind('cathedral');
+  setMusicBrightness(0.9);
+  const scale = getScale(ROOTS.G3, 'lydian');
+  const notes = themeToFreqs(VICTORY_FANFARE, scale);
+  const stepDur = 0.22;
+  let t = ic.ctx.currentTime + 0.02;
+  for (const n of notes) {
+    shawm(ic, n.freq, t, Math.max(0.18, n.durSteps * stepDur * 0.95), 0.13);
+    psaltery(ic, n.freq * 2, t, 1.2, 0.08);
+    t += n.durSteps * stepDur;
+  }
+  churchBell(ic, scale[0]! * 2, t + 0.1, 3.5, 0.16);
+  const to = setTimeout(() => setAmbient('exploration-calm'), 4500);
+  if (activeMood) activeMood.oneShotTimeouts.push(to);
 }
 
 function stopActive(releaseSec: number): void {
   if (!activeMood) return;
-  // Fade-out do bus
   const ctx = _getAudioCtx();
   if (ctx) {
     activeMood.bus.gain.cancelScheduledValues(ctx.currentTime);
     activeMood.bus.gain.setValueAtTime(activeMood.bus.gain.value, ctx.currentTime);
     activeMood.bus.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + releaseSec);
   }
-  // Stop pads
   for (const p of activeMood.pads) p.stop(releaseSec);
-  // Stop sequencers
   for (const s of activeMood.sequencers) s.stop();
-  // Cancel one-shots
   for (const t of activeMood.oneShotTimeouts) clearTimeout(t);
-  // Limpar referência depois do fade
   const captured = activeMood;
   setTimeout(() => {
     try { captured.bus.disconnect(); } catch { /* */ }
   }, releaseSec * 1000 + 100);
   activeMood = null;
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// Mood builders — cada um monta pads + sequencers + one-shots
-// ════════════════════════════════════════════════════════════════════════════
-
-/** Dorian em A3 — pad warm + flauta esparsa a cada ~6s. */
-function buildExplorationCalm(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.A3, 'dorian');
-  // Pad: fundamental + 5ª + oitava
-  const pad = padDrone(ic, [midiToHz(ROOTS.A2), scale[0]!, scale[4]!], 'sine');
-  registerPad(pad);
-
-  // Sequencer pra flauta esparsa: BPM 70, 8 steps de 1/2 tempo (semicolcheia bem lenta).
-  // Toca uma nota da escala em steps específicos do pattern.
-  const flutePattern = [0, -1, -1, 2, -1, -1, 4, -1]; // -1 = silêncio, números = grau-1 da escala
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 70, patternLength: 8, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      const noteIdx = flutePattern[step % flutePattern.length]!;
-      if (noteIdx >= 0) flute(ic, scale[noteIdx]!, time, 1.6, 0.10);
-    },
-  });
-  seq.start();
-  registerSeq(seq);
-}
-
-/** Aeolian em D3 — drone grave + ostinato bass lento (sensação de "algo pode acontecer"). */
-function buildExplorationTension(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.D3, 'aeolian');
-  // Drone grave
-  const pad = padDrone(ic, [midiToHz(ROOTS.A2), scale[0]!], 'sine', 600);
-  registerPad(pad);
-
-  // Ostinato pluck na fundamental + 5ª, BPM 60
-  const pattern = [0, -1, -1, 4, -1, 0, -1, -1, -1, 4, -1, -1]; // 12 steps = 4 compassos 3/4
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 60, patternLength: 12, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      const idx = pattern[step % pattern.length]!;
-      if (idx >= 0) pluck(ic, scale[idx]! / 2, time, 1.0, 0.13);
-    },
-  });
-  seq.start();
-  registerSeq(seq);
-}
-
-/** Mixolydian em E3 — frame drum 6/8 + bass pulsante. Heroico mas urgente. */
-function buildCombatSkirmish(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.E3, 'mixolydian');
-  // Bass drone leve + 5ª pra dar peso
-  const pad = padDrone(ic, [midiToHz(ROOTS.A2), scale[0]!], 'sawtooth', 250);
-  registerPad(pad);
-
-  // Frame drum 6/8: kick-h-h-tom-h-h (compasso ternário medieval)
-  const drumSeq = new Sequencer({
-    ctx: ic.ctx, bpm: 110, patternLength: 6, stepsPerBeat: 3,
-    onStep: ({ step, time }) => {
-      const s = step % 6;
-      if (s === 0) drumKick(ic, time, 0.40);
-      else if (s === 3) drumTom(ic, time, 180, 0.30);
-      else drumHat(ic, time, 0.08);
-    },
-  });
-  drumSeq.start();
-  registerSeq(drumSeq);
-}
-
-/** Phrygian em D3 — drum intenso + drone agudo dissonante + pluck threatening. */
-function buildCombatBoss(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.D3, 'phrygian');
-  // Dois drones: bass + dissonância aguda (b2 do phrygian é o que dá o "exótico ameaçador")
-  const pad1 = padDrone(ic, [midiToHz(ROOTS.A2), scale[0]!], 'sawtooth', 350);
-  const pad2 = padDrone(ic, [scale[1]! * 2], 'sine'); // 2ª menor uma oitava acima — dissonância icônica
-  registerPad(pad1); registerPad(pad2);
-
-  // Drum mais agressivo, BPM mais alto
-  const drumSeq = new Sequencer({
-    ctx: ic.ctx, bpm: 130, patternLength: 8, stepsPerBeat: 4,
-    onStep: ({ step, time }) => {
-      const s = step % 8;
-      if (s === 0 || s === 4) drumKick(ic, time, 0.50);
-      if (s === 2 || s === 6) drumTom(ic, time, 160, 0.35);
-      drumHat(ic, time, 0.10);
-    },
-  });
-  drumSeq.start();
-  registerSeq(drumSeq);
-
-  // Pluck threatening: toca grau 1, b2, 5 num pattern de 16 steps
-  const pluckPattern = [0, -1, -1, -1, -1, 4, -1, -1, 1, -1, -1, -1, 0, -1, -1, -1];
-  const pluckSeq = new Sequencer({
-    ctx: ic.ctx, bpm: 130, patternLength: 16, stepsPerBeat: 4,
-    onStep: ({ step, time }) => {
-      const idx = pluckPattern[step % pluckPattern.length]!;
-      if (idx >= 0) pluck(ic, scale[idx]!, time, 0.7, 0.16);
-    },
-  });
-  pluckSeq.start();
-  registerSeq(pluckSeq);
-}
-
-/** Lydian em G3 — fanfare ascendente plucked. One-shot 4s, volta a calm. */
-function buildVictory(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.G3, 'lydian');
-  // Plucked fanfare ascendente: arpejo 1-3-5-8 + bell sustentada
-  const t0 = ic.ctx.currentTime;
-  pluck(ic, scale[0]!, t0 + 0.0, 1.2, 0.30);
-  pluck(ic, scale[2]!, t0 + 0.18, 1.2, 0.30);
-  pluck(ic, scale[4]!, t0 + 0.36, 1.2, 0.32);
-  pluck(ic, scale[7]!, t0 + 0.54, 1.5, 0.36);
-  bell(ic, scale[0]! * 2, t0 + 0.4, 3.5, 0.20);
-
-  // One-shot: depois de 4.5s volta pra exploration-calm
-  const to = setTimeout(() => setAmbient('exploration-calm'), 4500);
-  if (activeMood) activeMood.oneShotTimeouts.push(to);
-}
-
-/** Phrygian A2 — heartbeat low + bell distante. Crítico, último fôlego. */
-function buildDangerLowHp(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.A2, 'phrygian');
-  // Drone bem baixo
-  const pad = padDrone(ic, [scale[0]!], 'sine', 200);
-  registerPad(pad);
-
-  // Heartbeat a cada 1.6s (~37 BPM, mais lento que coração — sensação de exaustão)
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 37, patternLength: 1, stepsPerBeat: 1,
-    onStep: ({ time }) => heartbeat(ic, time, 0.40),
-  });
-  seq.start();
-  registerSeq(seq);
-
-  // Bell distante esporádico
-  const bellSeq = new Sequencer({
-    ctx: ic.ctx, bpm: 20, patternLength: 4, stepsPerBeat: 1,
-    onStep: ({ step, time }) => {
-      if (step === 0) bell(ic, scale[1]! * 2, time, 4.0, 0.10);
-    },
-  });
-  bellSeq.start();
-  registerSeq(bellSeq);
-}
-
-/** Lydian em E4 — bells aleatórias + pad etéreo. Sensação mística. */
-function buildMystery(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.E4, 'lydian');
-  // Pad etéreo agudo
-  const pad = padDrone(ic, [scale[0]!, scale[2]!, scale[4]!], 'sine');
-  registerPad(pad);
-
-  // Bells em positions aleatórias do pattern, BPM lento
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 45, patternLength: 16, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      // 35% chance de tocar bell em step com uma nota da escala
-      if (Math.random() < 0.35) {
-        const noteIdx = Math.floor(Math.random() * scale.length);
-        bell(ic, scale[noteIdx]!, time, 2.8, 0.12);
-      }
-    },
-  });
-  seq.start();
-  registerSeq(seq);
-}
-
-/** Major em C4 — harpa arpejo + pad warm. Descanso reconfortante. */
-function buildRest(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.C4, 'major');
-  const pad = padDrone(ic, [midiToHz(ROOTS.C4 - 12), scale[0]!, scale[4]!], 'sine');
-  registerPad(pad);
-
-  // Harpa arpejo (1-3-5-8-5-3) repeating, BPM 80
-  const arpeggio = [0, 2, 4, 7, 4, 2];
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 80, patternLength: 6, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      const idx = arpeggio[step % arpeggio.length]!;
-      pluck(ic, scale[idx]!, time, 1.4, 0.13);
-    },
-  });
-  seq.start();
-  registerSeq(seq);
-}
-
-/** Dorian em D4 — alaúde walking arpeggio. Loja jovial, pé pra cima. */
-function buildShop(ic: InstrumentCtx): void {
-  const scale = getScale(ROOTS.D4, 'dorian');
-  // Walking pluck: 1-3-5-3-1-3-5-7, BPM 100
-  const walking = [0, 2, 4, 2, 0, 2, 4, 6];
-  const seq = new Sequencer({
-    ctx: ic.ctx, bpm: 100, patternLength: 8, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      const idx = walking[step % walking.length]!;
-      pluck(ic, scale[idx]!, time, 0.6, 0.16);
-    },
-  });
-  seq.start();
-  registerSeq(seq);
-
-  // Bass simples pluck na fundamental a cada 2 compassos
-  const bassSeq = new Sequencer({
-    ctx: ic.ctx, bpm: 100, patternLength: 16, stepsPerBeat: 2,
-    onStep: ({ step, time }) => {
-      if (step === 0 || step === 8) pluck(ic, scale[0]! / 2, time, 1.4, 0.18);
-    },
-  });
-  bassSeq.start();
-  registerSeq(bassSeq);
 }
 
 function registerPad(pad: { stop: (r: number) => void; gainNode: GainNode }): void {
@@ -359,10 +373,7 @@ function registerSeq(seq: Sequencer): void {
   if (activeMood) activeMood.sequencers.push(seq);
 }
 
-// Test-only helper pra inspecionar estado interno
+// ── Test helpers ─────────────────────────────────────────────────────────────
 export function _getCurrentMood(): AmbientMood { return currentMoodName; }
 export function _getActiveSequencersCount(): number { return activeMood?.sequencers.length ?? 0; }
 export function _getActivePadsCount(): number { return activeMood?.pads.length ?? 0; }
-
-// Quando SFX é desabilitado, ambient também silencia (consistência UX)
-void isSfxEnabled; // só re-export marker; ambient tem própria flag

@@ -167,6 +167,20 @@ export class Composer {
   }
 }
 
+/** Espalha notas (com durSteps) num mapa por step: índice = onset da nota, resto
+ *  null. O sequencer dispara cada nota quando o cursor bate no onset. Genérico
+ *  sobre qualquer objeto com durSteps (Note ou FreqNote). */
+export function buildStepMap<T extends { durSteps: number }>(notes: T[]): Array<T | null> {
+  const total = notes.reduce((s, n) => s + n.durSteps, 0);
+  const map: Array<T | null> = new Array(Math.max(0, total)).fill(null);
+  let cursor = 0;
+  for (const n of notes) {
+    if (cursor < map.length) map[cursor] = n;
+    cursor += n.durSteps;
+  }
+  return map;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Grooves de dança — percussão por step. Cada forma tem métrica + padrão.
 // (Pesquisa §1: medieval é melodia+drone; percussão é convenção moderna, tunável.)
