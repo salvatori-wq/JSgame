@@ -5,6 +5,7 @@ import { el } from '../../util';
 import { listTombstones, type TombstoneDTO } from '../../api';
 import { portraitFor } from '../../../dnd/portrait';
 import { makeCollapsibleSection } from './collapsible';
+import { humanizeServerError } from '../../humanize-error';
 
 export function renderGraveyard(): HTMLElement {
   // Round 1 fix (Henrique pai 35a + filho 12a) — "Cemitério" trocado pra "Heróis
@@ -29,7 +30,7 @@ export function renderGraveyard(): HTMLElement {
           }
         }
       } catch (err) {
-        list.appendChild(el('div', { class: 'graveyard-empty', text: `Erro: ${String(err)}` }));
+        list.appendChild(el('div', { class: 'graveyard-empty', text: humanizeServerError(String(err)) }));
       }
       return list;
     },

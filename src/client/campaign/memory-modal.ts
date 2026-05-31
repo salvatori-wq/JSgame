@@ -5,6 +5,7 @@
 import type { MemoryFact, MemoryFactKind } from '../../shared/types';
 import { el, escapeHtml, onSwipeDown } from '../util';
 import { getCampaignMemory } from '../api';
+import { humanizeServerError } from '../humanize-error';
 
 export interface MemoryModalOpts {
   campaignId: string;
@@ -137,7 +138,7 @@ export function openMemoryModal(opts: MemoryModalOpts): void {
       if (totalEl) totalEl.textContent = `${facts.length} de ${total} facts`;
       renderList(facts);
     } catch (err) {
-      listEl.innerHTML = `<div class="mem-error">Erro: ${escapeHtml(String(err))}</div>`;
+      listEl.innerHTML = `<div class="mem-error">${escapeHtml(humanizeServerError(String(err)))}</div>`;
     }
   }
 

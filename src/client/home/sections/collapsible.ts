@@ -3,6 +3,7 @@
 // Usado em "Meus PJs", "Crônicas", "Cemitério", "Highlights" da home tavern.
 
 import { el } from '../../util';
+import { humanizeServerError } from '../../humanize-error';
 
 export interface CollapsibleSectionOpts {
   /** ID estável (vira chave localStorage `home.section.{id}.collapsed`). */
@@ -65,7 +66,7 @@ export function makeCollapsibleSection(opts: CollapsibleSectionOpts): HTMLElemen
       const content = await opts.renderContent();
       body.appendChild(content);
     } catch (err) {
-      body.appendChild(el('div', { class: 'home-empty', text: `Erro: ${String(err)}` }));
+      body.appendChild(el('div', { class: 'home-empty', text: humanizeServerError(String(err)) }));
     }
   };
 

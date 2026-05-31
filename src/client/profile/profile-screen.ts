@@ -8,6 +8,7 @@ import {
   type AchievementStatusDTO, type HighlightDTO, type StreakDTO, type FriendDTO,
 } from '../api';
 import { toastError, toastSuccess, toastInfo } from '../toast';
+import { humanizeServerError } from '../humanize-error';
 
 interface ProfileScreenOpts {
   container: HTMLElement;
@@ -64,7 +65,7 @@ export class ProfileScreen {
           el('p', { class: 'profile-empty-sub', text: 'Entre via magic link pra começar a desbloquear marcos persistentes entre PJs.' }),
         ]));
       } else {
-        body.appendChild(el('div', { class: 'profile-empty', text: `Erro: ${msg}` }));
+        body.appendChild(el('div', { class: 'profile-empty', text: humanizeServerError(msg) }));
       }
     }
   }
@@ -113,7 +114,7 @@ export class ProfileScreen {
         // Re-render lista
         this.start();
       } catch (err) {
-        toastError(`Convite falhou: ${String(err)}`);
+        toastError(humanizeServerError(String(err)));
       }
     });
     sec.appendChild(inviteForm);
@@ -146,7 +147,7 @@ export class ProfileScreen {
         text: '✓ Aceitar',
         on: { click: async () => {
           try { await acceptFriendship(f.userId); toastSuccess(`Amigo aceito: ${name}`); }
-          catch (err) { toastError(`Erro: ${String(err)}`); }
+          catch (err) { toastError(humanizeServerError(String(err))); }
           this.start();
         } },
       }));
@@ -168,7 +169,7 @@ export class ProfileScreen {
           });
           if (!ok) return;
           try { await removeFriendship(f.userId); toastInfo(`Amigo removido: ${name}`); }
-          catch (err) { toastError(`Erro: ${String(err)}`); }
+          catch (err) { toastError(humanizeServerError(String(err))); }
           this.start();
         } },
       }));
