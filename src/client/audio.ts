@@ -339,7 +339,11 @@ export function playComboCrit(): void {
 // ════════════════════════════════════════════════════════════════════════════
 export {
   setAmbient,
+  setAmbientIntensity,
+  getAmbientIntensity,
   isAmbientEnabled,
   setAmbientEnabled,
+  playStinger,
   type AmbientMood,
+  type StingerKind,
 } from './audio/ambient';

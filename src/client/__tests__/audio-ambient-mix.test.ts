@@ -2,7 +2,7 @@
 // completude das configs de mood e API de intensidade.
 // @vitest-environment happy-dom
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { layerLevel, computeLayers, intensityToBrightness } from '../audio/intensity';
 import { buildStepMap, RHYTHMS } from '../audio/composer';
 
@@ -57,13 +57,9 @@ describe('composer — buildStepMap', () => {
 });
 
 describe('ambient — configs de mood e API de intensidade', () => {
-  beforeEach(() => {
-    Object.defineProperty(window, 'localStorage', {
-      value: { getItem: () => '1', setItem: vi.fn(), removeItem: vi.fn() },
-      writable: true,
-    });
-  });
-
+  // Não sobrescrevemos localStorage: os caminhos testados fazem early-return sem
+  // AudioContext (happy-dom), então a flag ambientEnabled não importa — e evita
+  // vazar stub entre arquivos no singleFork (CLAUDE.md: sempre limpar globals).
   it('todo mood tocável (exceto victory) tem config válida', async () => {
     const { MOOD_CONFIGS, LISTED_MOODS } = await import('../audio/ambient');
     for (const mood of LISTED_MOODS) {
@@ -93,6 +89,23 @@ describe('ambient — configs de mood e API de intensidade', () => {
     const { setAmbient, LISTED_MOODS } = await import('../audio/ambient');
     for (const m of [...LISTED_MOODS, 'silence', 'exploration', 'combat'] as const) {
       expect(() => setAmbient(m), `throw em ${m}`).not.toThrow();
+    }
+  });
+});
+
+describe('ambient — stingers musicais (Onda 5)', () => {
+  it('stingerNotes retorna graus válidos (0..7) pra cada kind', async () => {
+    const { stingerNotes } = await import('../audio/ambient');
+    for (const k of ['level-up', 'discovery', 'npc', 'scene-change'] as const) {
+      const notes = stingerNotes(k);
+      expect(notes.length).toBeGreaterThan(0);
+      expect(notes.every((n) => n.degree >= 0 && n.degree <= 7 && n.durSteps > 0)).toBe(true);
+    }
+  });
+  it('playStinger não lança (sem AudioContext → early return)', async () => {
+    const { playStinger } = await import('../audio/ambient');
+    for (const k of ['level-up', 'discovery', 'npc', 'scene-change'] as const) {
+      expect(() => playStinger(k), `throw em ${k}`).not.toThrow();
     }
   });
 });

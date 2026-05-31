@@ -373,6 +373,52 @@ function registerSeq(seq: Sequencer): void {
   if (activeMood) activeMood.sequencers.push(seq);
 }
 
+// ── Stingers musicais — curtos, EM TOM com o mood ativo (Onda 5) ─────────────
+// Tocados em eventos (level-up, descoberta, NPC, troca de cena). Usam a escala
+// do mood corrente → sempre soam "dentro da música", com reverb do salão.
+export type StingerKind = 'level-up' | 'discovery' | 'npc' | 'scene-change';
+
+const STINGER_NOTES: Record<StingerKind, Note[]> = {
+  'level-up':     [{ degree: 0, durSteps: 1 }, { degree: 2, durSteps: 1 }, { degree: 4, durSteps: 1 }, { degree: 7, durSteps: 2 }],
+  discovery:      [{ degree: 4, durSteps: 1 }, { degree: 7, durSteps: 2 }],
+  npc:            [{ degree: 4, durSteps: 1 }, { degree: 2, durSteps: 1 }],
+  'scene-change': [{ degree: 7, durSteps: 1 }, { degree: 4, durSteps: 1 }, { degree: 0, durSteps: 2 }],
+};
+
+const STINGER_VOICE: Record<StingerKind, MelodicVoice> = {
+  'level-up': psaltery, discovery: churchBell, npc: recorder, 'scene-change': harp,
+};
+
+/** Graus do stinger (pra tests). */
+export function stingerNotes(kind: StingerKind): Note[] { return STINGER_NOTES[kind]; }
+
+/** Toca um stinger curto na escala do mood ativo, roteado pela música (reverb). */
+export function playStinger(kind: StingerKind): void {
+  if (!ambientEnabled) return;
+  const ctx = _getAudioCtx();
+  if (!ctx) return;
+  const cfg = activeMood ? MOOD_CONFIGS[activeMood.mood] : undefined;
+  const mode = cfg?.mode ?? 'dorian';
+  const root = (cfg?.rootMidi ?? ROOTS.D4) + 12; // oitava acima → brilha sobre a cama
+  const scale = getScale(root, mode);
+  const dest = getMusicInput() ?? _getMasterGain();
+  if (!dest) return;
+
+  const g = ctx.createGain();
+  g.gain.value = 0.55;
+  g.connect(dest);
+  const ic: InstrumentCtx = { ctx, dest: g };
+  const voice = STINGER_VOICE[kind];
+  const notes = themeToFreqs(STINGER_NOTES[kind], scale);
+  const stepDur = 0.16;
+  let t = ctx.currentTime + 0.01;
+  for (const n of notes) {
+    voice(ic, n.freq, t, Math.max(0.3, n.durSteps * stepDur * 2.2), 0.16);
+    t += n.durSteps * stepDur;
+  }
+  setTimeout(() => { try { g.disconnect(); } catch { /* */ } }, 4500);
+}
+
 // ── Test helpers ─────────────────────────────────────────────────────────────
 export function _getCurrentMood(): AmbientMood { return currentMoodName; }
 export function _getActiveSequencersCount(): number { return activeMood?.sequencers.length ?? 0; }

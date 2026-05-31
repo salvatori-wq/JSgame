@@ -29,7 +29,8 @@ import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { openShopModal, closeShopModal } from '../shop/shop-modal';
-import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, isAmbientEnabled, setAmbientEnabled, playEnemyKill, playDeathSaveHeartbeat } from '../audio';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, setAmbientIntensity, playStinger, isAmbientEnabled, setAmbientEnabled, playEnemyKill, playDeathSaveHeartbeat } from '../audio';
+import { computeIntensity } from './music-intensity';
 import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
 import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
 import type { AmbientMood } from '../audio';
@@ -398,6 +399,11 @@ export class CampaignScreen {
           locEl.classList.add('is-scene-changed');
           setTimeout(() => locEl.classList.remove('is-scene-changed'), 1200);
         }
+        // Onda 5 — stinger musical de troca de cena (em tom com o mood). Pula a
+        // 1ª cena (oldLoc vazio) e combate (a vinheta de combate cuida disso).
+        if (oldLoc !== '' && !state.combat?.active) {
+          try { playStinger('scene-change'); } catch { /* */ }
+        }
       }
       // B2 — Tutorial first-combat: dispara só uma vez por user (localStorage flag)
       // ao detectar transição exploration → combat ativo
@@ -483,6 +489,8 @@ export class CampaignScreen {
         setAmbient('victory');
       } else {
         setAmbient(this.pickAmbientMood(state, this.character));
+        // Onda 5 — intensidade adaptativa: combate escala, exploração respira.
+        setAmbientIntensity(computeIntensity(state, this.character));
       }
       this.render();
     };
@@ -806,6 +814,8 @@ export class CampaignScreen {
       // dos aliados se for coop) — overlay levelUp já mostra pra todos.
       if (this.character && payload.characterId === this.character.id) {
         try { playConfetti({ origin: 'top', count: 70, durationMs: 2400 }); } catch { /* silent */ }
+        // Onda 5 — fanfarra musical em tom (arpejo no saltério, com reverb).
+        try { playStinger('level-up'); } catch { /* silent */ }
       }
       notify({
         title: `🌟 LEVEL UP — ${payload.characterName}`,
@@ -1721,6 +1731,7 @@ export class CampaignScreen {
           setAmbientEnabled(next);
           if (next && this.currentState) {
             setAmbient(this.pickAmbientMood(this.currentState, this.character));
+            setAmbientIntensity(computeIntensity(this.currentState, this.character));
           }
           this.render();
         },
