@@ -82,7 +82,40 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-31 (**Ciclo D — smoke mobile emulado + follow-up E1/E2**: empurrei a emulação ao limite (forcei `is-landscape-phone`, simulei browser-bar/notch, dirigi PJ prefab real → exploração → skill-check → combate). Pilares F1-F6 CONFIRMADOS + **4 fixes** do headless + **E1** (header deitado 110→61px → dock combate ~133px) + **E2** (micro-labels 9-10px escalam com font-scale). Suite 2125→**2132** verde. **PUSHADO** (origin/main=`ec78f20`) — deploy = Manual do João no Render. F1-F6 já no ar, bundle `CUZEQW_w`.)
+> Última atualização: 2026-05-31 (**Ciclo profundo de correção** — 2 caça-candidatos read-only (jargão/leak + erros técnicos) + playtest empírico no preview. Achados CONFIRMADOS antes de corrigir. 3 commits: echo de combate em PT-BR (gap do Ciclo U — vazava `→ attack (alvo enemy-…id)`), memória sem enums crus (amigavel/consumivel/misc), `humanizeServerError` nos caminhos quentes + cold-start (era usado só em 1 lugar). Suite 2132→**2142** verde. **PUSHADO** origin/main=`518877d`. Render auto-deploy OFF → deploy = Manual do João.)
+
+### Ciclo profundo de correção — entregue (3 commits, +10 tests)
+
+Pós-deploy do responsivo, rodei um ciclo de caça-bugs no estilo que o projeto
+comprova (playtest empírico > audit estática). 2 agentes read-only acharam
+CANDIDATOS em categorias que já renderam bugs reais (Ciclo U/V); reproduzi/li
+cada um antes de corrigir. O playtest (prefab Lyra → skill-check → echo) validou
+o happy-path LIMPO; os agentes cobriram os caminhos de erro/edge.
+
+- **`1683623` fix(jargão)**: (1) echo de COMBATE vazava enum cru + ID interno
+  (`→ attack (alvo enemy-…-0)`) — é o MESMO bug do Ciclo U, fechado só pro echo
+  de exploração; novo `combatActionLabel()` server-side + nome do inimigo →
+  `→ ⚔ Atacar · Bandido`; (2) Memória do Mestre exibia slugs crus de enum
+  (`atitude amigavel`, `(consumivel)`, `(misc)`) → mapa PT-BR no `indexFact`;
+  (3) Memória exibia as TAGS de indexação (metadado de busca) → não renderiza;
+  (4) glossário placeholder `advantage` → `vantagem`. +7 tests.
+- **`1d597c4` fix(erros)**: achado-raiz — `humanizeServerError` existia mas só
+  em 1 lugar. play-now (botão #1) fazia `res.json()` ANTES de `res.ok` → no
+  cold-start/502 do Render free (HTML, não JSON) virava `SyntaxError` cru na cara
+  do jogador → agora checa `res.ok` + humaniza. sheet/my-characters/wizard:
+  `String(err)` cru → humanizado (sheet ganhou `← Voltar`). `humanizeServerError`
+  reforçado (+502, +SyntaxError/JSON-parse "servidor acordando"; `looksTechnical`
+  pega SyntaxError/ReferenceError/Error:/Exception — erro técnico CURTO não vaza).
+  +3 tests.
+- **`518877d` fix(erros) cont.**: profile (conquistas 500 + 3 toasts de amigo),
+  memory-modal, graveyard, collapsible — todos `String(err)` → humanizado. Agora
+  o tradutor cobre TODOS os catch voltados pro jogador.
+
+**Aberto (próximo ciclo, baixo risco/valor)**: watchdog client no cold-open
+(`joinCampaign` não arma o timeout que o `takeAction` tem — MÉDIA, "na maioria
+não trava" pq o cascade tem timeouts por provider); timeout no lobby (BAIXA).
+
+> Última atualização anterior: 2026-05-31 (**Ciclo D — smoke mobile emulado + follow-up E1/E2**: empurrei a emulação ao limite (forcei `is-landscape-phone`, simulei browser-bar/notch, dirigi PJ prefab real → exploração → skill-check → combate). Pilares F1-F6 CONFIRMADOS + **4 fixes** do headless + **E1** (header deitado 110→61px → dock combate ~133px) + **E2** (micro-labels 9-10px escalam com font-scale). Suite 2125→**2132** verde. **PUSHADO** (origin/main=`ec78f20`) — deploy = Manual do João no Render. F1-F6 já no ar, bundle `CUZEQW_w`.)
 
 ### Ciclo D "Smoke mobile emulado" — entregue (1 commit `ef6bc42`, +5 tests)
 
