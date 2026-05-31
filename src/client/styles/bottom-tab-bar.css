@@ -90,7 +90,9 @@ body.ux-density-comfortable {
 }
 
 .btb-tab-label {
-  font-size: 10px;
+  /* Ciclo D / E2 — escala com o knob de acessibilidade (--ux-font-scale). calc
+   * preserva 10px no scale 1.0 (zero shift) e cresce p/ ~13px a 1.3. */
+  font-size: calc(10px * var(--ux-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.3px;
   white-space: nowrap;

@@ -1497,6 +1497,25 @@ body.is-portrait-narrow .camp-loc {
   text-overflow: ellipsis;
 }
 
+/* Ciclo D / E1 — Header em UMA linha no DEITADO. No retrato o header é 2 rows
+ * (a row 2 = chips 📜🏆👥🔗 scroll-x) e come ~110px = 28% de 390h, espremendo o
+ * dock de combate (71-84px, nem 1 card de inimigo cabia). Deitado a LARGURA
+ * sobra (844px) e a ALTURA é o eixo escasso: junta os chips na row 1
+ * (back·título·chips·⋯) → mata a row 2 (~50px) → o header cai pra ~56px e o
+ * dock (combate) / narração (exploração) crescem. Retrato e desktop intactos. */
+body.is-landscape-phone .camp-header {
+  grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: "back title chips menu";
+  row-gap: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+body.is-landscape-phone .camp-header > .camp-header-chips {
+  grid-area: chips;
+  /* cap: nunca empurra o título (1fr) pra fora; excedente rola no proprio strip */
+  max-width: 50vw;
+}
+
 /* HP do PJ vira inline com nome */
 body.is-portrait-narrow .camp-hp {
   grid-column: 1 / -1;

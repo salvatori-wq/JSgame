@@ -1097,7 +1097,7 @@ body.is-portrait-narrow .ab-slider {
   border: 1px solid rgba(160, 120, 60, 0.18);
   border-radius: 4px;
 }
-.wlp-ab-key { font-size: 9px; color: var(--ink-faint); }
+.wlp-ab-key { font-size: calc(9px * var(--ux-font-scale, 1)); color: var(--ink-faint); } /* E2 — escala com --ux-font-scale */
 .wlp-ab-val { font-size: 14px; font-weight: 600; color: var(--ink-warm); }
 .wlp-ab-mod { font-size: 10px; color: var(--accent-rune); }
 

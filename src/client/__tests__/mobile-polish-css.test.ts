@@ -1148,4 +1148,17 @@ describe('Responsivo Ciclo D — fixes do smoke mobile', () => {
     const dock = readCss('m-camp-dock.css');
     expect(dock).toMatch(/body\.is-landscape-phone\s+\.camp-screen\.is-in-combat\s+\.ch-narration-host\s*\{[^}]*max-height:\s*clamp\(56px,\s*18vh,\s*110px\)/);
   });
+
+  it('E1 — header de campanha vira UMA linha no deitado (chips na row 1 → header 110→61px)', () => {
+    const core = readCss('campaign-core.css');
+    expect(core).toMatch(/body\.is-landscape-phone\s+\.camp-header\s*\{[^}]*grid-template-areas:\s*"back title chips menu"/);
+  });
+
+  it('E2 — micro-labels (9-10px) escalam com --ux-font-scale via calc (sem shift no default)', () => {
+    expect(readCss('bottom-tab-bar.css')).toMatch(/\.btb-tab-label\s*\{[^}]*font-size:\s*calc\(10px\s*\*\s*var\(--ux-font-scale/);
+    expect(readCss('campaign-party.css')).toMatch(/\.cp-pj-xp-txt\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
+    expect(readCss('sheet.css')).toMatch(/\.sv-sub\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
+    expect(readCss('sheet.css')).toMatch(/\.sa-name\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
+    expect(readCss('wizard.css')).toMatch(/\.wlp-ab-key\s*\{\s*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
+  });
 });

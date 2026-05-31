@@ -163,7 +163,8 @@
 }
 .cp-pj-xp-txt {
   font-family: monospace;
-  font-size: 9px;
+  /* E2 — escala com --ux-font-scale (calc preserva 9px no default, sem shift). */
+  font-size: calc(9px * var(--ux-font-scale, 1));
   color: #b88030;
   margin-top: 2px;
   letter-spacing: 0.5px;

@@ -140,7 +140,8 @@
 .sheet-vital-ac .sv-value { color: #7090d0; }
 .sheet-vital-xp .sv-value { color: var(--ink-gold); }
 .sv-sub {
-  font-size: 9px;
+  /* E2 — escala com --ux-font-scale (calc preserva 9px no default, sem shift). */
+  font-size: calc(9px * var(--ux-font-scale, 1));
   color: var(--ink-mute);
   font-family: monospace;
 }
@@ -220,7 +221,8 @@
   display: inline-block;
 }
 .sa-name {
-  font-size: 9px;
+  /* E2 — escala com --ux-font-scale (calc preserva 9px no default, sem shift). */
+  font-size: calc(9px * var(--ux-font-scale, 1));
   color: var(--ink-mute);
   font-family: var(--font-ui);
   margin-top: 4px;
