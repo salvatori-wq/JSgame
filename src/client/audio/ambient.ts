@@ -22,6 +22,7 @@ import {
 } from './instruments';
 import { Sequencer } from './sequencer';
 import { getScale, midiToHz, ROOTS, degree, type Mode } from './modes';
+import { getMusicInput } from './mixer';
 
 export type AmbientMood =
   | 'silence'
@@ -93,7 +94,9 @@ export function setAmbient(mood: AmbientMood): void {
   const bus = ctx.createGain();
   bus.gain.value = 0;
   bus.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 1.2); // master mood gain
-  bus.connect(master);
+  // Onda 1 — roteia a música pelo mixer (reverb de salão + compressor). Se o
+  // mixer não puder montar (sem ConvolverNode), cai no masterGain direto.
+  bus.connect(getMusicInput() ?? master);
 
   const ic: InstrumentCtx = { ctx, dest: bus };
   activeMood = {

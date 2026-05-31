@@ -23,7 +23,24 @@ function ensureCtx(): AudioContext | null {
     ctx = new Ctor() as AudioContext;
     masterGain = ctx.createGain();
     masterGain.gain.value = 0.35;  // headroom — sounds doidos não estouram
-    masterGain.connect(ctx.destination);
+    // Onda 1 — limiter mestre: previne clipping com a mix musical mais rica
+    // (música em camadas + SFX simultâneos). Guarda em try p/ browsers antigos.
+    try {
+      if (typeof ctx.createDynamicsCompressor === 'function') {
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -3;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.25;
+        masterGain.connect(limiter);
+        limiter.connect(ctx.destination);
+      } else {
+        masterGain.connect(ctx.destination);
+      }
+    } catch {
+      masterGain.connect(ctx.destination);
+    }
     return ctx;
   } catch {
     return null;
