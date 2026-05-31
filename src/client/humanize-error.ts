@@ -39,11 +39,18 @@ const PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
   [/persistence not initialized|database.*locked|SQLITE_BUSY/i,
    '💾 O servidor não consegue salvar agora. Tente de novo em instantes.'],
 
-  // ─── Coop ──────────────────────────────────────────────────────────────
-  [/lobby.*(closed|not found|expirou)|sala (fechou|não|nao)/i,
+  // ─── Coop / Sala ─────────────────────────────────────────────────────────
+  // QA-lançamento Ciclo Coop: o server emite reasons PT-BR ("lobby não
+  // encontrado", "lobby cheio", "lobby já virou campanha", "só o host pode
+  // iniciar") que os regexes antigos (só inglês) NÃO pegavam → vazava cru.
+  [/lobby.*(closed|not found|expirou|n[ãa]o encontrad|vazi)|sala.*(fechou|fechada|expirou|n[ãa]o encontrad|vazia)/i,
    '🚪 A sala foi fechada ou expirou. Crie uma nova ou peça código atualizado.'],
-  [/full|lotada|max.*players/i,
+  [/lobby (cheio|cheia|lotad)|full|lotada|max.*players/i,
    '👥 A sala está cheia (máximo 4 jogadores).'],
+  [/j[áa] virou campanha|campanha j[áa] iniciada/i,
+   '🚪 Essa sala já começou a aventura.'],
+  [/s[óo] o host|host pode/i,
+   '👑 Só quem criou a sala pode fazer isso.'],
 ];
 
 /**

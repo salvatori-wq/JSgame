@@ -10,6 +10,8 @@ import type {
 import { listCharacters } from '../api';
 import type { CharacterSummary } from '../../server/persistence';
 import { el, escapeHtml, getOwnerName } from '../util';
+import { showToast } from '../toast';
+import { humanizeServerError } from '../humanize-error';
 import { getRace } from '../../dnd/races';
 import { getClass } from '../../dnd/classes';
 import { ALL_PERSONALITIES, DEFAULT_PERSONALITY, getPersonality, type DmPersonality } from '../../dnd/dm-personality';
@@ -30,8 +32,15 @@ export interface LobbyScreenOpts {
 const STATUS_LABEL: Record<LobbyPlayerStatus, string> = {
   joined: '👤 Entrou',
   selecting: '🔍 Escolhendo PJ',
-  wizard: '⚙ No wizard',
+  wizard: '⚙ Criando PJ',
   ready: '✓ Pronto',
+};
+
+// QA-lançamento (Ciclo Coop): o passo do wizard vazava o slug cru ("level4",
+// "abilities") pros aliados na sala. Mapa PT-BR pra exibir "passo Talento" etc.
+const WIZARD_STEP_LABEL: Record<string, string> = {
+  race: 'Raça', class: 'Classe', subclass: 'Subclasse', abilities: 'Atributos',
+  background: 'Antecedente', personality: 'Personalidade', level4: 'Talento', review: 'Revisão',
 };
 
 export class LobbyScreen {
@@ -103,6 +112,17 @@ export class LobbyScreen {
     };
     s.on('lobbyRedirect', onRedirect);
     this.cleanups.push(() => s.off('lobbyRedirect', onRedirect));
+
+    // QA-lançamento (Ciclo Coop): a sala NÃO escutava 'error'. Código errado/
+    // expirado deixava o jogador preso em "Conectando à sala…" sem feedback
+    // nenhum. Agora humaniza + avisa; se a entrada falhou (sem state ainda),
+    // volta pra home pra ele tentar de novo.
+    const onError = (raw: string): void => {
+      showToast({ message: humanizeServerError(String(raw)), kind: 'error' });
+      if (!this.state) this.opts.onExit();
+    };
+    s.on('error', onError);
+    this.cleanups.push(() => s.off('error', onError));
   }
 
   private findMe(): LobbyPlayer | undefined {
@@ -114,7 +134,7 @@ export class LobbyScreen {
     const root = el('main', { class: 'lobby-screen' });
 
     if (!this.state) {
-      root.appendChild(el('div', { class: 'lobby-loading', text: 'Conectando ao lobby…' }));
+      root.appendChild(el('div', { class: 'lobby-loading', text: 'Conectando à sala…' }));
       this.container.appendChild(root);
       return;
     }
@@ -126,7 +146,7 @@ export class LobbyScreen {
     root.appendChild(el('header', { class: 'lobby-header' }, [
       el('button', { class: 'wiz-back-btn', text: '← Sair', on: { click: () => this.handleExit() } }),
       el('div', { class: 'lobby-title' }, [
-        el('h2', { text: '🏛 Lobby' }),
+        el('h2', { text: '🏛 Sala' }),
         el('div', { class: 'lobby-id' }, [
           el('span', { text: 'Código: ' }),
           el('strong', { text: this.state.id }),
@@ -181,7 +201,7 @@ export class LobbyScreen {
       });
       root.appendChild(startBtn);
     } else {
-      root.appendChild(el('div', { class: 'lobby-host-info', text: '⏳ Só o host pode iniciar a crônica' }));
+      root.appendChild(el('div', { class: 'lobby-host-info', text: '⏳ Só quem criou a sala pode começar' }));
     }
 
     this.container.appendChild(root);
@@ -191,7 +211,7 @@ export class LobbyScreen {
     const statusClass = `is-status-${p.status}`;
     const extraInfo: string[] = [];
     if (p.characterName) extraInfo.push(`PJ: ${p.characterName}`);
-    if (p.status === 'wizard' && p.wizardStep) extraInfo.push(`criando — passo ${p.wizardStep}`);
+    if (p.status === 'wizard' && p.wizardStep) extraInfo.push(`criando — passo ${WIZARD_STEP_LABEL[p.wizardStep] ?? p.wizardStep}`);
     return el('div', { class: `lobby-player-row ${statusClass} ${isMe ? 'is-me' : ''}` }, [
       el('span', { class: 'lp-host', text: p.isHost ? '👑' : '👤' }),
       el('span', { class: 'lp-name', text: p.ownerName + (isMe ? ' (você)' : '') }),
