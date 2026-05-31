@@ -82,7 +82,7 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-31 (**Ciclo D — smoke mobile "no aparelho" (emulado no preview)**: empurrei a emulação ao limite — forcei `is-landscape-phone`, simulei browser-bar/notch, dirigi PJ prefab real → exploração → skill-check → combate na matriz. Pilares F1-F6 CONFIRMADOS + **4 fixes** do que escapou do headless + **5 guards**. Suite 2125→2130 verde, commit `ef6bc42` em `main` — **NÃO pushado** (deploy é decisão do João). F1-F6 JÁ no ar, bundle `CUZEQW_w`.)
+> Última atualização: 2026-05-31 (**Ciclo D — smoke mobile emulado + follow-up E1/E2**: empurrei a emulação ao limite (forcei `is-landscape-phone`, simulei browser-bar/notch, dirigi PJ prefab real → exploração → skill-check → combate). Pilares F1-F6 CONFIRMADOS + **4 fixes** do headless + **E1** (header deitado 110→61px → dock combate ~133px) + **E2** (micro-labels 9-10px escalam com font-scale). Suite 2125→**2132** verde. **PUSHADO** (origin/main=`ec78f20`) — deploy = Manual do João no Render. F1-F6 já no ar, bundle `CUZEQW_w`.)
 
 ### Ciclo D "Smoke mobile emulado" — entregue (1 commit `ef6bc42`, +5 tests)
 
@@ -111,10 +111,13 @@ desktop re-conferido a 1280×800):
 
 **Residual SÓ-aparelho (2 min do João, não bloqueante)**: notch real, browser-bar
 dinâmica, física do dado em rAF real, auto-zoom iOS, auto-detecção do deitado
-(coarse). **P2 maior**: header de campanha 110px no deitado (gargalo do dock —
-pede redesign do `camp-header`, fora do escopo de sweep CSS). Detalhes +
-matriz medida: `FASE6_CACA_BUGS.md` §Ciclo D. Infra: `main.ts` ganhou hook
-DEV-only `window.__nav` (gated `import.meta.env.DEV`) pro sweep determinístico.
+(coarse). **P2 FECHADOS** (commit `ec78f20`): E1 — header deitado vira 1 linha
+(chips na row 1) → 110→61px → dock combate ~133px (1 card de inimigo cabe), narração
++48px em exploração; E2 — `.btb-tab-label`/`.cp-pj-xp-txt`/`.sv-sub`/`.sa-name`/
+`.wlp-ab-key` agora `calc(px * var(--ux-font-scale))` (idêntico no default, escala
+no knob). Só resta `.wc-compare-btn` (redesign de card). Detalhes + matriz medida:
+`FASE6_CACA_BUGS.md` §Ciclo D. Infra: `main.ts` ganhou hook DEV-only `window.__nav`
+(gated `import.meta.env.DEV`) pro sweep determinístico.
 
 > Última atualização anterior: 2026-05-30 (Plano "Responsividade fluida" F1-F6 + ciclos QA — 9 commits, suite 2103→2125 verde, **PUSHADO (origin/main=`5b160e2`) + deployado: bundle `CUZEQW_w` no ar via Manual Deploy do João**)
 

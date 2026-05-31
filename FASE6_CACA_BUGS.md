@@ -201,16 +201,25 @@ A emulação cobre geometria/contrato; estes 5 dependem do hardware/SO real:
       sozinho (no headless non-coarse eu forcei a classe; o predicado `coarse &&
       h<600` só dispara com toque real).
 
-### P2 remanescente (gap real, fora do escopo de um sweep de CSS)
+### P2 — FECHADOS no follow-up E1+E2 (commit `ec78f20`)
 
-- **Header de campanha 110px no deitado** (28% de 390h). É o maior gargalo do
-  combate deitado (empurra o dock pra 84px). Comprimir pede reestruturar o
-  `camp-header` (grid: back+título+localização+toolbar 📜🏆👥🔗⋯) — redesign de
-  chrome, não um tweak. Recomendação: linha única densa OU toolbar no bottom em
-  `is-landscape-phone`. Medir o dock antes/depois.
-- Os 9-10px hardcoded que não escalam com font-scale (`.sv-sub`/`.sa-name`/
-  `.wlp-ab-key`/`.cp-pj-xp-txt`/`.btb-tab-label`) e `.wc-compare-btn` seguem
-  abertos (ver §Adiados acima) — acessibilidade, não bug de layout.
+- **E1 — header de campanha 110px no deitado** → vira UMA linha em
+  `is-landscape-phone` (chips 📜🏆👥🔗⋯ migram pra row 1; o grid de retrato em 2
+  rows fica intacto). Medido: header **110→61px**; o dock de combate (flex:1,
+  único grower) absorve os ~49px → **~133px** (1 card de inimigo cabe); em
+  exploração a narração ganhou **+48px** (172→220). Desktop 1280×800
+  re-conferido (`gridAreas:none`, `is-landscape-phone` OFF → grid base intacto).
+- **E2 — fontes 9-10px que não escalavam com font-scale** (`.btb-tab-label`/
+  `.cp-pj-xp-txt`/`.sv-sub`/`.sa-name`/`.wlp-ab-key`) → `calc(px *
+  var(--ux-font-scale))`. Medido: scale 1.0 = idêntico (9/10px, **zero shift**);
+  scale 1.3 = 11.7/13px. Vale no desktop também (o knob é global).
+
+### P2 ainda aberto
+
+- **`.wc-compare-btn`** (wizard, alvo de toque ~22px) — precisa reposicionar o
+  card de raça/classe (a borda maior cobriria a linha de bônus em raça de string
+  longa, medido a 320). Redesign do card, fora do sweep de CSS. + `.inv-mini-btn`
+  (✕ remover item, w20 — destrutivo secundário) e `.uxs-seg-btn` (36px).
 
 ---
 
