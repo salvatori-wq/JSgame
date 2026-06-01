@@ -34,14 +34,13 @@ import { notify } from '../notifications';
 import type { AmbientMood } from '../audio';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
-import { showAchievementToast } from '../achievements-toast';
 import { portraitFor } from '../../dnd/portrait';
 import { iconEl, classIconName } from '../icons/game-icons';
 import { effectiveArmorClass } from '../../dnd/active-buffs';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
-import { toastError, toastWarn } from '../toast';
+import { toastError, toastWarn, toastSuccess, peek, toastAchievement } from '../toast';
 import { humanizeServerError } from '../humanize-error';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
@@ -777,7 +776,7 @@ export class CampaignScreen {
     const onXp = (payload: { characterId: string; characterName: string; xpAwarded: number; newXp: number }): void => {
       // Mostra toast pra TODOS players (não só o owner) pra share da glória
       const isMe = payload.characterId === this.opts.characterId;
-      this.flashToast(`${isMe ? 'Você' : payload.characterName} ganhou +${payload.xpAwarded} XP`);
+      peek(`${isMe ? 'Você' : payload.characterName} ganhou +${payload.xpAwarded} XP`, 'success');
     };
     s.on('xpAwarded', onXp);
     this.socketCleanups.push(() => s.off('xpAwarded', onXp));
@@ -810,7 +809,8 @@ export class CampaignScreen {
 
     // F17 — Achievement unlocked toast
     const onAch = (payload: { id: string; name: string; description: string; icon: string }): void => {
-      showAchievementToast(payload);
+      toastAchievement(`${payload.icon} ${payload.name} — ${payload.description}`, { dedupKey: `ach-${payload.id}` });
+      try { playNpcSpeaks(); } catch { /* política de autoplay mobile */ }
       notify({
         title: `🏆 ${payload.name}`,
         body: payload.description,
@@ -825,7 +825,7 @@ export class CampaignScreen {
       const msg = payload.brokeRecord
         ? `🔥 ${payload.currentStreak} dias! NOVO recorde pessoal!`
         : `🔥 ${payload.currentStreak} dias seguidos`;
-      this.flashToast(msg);
+      peek(msg, 'success');
     };
     s.on('streakUpdate', onStreak);
     this.socketCleanups.push(() => s.off('streakUpdate', onStreak));
@@ -1432,7 +1432,7 @@ export class CampaignScreen {
   private async shareCampaignId(campId: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(campId);
-      this.flashToast('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
+      toastSuccess('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
     } catch {
       prompt('Copie o ID:', campId);
     }
@@ -1554,7 +1554,7 @@ export class CampaignScreen {
             click: async () => {
               try {
                 await navigator.clipboard.writeText(campId);
-                this.flashToast('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
+                toastSuccess('ID copiado! Cole no Home → Tenho o ID de uma crônica.');
               } catch {
                 prompt('Copie o ID:', campId);
               }
@@ -2005,7 +2005,7 @@ export class CampaignScreen {
     if (!this.character) return;
     const maxDice = this.character.hitDiceRemaining;
     if (maxDice === 0) {
-      this.flashToast('Sem hit dice. Precisa de descanso longo.');
+      toastWarn('Sem hit dice. Precisa de descanso longo.');
       return;
     }
     // T2.5 — Picker visual D&D (era inputDialog numérico genérico).
@@ -2036,9 +2036,4 @@ export class CampaignScreen {
     }
   }
 
-  private flashToast(text: string): void {
-    const t = el('div', { class: 'camp-toast', text });
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 2200);
-  }
 }
