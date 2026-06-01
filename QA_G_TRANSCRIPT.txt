@@ -1,0 +1,69 @@
+SESSAO LONGA QA-G — 24 turnos, 33 narracoes, loc final: Cela úmida da fortaleza
+Erros do harness (ARTEFATOS do bot socket, NAO bugs do app): []
+Legenda: "> Nome" = acao do jogador (echo); "Mestre:" = narracao LLM real; "Mestre (offline):" = FallbackDM (sistema degradou).
+
+[0] Mestre: Cela fria, cheiro de mofo, ratos correndo nos cantos. A porta range, o carcereiro joga um pergaminho aos pés de Lyra Estrelaluz. Runas fenícias antigas — algumas sangram nas pontas, ainda úmidas. "Lê", ele diz, sem encarar. "Lê direito e talvez veja o sol de novo."
+
+[1] ▶ Lyra Estrelaluz: 🔍 Explorar — "Olho ao redor da cela com cuidado, procurando saída."
+
+[2] ▶ Lyra Estrelaluz: 🔎 Investigar — "Examino as runas que sangram no pergaminho."
+
+[3] ▶ Lyra Estrelaluz: 🗣 Falar — "Pergunto ao carcereiro: por que fui preso? O que querem de mim?"
+
+[4] ▶ Lyra Estrelaluz: custom — "Tento subornar o carcereiro oferecendo informações sobre um tesouro."
+
+[5] Mestre: A cela é um cubo de pedra. Nenhuma fresta de luz, nem janela. As paredes suam. Você nota que o pergaminho ainda emana um calor fraco, pulsando ao lado dos seus pés. É vivo.
+
+[6] ▶ Lyra Estrelaluz: custom — "Pergunto o nome dele e se ele tem família."
+
+[7] ▶ Lyra Estrelaluz: 🥷 Furtar-se — "Espero ele se distrair e tento pegar as chaves no cinto dele."
+
+[8] ▶ Lyra Estrelaluz: ⚔ Atacar — "Conjuro um raio de fogo no carcereiro!"
+
+[9] Mestre: O pergaminho pulsa. As runas se contorcem sob seu olhar, `Lyra`. Não são fenícias — são algo mais antigo, com fome. A tinta se move sozinha. Tenta entender.
+
+[10] ▶ Lyra Estrelaluz: custom — "Continuo o combate atacando com o cajado."
+
+[11] ▶ Lyra Estrelaluz: custom — "Tento intimidar o inimigo pra ele recuar."
+
+[12] ▶ Lyra Estrelaluz: 🔍 Explorar — "Depois da luta, vasculho o corpo e a cela atrás de itens úteis."
+
+[13] ▶ Lyra Estrelaluz: 🚶 Viajar — "Saio da cela e sigo pelo corredor escuro da fortaleza."
+
+[14] Mestre: O carcereiro bufa. Não se vira. Bate na porta da cela ao lado, mas o barulho não esconde o riso seco dele. 'Pergunte aos que mandam, elfa. Eu sou só o carregador de papel.'
+
+[15] ▶ Lyra Estrelaluz: 🔎 Investigar — "Procuro armadilhas e pistas no corredor."
+
+[16] ▶ Lyra Estrelaluz: custom — "Grito "tem alguém aí?" pra ver se há outros prisioneiros."
+
+[17] Mestre (offline): Você custom (Tento subornar o carcereiro oferecendo informações sobre um tesouro.). A cena absorve. Próximo passo é seu.
+
+[18] ▶ Lyra Estrelaluz: 🗣 Falar — "Encontro alguém? Tento conversar e descobrir onde estou."
+
+[19] ▶ Lyra Estrelaluz: custom — "Pergunto sobre a história deste lugar e quem o governa."
+
+[20] ▶ Lyra Estrelaluz: custom — "Faço uma pergunta absurda: o céu é feito de queijo aqui?"
+
+[21] Mestre (offline): Você custom (Pergunto o nome dele e se ele tem família.). Há reações — nem todas visíveis ainda.
+
+[22] ▶ Lyra Estrelaluz: 🔍 Explorar — "Procuro uma porta ou escada que leve pra cima."
+
+[23] ▶ Lyra Estrelaluz: 🚶 Viajar — "Subo as escadas em direção à luz."
+
+[24] Mestre (offline): Você sneak (Espero ele se distrair e tento pegar as chaves no cinto dele.). O mundo responde — devagar, atento.
+
+[25] ▶ Lyra Estrelaluz: custom — "Tento lembrar: já estive aqui antes? O que aconteceu comigo?"
+
+[26] ▶ Lyra Estrelaluz: 🛌 Descanso Curto — "Paro num canto seguro pra recuperar o fôlego."
+
+[27] ▶ Lyra Estrelaluz: 🔎 Investigar — "Examino meu próprio livro de magias buscando algo útil."
+
+[28] Mestre (offline): Você attack (Conjuro um raio de fogo no carcereiro!). Há reações — nem todas visíveis ainda.
+
+[29] ▶ Lyra Estrelaluz: custom — "Lanço uma magia de luz pra iluminar o caminho."
+
+[30] ▶ Lyra Estrelaluz: 🚶 Viajar — "Sigo em frente, determinada a escapar da fortaleza."
+
+[31] Mestre (offline): Você custom (Continuo o combate atacando com o cajado.). Há reações — nem todas visíveis ainda.
+
+[32] ▶ Lyra Estrelaluz: 🗣 Falar — "Se houver um guarda na saída, tento negociar passagem."

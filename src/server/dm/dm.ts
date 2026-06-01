@@ -535,8 +535,12 @@ export class FallbackDM {
     } else if (context.playerAction) {
       const action = context.playerAction.action;
       const details = (context.playerAction as { details?: string }).details ?? '';
+      // QA-lançamento (Ciclo G): o template offline interpolava o ENUM CRU em
+      // inglês ("Você attack (…)", "Você custom (…)") — vazava jargão dev na
+      // narração visível (mesmo bug do Ciclo U, agora no caminho degradado).
+      // Mapa PT-BR conjugado em 2ª pessoa pra casar com "Você {verbo}".
       narration = pickRandom(ACTION_TEMPLATES)
-        .replace('{action}', action)
+        .replace('{action}', offlineActionVerb(action))
         .replace('{details}', details ? ` (${details})` : '');
     } else {
       narration = pickRandom(SCENE_TEMPLATES).replace('{name}', partyName);
@@ -555,6 +559,19 @@ export class FallbackDM {
 
 function pickRandom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+// QA-lançamento (Ciclo G) — Enum de ação → verbo PT-BR (2ª pessoa) pro template
+// offline "Você {action}…". Sem isso o slug cru em inglês vazava pro jogador.
+// Exportado pra teste-guard. Fallback "age" cobre qualquer ação nova/desconhecida.
+const OFFLINE_ACTION_VERBS: Record<string, string> = {
+  explore: 'exploras', investigate: 'investigas', sneak: 'te esgueiras',
+  talk: 'falas', attack: 'atacas', travel: 'segues em frente',
+  'rest-short': 'descansas', 'rest-long': 'descansas a noite',
+  'use-item': 'usas o item', 'cast-spell': 'conjuras', custom: 'ages',
+};
+export function offlineActionVerb(action: string): string {
+  return OFFLINE_ACTION_VERBS[action] ?? 'ages';
 }
 
 // BUG-Ω.5 — Templates narrativos offline. Tom Sombrio+Sarcástico+Trickster
