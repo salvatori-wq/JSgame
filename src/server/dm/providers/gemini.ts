@@ -141,6 +141,15 @@ export class GeminiProvider implements DMProvider {
       }
     }
 
+    // Fase 3 (estabilização) — empty response throw → CascadeProvider failover.
+    // Gemini 2.5 free às vezes devolve 200 com candidate vazio (MAX_TOKENS,
+    // thinking, ou parts sem text/functionCall). Sem este throw o cascade PARAVA
+    // aqui achando que foi sucesso e o jogo caía no FallbackDM offline em vez de
+    // tentar o próximo provider (Groq/Cerebras). Mesmo padrão de Cerebras/CF/Mistral.
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Gemini empty response: model=${this.model} finishReason=${candidate?.finishReason ?? 'none'}`);
+    }
+
     return { text, toolCalls };
   }
 }

@@ -60,6 +60,15 @@ export class GroqProvider implements DMProvider {
         // argumentos malformados — ignora silenciosamente (DM as vezes manda JSON inválido)
       }
     }
+
+    // Fase 3 (estabilização) — empty response throw → CascadeProvider failover.
+    // Llama 3.3 às vezes devolve content vazio sem tool_calls (corte por length
+    // ou filtro). Sem este throw o cascade PARAVA no Groq achando que foi sucesso
+    // e o jogo caía no FallbackDM offline em vez de tentar Gemini/Cerebras. Mesmo
+    // padrão já presente em Cerebras/Cloudflare/Mistral.
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Groq empty response: model=${this.model} finish_reason=${choice?.finish_reason ?? 'none'}`);
+    }
     return { text, toolCalls };
   }
 }
