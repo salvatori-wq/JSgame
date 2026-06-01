@@ -42,7 +42,6 @@ function render(): HTMLElement {
     party: [makeChar()],
     myCharacterId: 'pc-1',
     socket: stubSocket,
-    combatLog: ['linha de log de combate'],
   });
   return container;
 }

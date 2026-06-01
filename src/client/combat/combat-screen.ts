@@ -28,14 +28,16 @@ export interface CombatScreenOpts {
   party: CharacterSheet[];
   myCharacterId: string;
   socket: SocketT;
-  combatLog: string[];          // mensagens combat events recentes
 }
 
 // C1 — Mobile tabs: persistente entre re-renders via window state.
 // Default 'actions' (mais usado). Mobile only — desktop mostra tudo de uma vez.
-type CombatTab = 'enemies' | 'actions' | 'log';
+type CombatTab = 'enemies' | 'actions';
 function getActiveTab(): CombatTab {
-  return ((window as unknown as { __combatTab?: CombatTab }).__combatTab) ?? 'actions';
+  // Coerção defensiva: a aba 'log' foi removida (duplicava o echo na narração);
+  // qualquer valor persistido inválido em __combatTab cai pra 'actions'.
+  const t = (window as unknown as { __combatTab?: string }).__combatTab;
+  return t === 'enemies' ? 'enemies' : 'actions';
 }
 function setActiveTab(tab: CombatTab): void {
   (window as unknown as { __combatTab?: CombatTab }).__combatTab = tab;
@@ -53,7 +55,7 @@ function setActiveTab(tab: CombatTab): void {
 let lastMyTurnState = false;
 
 export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpts): void {
-  const { combat, party, myCharacterId, socket, combatLog } = opts;
+  const { combat, party, myCharacterId, socket } = opts;
   const myChar = party.find((p) => p.id === myCharacterId) ?? null;
 
   // W3.4 — Detecta meu turno e aplica/remova body class + side effects de transição.
@@ -81,7 +83,6 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     // C1 — Tab strip (desktop esconde via .cb-tabs { display: none }; portrait
     // não chega aqui pós-②). O3.2 — Counts em .cb-tab-badge dourado destacado.
     const enemyCount = combat.enemies.filter((e) => e.currentHp > 0).length;
-    const logCount = combatLog.length;
     const tabStrip = el('div', { class: 'cb-tabs' }, [
       el('button', {
         class: `cb-tab-btn ${activeTab === 'enemies' ? 'is-active' : ''}`,
@@ -98,14 +99,6 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       }, [
         el('span', { class: 'cb-tab-label', text: '🎲 Ações' }),
       ]),
-      el('button', {
-        class: `cb-tab-btn ${activeTab === 'log' ? 'is-active' : ''}`,
-        attrs: { type: 'button', 'data-tab': 'log' },
-        on: { click: () => setActiveTab('log') },
-      }, [
-        el('span', { class: 'cb-tab-label', text: '📜 Log' }),
-        logCount > 0 ? el('span', { class: 'cb-tab-badge', text: String(logCount) }) : null,
-      ].filter(Boolean) as HTMLElement[]),
     ]);
     root.appendChild(tabStrip);
 
@@ -125,7 +118,7 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
       if (Math.abs(dx) < 60) return;
       // ψ.5 — Só conta como swipe horizontal se dx for 2× maior que dy.
       if (Math.abs(dx) < Math.abs(dy) * 2) return;
-      const tabs: CombatTab[] = ['enemies', 'actions', 'log'];
+      const tabs: CombatTab[] = ['enemies', 'actions'];
       const idx = tabs.indexOf(getActiveTab());
       if (dx > 0 && idx > 0) setActiveTab(tabs[idx - 1]!);
       else if (dx < 0 && idx < tabs.length - 1) setActiveTab(tabs[idx + 1]!);
@@ -390,35 +383,7 @@ export function renderCombatScreen(container: HTMLElement, opts: CombatScreenOpt
     root.appendChild(waiting);
   }
 
-  // ── Combat log
-  if (combatLog.length > 0 || combat.log.length > 0) {
-    const logEl = el('div', { class: 'cb-log cb-tab-content cb-tab-log' });
-    logEl.appendChild(el('div', { class: 'cb-log-title', text: '📜 Log de combate' }));
-    const items = [...combat.log.slice(-6), ...combatLog.slice(-4)];
-    for (const ln of items.slice(-10)) {
-      // POLISH β.6 — Classifica linha pra colorir (player/enemy/crit/miss/skill)
-      const kind = classifyLogLine(ln);
-      logEl.appendChild(el('div', { class: `cb-log-line cb-log-${kind}`, text: ln }));
-    }
-    root.appendChild(logEl);
-  }
-
   container.appendChild(root);
-}
-
-// POLISH β.6 — classifica linha de combat log por tipo pra colorir.
-// Heurístico baseado em keywords. Default 'neutral' (cinza).
-function classifyLogLine(line: string): 'crit' | 'miss' | 'player' | 'enemy' | 'skill' | 'death' | 'neutral' {
-  const l = line.toLowerCase();
-  if (l.includes('crit') || l.includes('crítico')) return 'crit';
-  if (l.includes('errou') || l.includes('miss') || l.includes('falhou')) return 'miss';
-  if (l.includes('morreu') || l.includes('caiu') || l.includes('inconsciente')) return 'death';
-  if (l.includes('teste de') || l.includes('check') || l.includes('rolou ') || l.includes('save')) return 'skill';
-  // Inicia com ▶ ou tem "você" / nome do PJ → player. Heurístico fraco mas útil.
-  if (line.startsWith('▶') || l.includes('você') || l.includes('seu ')) return 'player';
-  // "inimigo X atacou", "goblin", "orc" etc → enemy
-  if (l.includes('atacou') || l.includes('ataca ') || l.includes('inimigo')) return 'enemy';
-  return 'neutral';
 }
 
 // 1B — coloring de condition por severidade pra UI imediata.

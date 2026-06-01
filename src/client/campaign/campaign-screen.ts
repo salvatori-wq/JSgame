@@ -136,7 +136,6 @@ export class CampaignScreen {
   private suppressNextPlayerEcho = 0;
   // Flag pra disable das action buttons. Synced com narrationLog.setThinking().
   private isDmThinking = false;
-  private combatLog: string[] = [];
   // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
   private combatFlags: Record<string, string[]> = {};
   // BUG-002 fix: idempotency lock pra trigger do tutorial — evita double-fire
@@ -573,12 +572,9 @@ export class CampaignScreen {
 
     const onCombatEvent = (ev: CombatEvent): void => {
       if (ev.text) {
-        this.combatLog.push(ev.text);
-        // Sprint 4: capacity 20→50 — player gosta de scrollar log longo pra ver combate todo.
-        if (this.combatLog.length > 50) this.combatLog = this.combatLog.slice(-50);
-        // Y.B3 — Sprint Y: absorver no narration-log como is-combat-echo.
-        // Mantém cb-log-line legacy como fallback (tab "Log" do combat-screen).
-        // Player vê combat events INLINE com narração de Mestre — 1 feed só.
+        // Combat events viram echo INLINE na narração (is-combat-echo) — 1 feed só.
+        // (A aba "Log" do combat-screen + o array combatLog legacy foram removidos:
+        //  era a MESMA informação em 2 lugares.)
         const kind = classifyCombatEventKind(ev);
         try { this.narrationLog?.appendCombatEcho({ text: ev.text, kind }); } catch { /* silent */ }
       }
@@ -1175,7 +1171,6 @@ export class CampaignScreen {
         party: this.party,
         myCharacterId: this.opts.characterId,
         socket: this.opts.socket,
-        combatLog: this.combatLog,
       });
       this.replaceSlot(this.slots.mainContent, combatWrap);
     } else {
