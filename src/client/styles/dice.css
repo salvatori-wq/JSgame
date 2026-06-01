@@ -443,11 +443,6 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes dieReducedFade {
-  0%   { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
 /* ── Ω.1 — Force motion (user opted in via UX Settings) ─────────────────
  * body.force-motion VENCE media query — !important sobrescreve qualquer reduce.
  * Default ON: maioria dos players quer ver dado caindo independente do OS. */

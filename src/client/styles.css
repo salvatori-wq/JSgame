@@ -18,8 +18,6 @@
 @import './styles/responsive.css';
 @import './styles/dice.css';
 @import './styles/overflow-menu.css';
-/* Ω.10 — prefab-cards.css legacy desabilitado. home-tavern.css agora cobre tudo. */
-/* @import './styles/prefab-cards.css'; */
 @import './styles/m-layout.css';
 @import './styles/_polish.css';
 @import './styles/combat-polish.css';

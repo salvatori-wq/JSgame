@@ -363,9 +363,7 @@ if (last) {
     currentUser = await getMe();
   } catch { /* offline ou erro — segue anônimo */ }
   void render();
-  // P0 funil — onboarding tour da home REMOVIDO do auto-disparo. 4 passos
-  // modais antes de jogar eram fricção pura na primeira tela (34% saíam em
-  // started_only, p50 37s pra 1ª ação). A home é auto-explicativa e o
-  // tutorial Duolingo contextual cobre a tela de jogo. openOnboardingTour
-  // segue disponível em onboarding-tour.ts se quisermos religar via Ajustes.
+  // P0 funil — onboarding tour da home foi removido (4 passos modais antes de
+  // jogar eram fricção pura: 34% saíam em started_only, p50 37s pra 1ª ação).
+  // A home é auto-explicativa e o tutorial Duolingo contextual cobre o jogo.
 })();

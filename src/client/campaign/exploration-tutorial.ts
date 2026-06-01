@@ -68,7 +68,7 @@ export const EXPLORATION_TUTORIAL_CARDS: Card[] = [
   {
     icon: '💬',
     title: 'Chat com seus amigos',
-    text: 'No coop, há um campo "Falar pra party (Enter pra enviar)" — chat à parte pra combinar coisas fora da história. Todos os amigos da sessão veem.',
+    text: 'No coop, toque no balão 💬 flutuante pra abrir o chat da party — combine coisas fora da história. Todos os amigos da sessão veem.',
   },
   {
     icon: '🧠',
