@@ -15,6 +15,21 @@ import { trackEvent as trackAchievement } from '../achievements.js';
 import { resolveCounterspell } from '../reaction-engine.js';
 import { trackMetricEvent } from '../metrics.js';
 import type { User } from '../auth.js';
+import { SKILLS, type SkillId } from '../../dnd/skills.js';
+import { ABILITY_LABELS, type AbilityKey } from '../../dnd/attributes.js';
+
+// Fase 0 (estabilização) — echo do dado em PT-BR limpo, SEM jargão/enum cru.
+// Antes: "percepcao (DC 12): rolou 4 → FALHOU" (slug sem acento + DC exposto +
+// CAIXA ALTA de teste). O DC é mecânica interna — o jogador vê só perícia + nº +
+// desfecho. skillLabel resolve o nome PT-BR; fallback capitaliza (nunca slug cru).
+function skillLabel(id: string): string {
+  return SKILLS[id as SkillId]?.name ?? (id.charAt(0).toUpperCase() + id.slice(1));
+}
+function rollVerdictLabel(opts: { nat20?: boolean; nat1?: boolean; success: boolean }): string {
+  if (opts.nat20) return 'crítico!';
+  if (opts.nat1) return 'falha crítica';
+  return opts.success ? 'sucesso' : 'falhou';
+}
 
 export interface ConnectionCtx {
   io: SocketIoServer<ClientToServerEvents, ServerToClientEvents>;
@@ -458,10 +473,10 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           if (!result) return;
 
           const myName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
-          const verdict = result.nat20 ? 'NAT20 CRIT' : result.nat1 ? 'NAT1 FALHA' : (result.success ? 'SUCESSO' : 'FALHOU');
+          const verdict = rollVerdictLabel({ nat20: result.nat20, nat1: result.nat1, success: result.success });
           const inspNote = result.usedInspiration ? ' ✨' : '';
           io.to(camp.state.id).emit('dmNarration', {
-            text: `${pending.skill} (DC ${pending.dc}): rolou ${result.roll.total} → ${verdict}${inspNote}`,
+            text: `${skillLabel(pending.skill)} ${result.roll.total} — ${verdict}${inspNote}`,
             speaker: `🎲 ${myName}`,
             mood: result.success ? 'trickster' : 'sombrio',
           });
@@ -521,9 +536,10 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           purpose: 'saving-throw',
         });
         const saveName = camp.party.find((p) => p.id === activePlayerId)?.characterName ?? 'Aventureiro';
-        const saveVerdict = result.nat20 ? 'NAT20 SUCESSO ÉPICO' : result.nat1 ? 'NAT1 FALHA CRÍTICA' : (result.success ? 'SUCESSO' : 'FALHOU');
+        const saveVerdict = rollVerdictLabel({ nat20: result.nat20, nat1: result.nat1, success: result.success });
+        const abilityLabel = ABILITY_LABELS[pending.ability as AbilityKey] ?? pending.ability;
         io.to(camp.state.id).emit('dmNarration', {
-          text: `Save ${pending.ability.toUpperCase()} (DC ${pending.dc}): rolou ${result.roll.total} → ${saveVerdict}`,
+          text: `Resistência de ${abilityLabel} ${result.roll.total} — ${saveVerdict}`,
           speaker: `🛡 ${saveName}`,
           mood: result.success ? 'trickster' : 'sombrio',
         });

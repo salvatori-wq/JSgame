@@ -600,20 +600,24 @@ const SUCCESS_TEMPLATES = [
   '{name} resolve. O mundo segue.',
 ] as const;
 
+// Fase 0 (estabilização) — templates offline reescritos pra soar como cena viva,
+// não filler robótico. (O João bateu no "tenta e falha. O mundo registra. Anda.")
+// Estes só aparecem quando TODOS os providers LLM caem — o fix de fundo é a
+// confiabilidade do Mestre (Fase 3); aqui garantimos que o degradado tenha cor.
 const FAIL_TEMPLATES = [
-  '{name} tenta e falha. O mundo registra. Anda.',
-  '{name} chega perto mas não fecha. Tem que tentar outra coisa.',
-  '{name} erra por pouco. Frustrante, mas não fatal.',
-  '{name} não consegue agora. O tempo passa.',
-  '{name} se complica. Tem que ajustar o plano.',
+  '{name} tenta — e o mundo não cede. A pedra continua pedra, a porta continua fechada. Por enquanto.',
+  '{name} chega perto, sente o limite com a ponta dos dedos, e escorrega. Outra abordagem, talvez.',
+  '{name} erra por um fio. Frustrante. Mas erro não é fim — é convite a tentar diferente.',
+  '{name} força e nada acontece. O silêncio depois é quase debochado. O que mais você tenta?',
+  '{name} se complica. O plano range nas juntas. Hora de improvisar.',
 ] as const;
 
 const ACTION_TEMPLATES = [
-  'Você {action}{details}. O mundo responde — devagar, atento.',
-  'Você {action}{details}. Algo se move ao fundo. Atenção.',
-  'Você {action}{details}. O cenário muda sutilmente.',
-  'Você {action}{details}. Há reações — nem todas visíveis ainda.',
-  'Você {action}{details}. A cena absorve. Próximo passo é seu.',
+  'Você {action}{details}. O ar muda de peso — algo prestou atenção. Continue.',
+  'Você {action}{details}. A cena se mexe ao seu redor, devagar. O próximo passo é seu.',
+  'Você {action}{details}. Sombras se ajeitam, o lugar responde à sua maneira. E agora?',
+  'Você {action}{details}. Há um eco — nem tudo aqui se revela de uma vez.',
+  'Você {action}{details}. O mundo registra o gesto e segura a respiração. Sua vez.',
 ] as const;
 
 const SCENE_TEMPLATES = [

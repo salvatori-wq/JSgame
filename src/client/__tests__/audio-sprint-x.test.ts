@@ -20,32 +20,30 @@ describe('Sprint X.A3 — playPageTurn SFX no read-aloud', () => {
   });
 });
 
-describe('Sprint X.A2 — Ambient default ON (consultor convergente)', async () => {
+// Fase 0 (estabilização) — música ambiente agora é default OFF (era ON no Sprint
+// X). A trilha generativa soava grating no 1º contato; OFF para de fazer o jogo
+// soar mal de cara. Quem quiser, liga em Ajustes. Efeitos seguem ON.
+describe('Ambient — toggle ON/OFF (default OFF na Fase 0)', () => {
   beforeEach(() => {
-    // Limpa localStorage do default antes do teste
     try { localStorage.removeItem('jsgame.ambient.enabled'); } catch { /* */ }
   });
   afterEach(() => {
     try { localStorage.removeItem('jsgame.ambient.enabled'); } catch { /* */ }
   });
 
-  it('isAmbientEnabled() retorna true quando localStorage não tem chave (primeira vez)', async () => {
-    // Como o módulo é cached, precisa importar fresh
-    const ambientModule = await import('../audio/ambient?fresh' as string).catch(async () => {
-      // Fallback: usa o existente (env Vitest pode rejeitar query string)
-      return await import('../audio/ambient');
-    });
-    // O default lê localStorage NO PARSE. Mas como módulo é cached, vamos testar
-    // SET + GET ciclo em vez de defaults na primeira vez.
+  it('isAmbientEnabled() existe e retorna boolean', async () => {
+    const ambientModule = await import('../audio/ambient');
     expect(typeof ambientModule.isAmbientEnabled).toBe('function');
     expect(typeof ambientModule.isAmbientEnabled()).toBe('boolean');
   });
 
-  it('setAmbientEnabled(false) então isAmbientEnabled() = false', async () => {
+  it('toggle: setAmbientEnabled(true/false) persiste e reflete em isAmbientEnabled()', async () => {
     const { setAmbientEnabled, isAmbientEnabled } = await import('../audio/ambient');
     setAmbientEnabled(false);
     expect(isAmbientEnabled()).toBe(false);
     setAmbientEnabled(true);
     expect(isAmbientEnabled()).toBe(true);
+    setAmbientEnabled(false); // deixa OFF (default da Fase 0)
+    expect(isAmbientEnabled()).toBe(false);
   });
 });

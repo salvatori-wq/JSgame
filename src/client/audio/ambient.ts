@@ -46,12 +46,17 @@ export type AmbientMood =
   | 'travel';
 
 const STORAGE_KEY_AMBIENT = 'jsgame.ambient.enabled';
+// Fase 0 (estabilização) — música ambiente DESLIGADA por padrão. A trilha
+// generativa procedural soava intrusiva/grating no 1º contato (drone de serra +
+// melodia aleatória em loop). Default OFF para de fazer o jogo soar mal de cara;
+// quem quiser liga em Ajustes. Os EFEITOS (dado, etc.) seguem ligados (são curtos
+// e bons). Quando a trilha for trocada por loops de qualidade, reavaliar o default.
 let ambientEnabled = (() => {
   try {
     const v = localStorage.getItem(STORAGE_KEY_AMBIENT);
-    if (v === null) return true;
+    if (v === null) return false;  // default OFF (era true)
     return v !== '0';
-  } catch { return true; }
+  } catch { return false; }
 })();
 
 export function isAmbientEnabled(): boolean { return ambientEnabled; }
