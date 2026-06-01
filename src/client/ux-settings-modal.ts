@@ -5,6 +5,9 @@
 import { el } from './util';
 import { getUxPrefs, setUxPrefs, type UxPrefs, type Density, type FontScale, type AnimSpeed, type TypewriterSpeed } from './ux-prefs';
 import { push as pushSheet, pop as popSheet, isSheetOpen } from './sheet-stack-manager';
+import { isSfxEnabled, setSfxEnabled, isAmbientEnabled, setAmbientEnabled } from './audio';
+import { isNotifsEnabled, setNotifsEnabled, notifsSupported } from './notifications';
+import { isVoiceTtsEnabled, setVoiceTtsEnabled, isVoiceTtsSupported } from './voice-tts';
 
 const SHEET_ID = 'ux-settings';
 
@@ -130,8 +133,38 @@ export function openUxSettingsModal(): void {
     },
   ));
 
-  // ───────── Onda 6 — Áudio (volumes + reverb da trilha medieval)
-  body.appendChild(el('div', { class: 'uxs-section-h', text: '🎵 Áudio' }));
+  // ───────── Áudio & avisos — toggles ON/OFF + volumes num lugar só.
+  // Fase 1 (estabilização): som/música/voz/notif eram um popover separado na
+  // campanha ("⋯ Mais" do header). Agora moram aqui, junto dos volumes.
+  body.appendChild(el('div', { class: 'uxs-section-h', text: '🎵 Áudio & avisos' }));
+  body.appendChild(renderToggle(
+    '🔊 Efeitos sonoros',
+    'Dado, golpes, magias',
+    isSfxEnabled(),
+    (v) => { setSfxEnabled(v); },
+  ));
+  body.appendChild(renderToggle(
+    '🎵 Música ambiente',
+    'Trilha medieval por trás da cena',
+    isAmbientEnabled(),
+    (v) => { setAmbientEnabled(v); },
+  ));
+  if (notifsSupported()) {
+    body.appendChild(renderToggle(
+      '🔔 Notificações',
+      'Aviso quando é sua vez e a aba está em segundo plano',
+      isNotifsEnabled(),
+      (v) => { void setNotifsEnabled(v); },
+    ));
+  }
+  if (isVoiceTtsSupported()) {
+    body.appendChild(renderToggle(
+      '🗣 Voz do Mestre',
+      'Lê as narrações em voz alta',
+      isVoiceTtsEnabled(),
+      (v) => { setVoiceTtsEnabled(v); },
+    ));
+  }
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   body.appendChild(renderSlider(
     '🎵 Música', 'Volume da trilha sonora medieval', 0, 1.5, 0.05, prefs.musicVolume, pct,

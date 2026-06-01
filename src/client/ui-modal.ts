@@ -233,6 +233,8 @@ export interface PickerDialogOpts<T extends string = string> {
     label: string;
     description?: string;
     icon?: string;
+    /** Cabeçalho de seção: o 1º item de cada `section` insere um divisor acima. */
+    section?: string;
   }>;
   initialValue?: T;
   cancelText?: string;
@@ -267,7 +269,12 @@ export function pickerDialog<T extends string = string>(opts: PickerDialogOpts<T
     }
 
     const list = el('div', { class: 'ui-modal-picker-list', attrs: { role: 'radiogroup' } });
+    let lastSection: string | undefined;
     for (const opt of opts.options) {
+      if (opt.section && opt.section !== lastSection) {
+        lastSection = opt.section;
+        list.appendChild(el('div', { class: 'ui-modal-picker-section', text: opt.section }));
+      }
       const isSelected = opt.value === opts.initialValue;
       const btn = el('button', {
         class: `ui-modal-picker-opt ${isSelected ? 'is-selected' : ''}`,

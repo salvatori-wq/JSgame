@@ -24,15 +24,13 @@ import { openCombatTargetSheet } from '../combat/combat-target-sheet';
 import { enemyHpAdjective } from '../combat/combat-screen-helpers';
 import { openCastSpellModal, closeCastSpellModal, shouldShowCastButton } from '../spells/cast-spell-modal';
 import { openInventoryModal, closeInventoryModal } from '../inventory/inventory-modal';
-import { openMemoryModal } from './memory-modal';
 import { openQuestLog, closeQuestLog } from './quest-log-modal';
 import { openAchievementsModal, closeAchievementsModal } from './achievements-modal';
 import { openNpcRosterModal, closeNpcRosterModal } from './npc-roster-modal';
 import { openShopModal, closeShopModal } from '../shop/shop-modal';
-import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, isSfxEnabled, setSfxEnabled, notifyCrit, setAmbient, setAmbientIntensity, playStinger, isAmbientEnabled, setAmbientEnabled, playEnemyKill, playDeathSaveHeartbeat } from '../audio';
+import { playHit, playMiss, playDamage, playSpellCast, playNpcSpeaks, notifyCrit, setAmbient, setAmbientIntensity, playStinger, playEnemyKill, playDeathSaveHeartbeat } from '../audio';
 import { computeIntensity } from './music-intensity';
-import { notify, isNotifsEnabled, setNotifsEnabled, notifsSupported } from '../notifications';
-import { openOverflowMenu, type OverflowMenuItem } from './header-overflow-menu';
+import { notify } from '../notifications';
 import type { AmbientMood } from '../audio';
 import { enqueueLevelUp } from '../level-up-overlay';
 import { xpProgressInLevel, xpToNextLevel, XP_FOR_LEVEL } from '../../dnd/leveling';
@@ -41,7 +39,6 @@ import { portraitFor } from '../../dnd/portrait';
 import { iconEl, classIconName } from '../icons/game-icons';
 import { effectiveArmorClass } from '../../dnd/active-buffs';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
-import { isVoiceTtsEnabled, isVoiceTtsSupported, setVoiceTtsEnabled } from '../voice-tts';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
 import { toastError, toastWarn } from '../toast';
@@ -1049,7 +1046,7 @@ export class CampaignScreen {
       this.replaceSlot(this.slots.header, renderStatusRibbon({
         state: this.currentState,
         character: this.character,
-        onExpand: (anchor) => this.openHeaderOverflow(anchor),
+        onExpand: () => { void this.openToolsSheet(); },
         onExit: async () => {
           const inCombat = this.currentState?.mode === 'combat' && this.currentState.combat?.active;
           if (inCombat) {
@@ -1367,41 +1364,45 @@ export class CampaignScreen {
       | 'dodge' | 'dash' | 'disengage' | 'hide'
       | 'free' | 'investigate' | 'sneak' | 'travel' | 'inventory' | 'magic' | 'use-item'
       | 'short-rest' | 'long-rest' | 'quests' | 'npcs' | 'achievements'
-      | 'share' | 'glossary' | 'settings';
-    const opts: Array<{ value: Tool; label: string; description?: string }> = [];
-    // Fase 3 — em combate o "Mais" oferece as ações táticas secundárias (sem
-    // alvo) no topo; ⚔ Atacar fica no botão dominante. Só no meu turno.
+      | 'share' | 'difficulty' | 'glossary' | 'settings';
+    const opts: Array<{ value: Tool; label: string; description?: string; section?: string }> = [];
+    // Fase 1 (estabilização) — menu ÚNICO, organizado por seção. Antes havia 2
+    // menus "Mais" (este + o popover da ribbon) com duplicatas. Os toggles de
+    // som/música/voz/notif viraram parte de "⚙ Ajustes" (modal UX), não mais um
+    // popover por sessão; "Memória (RAG)" saiu da cara do jogador (era dev).
+    // Em combate o "Mais" oferece as ações táticas sem alvo; ⚔ Atacar fica no
+    // botão dominante da barra. Só no meu turno.
     if (inCombat && this.isMyCombatTurn()) {
-      opts.push({ value: 'dodge', label: '🛡 Esquivar', description: 'ataques contra você têm desvantagem' });
-      opts.push({ value: 'dash', label: '💨 Disparar', description: 'movimento dobrado neste turno' });
-      opts.push({ value: 'disengage', label: '↩ Desengajar', description: 'recua sem ataque de oportunidade' });
-      opts.push({ value: 'hide', label: '🥷 Esconder', description: 'teste de Furtividade' });
+      opts.push({ value: 'dodge', label: '🛡 Esquivar', description: 'ataques contra você têm desvantagem', section: 'No seu turno' });
+      opts.push({ value: 'dash', label: '💨 Disparar', description: 'movimento dobrado neste turno', section: 'No seu turno' });
+      opts.push({ value: 'disengage', label: '↩ Desengajar', description: 'recua sem ataque de oportunidade', section: 'No seu turno' });
+      opts.push({ value: 'hide', label: '🥷 Esconder', description: 'teste de Furtividade', section: 'No seu turno' });
     }
     if (canRest) {
-      // Fase 2 — ✎ Livre saiu da barra inferior (deu lugar a ⚔ Batalha) e mora
-      // aqui no topo do "Mais": ação narrada em texto livre.
-      opts.push({ value: 'free', label: '✎ Ação livre', description: 'descreva o que você faz' });
-      opts.push({ value: 'investigate', label: '🔎 Investigar', description: 'analisar uma pista' });
-      opts.push({ value: 'sneak', label: '🥷 Furtar-se', description: 'esconder / passar' });
-      opts.push({ value: 'travel', label: '🚶 Viajar', description: 'ir pra outro lugar' });
+      // Ações de exploração secundárias (as primárias — Explorar/Falar/Batalha/
+      // Dado — vivem na barra). ✎ Livre é a ação narrada em texto livre.
+      opts.push({ value: 'free', label: '✎ Ação livre', description: 'descreva o que você faz', section: 'Ações' });
+      opts.push({ value: 'investigate', label: '🔎 Investigar', description: 'analisar uma pista', section: 'Ações' });
+      opts.push({ value: 'sneak', label: '🥷 Furtar-se', description: 'esconder / passar', section: 'Ações' });
+      opts.push({ value: 'travel', label: '🚶 Viajar', description: 'ir pra outro lugar', section: 'Ações' });
     }
-    opts.push({ value: 'inventory', label: '🎒 Inventário' });
-    if (isCaster) opts.push({ value: 'magic', label: '🔮 Magia' });
-    opts.push({ value: 'use-item', label: '🧪 Usar Item' });
+    opts.push({ value: 'inventory', label: '🎒 Inventário', section: 'Personagem' });
+    if (isCaster) opts.push({ value: 'magic', label: '🔮 Magia', section: 'Personagem' });
+    opts.push({ value: 'use-item', label: '🧪 Usar item', section: 'Personagem' });
     if (canRest) {
-      opts.push({ value: 'short-rest', label: '🛌 Descanso Curto', description: 'gasta hit dice' });
-      opts.push({ value: 'long-rest', label: '🏕 Descanso Longo', description: '8h, restaura tudo' });
+      opts.push({ value: 'short-rest', label: '🛌 Descanso curto', description: 'gasta hit dice', section: 'Personagem' });
+      opts.push({ value: 'long-rest', label: '🏕 Descanso longo', description: '8h, restaura tudo', section: 'Personagem' });
     }
-    opts.push({ value: 'quests', label: '🗺 Missões' });
-    opts.push({ value: 'npcs', label: '👥 NPCs' });
-    opts.push({ value: 'achievements', label: '🏆 Glórias' });
-    if (campId) opts.push({ value: 'share', label: '🤝 Convite', description: 'copiar ID da crônica' });
-    opts.push({ value: 'glossary', label: '📖 Glossário' });
-    opts.push({ value: 'settings', label: '⚙ Ajustes' });
+    opts.push({ value: 'quests', label: '🗺 Missões', section: 'Crônica' });
+    opts.push({ value: 'npcs', label: '👥 NPCs', section: 'Crônica' });
+    opts.push({ value: 'achievements', label: '🏆 Glórias', section: 'Crônica' });
+    if (campId) opts.push({ value: 'share', label: '🤝 Convite', description: 'copiar ID da crônica', section: 'Crônica' });
+    opts.push({ value: 'difficulty', label: '⚔ Dificuldade', description: 'como o Mestre balanceia os combates', section: 'Ajustes' });
+    opts.push({ value: 'glossary', label: '📖 Glossário', description: 'o que é CA, DC, slot, vantagem…', section: 'Ajustes' });
+    opts.push({ value: 'settings', label: '⚙ Ajustes', description: 'som, música, voz, notificações, tela', section: 'Ajustes' });
 
     const choice = await pickerDialog<Tool>({
       title: '⋯ Mais',
-      text: 'Ferramentas e navegação',
       options: opts,
     });
     if (!choice) return;
@@ -1422,6 +1423,7 @@ export class CampaignScreen {
       case 'npcs': if (campId) openNpcRosterModal({ campaignId: campId, onClose: () => { /* noop */ } }); break;
       case 'achievements': openAchievementsModal({ onClose: () => { /* noop */ } }); break;
       case 'share': if (campId) void this.shareCampaignId(campId); break;
+      case 'difficulty': void this.promptDifficultyChange(); break;
       case 'glossary': openGlossaryModal(); break;
       case 'settings': openUxSettingsModal(); break;
     }
@@ -1591,109 +1593,17 @@ export class CampaignScreen {
           },
         }) : null,
       ].filter(Boolean) as HTMLElement[]),
-      // γ.5 — Overflow menu (⋯) com configurações secundárias
+      // ⋯ Mais — menu único (Personagem / Crônica / Ajustes). Mesmo menu da
+      // barra de ações; aqui é o acesso no desktop (sem barra inferior).
       el('button', {
         class: 'camp-mem-btn camp-overflow-btn',
         text: '⋯',
-        attrs: { title: 'Mais opções (sons, notificações, dificuldade)', 'aria-label': 'Mais opções', 'aria-haspopup': 'menu' },
+        attrs: { title: 'Mais: inventário, magia, missões, ajustes…', 'aria-label': 'Mais', 'aria-haspopup': 'dialog' },
         on: {
-          click: (e) => this.openHeaderOverflow(e.currentTarget as HTMLElement),
+          click: () => { void this.openToolsSheet(); },
         },
       }),
     ].filter(Boolean) as HTMLElement[]);
-  }
-
-  /** γ.5 — Abre overflow menu com configurações secundárias. */
-  private openHeaderOverflow(anchor: HTMLElement): void {
-    const campId = this.currentState?.id;
-    const items: OverflowMenuItem[] = [
-      {
-        icon: isSfxEnabled() ? '🔊' : '🔇',
-        label: `Sons ${isSfxEnabled() ? 'ON' : 'OFF'}`,
-        title: 'Liga/desliga efeitos sonoros',
-        active: isSfxEnabled(),
-        onClick: () => {
-          setSfxEnabled(!isSfxEnabled());
-          this.render();
-        },
-      },
-      {
-        icon: isAmbientEnabled() ? '🎵' : '🎶',
-        label: `Música ${isAmbientEnabled() ? 'ON' : 'OFF'}`,
-        title: 'Liga/desliga música ambiente procedural',
-        active: isAmbientEnabled(),
-        onClick: () => {
-          const next = !isAmbientEnabled();
-          setAmbientEnabled(next);
-          if (next && this.currentState) {
-            setAmbient(this.pickAmbientMood(this.currentState, this.character));
-            setAmbientIntensity(computeIntensity(this.currentState, this.character));
-          }
-          this.render();
-        },
-      },
-    ];
-
-    if (notifsSupported()) {
-      items.push({
-        icon: isNotifsEnabled() ? '🔔' : '🔕',
-        label: `Notif ${isNotifsEnabled() ? 'ON' : 'OFF'}`,
-        title: 'Notificações quando aba sem foco',
-        active: isNotifsEnabled(),
-        onClick: async () => {
-          await setNotifsEnabled(!isNotifsEnabled());
-          this.render();
-        },
-      });
-    }
-
-    if (isVoiceTtsSupported()) {
-      items.push({
-        icon: isVoiceTtsEnabled() ? '🗣' : '🤐',
-        label: `Voz ${isVoiceTtsEnabled() ? 'ON' : 'OFF'}`,
-        title: 'Voz lendo narrações do Mestre',
-        active: isVoiceTtsEnabled(),
-        onClick: () => {
-          setVoiceTtsEnabled(!isVoiceTtsEnabled());
-          this.render();
-        },
-      });
-    }
-
-    if (campId) {
-      items.push({
-        icon: '🧠',
-        label: 'Memória',
-        title: 'Memória do Mestre (RAG)',
-        onClick: () => openMemoryModal({ campaignId: campId, onClose: () => { /* nothing */ } }),
-      });
-    }
-
-    // 3B — Dificuldade — abre dropdown nativo via prompt simples
-    items.push({
-      icon: '⚔',
-      label: 'Dificuldade',
-      title: 'Mudar dificuldade de combate',
-      onClick: () => { void this.promptDifficultyChange(); },
-    });
-
-    // ο.8 — UX Settings (density / font / contrast / anim)
-    items.push({
-      icon: '🎨',
-      label: 'Tela',
-      title: 'Densidade, fonte, contraste, animações',
-      onClick: () => openUxSettingsModal(),
-    });
-
-    // κ.2 — Glossário D&D pt-BR
-    items.push({
-      icon: '📖',
-      label: 'Glossário',
-      title: 'O que é DC? AC? Slot? Advantage? Aprende os termos.',
-      onClick: () => openGlossaryModal(),
-    });
-
-    openOverflowMenu(anchor, items);
   }
 
   private async promptDifficultyChange(): Promise<void> {

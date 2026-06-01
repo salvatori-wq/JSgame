@@ -64,7 +64,10 @@ export function setAmbientEnabled(v: boolean): void {
   ambientEnabled = v;
   try { localStorage.setItem(STORAGE_KEY_AMBIENT, v ? '1' : '0'); }
   catch { /* private mode */ }
-  if (!v) setAmbient('silence');
+  if (!v) { setAmbient('silence'); return; }
+  // Religou em Ajustes — retoma o último clima pedido pelo gameplay (se houver),
+  // pra música voltar na hora em vez de só na próxima ação.
+  if (lastRequestedMood !== 'silence') setAmbient(lastRequestedMood);
 }
 
 // ── Configuração de cada mood ────────────────────────────────────────────────
@@ -175,6 +178,10 @@ interface ActiveMood {
 let activeMood: ActiveMood | null = null;
 let currentMoodName: AmbientMood = 'silence';
 let currentIntensity = 0.3;
+// Último mood "real" pedido pelo gameplay (≠ silence). Permite que religar a
+// música em Ajustes (setAmbientEnabled(true)) retome o clima certo na hora,
+// não só na próxima ação do jogador.
+let lastRequestedMood: AmbientMood = 'silence';
 
 function canonical(mood: AmbientMood): AmbientMood {
   if (mood === 'exploration') return 'exploration-calm';
@@ -184,6 +191,7 @@ function canonical(mood: AmbientMood): AmbientMood {
 
 export function setAmbient(mood: AmbientMood): void {
   const target = canonical(mood);
+  if (target !== 'silence') lastRequestedMood = target;
   if (currentMoodName === target) return;
   stopActive(0.6);
   currentMoodName = target;
