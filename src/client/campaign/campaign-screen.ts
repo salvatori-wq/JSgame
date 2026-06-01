@@ -68,13 +68,11 @@ function classifyCombatEventKind(ev: CombatEvent): 'crit' | 'miss' | 'kill' | 's
 }
 import { shouldShowVoiceMic, startStt, sttErrorMessage, type SttSession } from '../voice-stt';
 import { renderStatusRibbon } from './status-ribbon';
-import { renderActionDockTopics, resetActionDockState } from './action-dock-topics';
 import { renderSavingThrowFormula } from './saving-throw-overlay';
 import { openShortRestPicker } from './short-rest-overlay';
 import { playLongRestRitual } from './long-rest-ritual';
 import { createChatPill, type ChatPillHandle } from './chat-pill';
 import { openChatSheet, closeChatSheet, isChatSheetOpen, appendChatMessage, setRemoteTyping, type PartyMessage } from './chat-sheet';
-import { type BottomTabBarHandle, type BottomTabId } from './bottom-tab-bar';
 import { push as pushSheet, popAll as popAllSheets } from '../sheet-stack-manager';
 import { transitionToCombat, transitionCombatVictory, transitionCombatDefeat, transitionSceneChange, transitionLongRest, transitionRevive, clearTransitions } from '../mode-transitions';
 import { openUxSettingsModal } from '../ux-settings-modal';
@@ -157,9 +155,6 @@ export class CampaignScreen {
   /** Y.A2 — Sprint Y: tracker pra disparar heartbeat só na transição ENTRA (não a cada re-render). */
   private wasInDeathSave = false;
   private unreadChatCount = 0;
-  // π.1 — Bottom Tab Bar (mobile portrait-narrow). Persistente entre renders.
-  private bottomTabBar: BottomTabBarHandle | null = null;
-  private currentOpenTab: BottomTabId | null = null;
   // ψ.5 — Combat turn duration tracking (start ts quando vira meu turno)
   private myTurnStartedAt = 0;
   // M1.1 + N3.2 — Dock attention pulse. Antes era one-shot (1ª vez por sessão).
@@ -208,16 +203,8 @@ export class CampaignScreen {
       this.chatPill.destroy();
       this.chatPill = null;
     }
-    // π.1 — Limpa Bottom Tab Bar
-    if (this.bottomTabBar) {
-      this.bottomTabBar.destroy();
-      this.bottomTabBar = null;
-    }
-    this.currentOpenTab = null;
     // κ.1 — Fecha tutorial Duolingo se aberto
     closeDuolingoTutorial();
-    // ψ.5 — Reset state externo do action dock (customDetails + currentTopic)
-    resetActionDockState();
     closeChatSheet();
     popAllSheets();
     this.partyMessages = [];
@@ -518,8 +505,6 @@ export class CampaignScreen {
         // Não conta próprias msgs como unread
         this.unreadChatCount += 1;
         this.chatPill?.setUnreadCount(this.unreadChatCount);
-        // π.1 — Em portrait-narrow, badge mora no tab bar (chat absorvido).
-        this.bottomTabBar?.setUnreadCount(this.unreadChatCount);
       }
     };
     s.on('partyMessage', onPartyMessage);
@@ -1230,24 +1215,6 @@ export class CampaignScreen {
     window.setTimeout(() => slot.classList.remove('is-dock-attention'), 2000);
   }
 
-  private renderActionDockTopics(): HTMLElement {
-    return renderActionDockTopics({
-      isCombat: false,
-      canRest: this.currentState?.mode !== 'combat',
-      isCaster: shouldShowCastButton(this.character),
-      isDmThinking: this.isDmThinking,
-      onAction: (action, details) => this.takeAction(action, details ?? ''),
-      onCustomAction: (details) => this.takeAction('explore', details),
-      onCastSpell: () => this.openSpellModal(),
-      onInventory: () => this.openInventory(),
-      onShortRest: () => { void this.openShortRestModal(); },
-      onLongRest: () => { void this.confirmLongRest(); },
-      // Sub-sprint D2 — player abre picker de perícia e pede dado.
-      // Servidor emite skillCheckPending (overlay do dado abre normal).
-      onRollDice: () => { void this.openSkillPickerAndRoll(); },
-    });
-  }
-
   /** Sub-sprint D2 — abre picker de perícia + emit requestSkillCheck. */
   private async openSkillPickerAndRoll(): Promise<void> {
     if (this.isDmThinking) {
@@ -1287,7 +1254,6 @@ export class CampaignScreen {
     // Convite) e vira a BARRA DE AÇÕES do jogo. Exploração: Explorar/Social/
     // Tentar/Livre/Mais (e o dock de 35vh some → narração domina). Combate:
     // só [⋯ Mais] (o dock ①② tem as ações táticas). Desktop: sem barra.
-    if (this.bottomTabBar) { this.bottomTabBar.destroy(); this.bottomTabBar = null; }
     const isNarrow = document.body.classList.contains('is-portrait-narrow');
     if (!isNarrow) {
       this.replaceSlot(this.slots.bottomTabs, null);
@@ -1461,71 +1427,6 @@ export class CampaignScreen {
     }
   }
 
-  /** π.1 — Click handler — abre modal/sheet correspondente e marca tab ativa. */
-  private onBottomTabClick(tab: BottomTabId, anchor: HTMLElement): void {
-    const campId = this.currentState?.id;
-    // π — Telemetria distribution por slot (fire-and-forget).
-    trackClientMetric('bottom_tab_tap', { tab });
-    // Toggle: tap em tab já ativa fecha o modal
-    if (this.currentOpenTab === tab) {
-      this.closeCurrentTabModal(tab);
-      return;
-    }
-    switch (tab) {
-      case 'quests':
-        this.markTabActive('quests');
-        openQuestLog({
-          quests: this.currentState?.quests ?? [],
-          onClose: () => this.markTabActive(null),
-        });
-        break;
-      case 'achievements':
-        this.markTabActive('achievements');
-        openAchievementsModal({ onClose: () => this.markTabActive(null) });
-        break;
-      case 'npcs':
-        if (!campId) return;
-        this.markTabActive('npcs');
-        openNpcRosterModal({ campaignId: campId, onClose: () => this.markTabActive(null) });
-        break;
-      case 'chat':
-        this.markTabActive('chat');
-        this.openPartyChat();
-        // Sync: closeChatSheet em outros lugares também precisa limpar — caller marca via close
-        break;
-      case 'share':
-        if (!campId) return;
-        void this.shareCampaignId(campId);
-        break;
-      case 'more':
-        this.markTabActive('more');
-        this.openHeaderOverflow(anchor);
-        // overflow menu fecha via document click — limpa active state em delay
-        setTimeout(() => {
-          if (this.currentOpenTab === 'more') this.markTabActive(null);
-        }, 100);
-        break;
-    }
-  }
-
-  private markTabActive(tab: BottomTabId | null): void {
-    this.currentOpenTab = tab;
-    this.bottomTabBar?.setActiveTab(tab);
-  }
-
-  private closeCurrentTabModal(tab: BottomTabId): void {
-    switch (tab) {
-      case 'quests': closeQuestLog(); break;
-      case 'achievements': closeAchievementsModal(); break;
-      case 'npcs': closeNpcRosterModal(); break;
-      case 'chat': closeChatSheet(); break;
-      case 'more':
-        // overflow menu fecha sozinho via doc click — apenas limpa estado
-        break;
-    }
-    this.markTabActive(null);
-  }
-
   private async shareCampaignId(campId: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(campId);
@@ -1548,14 +1449,11 @@ export class CampaignScreen {
     if (!this.character) return;
     if (isChatSheetOpen()) {
       closeChatSheet();
-      // π.1 — limpa active state quando chat fecha por toggle
-      if (this.currentOpenTab === 'chat') this.markTabActive(null);
       return;
     }
     // Zera unread ao abrir
     this.unreadChatCount = 0;
     this.chatPill?.setUnreadCount(0);
-    this.bottomTabBar?.setUnreadCount(0);
     openChatSheet({
       party: this.party,
       messages: this.partyMessages,
@@ -1563,9 +1461,7 @@ export class CampaignScreen {
       onSend: (text) => this.opts.socket.emit('chat', { text }),
       // ψ.2 — Typing indicator emit (debounced no chat-sheet)
       onTyping: (isTyping) => this.opts.socket.emit('chatTyping', { isTyping }),
-      onClose: () => {
-        if (this.currentOpenTab === 'chat') this.markTabActive(null);
-      },
+      onClose: () => { /* nada */ },
     });
   }
 

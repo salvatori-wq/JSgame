@@ -1155,7 +1155,6 @@ describe('Responsivo Ciclo D — fixes do smoke mobile', () => {
   });
 
   it('E2 — micro-labels (9-10px) escalam com --ux-font-scale via calc (sem shift no default)', () => {
-    expect(readCss('bottom-tab-bar.css')).toMatch(/\.btb-tab-label\s*\{[^}]*font-size:\s*calc\(10px\s*\*\s*var\(--ux-font-scale/);
     expect(readCss('campaign-party.css')).toMatch(/\.cp-pj-xp-txt\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
     expect(readCss('sheet.css')).toMatch(/\.sv-sub\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);
     expect(readCss('sheet.css')).toMatch(/\.sa-name\s*\{[^}]*font-size:\s*calc\(9px\s*\*\s*var\(--ux-font-scale/);

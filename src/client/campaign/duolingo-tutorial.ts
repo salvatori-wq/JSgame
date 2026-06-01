@@ -97,11 +97,11 @@ const STEPS: Step[] = [
     text: 'HP, CA, conditions, slots de magia. Em coop, todos os PJs aparecem aqui. Cuide deles — death save é real.',
   },
   {
-    targetSelector: '.bottom-tab-bar',
+    targetSelector: '.camp-action-bar',
     position: 'top',
     glyph: '🗺',
-    title: 'Tudo num tap',
-    text: 'Missões, Glórias, NPCs, Chat e Mais (sons, glossário, dificuldade). Tab bar persistente — não precisa caçar.',
+    title: 'Suas ações ficam aqui',
+    text: 'Explorar, Falar, Batalha e Dado a um toque. O "⋯ Mais" abre tudo: inventário, magia, descansos, missões, NPCs, glórias e ajustes.',
   },
   {
     targetSelector: null,

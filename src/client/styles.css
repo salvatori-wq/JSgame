@@ -26,7 +26,6 @@
 @import './styles/m-camp-dock.css';
 @import './styles/status-ribbon.css';
 @import './styles/toasts.css';
-@import './styles/action-dock-topics.css';
 @import './styles/initiative-ribbon.css';
 @import './styles/chat.css';
 @import './styles/mode-transitions.css';
@@ -36,7 +35,6 @@
 @import './styles/spell-vfx.css';
 @import './styles/home-camp-card-enriched.css';
 @import './styles/lobby-personality-preview.css';
-@import './styles/bottom-tab-bar.css';
 @import './styles/duolingo-tutorial.css';
 @import './styles/ui-modal.css';
 @import './styles/home-tavern.css';
