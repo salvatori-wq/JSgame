@@ -152,12 +152,26 @@ Atualize a cada ciclo. Cada linha diz o MÉTODO de teste.
   não escalou nesta sessão). Itens/condições live → temas D + via grapple/shove.
 
 ### D. Itens & inventário
-- [❌] give_item; modal de inventário; equipar; usar; raridade; sintonia; loja.
-  *Método: playtest (forçar give_item via DM) + Inspetor Visual do modal.*
+- [⚠️] **Rules Lawyer + Inspetor Visual rodados; 1 fix de regra + falsos-positivos
+  descartados.** Modais inventory/shop/cast-spell limpos a 320 (sem overflow-x,
+  hits 44, nomes longos quebram) — verificado no preview.
+- [✅] **Fix de CA no equip** (`fix(itens)`, reproduzido em teste): cota de malha
+  vinha 13+min(2,DEX) (armadura média) → **CA 16 fixa** (pesada, PHB p.145); o +2
+  do escudo **sumia** ao equipar o corpo → preservado; escudo **empilhava** (+2 a
+  cada equip) → guard de 1 escudo (PHB p.144). 6 guards em `item-equip-ac`.
+- [⚠️] **Sintonia (attunement) é cosmética** (Rules Lawyer, ALTA): sem cap de 3
+  itens, `give_item` nunca seta `requiresAttunement`/`isAttuned`. Subsistema PHB
+  p.138 não-funcional. *Deferido — decisão de produto (mecânica nova, não regressão).*
 
 ### E. Descanso & progressão
-- [❌] Descanso curto (hit dice) / longo (slots); level-up; ASI/feat. *Método:
-  playtest + Rules Lawyer.*
+- [✅] **Leveling/rest CONFERIDOS corretos** (Rules Lawyer, executei o módulo real):
+  XP L1-20 = PHB p.15; prof bonus certo; HP no level-up = avg hit die + CON (sem
+  dobrar); descanso longo recupera METADE dos hit dice (não todos — bug comum
+  evitado); pact slots no descanso curto; ASI 4/8/12/16/19 + Fighter 6/14/Rogue 10.
+- [⚠️] Feat **Durable** não tem efeito no descanso curto (P2, baixo valor); PJ
+  caído-mas-vivo é excluído do XP do combate (ruling, P2). *Deferidos.*
+- [ ] Confirmar level-up end-to-end em jogo real (LLM-gated; o fix visual do
+  level-up — tema H — já cobre o overlay).
 
 ### F. Coop (2+ jogadores)
 - [✅] **Core verificado com 2 sockets reais** (harness `__coop_harness.mjs`,
@@ -189,15 +203,37 @@ Atualize a cada ciclo. Cada linha diz o MÉTODO de teste.
 - [ ] Confirmar no aparelho: 2 celulares reais (smoke do João).
 
 ### G. Qualidade & coerência do Mestre (o mais difícil)
-- [❌] Narrativa boa; PT-BR; fog-of-war (nunca cita HP/CA/DC do oponente);
-  persona Sombrio-Trickster; usa memória/callbacks; sem repetição; sem dead-end;
-  trata texto livre estranho com graça; **coerente por HORAS**. *Método: sessão
-  longa (45–60 min de turnos reais) → DM Dramaturgo lê o transcript e pontua.*
+- [⚠️] **Sessão longa real capturada (24 turnos, `QA_G_TRANSCRIPT.txt`) + DM
+  Dramaturgo (juiz).** Narração LLM online de **ALTA qualidade**: persona
+  Sombrio/Trickster forte ("carregador de papel"; runas "com fome"), PT-BR
+  natural, **fog-of-war respeitado** (zero HP/CA/DC em prosa), callbacks coerentes.
+- [✅] **Fix de jargão no Mestre offline** (`fix(jargão)`): o FallbackDM vazava o
+  ENUM CRU em inglês ("Você attack (…)", "Você custom (…)", "Você sneak (…)") na
+  narração visível — reproduzido no transcript (linhas 17/21/24/28/31).
+  `offlineActionVerb()` mapeia pra verbo PT-BR. 13 guards.
+- [⚠️] **Achados deferidos (precisam sessão LLM dedicada/maior):** (1) no dev o
+  cascade groq→gemini caiu em ~70% dos turnos → muita narração foi pro FallbackDM
+  (em prod com keys boas deve ser raro — confirmar); (2) o FallbackDM ecoa uma
+  ação **stale** (mostra a ação de turnos atrás, não a atual) — bug de contexto do
+  fallback, baixo impacto pois só aparece degradado. *Sessão de 45-60 min + juiz
+  fica pra rodada G aprofundada.*
 
 ### H. Integridade visual (sem imagens sobrepostas)
-- [⚠️] Responsivo 320→430 + deitado: ✅ (F1-F6 + Ciclo D + E1/E2). Falta: varrer
-  SOBREPOSIÇÃO (z-index) e imagem quebrada em TODOS os modais/overlays/estados
-  (combate, level-up, dado, transições, coop). *Método: Inspetor Visual.*
+- [✅] **Mapa GLOBAL de z-index levantado + 2 Inspetores Visuais.** Varridos
+  modais/overlays (inventory/shop/cast-spell/level-up/rest/dado/combate). 2 fixes
+  reais (provados no browser), restante = falso-positivo verificado.
+- [✅] **Fixes** (`fix(visual)`): (1) **confetti do level-up era engolido** pelo
+  backdrop (z-9700<9999) → z-10001, `elementFromPoint` no centro agora acha a
+  partícula; (2) **overlay do level-up não rolava** → topo do card cortado em tela
+  curta/deitado → backdrop+card `overflow-y:auto` + `max-height` (provado a 568h:
+  card rola, topo visível). 3 guards em `qa-visual-overlap`.
+- [✅] **Já fechado no Ciclo Combate:** ficha do inimigo z-inversão (`elevated`).
+- [⚠️] **Falsos-positivos descartados (reproduzidos como NÃO-bug):** skill-check
+  `.sc-overlay` z-9000 no `#app` — `#app` não cria stacking-context aqui
+  (transform:none, isolation:auto) e em solo não há bottom-tab-bar/chat-pill, então
+  não há cobertura real. Pile-up pós-combate (toast/vignette) e os 4 sticky top:0
+  do combate ficam pra confirmação em jogo real (não reproduzidos sob lag).
+- [ ] Smoke no aparelho (notch, deitado real) — resíduo do João.
 
 ### I. Resiliência & estabilidade
 - [✅] Humanização de erro em TODOS os catch voltados pro jogador (feito nesta
