@@ -356,7 +356,10 @@ export {
   getAmbientIntensity,
   isAmbientEnabled,
   setAmbientEnabled,
+  reapplyAmbientEngine,
   playStinger,
   type AmbientMood,
   type StingerKind,
 } from './audio/ambient';
+// Fase 2 — trilha por loops (flag + controle). Default OFF.
+export { isLoopsEnabled, setLoopsEnabled } from './audio/loops';

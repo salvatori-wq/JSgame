@@ -31,6 +31,8 @@ import {
 import { themeToFreqs, MAIN_THEME, VICTORY_FANFARE, LAMENT_THEME } from './themes';
 import { getMusicInput, setReverbKind, setMusicBrightness, type ReverbKind } from './mixer';
 import { computeLayers, intensityToBrightness, type LayerCaps } from './intensity';
+// Fase 2 — trilha por loops (alternativa ao motor generativo, ligada por flag).
+import { isLoopsEnabled, playLoopForMood, setLoopIntensity, stopLoop } from './loops';
 
 export type AmbientMood =
   | 'silence'
@@ -193,6 +195,18 @@ export function setAmbient(mood: AmbientMood): void {
   const target = canonical(mood);
   if (target !== 'silence') lastRequestedMood = target;
   if (currentMoodName === target) return;
+
+  // Fase 2 — se a trilha por LOOPS está ligada, ela é a fonte do som. Para o
+  // motor generativo (pra não tocar junto) e roteia o mood pro loop player
+  // (que cai em silêncio gracioso se o .ogg do mood não estiver presente).
+  if (isLoopsEnabled()) {
+    stopActive(0.6);
+    currentMoodName = target;
+    if (!ambientEnabled || target === 'silence') { stopLoop(0.6); return; }
+    void playLoopForMood(target);
+    return;
+  }
+
   stopActive(0.6);
   currentMoodName = target;
   if (!ambientEnabled || target === 'silence') return;
@@ -222,7 +236,19 @@ export function setAmbient(mood: AmbientMood): void {
 /** Intensidade adaptativa 0..1 — dirigida pelo gameplay (Onda 5). */
 export function setAmbientIntensity(x: number): void {
   currentIntensity = Math.max(0, Math.min(1, x));
+  if (isLoopsEnabled()) { setLoopIntensity(currentIntensity); return; }
   applyIntensity();
+}
+
+/** Fase 2 — troca o motor (loops <-> generativo) sem mudar o mood. O João
+ *  liga/desliga "Música por loops" em Ajustes; isto re-aplica o mood corrente
+ *  forçando o rebuild na fonte certa (setAmbient faz early-return por mood). */
+export function reapplyAmbientEngine(): void {
+  const mood = currentMoodName;
+  stopActive(0);
+  stopLoop(0.3);
+  currentMoodName = 'silence';  // força setAmbient a reconstruir do zero
+  if (mood !== 'silence') setAmbient(mood);
 }
 export function getAmbientIntensity(): number { return currentIntensity; }
 

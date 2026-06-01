@@ -5,7 +5,7 @@
 import { el } from './util';
 import { getUxPrefs, setUxPrefs, type UxPrefs, type Density, type FontScale, type AnimSpeed, type TypewriterSpeed } from './ux-prefs';
 import { push as pushSheet, pop as popSheet, isSheetOpen } from './sheet-stack-manager';
-import { isSfxEnabled, setSfxEnabled, isAmbientEnabled, setAmbientEnabled } from './audio';
+import { isSfxEnabled, setSfxEnabled, isAmbientEnabled, setAmbientEnabled, isLoopsEnabled, setLoopsEnabled, reapplyAmbientEngine } from './audio';
 import { isNotifsEnabled, setNotifsEnabled, notifsSupported } from './notifications';
 import { isVoiceTtsEnabled, setVoiceTtsEnabled, isVoiceTtsSupported } from './voice-tts';
 
@@ -148,6 +148,14 @@ export function openUxSettingsModal(): void {
     'Trilha medieval por trás da cena',
     isAmbientEnabled(),
     (v) => { setAmbientEnabled(v); },
+  ));
+  // Fase 2 — A/B entre a trilha generativa e loops gravados CC0. Default OFF
+  // (sem arquivo é silêncio). Ver public/audio/README pra dropar os .ogg.
+  body.appendChild(renderToggle(
+    '🎼 Música por loops (CC0)',
+    'Usa loops gravados em vez da trilha generativa — precisa dropar public/audio/*.ogg',
+    isLoopsEnabled(),
+    (v) => { setLoopsEnabled(v); reapplyAmbientEngine(); },
   ));
   if (notifsSupported()) {
     body.appendChild(renderToggle(
