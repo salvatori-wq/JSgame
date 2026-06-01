@@ -2,11 +2,15 @@
  * Consultor Mobile #2: "Marvel Snap moment-of-glory". */
 
 /* ───────────────────────── Confetti container ───────────────────────── */
+/* QA-lançamento (Ciclo H): o confetti ficava ATRÁS do backdrop do level-up
+ * (.lvlup-backdrop z-9999, fundo rgba(0,0,0,.75)) e do item-reveal — o
+ * "Marvel Snap moment" dourado era engolido pela cortina escura. Sobe pra
+ * 10001 (acima do level-up 9999). pointer-events:none mantém — é decorativo. */
 .rj-confetti-container {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 9700;
+  z-index: 10001;
   overflow: hidden;
 }
 
