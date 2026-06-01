@@ -45,8 +45,10 @@ describe('Y.B1 — Vinheta + ring sincronizados', () => {
 describe('Y.B2 — Reward juice confetti + item reveal', () => {
   const rj = readCss('reward-juice.css');
 
-  it('confetti container z-index alto', () => {
-    expect(rj).toMatch(/\.rj-confetti-container\s*\{[\s\S]*?z-index:\s*9700/);
+  it('confetti container z-index alto (acima do level-up backdrop 9999 — Ciclo H)', () => {
+    // Ciclo H: subiu de 9700 → 10001 pra ficar ACIMA do .lvlup-backdrop (9999),
+    // senão o confetti era engolido pela cortina escura do level-up.
+    expect(rj).toMatch(/\.rj-confetti-container\s*\{[\s\S]*?z-index:\s*10001/);
   });
 
   it('keyframe rj-fall-spin (top) + rj-burst-radial (center)', () => {
