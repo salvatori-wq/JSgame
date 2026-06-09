@@ -82,7 +82,23 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-06-09 (**Reviravolta Fases 0/1/2 + 2e** — plano
+> Última atualização: 2026-06-09 b (**Ciclos QW-1/2/3 — caça-bugs empírica pós-2e**
+— playtest no preview + 3 agentes read-only; achados CONFIRMADOS antes de
+corrigir. **QW-1 `10bf38a`**: rAF suspenso com página hidden travava TODO render
+de broadcast (Fase 0e sem fallback) — ribbon "Carregando…" eterna; descoberto
+empiricamente; `pickRenderScheduler()` cai pra setTimeout quando hidden (também
+destrava o harness de QA headless). **QW-2 `65d090e`**: prévia de streaming
+órfã em 4 desfechos (degradado/onError/takeAction novo/watchdog) + knob
+typewriter morto removido dos Ajustes. **QW-3 `328506a`**: watchdog em TODA
+espera de servidor — joinCampaign 12s/45s (cold-open era mudo!), descansos 15s,
+lobby start com loading+20s. Caminhos novos do streaming auditados LIMPOS de
+jargão. Suíte **2324 verde** (+21), tsc limpo, provas no preview (ribbon nasce
+exploration, zero falso-positivo de watchdog, modal sem knob). **PUSHADO**
+origin/main=`328506a`. Backlog BAIXA: fetch sem AbortController (api.ts,
+achievements, npc-roster), skill-check overlay órfão se diceRollResult sumir
+(SUSPEITA). ⚠️ Deploy do streaming AINDA bloqueado no painel Render (João).)
+
+> Última atualização anterior: 2026-06-09 (**Reviravolta Fases 0/1/2 + 2e** — plano
 `PLANO_REVIRAVOLTA.md` em execução. Fases 0 (quick wins: onState prev fix, strip
 npcSecrets, IDOR, debounce saveCampaign, rAF-coalesce do "piscar"), 1 (smoke E2E
 golden + telemetria `time_to_first_token` + factories) e 2 (**streaming de
