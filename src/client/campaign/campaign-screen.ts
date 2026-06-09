@@ -476,7 +476,7 @@ export class CampaignScreen {
         // Onda 5 — intensidade adaptativa: combate escala, exploração respira.
         setAmbientIntensity(computeIntensity(state, this.character));
       }
-      this.render();
+      this.scheduleRender();
     };
     s.on('campaignState', onState);
     this.socketCleanups.push(() => s.off('campaignState', onState));
@@ -547,7 +547,7 @@ export class CampaignScreen {
       }
       this.party = party;
       if (me) this.character = me;
-      this.render();
+      this.scheduleRender();
       // Y.B2 — Reveal o ÚLTIMO item novo (geralmente loot puro tem 1 item;
       // múltiplos numa tacada só = level-up de quest reward, mostra o mais
       // raro ou o primeiro). Skip se mesmo player já tinha (rejoin/restore).
@@ -566,14 +566,14 @@ export class CampaignScreen {
 
     const onCombat = (_combat: unknown): void => {
       // combat embarcado em currentState.combat — só re-renderiza
-      this.render();
+      this.scheduleRender();
     };
     s.on('combatState', onCombat);
     this.socketCleanups.push(() => s.off('combatState', onCombat));
 
     const onCombatFlags = (flags: Record<string, string[]>): void => {
       this.combatFlags = flags;
-      this.render();
+      this.scheduleRender();
     };
     s.on('combatFlags', onCombatFlags);
     this.socketCleanups.push(() => s.off('combatFlags', onCombatFlags));
@@ -673,7 +673,7 @@ export class CampaignScreen {
           }
         }
       }
-      this.render();
+      this.scheduleRender();
     };
     s.on('combatEvent', onCombatEvent);
     this.socketCleanups.push(() => s.off('combatEvent', onCombatEvent));
@@ -684,7 +684,7 @@ export class CampaignScreen {
         showSkillCheckResult(payload.roll, this.skillCheckOverlay, () => {
           this.skillCheckResolving = false;
           this.skillCheckOverlay = null;
-          this.render();
+          this.scheduleRender();
         });
         return;
       }
@@ -959,6 +959,24 @@ export class CampaignScreen {
   }
 
   // Chat refactor: render incremental.
+  // Fase 0e — coalesce de render: uma rajada de broadcasts (campaignState +
+  // partyUpdate + combatState + combatFlags + combatEvent chegando em sequência
+  // num ataque) disparava 5-7 render() SÍNCRONOS por cima das animações de dano
+  // recém-spawnadas, matando-as no meio (o "piscar"). scheduleRender junta a
+  // rajada num único requestAnimationFrame = 1 paint por frame. start() e
+  // ensureNarrationLog seguem render() SÍNCRONO (precisam do DOM imediato).
+  private renderScheduled = false;
+  private scheduleRender(): void {
+    if (this.renderScheduled) return;
+    this.renderScheduled = true;
+    const run = (): void => { this.renderScheduled = false; this.render(); };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(run);
+    } else {
+      setTimeout(run, 0); // fallback (ambiente sem rAF)
+    }
+  }
+
   // Primeiro chamado constrói o SHELL com slots vazios + NarrationLog persistente.
   // Chamadas subsequentes atualizam APENAS os slots dos painéis dinâmicos —
   // o NarrationLog mora dentro de .ch-narration-host e NUNCA é destruído.
