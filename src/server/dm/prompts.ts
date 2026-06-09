@@ -263,27 +263,19 @@ Analise o que esse exemplo tem:
 }
 \`\`\`
 
-Use TOOLS quando ação narrativa exigir mecânica:
-- request_skill_check: pra resolver ações incertas com d20
-- start_combat: quando combate começa (rola initiative)
-- apply_damage: dano fora de combate (queda, armadilha, poção venenosa)
-- npc_speaks: quando NPC fala — \`speaker\` no JSON vira o nome do NPC
+Use TOOLS quando ação narrativa exigir mecânica. Cada tool declarada tem descrição própria — use quando a ficção pedir. Regras de USO que importam:
+- request_skill_check / start_combat: os pivôs centrais — siga a DECISION TREE e o PIVOT EXPLÍCITO acima.
+- npc_speaks: quando NPC fala — \`speaker\` no JSON vira o nome do NPC.
 - **give_item: SEMPRE que narrar item conseguido — loot pós-kill, presente de NPC, achado em baú/cadáver, recompensa de quest, ouro encontrado. Se a narração menciona "vocês pegam X" / "encontram Y" / "ele te dá Z", VOCÊ DEVE chamar give_item NO MESMO turno. Senão o item NÃO aparece no inventário do player e a UX quebra.**
 - **suggest_actions: OPCIONAL (W2.5 Sprint W). Prefira NARRAÇÃO RICA + pergunta aberta ("e você?", "o que faz?") — RPG é mesa, não menu japonês. CHAME suggest_actions APENAS quando:
   (a) cena tem **dilema mecânico real** (combate iniciou, NPC propôs 3 caminhos distintos, player pediu lista) OU
   (b) player parece travado (ações genéricas tipo "exploro") OU
   (c) momento de **escolha tática** em combate.
   Máximo **3** chips (W3.6) — labels CURTOS PT-BR tactical ("Atacar [nome]", "Recuar"). Em narração de cena exploratória sem dilema, NÃO chame — deixa o player escrever a ação. Consultor D&D: "DM forçar chips = jogo vira menu, narração perde peso. RPG = liberdade".**
-- advance_time: passar tempo (horas, dia/noite)
-- describe_scene: setar/mudar local atual
-- set_quest: quando NPC dá missão OU party descobre algo perseguível ("salve a vila", "ache o cristal"). Use questId único curto.
-- update_objective: quando party cumpre um passo de quest ativa
-- complete_quest: quando todos objetivos cumpridos (success) OU quest virou impossível (failure). Success distribui rewardXp.
-- mark_highlight: PARCIMÔNIA — só pra momento que merece reel (kill épica de boss, escolha moral pesada, fala icônica). Máx 1-2 por sessão.
-- **create_clock** (ψ.3): cria pressão narrativa persistente. Use quando ameaça grave entra em cena (ritual culto, perseguição, reforço chegando, suspeita). Server persiste — você lembra entre turnos via system prompt.
-- **tick_clock** (ψ.3): avança um clock existente. Use cada cena cara ao clock + NARRE o tick.
+- mark_highlight: PARCIMÔNIA — máx 1-2 por sessão, só momento que merece reel.
+- create_clock / tick_clock: pressão narrativa persistente — server lembra por você (ver CLOCKS acima). NARRE cada tick.
 
-Ferramentas validadas server-side (rejeita inputs inválidos). Você sugere — server decide.
+Ferramentas validadas server-side (rejeita inputs inválidos). Você sugere — server decide. O set de tools declarado MUDA com o contexto (em combate não há start_combat — a luta já corre; rendição/fuga encerra com end_combat_with_outcome). Use só o que está declarado na chamada atual.
 
 ## EXEMPLOS
 
@@ -294,9 +286,6 @@ Player "explorar caverna":
   "speaker": "Mestre"
 }
 \`\`\`
-
-Player "procurar pistas":
-+ tool request_skill_check (skill: investigacao, dc: 15, reason: "achar pegadas")
 
 Player "ataco o goblin":
 + tool start_combat (enemies: [{name: "Goblin Sarnento", hp: 7, ac: 15}])
@@ -316,43 +305,6 @@ Player "abro o baú" (passou check):
 \`\`\`json
 {
   "narration": "Baú range. Dentro: uma espada curta de runas vivas e 47 peças de ouro. Não é riqueza — é convite.",
-  "speaker": "Mestre"
-}
-\`\`\`
-
-Player "saqueio o orc morto":
-+ tool give_item (playerId: "active", itemName: "Machado Dentado", type: "arma", quantity: 1, rarity: "comum")
-+ tool give_item (playerId: "active", itemName: "Poção de Cura", type: "consumivel", quantity: 1, rarity: "incomum", description: "Vermelha, cheira a ferro")
-\`\`\`json
-{
-  "narration": "O orc largou um machado dentado e uma poção vermelha enrolada no cinto. Pegou tudo.",
-  "speaker": "Mestre"
-}
-\`\`\`
-
-Player "entro na taverna" (cena nova):
-+ tool suggest_actions (actions: [
-    { label: "Pedir cerveja", action: "talk", details: "pedir uma cerveja ao taverneiro" },
-    { label: "Procurar rumores", action: "investigate", hint: "Investigação", details: "ouvir conversas, achar pista de quest" },
-    { label: "Observar o salão", action: "explore", hint: "Percepção", details: "varrer com os olhos quem está aqui" },
-    { label: "Sentar no canto escuro", action: "sneak", details: "passar despercebido até a mesa do fundo" }
-  ])
-\`\`\`json
-{
-  "narration": "A porta range. Cheiro de cerveja azeda e fumo barato. Cinco caras te olham por uma fração de segundo — depois voltam pros copos. Tem mesa vazia no canto. Tem.",
-  "speaker": "Mestre"
-}
-\`\`\`
-
-Player passa Investigação 18 vs DC 15:
-+ tool suggest_actions (actions: [
-    { label: "Seguir a pegada", action: "explore", details: "seguir o rastro até onde leva" },
-    { label: "Voltar pra avisar party", action: "talk", details: "contar pros aliados o que achei" },
-    { label: "Marcar local e explorar mais", action: "investigate", hint: "Investigação", details: "procurar mais pistas ao redor" }
-  ])
-\`\`\`json
-{
-  "narration": "Pegadas. Botas pesadas, talvez três homens. Frescas — não passou de uma hora. Vão pro norte, em direção ao morro queimado.",
   "speaker": "Mestre"
 }
 \`\`\`
@@ -809,6 +761,64 @@ export const DM_TOOLS: DMToolDef[] = [
 ];
 
 // ════════════════════════════════════════════════════════════════════════════
+// Fase 2e — Tool-set por modo + estado. As 25 defs acima somam ~5.6k tokens e
+// iam TODAS em TODA chamada. Combate não usa set_quest/open_shop/start_combat;
+// exploração não usa end_combat_with_outcome/enemy_casts_spell; e tools de
+// estado (update_objective, tick_clock, reveal_npc_secret...) são tokens mortos
+// quando o estado correspondente não existe. Menos tokens por chamada = first
+// token mais rápido + mais quota nos free tiers.
+// Segurança: tools.ts valida POR NOME e continua cobrindo as 25 — se o LLM
+// alucinar uma tool fora do set declarado, ela é dropada como sempre foi.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Tools que fazem sentido DURANTE o turno de combate.
+const COMBAT_TOOL_NAMES = new Set<string>([
+  'request_skill_check',     // grapple/empurrão/acrobacia em combate
+  'request_saving_throw',
+  'apply_damage',
+  'apply_condition',
+  'apply_advantage',
+  'end_combat_with_outcome',
+  'enemy_casts_spell',
+  'give_item',               // loot narrado no turno do desfecho
+  'suggest_actions',         // escolha tática — critério (c) do W2.5
+  'grant_inspiration',
+  'mark_highlight',          // kill épica de boss
+  'create_clock',            // "reforço chegando" nasce em combate
+  'tick_clock',
+]);
+
+// Fora de combate, só estas saem (exclusivas do turno de combate).
+const EXPLORATION_EXCLUDED_NAMES = new Set<string>([
+  'end_combat_with_outcome',
+  'enemy_casts_spell',
+]);
+
+/**
+ * Fase 2e — Filtra DM_TOOLS pro contexto atual (modo + estado da campanha).
+ * Fonte da verdade do "em combate" é combat.active (mesmo signal do Campaign).
+ * Exportada pura pra teste.
+ */
+export function getToolsForContext(campaign: CampaignState): DMToolDef[] {
+  const inCombat = campaign.combat?.active === true;
+  const hasActiveQuests = (campaign.quests ?? []).some((q) => q.status === 'active');
+  const hasClocks = (campaign.activeClocks ?? []).length > 0;
+  const hasNpcs = (campaign.npcsMet ?? []).length > 0;
+  const hasPendingSecrets = Object.values(campaign.npcSecrets ?? {})
+    .some((list) => (list ?? []).some((s) => !s.revealed));
+
+  return DM_TOOLS.filter((t) => {
+    if (inCombat ? !COMBAT_TOOL_NAMES.has(t.name) : EXPLORATION_EXCLUDED_NAMES.has(t.name)) return false;
+    // Tools de estado: sem o estado correspondente, não há o que chamar.
+    if ((t.name === 'update_objective' || t.name === 'complete_quest') && !hasActiveQuests) return false;
+    if (t.name === 'tick_clock' && !hasClocks) return false;
+    if (t.name === 'mark_npc_secret' && !hasNpcs) return false;
+    if (t.name === 'reveal_npc_secret' && !hasPendingSecrets) return false;
+    return true;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // Builder do user prompt — contexto da campanha + ação do player
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1002,7 +1012,9 @@ ${checkBlock}
 ${ctx.skillCheckResolution
   ? 'Narre a consequência do skill check. 2-4 frases. Tom Sombrio+Sarcástico+Trickster.'
   : ctx.playerAction
-    ? 'Narre o que acontece quando o player toma a ação. Se ação tem incerteza, chame request_skill_check. Se inicia combate, chame start_combat. 2-4 frases.'
+    ? (ctx.campaign.combat?.active
+        ? 'COMBATE ATIVO. Narre o turno com tensão corporal (sem números do oponente). NÃO inicie combate novo — a luta já corre; use end_combat_with_outcome só se terminar por rendição/fuga/intervenção. 2-4 frases.'
+        : 'Narre o que acontece quando o player toma a ação. Se ação tem incerteza, chame request_skill_check. Se inicia combate, chame start_combat. 2-4 frases.')
     : 'Narre a cena de abertura da sessão. Estabeleça local, mood, primeira pista. 2-4 frases.'}
 
 Responda APENAS em JSON válido:

@@ -2,8 +2,8 @@
 // Coordena provider (Groq/Anthropic) + prompts + parse de tools.
 // Tem FallbackDM offline pra quando provider falha (timeout, rate limit, sem key).
 
-import type { DMProvider, DMToolCall } from './providers/base.js';
-import { getSystemPrompt, DM_TOOLS, buildNarrationPrompt, type NarrationContext } from './prompts.js';
+import type { DMProvider, DMToolCall, DMToolDef } from './providers/base.js';
+import { getSystemPrompt, getToolsForContext, buildNarrationPrompt, type NarrationContext } from './prompts.js';
 import { lintNarrationForOpponentNumbers, correctionPromptForNarration } from './narration-linter.js';
 import { NarrationStreamExtractor } from './narration-stream.js';
 
@@ -124,10 +124,15 @@ export class DungeonMaster {
       streamOnText = (raw) => { try { extractor.push(raw, onNarrationDelta); } catch { /* prévia best-effort */ } };
     }
 
+    // Fase 2e — tool-set por modo+estado: combate recebe o set de combate (sem
+    // start_combat/open_shop/set_quest), exploração não recebe end_combat/
+    // enemy_casts_spell, e tools de estado só entram quando o estado existe.
+    const tools = getToolsForContext(context.campaign);
+
     let response;
     let retriedWithoutTools = false;
     try {
-      response = await this.callWithBackoff(systemPrompt, userPrompt, true, streamOnText);
+      response = await this.callWithBackoff(systemPrompt, userPrompt, tools, streamOnText);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Aprendizado Cave Run: Llama 4 Scout dá 400 em ~26% dos calls com tools.
@@ -135,7 +140,7 @@ export class DungeonMaster {
       if (/400|failed to call a function|tool/i.test(msg)) {
         console.warn('[dm] retry sem tools após erro:', msg.slice(0, 120));
         try {
-          response = await this.callWithBackoff(systemPrompt, userPrompt, false);
+          response = await this.callWithBackoff(systemPrompt, userPrompt, undefined);
           retriedWithoutTools = true;
         } catch (err2) {
           console.warn('[dm] retry sem tools também falhou:', err2);
@@ -172,7 +177,7 @@ export class DungeonMaster {
     if (!narration && response.toolCalls.length > 0 && !retriedWithoutTools) {
       console.warn('[dm] narração vazia com toolCalls — retry sem tools (preservando toolCalls originais)');
       try {
-        response = await this.callWithBackoff(systemPrompt, userPrompt, false);
+        response = await this.callWithBackoff(systemPrompt, userPrompt, undefined);
         retriedWithoutTools = true;
         parsed = extractJson(response.text);
         narration = stripInlineToolMentions((parsed.narration ?? response.text).trim());
@@ -211,7 +216,7 @@ export class DungeonMaster {
       try {
         const correctionInstruction = correctionPromptForNarration(narration, lintResult.matches);
         const retryUserPrompt = userPrompt + '\n\n' + correctionInstruction;
-        const retryResponse = await this.callWithBackoff(systemPrompt, retryUserPrompt, false);
+        const retryResponse = await this.callWithBackoff(systemPrompt, retryUserPrompt, undefined);
         const retryParsed = extractJson(retryResponse.text);
         const retryNarration = stripInlineToolMentions((retryParsed.narration ?? retryResponse.text).trim());
         if (retryNarration) {
@@ -321,10 +326,12 @@ export class DungeonMaster {
    * mas só pra cenários patológicos. Caso normal é 1 chamada cascade-interna
    * resolvendo em ~5-25s.
    */
+  // Fase 2e — recebe o tool-set já filtrado pelo contexto (getToolsForContext);
+  // undefined/vazio = chamada sem tools (retries sem-tools, fog correction).
   private async callWithBackoff(
     systemPrompt: string,
     userPrompt: string,
-    withTools: boolean,
+    tools: DMToolDef[] | undefined,
     onText?: (delta: string) => void,
   ): Promise<{ text: string; toolCalls: DMToolCall[] }> {
     const delays = [0, 2000]; // 2 tentativas, total ~2s de espera entre elas
@@ -334,7 +341,7 @@ export class DungeonMaster {
         await new Promise((r) => setTimeout(r, delays[attempt]!));
       }
       try {
-        const opts = { systemPrompt, userPrompt, tools: withTools ? DM_TOOLS : undefined, maxTokens: 1024 };
+        const opts = { systemPrompt, userPrompt, tools: tools && tools.length > 0 ? tools : undefined, maxTokens: 1024 };
         // Fase 2 — streaming só quando há onText E o provider suporta. Acumula
         // TUDO e devolve o mesmo {text, toolCalls} — pós-processamento intacto.
         const call = onText && this.provider.generateStream
