@@ -41,6 +41,7 @@ import {
   parseSessionCookie, buildSessionCookie, buildLogoutCookie, getVerifyBaseUrl,
   type ExpressReqWithUser,
 } from '../http/cookies.js';
+import { canAccessCharacter, ownsCampaignParty } from '../ownership.js';
 
 export interface ApiRouteCtx {
   campaigns: Map<string, Campaign>;
@@ -71,7 +72,16 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
   // Faz health check em CADA provider configurado individualmente. Curl em prod
   // mostra exatamente qual env var está/não está + qual provider responde.
   // Usado pra confirmar que CEREBRAS_API_KEY etc estão setados certo no Render.
-  app.get('/api/dm/diag', async (_req, res) => {
+  app.get('/api/dm/diag', async (req, res) => {
+    // Fase 0c — gate: o diag faz live-ping em 6-7 providers LLM (queima quota/$$
+    // a cada hit ANÔNIMO). Exige user logado OU ADMIN_TOKEN. Bot anônimo toma 401.
+    const diagUser = (req as ExpressReqWithUser).user;
+    const adminToken = process.env.ADMIN_TOKEN;
+    const provided = req.header('x-admin-token') ?? String(req.query.token ?? '');
+    if (!diagUser && !(adminToken && provided === adminToken)) {
+      res.status(401).json({ error: 'auth required' });
+      return;
+    }
     const mask = (key: string | undefined): string => {
       if (!key) return 'MISSING';
       if (key.length < 8) return 'SET (curto demais — verificar)';
@@ -471,6 +481,12 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     try {
       const sheet = await loadCharacter(req.params.id);
       if (!sheet) { res.status(404).json({ error: 'not found' }); return; }
+      // Fase 0c — IDOR: PJ de user logado só é lido pelo dono.
+      const user = (req as ExpressReqWithUser).user;
+      if (!canAccessCharacter(sheet, user?.id)) {
+        res.status(403).json({ error: 'not your character' });
+        return;
+      }
       res.json({ character: sheet });
     } catch (err) {
       console.error('[api] loadCharacter:', err);
@@ -480,12 +496,18 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
 
   app.post('/api/characters', async (req, res) => {
     const sheet = req.body as CharacterSheet;
-    const wasNew = sheet?.id ? !(await loadCharacter(sheet.id)) : false;
+    const existing = sheet?.id ? await loadCharacter(sheet.id) : null;
+    const wasNew = !existing;
     if (!sheet?.id || !sheet?.ownerName || !sheet?.characterName || !sheet?.classId || !sheet?.raceId) {
       res.status(400).json({ error: 'invalid sheet' });
       return;
     }
     const reqUser = (req as ExpressReqWithUser).user;
+    // Fase 0c — IDOR: não deixa sobrescrever PJ de OUTRO user logado.
+    if (!canAccessCharacter(existing, reqUser?.id)) {
+      res.status(403).json({ error: 'not your character' });
+      return;
+    }
     if (reqUser) {
       sheet.userId = reqUser.id;
       if (!sheet.ownerName.trim()) sheet.ownerName = reqUser.displayName || reqUser.email.split('@')[0]!;
@@ -537,6 +559,15 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
 
   app.delete('/api/characters/:id', async (req, res) => {
     try {
+      // Fase 0c — IDOR: PJ de user logado só é apagado pelo dono.
+      const sheet = await loadCharacter(req.params.id);
+      if (sheet) {
+        const user = (req as ExpressReqWithUser).user;
+        if (!canAccessCharacter(sheet, user?.id)) {
+          res.status(403).json({ error: 'not your character' });
+          return;
+        }
+      }
       await deleteCharacter(req.params.id);
       res.json({ ok: true });
     } catch (err) {
@@ -566,6 +597,16 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     try {
       const c = await loadCampaign(req.params.id);
       if (!c) { res.status(404).json({ error: 'not found' }); return; }
+      // Fase 0c — IDOR: user logado só lê crônica onde tem PJ. Anônimo mantém
+      // acesso (coop compartilha o id; sem identidade não há o que gatear).
+      const user = (req as ExpressReqWithUser).user;
+      if (user) {
+        const owned = await listCharactersByUserId(user.id);
+        if (!ownsCampaignParty(c.partyCharacterIds, owned.map((o) => o.id))) {
+          res.status(403).json({ error: 'not your chronicle' });
+          return;
+        }
+      }
       res.json({ campaign: c });
     } catch (err) {
       console.error('[api] loadCampaign:', err);
@@ -576,6 +617,19 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
   app.delete('/api/campaigns/:id', async (req, res) => {
     const id = req.params.id;
     try {
+      // Fase 0c — IDOR: user logado só apaga crônica onde tem PJ (destrutivo!).
+      // Anônimo mantém comportamento atual (sem identidade pra gatear).
+      const user = (req as ExpressReqWithUser).user;
+      if (user) {
+        const c = await loadCampaign(id);
+        if (c) {
+          const owned = await listCharactersByUserId(user.id);
+          if (!ownsCampaignParty(c.partyCharacterIds, owned.map((o) => o.id))) {
+            res.status(403).json({ error: 'not your chronicle' });
+            return;
+          }
+        }
+      }
       // Evict do Map em memória pra evitar que próximo broadcastState re-save o registro.
       ctx.campaigns.delete(id);
       await deleteCampaign(id);

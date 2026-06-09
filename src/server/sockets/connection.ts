@@ -192,6 +192,13 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!characterId) { socket.emit('error', 'characterId required'); return; }
         const character = await loadCharacter(characterId);
         if (!character) { socket.emit('error', 'character not found'); return; }
+        // Fase 0c (coop P0) — não deixa entrar com PJ de OUTRO user logado.
+        // PJ anônimo (sem userId) segue liberado ("jogar sem cadastro"). Msg
+        // neutra evita confirmar a existência do PJ pra um socket malicioso.
+        if (character.userId && character.userId !== sUser?.id) {
+          socket.emit('error', 'character not found');
+          return;
+        }
 
         const camp = await getOrCreateCampaign(campaignId, `Crônica de ${ownerName}`, dm);
         camp.addCharacter(character);
