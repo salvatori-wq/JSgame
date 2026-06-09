@@ -2,7 +2,7 @@
 // Free tier generoso. Usa groq-sdk diretamente.
 
 import Groq from 'groq-sdk';
-import type { DMProvider, DMRawResponse, DMToolDef } from './base.js';
+import type { DMProvider, DMRawResponse, DMToolDef, GenerateOpts } from './base.js';
 
 export interface GroqProviderOptions {
   apiKey: string;
@@ -68,6 +68,49 @@ export class GroqProvider implements DMProvider {
     // padrão já presente em Cerebras/Cloudflare/Mistral.
     if (text.length === 0 && toolCalls.length === 0) {
       throw new Error(`Groq empty response: model=${this.model} finish_reason=${choice?.finish_reason ?? 'none'}`);
+    }
+    return { text, toolCalls };
+  }
+
+  // Fase 2 — streaming via groq-sdk (stream:true). Acumula content + tool_calls
+  // (montados por index) e devolve o mesmo DMRawResponse; emite deltas de conteúdo.
+  async generateStream(opts: GenerateOpts, onText: (delta: string) => void): Promise<DMRawResponse> {
+    const tools = opts.tools?.map((t) => ({
+      type: 'function' as const,
+      function: { name: t.name, description: t.description, parameters: t.schema },
+    }));
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      max_tokens: opts.maxTokens ?? 1024,
+      messages: [
+        { role: 'system', content: opts.systemPrompt },
+        { role: 'user', content: opts.userPrompt },
+      ],
+      tools,
+      tool_choice: tools ? 'auto' : undefined,
+      stream: true,
+    }, { timeout: 20000 });
+
+    let text = '';
+    const toolAcc = new Map<number, { name: string; args: string }>();
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (delta?.content) { text += delta.content; onText(delta.content); }
+      for (const tc of delta?.tool_calls ?? []) {
+        const idx = tc.index ?? 0;
+        const cur = toolAcc.get(idx) ?? { name: '', args: '' };
+        if (tc.function?.name) cur.name = tc.function.name;
+        if (tc.function?.arguments) cur.args += tc.function.arguments;
+        toolAcc.set(idx, cur);
+      }
+    }
+    const toolCalls: { name: string; input: Record<string, unknown> }[] = [];
+    for (const { name, args } of toolAcc.values()) {
+      if (!name) continue;
+      try { toolCalls.push({ name, input: JSON.parse(args || '{}') }); } catch { /* malformado */ }
+    }
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Groq empty stream: model=${this.model}`);
     }
     return { text, toolCalls };
   }

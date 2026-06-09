@@ -112,6 +112,9 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
     let firstDmResponseTracked = false;
     let firstRollTracked = false;
     let lastActionTs: number | null = null;
+    // Fase 2 — seq crescente por turno de streaming. O client descarta deltas de
+    // um turno já finalizado (chunk atrasado após o dmNarration final).
+    let streamSeq = 0;
 
     const trackFirstNarrationIfNeeded = (): void => {
       if (firstNarrationTracked || sessionStartTs === null || !activeCampaignId) return;
@@ -330,8 +333,11 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           payload: { action: String(action), has_details: !!details },
         });
 
+        const takeActionSeq = ++streamSeq;
         await withThinkingBroadcast(camp, activePlayerId, String(action), async () => {
-          const response = await camp.takeAction(activePlayerId!, action, details);
+          const response = await camp.takeAction(activePlayerId!, action, details, (delta) => {
+            io.to(camp.state.id).emit('dmNarrationChunk', { delta, seq: takeActionSeq });
+          });
           // POLISH γ.4 — error recovery rico (errorMeta repassado quando DM degradou)
           io.to(camp.state.id).emit('dmNarration', {
             text: response.narration,
@@ -462,6 +468,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!pending) { return; }
         if (pending.playerId !== activePlayerId) { return; }
 
+        const skillSeq = ++streamSeq;
         await withThinkingBroadcast(camp, activePlayerId, `rolar ${pending.skill}`, async () => {
           const useInspiration = !!(payload as { useInspiration?: boolean })?.useInspiration;
           // Rank 1 fix — emite o diceRollResult DENTRO do onRoll (assim que o d20
@@ -481,6 +488,8 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
               nat1: early.nat1,
               skill: pending.skill,
             });
+          }, (delta) => {
+            io.to(camp.state.id).emit('dmNarrationChunk', { delta, seq: skillSeq });
           });
           if (!result) return;
 

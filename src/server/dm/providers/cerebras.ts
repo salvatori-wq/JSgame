@@ -3,7 +3,8 @@
 // Velocidade ~2000 tokens/s (literalmente o mais rápido do mercado).
 // API OpenAI-compatible — só troca base URL.
 
-import type { DMProvider, DMRawResponse, DMToolDef } from './base.js';
+import type { DMProvider, DMRawResponse, DMToolDef, GenerateOpts } from './base.js';
+import { parseOpenAiSSE } from './openai-stream.js';
 
 export interface CerebrasProviderOptions {
   apiKey: string;
@@ -122,5 +123,51 @@ export class CerebrasProvider implements DMProvider {
     }
 
     return { text, toolCalls };
+  }
+
+  // Fase 2 — streaming SSE (OpenAI-compatible). Acumula tudo e devolve o mesmo
+  // DMRawResponse; chama onText com os deltas de conteúdo crus conforme chegam.
+  async generateStream(opts: GenerateOpts, onText: (delta: string) => void): Promise<DMRawResponse> {
+    const body: Record<string, unknown> = {
+      model: this.model,
+      max_tokens: opts.maxTokens ?? 1024,
+      temperature: 0.9,
+      stream: true,
+      messages: [
+        { role: 'system', content: opts.systemPrompt },
+        { role: 'user', content: opts.userPrompt },
+      ],
+    };
+    if (opts.tools && opts.tools.length > 0) {
+      body.tools = opts.tools.map((t) => ({
+        type: 'function',
+        function: { name: t.name, description: t.description, parameters: t.schema },
+      }));
+      body.tool_choice = 'auto';
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`Cerebras ${res.status}: ${t.slice(0, 300)}`);
+    }
+    if (!res.body) throw new Error('Cerebras stream: sem corpo na resposta');
+    const result = await parseOpenAiSSE(res.body, onText);
+    if (result.text.length === 0 && result.toolCalls.length === 0) {
+      throw new Error(`Cerebras empty stream: model=${this.model}`);
+    }
+    return result;
   }
 }

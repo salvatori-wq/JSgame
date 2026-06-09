@@ -5,6 +5,7 @@
 import type { DMProvider, DMToolCall } from './providers/base.js';
 import { getSystemPrompt, DM_TOOLS, buildNarrationPrompt, type NarrationContext } from './prompts.js';
 import { lintNarrationForOpponentNumbers, correctionPromptForNarration } from './narration-linter.js';
+import { NarrationStreamExtractor } from './narration-stream.js';
 
 export interface DMResponse {
   narration: string;
@@ -109,15 +110,24 @@ export class DungeonMaster {
     }
   }
 
-  async narrate(context: NarrationContext): Promise<DMResponse> {
+  async narrate(context: NarrationContext, onNarrationDelta?: (delta: string) => void): Promise<DMResponse> {
     const userPrompt = buildNarrationPrompt(context);
     // 1C — System prompt dinâmico baseado em CampaignState.dmPersonality (default sombrio).
     const systemPrompt = getSystemPrompt(context.campaign.dmPersonality);
 
+    // Fase 2 — streaming SÓ na 1ª chamada (happy path). O extrator puxa a narração
+    // LIMPA do JSON conforme os chunks crus chegam e repassa pro client como prévia.
+    // Retries (sem-tools, fog) NÃO streamam — o dmNarration final substitui a prévia.
+    let streamOnText: ((raw: string) => void) | undefined;
+    if (onNarrationDelta) {
+      const extractor = new NarrationStreamExtractor();
+      streamOnText = (raw) => { try { extractor.push(raw, onNarrationDelta); } catch { /* prévia best-effort */ } };
+    }
+
     let response;
     let retriedWithoutTools = false;
     try {
-      response = await this.callWithBackoff(systemPrompt, userPrompt, true);
+      response = await this.callWithBackoff(systemPrompt, userPrompt, true, streamOnText);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Aprendizado Cave Run: Llama 4 Scout dá 400 em ~26% dos calls com tools.
@@ -311,7 +321,12 @@ export class DungeonMaster {
    * mas só pra cenários patológicos. Caso normal é 1 chamada cascade-interna
    * resolvendo em ~5-25s.
    */
-  private async callWithBackoff(systemPrompt: string, userPrompt: string, withTools: boolean): Promise<{ text: string; toolCalls: DMToolCall[] }> {
+  private async callWithBackoff(
+    systemPrompt: string,
+    userPrompt: string,
+    withTools: boolean,
+    onText?: (delta: string) => void,
+  ): Promise<{ text: string; toolCalls: DMToolCall[] }> {
     const delays = [0, 2000]; // 2 tentativas, total ~2s de espera entre elas
     let lastErr: unknown;
     for (let attempt = 0; attempt < delays.length; attempt++) {
@@ -319,15 +334,13 @@ export class DungeonMaster {
         await new Promise((r) => setTimeout(r, delays[attempt]!));
       }
       try {
-        return await withTimeout(
-          this.provider.generate({
-            systemPrompt,
-            userPrompt,
-            tools: withTools ? DM_TOOLS : undefined,
-            maxTokens: 1024,
-          }),
-          LLM_TIMEOUT_MS,
-        );
+        const opts = { systemPrompt, userPrompt, tools: withTools ? DM_TOOLS : undefined, maxTokens: 1024 };
+        // Fase 2 — streaming só quando há onText E o provider suporta. Acumula
+        // TUDO e devolve o mesmo {text, toolCalls} — pós-processamento intacto.
+        const call = onText && this.provider.generateStream
+          ? this.provider.generateStream(opts, onText)
+          : this.provider.generate(opts);
+        return await withTimeout(call, LLM_TIMEOUT_MS);
       } catch (err) {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
@@ -519,7 +532,9 @@ export class FallbackDM {
   // BUG-Ω.5 — Narrações offline DECENTES (sem AI). Library de templates
   // categorizados pra que jogo nunca trave em "Mestre travou". Cada chamada
   // varia o template pra não soar repetitivo.
-  async narrate(context: NarrationContext): Promise<DMResponse> {
+  // Fase 2 — aceita (e ignora) o onNarrationDelta pra a assinatura bater com a
+  // DungeonMaster na union DMInterface. O fallback é instantâneo (sem stream).
+  async narrate(context: NarrationContext, _onNarrationDelta?: (delta: string) => void): Promise<DMResponse> {
     const partyName = context.party[0]?.characterName ?? 'aventureiro';
     let narration: string;
 

@@ -8,7 +8,7 @@
 // Tool calling: Gemini suporta nativamente via `tools.functionDeclarations`.
 // Schema OpenAPI-like; conversão de DMToolDef.schema (JSON Schema padrão) é direta.
 
-import type { DMProvider, DMRawResponse, DMToolDef } from './base.js';
+import type { DMProvider, DMRawResponse, DMToolDef, GenerateOpts } from './base.js';
 
 export interface GeminiProviderOptions {
   apiKey: string;
@@ -150,6 +150,86 @@ export class GeminiProvider implements DMProvider {
       throw new Error(`Gemini empty response: model=${this.model} finishReason=${candidate?.finishReason ?? 'none'}`);
     }
 
+    return { text, toolCalls };
+  }
+
+  // Fase 2 — streaming via :streamGenerateContent?alt=sse. Cada evento SSE é um
+  // GeminiResponse parcial com parts[].text incrementais. Acumula text +
+  // functionCalls e devolve o mesmo DMRawResponse; emite os deltas de texto.
+  async generateStream(opts: GenerateOpts, onText: (delta: string) => void): Promise<DMRawResponse> {
+    const body: Record<string, unknown> = {
+      systemInstruction: { role: 'system', parts: [{ text: opts.systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: opts.userPrompt }] }],
+      generationConfig: {
+        maxOutputTokens: opts.maxTokens ?? 1024,
+        temperature: 0.9,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    };
+    if (opts.tools && opts.tools.length > 0) {
+      body.tools = [{ functionDeclarations: opts.tools.map((t) => ({ name: t.name, description: t.description, parameters: t.schema })) }];
+      body.toolConfig = { functionCallingConfig: { mode: 'auto' } };
+    }
+    const url = `${this.baseUrl}/models/${this.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(this.apiKey)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+    }
+    if (!res.body) throw new Error('Gemini stream: sem corpo na resposta');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let text = '';
+    const seen = new Set<string>();
+    const toolCalls: { name: string; input: Record<string, unknown> }[] = [];
+    let blockReason = '';
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data) continue;
+        try {
+          const json = JSON.parse(data) as GeminiResponse;
+          if (json.promptFeedback?.blockReason) blockReason = json.promptFeedback.blockReason;
+          for (const part of json.candidates?.[0]?.content?.parts ?? []) {
+            if (part.text) { text += part.text; onText(part.text); }
+            if (part.functionCall) {
+              // dedup defensivo — Gemini às vezes repete o functionCall no stream
+              const key = `${part.functionCall.name}:${JSON.stringify(part.functionCall.args ?? {})}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                toolCalls.push({ name: part.functionCall.name, input: part.functionCall.args ?? {} });
+              }
+            }
+          }
+        } catch { /* evento parcial — ignora */ }
+      }
+    }
+    if (blockReason) throw new Error(`Gemini safety block: ${blockReason}`);
+    if (text.length === 0 && toolCalls.length === 0) {
+      throw new Error(`Gemini empty stream: model=${this.model}`);
+    }
     return { text, toolCalls };
   }
 }

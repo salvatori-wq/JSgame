@@ -595,6 +595,11 @@ export interface ServerToClientEvents {
     };
   }) => void;
   diceRollResult: (payload: { source: string; roll: DiceRoll; purpose: string }) => void;
+  /** Fase 2 — PRÉVIA de streaming: delta de texto LIMPO da narração conforme o
+   *  LLM gera. É best-effort; o `dmNarration` final (sanitizado) é a autoridade e
+   *  SUBSTITUI a prévia no client. `seq` cresce por turno (cliente ignora deltas
+   *  fora de ordem / de um turno já finalizado). */
+  dmNarrationChunk: (payload: { delta: string; seq: number }) => void;
   characterUpdate: (character: CharacterSheet) => void;
   combatEvent: (event: CombatEvent) => void;
   dmThinking: (payload: { playerId: string; playerName: string; action: string }) => void;

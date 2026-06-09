@@ -86,11 +86,27 @@ export class CascadeProvider implements DMProvider {
     tools?: DMToolDef[];
     maxTokens?: number;
   }): Promise<DMRawResponse> {
+    return this.runCascade((p) => p.generate(opts));
+  }
+
+  // Fase 2 — streaming com o MESMO failover. Cada provider tenta seu
+  // generateStream (emitindo deltas); provider sem suporte cai no generate
+  // bufferizado (funciona, só sem prévia). Failover no meio do stream é raro
+  // (providers costumam falhar no início) e o dmNarration FINAL substitui a
+  // prévia no client de qualquer jeito — então um preview bagunçado se corrige.
+  async generateStream(
+    opts: { systemPrompt: string; userPrompt: string; tools?: DMToolDef[]; maxTokens?: number },
+    onText: (delta: string) => void,
+  ): Promise<DMRawResponse> {
+    return this.runCascade((p) => (p.generateStream ? p.generateStream(opts, onText) : p.generate(opts)));
+  }
+
+  private async runCascade(call: (p: DMProvider) => Promise<DMRawResponse>): Promise<DMRawResponse> {
     let lastErr: unknown = null;
     for (let i = 0; i < this.providers.length; i++) {
       const provider = this.providers[i]!;
       try {
-        const result = await provider.generate(opts);
+        const result = await call(provider);
         this.lastSuccessfulProvider = provider.name;
         this.lastFailedProvider = null; // reset — sucesso limpa
         this.onResult?.({

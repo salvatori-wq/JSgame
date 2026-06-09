@@ -17,12 +17,22 @@ export interface DMRawResponse {
   toolCalls: DMToolCall[];
 }
 
+export interface GenerateOpts {
+  systemPrompt: string;
+  userPrompt: string;
+  tools?: DMToolDef[];
+  maxTokens?: number;
+}
+
 export interface DMProvider {
   readonly name: string;
-  generate(opts: {
-    systemPrompt: string;
-    userPrompt: string;
-    tools?: DMToolDef[];
-    maxTokens?: number;
-  }): Promise<DMRawResponse>;
+  generate(opts: GenerateOpts): Promise<DMRawResponse>;
+  /**
+   * Fase 2 — streaming opcional. ACUMULA tudo e devolve o MESMO DMRawResponse
+   * que generate() devolveria (text + toolCalls), MAS chama onText(delta) com os
+   * deltas de CONTEÚDO crus conforme chegam. Provider sem suporte → ausente
+   * (o DungeonMaster cai no generate). O delta é o conteúdo CRU (JSON-wrapped);
+   * a extração da narração limpa é feita uma camada acima (narration-stream).
+   */
+  generateStream?(opts: GenerateOpts, onText: (delta: string) => void): Promise<DMRawResponse>;
 }

@@ -398,7 +398,12 @@ export class Campaign {
     });
   }
 
-  async takeAction(playerId: string, action: ExplorationAction | string, details?: string): Promise<DMResponse> {
+  async takeAction(
+    playerId: string,
+    action: ExplorationAction | string,
+    details?: string,
+    onNarrationDelta?: (delta: string) => void,
+  ): Promise<DMResponse> {
     return this.enqueue(async () => {
       // Rank 11 — lembra quem agiu pra o tool-applier resolver 'active' certo.
       this.lastActingPlayerId = playerId;
@@ -443,7 +448,7 @@ export class Campaign {
         npcRoster,
         // F4 — Injeta profile do PJ ativo (trait/ideal/bond/flaw)
         activeCharacterProfile: this.buildActiveProfile(playerId),
-      });
+      }, onNarrationDelta);
       this.applyDMResponse(response);
       // Mestre Experiente — Post-DM auto-inject de skill check.
       // Se o DM narrou MAS esqueceu de chamar request_skill_check, server detecta
@@ -481,6 +486,7 @@ export class Campaign {
     // dado na hora em vez de congelar em "?" até o Mestre responder. Mesma
     // pegada do psi-fix de saving-throw/death-save.
     onRoll?: (early: { roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean }) => void,
+    onNarrationDelta?: (delta: string) => void,
   ): Promise<{ roll: DiceRoll; success: boolean; nat20: boolean; nat1: boolean; usedInspiration: boolean; dmResponse: DMResponse } | null> {
     return this.enqueue(async () => {
       const check = this.state.pendingCheck;
@@ -566,7 +572,7 @@ export class Campaign {
         },
         // F4 — Profile do PJ ativo (quem rolou)
         activeCharacterProfile: this.buildActiveProfile(playerId),
-      });
+      }, onNarrationDelta);
       this.applyDMResponse(dmResponse);
       const inspNote = usedInspiration ? ' [com inspiração]' : '';
       this.pushRecentEvent(`${player.characterName} rolou ${skill.name} (${roll.rolls[0]} + ${totalMod} = ${roll.total} vs DC ${check.dc})${inspNote}: ${success ? 'sucesso' : 'falhou'}`);

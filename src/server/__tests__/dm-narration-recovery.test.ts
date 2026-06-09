@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { DungeonMaster } from '../dm/dm.js';
-import type { DMProvider, DMRawResponse, DMToolDef } from '../dm/providers/base.js';
+import type { DMProvider, DMRawResponse, GenerateOpts } from '../dm/providers/base.js';
 import type { NarrationContext } from '../dm/prompts.js';
 import type { CharacterSheet } from '../../shared/types.js';
 
@@ -12,7 +12,7 @@ class StubProvider implements DMProvider {
   readonly name = 'stub';
   calls: Array<{ withTools: boolean }> = [];
   constructor(private replies: DMRawResponse[]) {}
-  async generate(opts: { tools?: DMToolDef[] } & Record<string, unknown>): Promise<DMRawResponse> {
+  async generate(opts: GenerateOpts): Promise<DMRawResponse> {
     const idx = Math.min(this.calls.length, this.replies.length - 1);
     this.calls.push({ withTools: !!opts.tools });
     return this.replies[idx]!;
