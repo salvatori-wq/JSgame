@@ -14,5 +14,12 @@ export default defineConfig({
     },
     // Aumenta timeout pra suites com I/O sqlite
     testTimeout: 10_000,
+    // Fase 1 — testes de client default a happy-dom. Antes, um teste de DOM sem
+    // o // @vitest-environment happy-dom rodava em node e PULAVA em silêncio
+    // (typeof document === 'undefined' → it.skip) = cobertura-fantasma. Server/
+    // dnd/shared seguem node (default). Um docblock explícito ainda sobrepõe isto.
+    environmentMatchGlobs: [
+      ['src/client/**', 'happy-dom'],
+    ],
   },
 });

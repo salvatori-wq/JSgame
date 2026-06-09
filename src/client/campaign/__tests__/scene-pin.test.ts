@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // Sprint X.B3 — Tests pro scene pin sticky (última narração visível durante decisão).
 
 import { describe, it, expect } from 'vitest';
@@ -40,10 +41,6 @@ describe('previewText — X.B3 truncate pra scene pin', () => {
 });
 
 describe('NarrationLog — X.B3 scene pin lifecycle', async () => {
-  if (typeof document === 'undefined') {
-    it.skip('skip — sem DOM', () => {});
-    return;
-  }
   const { NarrationLog } = await import('../narration-log');
 
   it('P0 funil — 1ª narração de Mestre NÃO cria scene pin (não duplica cold-open)', () => {

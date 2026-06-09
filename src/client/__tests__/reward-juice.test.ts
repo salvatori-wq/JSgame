@@ -1,12 +1,9 @@
+// @vitest-environment happy-dom
 // Y.B2 — Sprint Y: Tests pro reward-juice (confetti + item reveal).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe('playConfetti — Y.B2 visual smoke', async () => {
-  if (typeof document === 'undefined') {
-    it.skip('skip — sem DOM', () => {});
-    return;
-  }
   const { playConfetti } = await import('../reward-juice');
 
   beforeEach(() => {
@@ -44,10 +41,6 @@ describe('playConfetti — Y.B2 visual smoke', async () => {
 });
 
 describe('showItemReveal — Y.B2 reveal modal', async () => {
-  if (typeof document === 'undefined') {
-    it.skip('skip — sem DOM', () => {});
-    return;
-  }
   const { showItemReveal, closeItemReveal, isItemRevealOpen } = await import('../reward-juice');
 
   const makeItem = (overrides: Partial<import('../../shared/types').InventoryItem> = {}): import('../../shared/types').InventoryItem => ({

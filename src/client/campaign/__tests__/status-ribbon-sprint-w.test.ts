@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // W3-DnD Sprint W — Tests pro renderConcentrationChip no status-ribbon.
 
 import { describe, it, expect } from 'vitest';
@@ -30,11 +31,6 @@ const makeChar = (concentratingOn?: string | null): CharacterSheet => ({
 } as unknown as CharacterSheet);
 
 describe('renderConcentrationChip — W3-DnD concentração visível', () => {
-  if (typeof document === 'undefined') {
-    it.skip('skip — não tem DOM', () => {});
-    return;
-  }
-
   it('character sem concentração → null', () => {
     const r = renderConcentrationChip(makeChar(null));
     expect(r).toBeNull();

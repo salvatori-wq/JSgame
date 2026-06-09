@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 // W3.2 Sprint W — Tests pro combat-target-sheet contextual.
 // Consultor D&D pediu padrão VTT: click enemy → ação primária dominante.
 
@@ -53,10 +54,6 @@ describe('combatActionLabel — W3.2 label + sub contextual', () => {
 });
 
 describe('openCombatTargetSheet — DOM smoke (W3.2)', async () => {
-  if (typeof document === 'undefined') {
-    it.skip('skip — não tem DOM', () => {});
-    return;
-  }
   const { openCombatTargetSheet, closeCombatTargetSheet, isCombatTargetSheetOpen } = await import('../combat-target-sheet');
 
   beforeEach(() => {
