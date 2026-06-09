@@ -82,7 +82,29 @@ git push origin main      # dispara auto-deploy Render
 
 ## Estado Atual
 
-> Última atualização: 2026-05-31 (**Trilha Sonora "Bardo"** — reescrita completa
+> Última atualização: 2026-06-09 (**Reviravolta Fases 0/1/2 + 2e** — plano
+`PLANO_REVIRAVOLTA.md` em execução. Fases 0 (quick wins: onState prev fix, strip
+npcSecrets, IDOR, debounce saveCampaign, rAF-coalesce do "piscar"), 1 (smoke E2E
+golden + telemetria `time_to_first_token` + factories) e 2 (**streaming de
+token** server+client: prévia best-effort + final autoritativo, typewriter falso
+DELETADO — design em `FASE2_STREAMING_CONTINGENCIA.md`) entregues na sessão
+anterior (`HANDOFF_2026-06-09_reviravolta-fases-0-1-2.md`). Esta sessão: **Fase
+2e** (`93836aa`) — `getToolsForContext()` filtra as 25 tool defs por modo+estado
+(combate 12 defs/-52% tokens, exploração fresca 18/-26%; update_objective/
+complete_quest/tick_clock/mark_npc_secret/reveal_npc_secret só entram quando o
+estado existe) + SYSTEM_PROMPT enxuto (~750 tokens de prosa duplicada + 3
+exemplos que CONTRADIZIAM o W2.5). Validação server-side intacta (tool fora do
+set = dropada como sempre). Suíte **2303 verde**, tsc limpo. **PUSHADO**
+origin/main=`93836aa`. ⚠️ **BLOQUEANTE (João)**: deploy do streaming NÃO subiu —
+prod ainda serve bundle antigo `index-DgHM1uaL.js` (confirmado direto da origem,
+sem cache; GitHub tem o código; `last-modified` de hoje sugere Redeploy de
+commit velho OU build falhou). João: painel Render → Events → conferir
+status/hash do último deploy → Manual Deploy "Deploy latest commit" (`93836aa`).
+**Próximo na ordem do plano**: deploy subir → João valida streaming ("texto em
+~1s") e MEDE o "piscar" em combate no celular (gate da Fase 3 — se sumiu, PULA
+direto pra Fase 4).)
+
+> Última atualização anterior: 2026-05-31 (**Trilha Sonora "Bardo"** — reescrita completa
 da trilha de "gerador de textura ambiente" pra **compositor medieval generativo
 adaptativo**, 100% procedural/zero-budget (respeita a decisão Web Audio > MP3). 7
 ondas/commits (`87fbc4d`→Onda 7): **(1)** `mixer.ts` reverb IR procedural (hall/
