@@ -10,7 +10,8 @@ const STORAGE_KEY = 'jsgame.uxPrefs';
 export type Density = 'compact' | 'standard' | 'comfortable';
 export type FontScale = 0.9 | 1.0 | 1.15 | 1.3;
 export type AnimSpeed = 'slow' | 'normal' | 'fast' | 'instant';
-export type TypewriterSpeed = 'instant' | 'slow' | 'normal' | 'fast';
+// (QW-2: TypewriterSpeed removido — o typewriter falso morreu na Fase 2 e a
+// pref não tinha consumidor. Valor antigo no localStorage é ignorado pelo sanitize.)
 
 export interface UxPrefs {
   density: Density;
@@ -18,7 +19,6 @@ export interface UxPrefs {
   contrastBoost: boolean;
   hitTargetBoost: boolean;
   animSpeed: AnimSpeed;
-  typewriterSpeed: TypewriterSpeed;
   /** Ω.1 — Forçar animações cinematográficas mesmo com prefers-reduced-motion: reduce.
    * Default ON: maioria dos players quer ver dado caindo. Player com sensibilidade
    * desativa pra respeitar OS. */
@@ -40,7 +40,6 @@ export const DEFAULT_PREFS: UxPrefs = {
   contrastBoost: false,
   hitTargetBoost: false,
   animSpeed: 'normal',
-  typewriterSpeed: 'normal',
   forceMotion: true,
   // Dado físico 3D (dice-box) default OFF: em mobile ele carrega ~600KB lazy e
   // o canvas full-screen (#dice-box-mount, z-9600) cobria o dado CSS do skill-
@@ -181,9 +180,6 @@ function sanitize(patch: Partial<UxPrefs>): Partial<UxPrefs> {
   if (typeof patch.hitTargetBoost === 'boolean') out.hitTargetBoost = patch.hitTargetBoost;
   if (patch.animSpeed && ['slow', 'normal', 'fast', 'instant'].includes(patch.animSpeed)) {
     out.animSpeed = patch.animSpeed;
-  }
-  if (patch.typewriterSpeed && ['instant', 'slow', 'normal', 'fast'].includes(patch.typewriterSpeed)) {
-    out.typewriterSpeed = patch.typewriterSpeed;
   }
   if (typeof patch.forceMotion === 'boolean') out.forceMotion = patch.forceMotion;
   if (typeof patch.physicalDice === 'boolean') out.physicalDice = patch.physicalDice;

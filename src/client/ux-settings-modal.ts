@@ -1,9 +1,9 @@
 // JSgame · ο.8 — UX Settings Modal.
 // Modal de configurações de tela acessado via overflow menu.
-// Density / Font / Contrast / Hit targets / Anim / Typewriter.
+// Density / Font / Contrast / Hit targets / Anim.
 
 import { el } from './util';
-import { getUxPrefs, setUxPrefs, type UxPrefs, type Density, type FontScale, type AnimSpeed, type TypewriterSpeed } from './ux-prefs';
+import { getUxPrefs, setUxPrefs, type UxPrefs, type Density, type FontScale, type AnimSpeed } from './ux-prefs';
 import { push as pushSheet, pop as popSheet, isSheetOpen } from './sheet-stack-manager';
 import { isSfxEnabled, setSfxEnabled, isAmbientEnabled, setAmbientEnabled, isLoopsEnabled, setLoopsEnabled, reapplyAmbientEngine } from './audio';
 import { isNotifsEnabled, setNotifsEnabled, notifsSupported } from './notifications';
@@ -79,20 +79,9 @@ export function openUxSettingsModal(): void {
     },
   ));
 
-  // ───────── Typewriter speed
-  body.appendChild(renderSegment(
-    'Velocidade narração (typewriter)',
-    [
-      { value: 'instant', label: 'Instantâneo' },
-      { value: 'slow', label: 'Lenta' },
-      { value: 'normal', label: 'Normal' },
-      { value: 'fast', label: 'Rápida' },
-    ],
-    prefs.typewriterSpeed,
-    (v) => {
-      prefs = setUxPrefs({ typewriterSpeed: v as TypewriterSpeed });
-    },
-  ));
+  // (QW-2: segment do typewriter REMOVIDO — o typewriter falso morreu na Fase 2
+  // (streaming real) e o knob não fazia mais nada. Ajuste visível sem efeito =
+  // confiança do player corroída.)
 
   // ───────── Toggles
   body.appendChild(renderToggle(

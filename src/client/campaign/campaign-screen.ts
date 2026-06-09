@@ -309,6 +309,10 @@ export class CampaignScreen {
 
       // Append no log persistente OU error card se degradado
       this.ensureNarrationLog();
+      // Fase 2/QW-2 — o turno TERMINOU (final OU degradado): a prévia de
+      // streaming sai SEMPRE. Antes só o caminho feliz limpava — no degradado
+      // a prévia ficava órfã SOBRE o card de erro (texto fantasma duplicado).
+      this.narrationLog!.clearStreamingPreview();
       if (isDegraded) {
         const retryHandler = lastAction ? () => {
           this.autoRetriedThisCycle = true;
@@ -339,8 +343,7 @@ export class CampaignScreen {
         }
       } else {
         // Fase 2 — o dmNarration FINAL (autoritativo, sanitizado) substitui a
-        // prévia de streaming. No echo (▶) ainda não há prévia → no-op.
-        this.narrationLog!.clearStreamingPreview();
+        // prévia (limpa acima). No echo (▶) ainda não há prévia → no-op.
         // W2.1 — Passa currentLocation pra drop-cap inteligente reset por cena.
         const loc = this.currentState?.currentLocation;
         this.narrationLog!.appendNarration({
@@ -827,6 +830,9 @@ export class CampaignScreen {
         toastError(humanizeServerError(msg));
       }
       clearThinking();
+      // QW-2 — erro encerra o turno: prévia de streaming não pode ficar órfã
+      // congelada na tela (o final que a substituiria nunca vem).
+      this.narrationLog?.clearStreamingPreview();
     };
     s.on('error', onError);
     this.socketCleanups.push(() => s.off('error', onError));
@@ -2046,6 +2052,9 @@ export class CampaignScreen {
     // servidor só re-confirma o mesmo estado.
     this.isDmThinking = true;
     this.ensureNarrationLog();
+    // QW-2 — ação nova descarta prévia do turno anterior (player impaciente
+    // toca antes do final chegar → senão ficam 2 narrações vivas lado a lado).
+    this.narrationLog?.clearStreamingPreview();
     this.narrationLog?.setThinking({
       playerName: this.character?.characterName ?? 'Você',
       action: String(action),
@@ -2064,6 +2073,9 @@ export class CampaignScreen {
       this.responseWatchdogTimer = null;
       this.isDmThinking = false;
       if (this.narrationLog) this.narrationLog.setThinking(null);
+      // QW-2 — Mestre mudo: se chegaram chunks mas o final nunca veio, a
+      // prévia órfã sai junto com o aviso (senão fica texto fantasma).
+      this.narrationLog?.clearStreamingPreview();
       this.updateMainContent(); // reabilita a barra de ações
       toastError('🌙 O Mestre não respondeu. Toque numa ação pra tentar de novo.');
     }, this.DM_RESPONSE_TIMEOUT_MS);
