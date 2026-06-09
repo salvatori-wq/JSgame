@@ -7,6 +7,7 @@ import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/ty
 import type { Campaign, DMInterface } from '../campaign.js';
 import type { LobbyManager } from '../lobby.js';
 import type { SocketHelpers } from './helpers.js';
+import { toClientCampaignState } from './helpers.js';
 import { loadCharacter, saveCampaign } from '../persistence.js';
 import { uuid } from '../util.js';
 import { saveTombstone } from '../tombstones.js';
@@ -198,7 +199,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         activePlayerId = character.id;
         socket.join(camp.state.id);
 
-        socket.emit('campaignState', camp.state);
+        socket.emit('campaignState', toClientCampaignState(camp.state));
         socket.emit('combatState', camp.state.combat);
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         // ψ.2 — Emite backlog de chat pro player que acabou de entrar
@@ -803,7 +804,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: 'neutral',
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        io.to(camp.state.id).emit('campaignState', camp.state);
+        io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] buyShopItem error:', err);
@@ -838,7 +839,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         const camp = campaigns.get(activeCampaignId);
         if (!camp) { return; }
         camp.state.openShop = null;
-        io.to(camp.state.id).emit('campaignState', camp.state);
+        io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] closeShop error:', err);
@@ -858,7 +859,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: 'neutral',
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        io.to(camp.state.id).emit('campaignState', camp.state);
+        io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await saveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] shortRest error:', err);
@@ -879,7 +880,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: 'neutral',
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        io.to(camp.state.id).emit('campaignState', camp.state);
+        io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {
@@ -941,7 +942,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: r.died ? 'sombrio' : r.nat20 ? 'trickster' : 'neutral',
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        io.to(camp.state.id).emit('campaignState', camp.state);
+        io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await drainAchievements(camp);
         await saveCampaign(camp.state);
       } catch (err) {

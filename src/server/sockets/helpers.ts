@@ -3,7 +3,7 @@
 // Função buildSocketHelpers(io) retorna objeto com closures bindadas no `io` server.
 
 import type { Server as SocketIoServer } from 'socket.io';
-import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/types.js';
+import type { ClientToServerEvents, ServerToClientEvents, CampaignState, NpcSecret } from '../../shared/types.js';
 import type { Campaign } from '../campaign.js';
 import { saveCharacter } from '../persistence.js';
 import { saveHighlight } from '../highlights.js';
@@ -13,6 +13,26 @@ import {
 } from '../achievements.js';
 import { serializeCombatFlags } from '../class-features-engine.js';
 import type { User } from '../auth.js';
+
+/**
+ * Fase 0b — sanitiza o CampaignState ANTES de qualquer emit pro client.
+ * `npcSecrets` é SERVER-ONLY (Sprint Y): o texto do segredo e a condição de reveal
+ * NUNCA podem trafegar pro client — vazariam a conspiração inteira que o DM tece.
+ * Mantemos só os segredos JÁ revelados (`revealed:true`) — esses são públicos por
+ * design (reveal_npc_secret os tornou visíveis). Nenhum client lê `npcSecrets` hoje,
+ * então isto é defesa em profundidade: fecha o vazamento mesmo em code paths futuros.
+ * Devolve o MESMO objeto quando não há segredos (zero alocação no caminho comum).
+ */
+export function toClientCampaignState(state: CampaignState): CampaignState {
+  const secrets = state.npcSecrets;
+  if (!secrets) return state;
+  const sanitized: Record<string, NpcSecret[]> = {};
+  for (const [npc, list] of Object.entries(secrets)) {
+    const revealed = list.filter((s) => s.revealed);
+    if (revealed.length > 0) sanitized[npc] = revealed;
+  }
+  return { ...state, npcSecrets: sanitized };
+}
 
 export interface SocketHelpers {
   broadcastState(camp: Campaign): void;
@@ -24,7 +44,7 @@ export interface SocketHelpers {
 
 export function buildSocketHelpers(io: SocketIoServer<ClientToServerEvents, ServerToClientEvents>): SocketHelpers {
   const broadcastState = (camp: Campaign): void => {
-    io.to(camp.state.id).emit('campaignState', camp.state);
+    io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
     io.to(camp.state.id).emit('partyUpdate', camp.party);
     io.to(camp.state.id).emit('combatState', camp.state.combat);
     // 1B — Combat-local flags (rage, action-surge) por characterId pro client.
