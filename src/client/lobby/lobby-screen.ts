@@ -51,6 +51,11 @@ export class LobbyScreen {
   private mode: 'main' | 'selecting' = 'main';
   private socketBound = false;
   private cleanups: Array<() => void> = [];
+  // QW-3 — "Começar Crônica" sem feedback: o host clicava, o emit ia e NADA
+  // mudava na tela (sem loading, sem timeout). Se o servidor pendurar no
+  // startSession, o botão ficava clicável repetidas vezes em silêncio.
+  private startPending = false;
+  private startTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(container: HTMLElement, opts: LobbyScreenOpts) {
     this.container = container;
@@ -66,6 +71,29 @@ export class LobbyScreen {
   destroy(): void {
     for (const off of this.cleanups) off();
     this.cleanups = [];
+    this.clearStartTimeout();
+  }
+
+  private clearStartTimeout(): void {
+    if (this.startTimeoutTimer) {
+      clearTimeout(this.startTimeoutTimer);
+      this.startTimeoutTimer = null;
+    }
+  }
+
+  // QW-3 — start com loading + timeout. Botão trava (1 clique), texto vira
+  // "Convocando…"; 20s sem lobbyRedirect → toast humana + re-habilita.
+  private handleStartCampaign(): void {
+    if (this.startPending) return;
+    this.startPending = true;
+    this.opts.socket.emit('lobbyStartCampaign');
+    this.startTimeoutTimer = setTimeout(() => {
+      this.startTimeoutTimer = null;
+      this.startPending = false;
+      showToast({ message: '🌙 A crônica não começou — o servidor pode estar acordando. Tenta de novo.', kind: 'error' });
+      this.render(); // re-habilita o botão
+    }, 20_000);
+    this.render(); // pinta o estado "Convocando…"
   }
 
   setState(state: LobbyState | null): void {
@@ -101,6 +129,9 @@ export class LobbyScreen {
     this.cleanups.push(() => s.off('lobbyState', onState));
 
     const onRedirect = (payload: { campaignId: string }): void => {
+      // QW-3 — começou: desarma o timeout do start.
+      this.clearStartTimeout();
+      this.startPending = false;
       // Pega meu PJ atual do lobby state e navega pra campanha
       const me = this.findMe();
       if (me?.characterId) {
@@ -119,6 +150,12 @@ export class LobbyScreen {
     // volta pra home pra ele tentar de novo.
     const onError = (raw: string): void => {
       showToast({ message: humanizeServerError(String(raw)), kind: 'error' });
+      // QW-3 — erro durante o start: re-habilita o botão em vez de esperar 20s.
+      if (this.startPending) {
+        this.clearStartTimeout();
+        this.startPending = false;
+        this.render();
+      }
       if (!this.state) this.opts.onExit();
     };
     s.on('error', onError);
@@ -190,14 +227,16 @@ export class LobbyScreen {
       const readyCount = (this.state?.players.length ?? 0) - notReady.length;
       const totalCount = this.state?.players.length ?? 0;
       const waitingNames = notReady.map((p) => p.ownerName).join(', ');
-      const btnText = allReady
-        ? `▶ Começar Crônica (${totalCount}/${totalCount} prontos)`
-        : `⏳ Aguardando ${notReady.length}: ${waitingNames} (${readyCount}/${totalCount})`;
+      const btnText = this.startPending
+        ? '⏳ Convocando o Mestre…'
+        : allReady
+          ? `▶ Começar Crônica (${totalCount}/${totalCount} prontos)`
+          : `⏳ Aguardando ${notReady.length}: ${waitingNames} (${readyCount}/${totalCount})`;
       const startBtn = el('button', {
-        class: 'lobby-start-btn',
+        class: `lobby-start-btn${this.startPending ? ' is-loading' : ''}`,
         text: btnText,
-        attrs: { disabled: !allReady, title: allReady ? 'Inicia a campanha pra todos' : 'Esperando todos clicarem em "Pronto"' },
-        on: { click: () => this.opts.socket.emit('lobbyStartCampaign') },
+        attrs: { disabled: !allReady || this.startPending, title: allReady ? 'Inicia a campanha pra todos' : 'Esperando todos clicarem em "Pronto"' },
+        on: { click: () => this.handleStartCampaign() },
       });
       root.appendChild(startBtn);
     } else {

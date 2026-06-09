@@ -40,7 +40,7 @@ import { effectiveArmorClass } from '../../dnd/active-buffs';
 import { findCombatTarget, spawnFloating, flashHpBar } from '../combat/floating-number';
 import { getPersonality, type DmPersonality } from '../../dnd/dm-personality';
 import { maybeShowCounterspellPrompt, closeCounterspellPrompt } from '../combat/counterspell-prompt';
-import { toastError, toastWarn, toastSuccess, peek, toastAchievement } from '../toast';
+import { toastError, toastWarn, toastSuccess, toastInfo, peek, toastAchievement } from '../toast';
 import { humanizeServerError } from '../humanize-error';
 import { openCombatTutorial, shouldShowCombatTutorial } from '../combat/combat-tutorial';
 import { openExplorationTutorial, shouldShowExplorationTutorial, shouldTriggerExplorationTutorial } from './exploration-tutorial';
@@ -142,6 +142,13 @@ export class CampaignScreen {
   // limpamos o spinner + mostramos erro visível + reabilitamos as ações.
   private responseWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly DM_RESPONSE_TIMEOUT_MS = 30000;
+  // QW-3 — Watchdog do JOIN (cold-open): o takeAction tinha watchdog, o
+  // joinCampaign NÃO — se o servidor pendurar no startSession, a tela ficava
+  // presa em "Carregando…" sem feedback NENHUM (primeira impressão do jogo!).
+  // 2 estágios: aviso "acordando" (Render free dorme) → erro com saída.
+  private joinWatchdogTimers: Array<ReturnType<typeof setTimeout>> = [];
+  // QW-3 — Watchdog genérico de "esperando campaignState voltar" (descansos).
+  private stateWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
   // Quando faz retry silent OU click "Tentar de novo", o server vai emitir
   // OUTRO echo "▶ Player: action" — supressNextPlayerEcho consome o próximo
   // echo do player pra evitar dupla mensagem visual no log.
@@ -202,10 +209,52 @@ export class CampaignScreen {
       characterId: this.opts.characterId,
       campaignId: this.opts.campaignId,
     });
+    this.armJoinWatchdog();
+  }
+
+  // QW-3 — Cold-open nunca trava mudo. Desarmado pelo 1º campaignState (sinal
+  // autoritativo de que o join funcionou — cobre cold-open E rejoin, sem falso
+  // positivo). 12s: aviso de cold-start (Render free acorda em ~30s). 45s: erro
+  // com ação de voltar pra home.
+  private armJoinWatchdog(): void {
+    this.clearJoinWatchdog();
+    this.joinWatchdogTimers.push(setTimeout(() => {
+      toastInfo('⏳ O servidor tá acordando… o primeiro acesso do dia pode levar ~30s. Segura aí.');
+    }, 12_000));
+    this.joinWatchdogTimers.push(setTimeout(() => {
+      toastError('🌙 Não consegui abrir a crônica. Volta e tenta de novo em alguns segundos.', {
+        actions: [{ label: '← Voltar', onClick: () => this.opts.onExit() }],
+        durationMs: 12_000,
+      });
+    }, 45_000));
+  }
+
+  private clearJoinWatchdog(): void {
+    for (const t of this.joinWatchdogTimers) clearTimeout(t);
+    this.joinWatchdogTimers = [];
+  }
+
+  // QW-3 — Espera de campaignState (descansos etc.): se o servidor não devolver
+  // estado em 15s, avisa em vez de deixar o player olhando a tela parada.
+  private armStateWatchdog(label: string): void {
+    this.clearStateWatchdog();
+    this.stateWatchdogTimer = setTimeout(() => {
+      this.stateWatchdogTimer = null;
+      toastError(`🌙 ${label} não respondeu. Tenta de novo em alguns segundos.`);
+    }, 15_000);
+  }
+
+  private clearStateWatchdog(): void {
+    if (this.stateWatchdogTimer) {
+      clearTimeout(this.stateWatchdogTimer);
+      this.stateWatchdogTimer = null;
+    }
   }
 
   destroy(): void {
     this.clearResponseWatchdog();
+    this.clearJoinWatchdog();
+    this.clearStateWatchdog();
     for (const off of this.socketCleanups) off();
     this.socketCleanups = [];
     for (const off of this.viewportCleanups) off();
@@ -404,6 +453,9 @@ export class CampaignScreen {
     this.socketCleanups.push(() => s.off('dmNarrationChunk', onNarrationChunk));
 
     const onState = (state: CampaignState): void => {
+      // QW-3 — estado chegou: join funcionou e/ou a espera (descanso) resolveu.
+      this.clearJoinWatchdog();
+      this.clearStateWatchdog();
       // Detecta "agora é teu turno em combate" e notifica
       const wasMyTurn = !!this.currentState?.combat?.active
         && this.currentState.combat.initiativeOrder[this.currentState.combat.currentTurnIndex]?.id === this.opts.characterId;
@@ -2096,6 +2148,9 @@ export class CampaignScreen {
       combat: this.currentState?.combat ?? null,
       socket: this.opts.socket,
       onClose: () => { /* re-render acontece via campaignState event */ },
+      // QW-3 — CTA "Descansar 8h" do empty state ganha ritual + watchdog
+      // (o player já confirmou ao tocar o botão — sem dupla confirmação).
+      onLongRest: () => this.performLongRest(),
     });
   }
 
@@ -2122,6 +2177,8 @@ export class CampaignScreen {
       maxDice,
       onConfirm: (n) => {
         this.opts.socket.emit('shortRest', { hitDiceToSpend: Math.min(n, maxDice) });
+        // QW-3 — feedback se o servidor não devolver o estado do descanso.
+        this.armStateWatchdog('O descanso');
       },
     });
   }
@@ -2134,13 +2191,18 @@ export class CampaignScreen {
       confirmText: '🏕 Descansar 8h',
       cancelText: 'Mais tarde',
     });
-    if (ok) {
-      // T3.3 — Ritual visual cinematográfico antes de emitir longRest.
-      // 🌙 noite → ⭐ descanso → ☀ amanhecer (~2s). reduced-motion pula direto.
-      playLongRestRitual(() => {
-        this.opts.socket.emit('longRest');
-      });
-    }
+    if (ok) this.performLongRest();
+  }
+
+  // T3.3 — Ritual visual cinematográfico antes de emitir longRest.
+  // 🌙 noite → ⭐ descanso → ☀ amanhecer (~2s). reduced-motion pula direto.
+  // QW-3 — watchdog: sem ele, se o servidor travar o ritual acaba e a tela
+  // fica presa no "amanhecer" sem nenhum aviso.
+  private performLongRest(): void {
+    playLongRestRitual(() => {
+      this.opts.socket.emit('longRest');
+      this.armStateWatchdog('O descanso longo');
+    });
   }
 
 }

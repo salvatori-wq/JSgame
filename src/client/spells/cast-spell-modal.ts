@@ -21,6 +21,9 @@ export interface CastSpellModalOpts {
   combat: CombatState | null;
   socket: SocketT;
   onClose: () => void;
+  /** QW-3 — CTA "Descansar 8h" do empty state delega pro caller (campaign-screen
+   * roda ritual + watchdog). Sem callback, fallback: emit direto (combat etc). */
+  onLongRest?: () => void;
 }
 
 let currentEl: HTMLDivElement | null = null;
@@ -64,9 +67,13 @@ export function openCastSpellModal(opts: CastSpellModalOpts): void {
         attrs: { type: 'button' },
         on: {
           click: () => {
-            socket.emit('longRest');
             closeCastSpellModal();
             onClose();
+            // QW-3 — delega pro caller (ritual + watchdog de resposta); antes o
+            // emit cru fechava o modal e, se o servidor travasse, nada acontecia
+            // na tela — player ficava confuso olhando a narração antiga.
+            if (opts.onLongRest) opts.onLongRest();
+            else socket.emit('longRest');
           },
         },
       }),
