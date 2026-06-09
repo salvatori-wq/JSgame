@@ -395,6 +395,11 @@ export class CampaignScreen {
         // Delay pequeno pra UI montar antes do overlay
         setTimeout(() => openCombatTutorial(), 500);
       }
+      // Fase 0a — snapshot do estado ANTERIOR antes do reassign. As detecções de
+      // transição abaixo (combate, vitória/derrota, troca de cena, descanso) liam
+      // this.currentState DEPOIS do reassign → comparavam o estado novo consigo
+      // mesmo e NUNCA disparavam (vinheta de combate, fanfarra de vitória, etc.).
+      const prev = this.currentState;
       this.currentState = state;
       // BUG-002 fix: trigger usa função pura (testada) + tenta em TODO update de
       // state — antes só disparava se `!this.currentState` (primeira vez), o que
@@ -427,9 +432,9 @@ export class CampaignScreen {
       }
       // Trilha medieval — mood inteligente. Detecta transição combat→exploration
       // com boss morto pra disparar fanfare 'victory' (one-shot, volta a calm em 4.5s).
-      const wasInCombat = !!this.currentState?.combat?.active;
+      const wasInCombat = !!prev?.combat?.active;
       const isInCombat = !!state.combat?.active;
-      const wasFightingBoss = !!this.currentState?.combat?.enemies?.some((e) => e.isBoss);
+      const wasFightingBoss = !!prev?.combat?.enemies?.some((e) => e.isBoss);
       // ο.7 — Mode transitions cinematográficas
       if (!wasInCombat && isInCombat) {
         transitionToCombat();
@@ -444,7 +449,7 @@ export class CampaignScreen {
         }, 1200);
       } else if (wasInCombat && !isInCombat) {
         // Detecta vitória (todos enemies derrotados) vs derrota (PJ caiu/fugiu)
-        const lastCombat = this.currentState?.combat;
+        const lastCombat = prev?.combat;
         const allEnemiesDead = lastCombat?.enemies.every((e) => e.currentHp <= 0) ?? false;
         if (allEnemiesDead) {
           transitionCombatVictory();
@@ -453,19 +458,16 @@ export class CampaignScreen {
         }
       }
       // Scene change detection (location mudou e não foi combat trigger)
-      if (this.currentState && state.currentLocation && this.currentState.currentLocation !== state.currentLocation && !isInCombat) {
+      if (prev && state.currentLocation && prev.currentLocation !== state.currentLocation && !isInCombat) {
         transitionSceneChange();
       }
       // Long rest detection (mode rest)
-      if (this.currentState?.mode !== 'rest' && state.mode === 'rest') {
+      if (prev?.mode !== 'rest' && state.mode === 'rest') {
         transitionLongRest();
       }
-      // Revive detection (PJ tinha HP 0 e agora tem >0)
-      const prevMe = this.currentState ? this.party.find((p) => p.id === this.opts.characterId) : null;
-      const currMe = this.party.find((p) => p.id === this.opts.characterId);
-      if (prevMe && currMe && prevMe.currentHp <= 0 && currMe.currentHp > 0) {
-        transitionRevive();
-      }
+      // Revive detection movida pra onParty (Fase 0a) — a HP autoritativa chega
+      // no partyUpdate, não no campaignState; aqui prevMe/currMe liam o MESMO
+      // this.party (nunca mudava entre as 2 leituras) e a transição nunca disparava.
 
       if (wasInCombat && !isInCombat && wasFightingBoss) {
         setAmbient('victory');
@@ -537,6 +539,12 @@ export class CampaignScreen {
       const me = party.find((p) => p.id === this.opts.characterId);
       const oldIds = new Set((this.character?.inventory ?? []).map((it) => it.id));
       const newItems = me ? me.inventory.filter((it) => !oldIds.has(it.id)) : [];
+      // Fase 0a — revive: meu PJ saiu de HP ≤0 pra >0 entre o party antigo e o novo.
+      // (vive aqui porque a HP autoritativa chega no partyUpdate, não no campaignState.)
+      const reviveOld = this.party.find((p) => p.id === this.opts.characterId);
+      if (reviveOld && me && reviveOld.currentHp <= 0 && me.currentHp > 0) {
+        transitionRevive();
+      }
       this.party = party;
       if (me) this.character = me;
       this.render();
