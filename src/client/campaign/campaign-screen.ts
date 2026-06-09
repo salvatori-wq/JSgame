@@ -92,6 +92,18 @@ const ACTIONS: Array<{ id: ExplorationAction; label: string; icon: string; promp
   { id: 'attack',      label: 'Atacar',     icon: '⚔', promptText: 'Atacar o quê/quem?',     placeholder: 'o orc da esquerda, o vidro' },
 ];
 
+// QW-render — decide o agendador do render coalescido (Fase 0e). rAF SÓ quando
+// a página está VISÍVEL: com ela hidden o browser suspende o rAF e os broadcasts
+// nunca aplicariam (UI congelada até voltar pro foreground — e congelada PRA
+// SEMPRE em harness headless). Pura e exportada pra teste.
+export function pickRenderScheduler(
+  doc: { visibilityState?: string } | undefined,
+  raf: unknown,
+): 'raf' | 'timeout' {
+  const hidden = !!doc && doc.visibilityState === 'hidden';
+  return !hidden && typeof raf === 'function' ? 'raf' : 'timeout';
+}
+
 export class CampaignScreen {
   private container: HTMLElement;
   private opts: CampaignScreenOpts;
@@ -1013,10 +1025,17 @@ export class CampaignScreen {
     if (this.renderScheduled) return;
     this.renderScheduled = true;
     const run = (): void => { this.renderScheduled = false; this.render(); };
-    if (typeof requestAnimationFrame === 'function') {
+    // QW-render — rAF SÓ com a página visível. Com a página HIDDEN (app trocado,
+    // tela bloqueada, aba em background, harness headless) o browser SUSPENDE o
+    // rAF e os broadcasts ficavam presos sem aplicar render (descoberto
+    // empiricamente: ribbon "⏳ Carregando…" eterna + dock/chips stale). Hidden
+    // não pinta frame, então o coalesce anti-piscar do rAF não perde nada —
+    // setTimeout(0) garante progresso.
+    if (pickRenderScheduler(typeof document !== 'undefined' ? document : undefined,
+      typeof requestAnimationFrame === 'function' ? requestAnimationFrame : undefined) === 'raf') {
       requestAnimationFrame(run);
     } else {
-      setTimeout(run, 0); // fallback (ambiente sem rAF)
+      setTimeout(run, 0);
     }
   }
 
