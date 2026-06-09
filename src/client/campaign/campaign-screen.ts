@@ -139,6 +139,8 @@ export class CampaignScreen {
   // Fase 1d — timestamp do toque da última ação do player, consumido na 1ª
   // narração de Mestre que chega (mede time_to_first_token). 0 = nada pendente.
   private actionTapAtMs = 0;
+  // Fase 2 — seq do último turno de streaming visto (ignora chunks atrasados).
+  private lastStreamSeq = 0;
   // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
   private combatFlags: Record<string, string[]> = {};
   // BUG-002 fix: idempotency lock pra trigger do tutorial — evita double-fire
@@ -324,6 +326,9 @@ export class CampaignScreen {
           trackClientMetric('error_kind_seen', { kind: 'unknown' });
         }
       } else {
+        // Fase 2 — o dmNarration FINAL (autoritativo, sanitizado) substitui a
+        // prévia de streaming. No echo (▶) ainda não há prévia → no-op.
+        this.narrationLog!.clearStreamingPreview();
         // W2.1 — Passa currentLocation pra drop-cap inteligente reset por cena.
         const loc = this.currentState?.currentLocation;
         this.narrationLog!.appendNarration({
@@ -358,6 +363,30 @@ export class CampaignScreen {
     };
     s.on('dmNarration', onNarration);
     this.socketCleanups.push(() => s.off('dmNarration', onNarration));
+
+    // Fase 2 — PRÉVIA de streaming. O servidor manda o texto LIMPO do Mestre
+    // conforme o LLM gera. O 1º chunk é onde o "texto começa a aparecer em ~1s"
+    // — e onde medimos time_to_first_token (que DESPENCA vs o full-latency antigo).
+    // O dmNarration final substitui a prévia (clearStreamingPreview no else acima).
+    const onNarrationChunk = (payload: { delta: string; seq: number }): void => {
+      if (payload.seq < this.lastStreamSeq) return; // chunk de turno já finalizado
+      this.ensureNarrationLog();
+      if (payload.seq > this.lastStreamSeq) {
+        // novo turno de streaming — abre prévia limpa + mede o 1º texto
+        this.lastStreamSeq = payload.seq;
+        this.narrationLog?.beginStreamingPreview('Mestre');
+        if (this.actionTapAtMs > 0) {
+          const latency_ms = Date.now() - this.actionTapAtMs;
+          this.actionTapAtMs = 0;
+          if (latency_ms > 0 && latency_ms < 120_000) {
+            trackClientMetric('time_to_first_token', { latency_ms });
+          }
+        }
+      }
+      this.narrationLog?.appendStreamingPreview(payload.delta);
+    };
+    s.on('dmNarrationChunk', onNarrationChunk);
+    this.socketCleanups.push(() => s.off('dmNarrationChunk', onNarrationChunk));
 
     const onState = (state: CampaignState): void => {
       // Detecta "agora é teu turno em combate" e notifica
@@ -1993,6 +2022,17 @@ export class CampaignScreen {
     this.lastActionAt = Date.now();
     this.actionTapAtMs = Date.now(); // Fase 1d — marca o toque pro time_to_first_token
     this.autoRetriedThisCycle = false; // novo ciclo
+    // Fase 2 — feedback OTIMISTA no MESMO frame do tap: acende "Mestre escrevendo…"
+    // já, sem esperar o eco dmThinking do servidor (round-trip morto). O eco do
+    // servidor só re-confirma o mesmo estado.
+    this.isDmThinking = true;
+    this.ensureNarrationLog();
+    this.narrationLog?.setThinking({
+      playerName: this.character?.characterName ?? 'Você',
+      action: String(action),
+      startedAt: Date.now(),
+    });
+    this.updateMainContent();
     this.opts.socket.emit('takeAction', { action, details });
     this.startResponseWatchdog();
   }

@@ -33,13 +33,9 @@ export interface ThinkingState {
 }
 
 export interface NarrationLogOpts {
-  // Se true, narrations novas animam typewriter (~40 chars/s). Default true.
-  enableTypewriter?: boolean;
   // Threshold em px pra considerar "está no fim". Default 80.
   bottomThresholdPx?: number;
 }
-
-const DEFAULT_TYPEWRITER_CHARS_PER_SEC = 80;
 
 function genId(): string {
   return `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -116,12 +112,13 @@ export class NarrationLog {
   private pinRafScheduled = false;
   private opts: Required<NarrationLogOpts>;
   // Mantém referência das animações ativas pra cancelar se entry remove.
-  private activeTypewriters = new Map<string, ReturnType<typeof setInterval>>();
+  // Fase 2 — prévia de streaming (DOM puro, fora de this.entries).
+  private streamingPreviewEl: HTMLElement | null = null;
+  private streamingText = '';
   private destroyed = false;
 
   constructor(opts: NarrationLogOpts = {}) {
     this.opts = {
-      enableTypewriter: opts.enableTypewriter ?? !prefersReducedMotion(),
       bottomThresholdPx: opts.bottomThresholdPx ?? 80,
     };
 
@@ -281,10 +278,9 @@ export class NarrationLog {
     // visibilidade do scene pin (revela só quando esta sai de vista).
     if (isMasterNarration) this.lastMasterNarrationEl = entryEl;
 
-    // Typewriter visual nas narrações de Mestre (não em chat/echo).
-    if (isMasterNarration && this.opts.enableTypewriter) {
-      this.startTypewriter(entry, entryEl);
-    }
+    // Fase 2 — typewriter FALSO removido. A narração aparece INTEIRA na hora que
+    // chega (sem re-digitar a 80 char/s o texto já recebido). A sensação de
+    // "texto surgindo" vem agora do STREAMING REAL (begin/append/clear preview).
 
     // Sprint X.A3 — Page-turn SFX só quando narração nova de Mestre chega
     // (não em restoreEntries, não em rejoin, não em party-message). Respeita
@@ -883,8 +879,7 @@ export class NarrationLog {
 
   destroy(): void {
     this.destroyed = true;
-    for (const timer of this.activeTypewriters.values()) clearInterval(timer);
-    this.activeTypewriters.clear();
+    this.clearStreamingPreview();
     if (this.thinkingTimer) clearInterval(this.thinkingTimer);
     this.thinkingTimer = null;
     // Não removemos o DOM aqui — caller decide quando remover do parent.
@@ -930,48 +925,53 @@ export class NarrationLog {
     return entryEl;
   }
 
-  // Typewriter visual char-by-char. Substitui innerHTML do .cnn-text gradualmente.
-  // Speed em chars/sec — convertido pra ms-por-tick com 2-4 chars por tick.
-  private startTypewriter(entry: NarrationEntry, entryEl: HTMLElement): void {
-    const textEl = entryEl.querySelector('.cnn-text') as HTMLElement | null;
-    if (!textEl) return;
+  // ════════════════════════════════════════════════════════════════════════
+  // Fase 2 — STREAMING REAL (prévia best-effort). O servidor manda dmNarrationChunk
+  // com o texto LIMPO conforme o LLM gera; aqui mostramos numa entry "viva" com
+  // cursor piscando. Quando o dmNarration FINAL (sanitizado) chega, o caller chama
+  // clearStreamingPreview() e a appendNarration normal renderiza a versão
+  // autoritativa (todos os side-effects: scene-pin, SFX, drop-cap, métricas).
+  // A prévia é DOM puro (não entra em this.entries) — zero risco pro caminho final.
+  // ════════════════════════════════════════════════════════════════════════
 
-    const fullHtml = renderNarrationText(entry.text);
-    const fullText = entry.text;
-    // Escolhe N chars por tick: 2 pra texto médio, 3 pra longo.
-    const charsPerTick = fullText.length > 200 ? 3 : 2;
-    const tickMs = Math.max(20, Math.floor(1000 / (DEFAULT_TYPEWRITER_CHARS_PER_SEC / charsPerTick)));
-    let i = 0;
-    textEl.textContent = '';
-    textEl.classList.add('is-streaming');
+  beginStreamingPreview(speaker = 'Mestre'): void {
+    if (this.destroyed) return;
+    this.clearStreamingPreview();
+    this.removeEmptyState();
+    this.removeThinkingEl();
+    this.removeChipsEl();
+    this.streamingText = '';
+    const el = document.createElement('div');
+    el.className = 'cn-entry is-narration cn-streaming-preview';
+    el.innerHTML = `
+      <div class="cnn-speaker">${escapeHtml(speaker)}</div>
+      <div class="cnn-text is-streaming"></div>
+    `;
+    this.entriesEl.appendChild(el);
+    this.streamingPreviewEl = el;
+    if (this.isPinnedToBottom) this.scrollToBottom('auto');
+  }
 
-    const finish = (): void => {
-      textEl.innerHTML = fullHtml;
-      textEl.classList.remove('is-streaming');
-      const t = this.activeTypewriters.get(entry.id);
-      if (t) {
-        clearInterval(t);
-        this.activeTypewriters.delete(entry.id);
-      }
-      // Mantém scroll seguindo até o fim da animação
-      if (this.isPinnedToBottom) this.scrollToBottom('auto');
-    };
+  appendStreamingPreview(delta: string): void {
+    if (!this.streamingPreviewEl) return;
+    this.streamingText += delta;
+    const textEl = this.streamingPreviewEl.querySelector('.cnn-text') as HTMLElement | null;
+    if (textEl) textEl.textContent = this.streamingText; // texto puro durante o stream
+    if (this.isPinnedToBottom) {
+      const c = this.getScrollContainer();
+      c.scrollTop = c.scrollHeight;
+    }
+  }
 
-    // Click no entry → skip animation (instant reveal)
-    entryEl.addEventListener('click', finish, { once: true });
+  hasStreamingPreview(): boolean { return this.streamingPreviewEl !== null; }
 
-    const timer = setInterval(() => {
-      i = Math.min(fullText.length, i + charsPerTick);
-      // Preserva quebras de linha como <br> + escape
-      textEl.textContent = fullText.slice(0, i);
-      // Mantém scroll seguindo enquanto digita (real container — ancestor em mobile)
-      if (this.isPinnedToBottom) {
-        const c = this.getScrollContainer();
-        c.scrollTop = c.scrollHeight;
-      }
-      if (i >= fullText.length) finish();
-    }, tickMs);
-    this.activeTypewriters.set(entry.id, timer);
+  /** Remove a prévia (chamado quando o dmNarration final chega OU o turno aborta). */
+  clearStreamingPreview(): void {
+    if (this.streamingPreviewEl) {
+      this.streamingPreviewEl.remove();
+      this.streamingPreviewEl = null;
+    }
+    this.streamingText = '';
   }
 
   private renderEmptyState(): void {
