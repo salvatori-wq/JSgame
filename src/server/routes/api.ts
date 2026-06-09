@@ -350,6 +350,9 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
     // Ω.1 — Sprint Ω dado DEFINITIVO
     'dice_roll_timeout',
     'dice_roll_visual_slow',
+    // Fase 1/2 — reviravolta de velocidade (medida no client)
+    'time_to_first_token',
+    'beat2_silence_ms',
   ]);
   app.post('/api/metrics/track', express.json({ limit: '2kb' }), async (req, res) => {
     const kind = String(req.body?.kind ?? '');

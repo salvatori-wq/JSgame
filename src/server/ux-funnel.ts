@@ -24,6 +24,9 @@ export interface UxFunnelSummary {
     timeToFirstPlayerActionMs: { p50: number; p90: number; p99: number; sample: number };
     /** POLISH-0 — primeira ação → resposta DM. Mede latência LLM real. */
     timeToFirstDmResponseMs: { p50: number; p90: number; p99: number; sample: number };
+    /** Fase 1/2 — toque do player → 1º texto do Mestre aparecer (por ação, não por
+     *  sessão). Hoje ≈ latência cheia; DESPENCA quando o streaming entra (Fase 2). */
+    timeToFirstTokenMs: { p50: number; p90: number; p99: number; sample: number };
     timeToFirstRollMs: { p50: number; p90: number; p99: number; sample: number };
   };
   rolls: {
@@ -77,6 +80,7 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
             'time_to_first_narration',
             'time_to_first_player_action',
             'time_to_first_dm_response',
+            'time_to_first_token',
             'time_to_first_roll'
           )`,
     args: [since],
@@ -84,6 +88,7 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
   const firstNarrationMs: number[] = [];
   const firstPlayerActionMs: number[] = [];
   const firstDmResponseMs: number[] = [];
+  const firstTokenMs: number[] = [];
   const firstRollMs: number[] = [];
   const sessionsWithFirstNarration = new Set<string>();
   const sessionsWithFirstPlayerAction = new Set<string>();
@@ -106,6 +111,8 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
       } else if (kind === 'time_to_first_dm_response') {
         firstDmResponseMs.push(ms);
         if (row.session_id) sessionsWithFirstDmResponse.add(String(row.session_id));
+      } else if (kind === 'time_to_first_token') {
+        firstTokenMs.push(ms);
       } else if (kind === 'time_to_first_roll') {
         firstRollMs.push(ms);
         if (row.session_id) sessionsWithFirstRoll.add(String(row.session_id));
@@ -116,6 +123,7 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
   firstNarrationMs.sort((a, b) => a - b);
   firstPlayerActionMs.sort((a, b) => a - b);
   firstDmResponseMs.sort((a, b) => a - b);
+  firstTokenMs.sort((a, b) => a - b);
   firstRollMs.sort((a, b) => a - b);
 
   // 3) Rolls per session
@@ -252,6 +260,12 @@ export async function computeUxFunnel(daysBack = 7): Promise<UxFunnelSummary> {
         p90: percentile(firstDmResponseMs, 0.9),
         p99: percentile(firstDmResponseMs, 0.99),
         sample: firstDmResponseMs.length,
+      },
+      timeToFirstTokenMs: {
+        p50: percentile(firstTokenMs, 0.5),
+        p90: percentile(firstTokenMs, 0.9),
+        p99: percentile(firstTokenMs, 0.99),
+        sample: firstTokenMs.length,
       },
       timeToFirstRollMs: {
         p50: percentile(firstRollMs, 0.5),

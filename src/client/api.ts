@@ -75,7 +75,8 @@ export async function getHealth(): Promise<ApiHealth> {
 export function trackClientMetric(
   kind: 'home_loaded' | 'prefab_clicked' | 'bottom_tab_tap' | 'duolingo_tutorial_step'
       | 'combat_turn_duration' | 'narration_word_count' | 'auto_retry_success' | 'error_kind_seen'
-      | 'dice_roll_timeout' | 'dice_roll_visual_slow',
+      | 'dice_roll_timeout' | 'dice_roll_visual_slow'
+      | 'time_to_first_token' | 'beat2_silence_ms',
   payload?: Record<string, unknown>,
 ): void {
   try {

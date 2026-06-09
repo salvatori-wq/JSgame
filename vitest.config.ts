@@ -14,6 +14,8 @@ export default defineConfig({
     },
     // Aumenta timeout pra suites com I/O sqlite
     testTimeout: 10_000,
+    // Fase 1 — limpeza global pós-teste (mata vazamento de body.* no singleFork).
+    setupFiles: ['./src/test/setup.ts'],
     // Fase 1 — testes de client default a happy-dom. Antes, um teste de DOM sem
     // o // @vitest-environment happy-dom rodava em node e PULAVA em silêncio
     // (typeof document === 'undefined' → it.skip) = cobertura-fantasma. Server/

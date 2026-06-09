@@ -10,35 +10,13 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { initPersistence } from '../persistence';
-import { Campaign } from '../campaign';
-import { buildPrefabCharacter } from '../../dnd/prefab-characters';
-import type { DMResponse } from '../dm/dm';
+import type { Campaign } from '../campaign';
 import type { DMInterface } from '../dm/dm';
-import type { NarrationContext } from '../dm/prompts';
-
-// DM determinístico: cada narrate() consome a próxima resposta da fila. Se a fila
-// esvaziar, devolve narração neutra (sem tools). Registra os contextos recebidos
-// pra inspeção.
-class ScriptedDM {
-  private queue: DMResponse[] = [];
-  readonly calls: NarrationContext[] = [];
-  script(...responses: Array<Partial<DMResponse>>): this {
-    for (const r of responses) {
-      this.queue.push({ narration: 'narração de teste.', speaker: 'Mestre', toolCalls: [], raw: '', ...r });
-    }
-    return this;
-  }
-  async narrate(ctx: NarrationContext): Promise<DMResponse> {
-    this.calls.push(ctx);
-    return this.queue.shift() ?? { narration: '(fila vazia)', speaker: 'Mestre', toolCalls: [], raw: '' };
-  }
-  async summarize(): Promise<string | null> { return null; }
-  async generateRecap(): Promise<string | null> { return null; }
-}
+import { ScriptedDM, makeCampaign, makeCharacterSheet } from '../../test/factories';
 
 function freshCampaign(dm: ScriptedDM, id: string): { camp: Campaign; pcId: string } {
-  const camp = new Campaign(dm as unknown as DMInterface, { id, name: `smoke-${id}` });
-  const pc = buildPrefabCharacter('borin', 'João');
+  const camp = makeCampaign(dm as unknown as DMInterface, id);
+  const pc = makeCharacterSheet('borin', 'João');
   camp.addCharacter(pc);
   return { camp, pcId: pc.id };
 }

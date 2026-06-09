@@ -136,6 +136,9 @@ export class CampaignScreen {
   private suppressNextPlayerEcho = 0;
   // Flag pra disable das action buttons. Synced com narrationLog.setThinking().
   private isDmThinking = false;
+  // Fase 1d — timestamp do toque da última ação do player, consumido na 1ª
+  // narração de Mestre que chega (mede time_to_first_token). 0 = nada pendente.
+  private actionTapAtMs = 0;
   // 1B — combat-local flags (rage, action-surge) por characterId, broadcast pelo server.
   private combatFlags: Record<string, string[]> = {};
   // BUG-002 fix: idempotency lock pra trigger do tutorial — evita double-fire
@@ -331,6 +334,17 @@ export class CampaignScreen {
         // ψ.5 — Narration word count + auto_retry_success
         const words = payload.text.split(/\s+/).filter((w) => w.length > 0).length;
         trackClientMetric('narration_word_count', { words, kind: 'normal' });
+        // Fase 1d — time_to_first_token: do toque do player até o 1º texto do
+        // Mestre aparecer. Hoje (sem streaming) ≈ latência cheia; na Fase 2
+        // (streaming) vai medir o 1º chunk e DESPENCAR — é a prova da reviravolta.
+        // Consome o tap (0) pra medir só a PRIMEIRA narração após a ação.
+        if (this.actionTapAtMs > 0) {
+          const latency_ms = Date.now() - this.actionTapAtMs;
+          this.actionTapAtMs = 0;
+          if (latency_ms > 0 && latency_ms < 120_000) {
+            trackClientMetric('time_to_first_token', { latency_ms });
+          }
+        }
         if (this.autoRetriedThisCycle) {
           // Retry silent funcionou — narração válida chegou após retry
           trackClientMetric('auto_retry_success', { attempt_n: 1, success: true });
@@ -1977,6 +1991,7 @@ export class CampaignScreen {
     // Registra lastAction pra possível retry (auto-silent OU botão error card).
     this.lastAction = details !== undefined ? { action, details } : { action };
     this.lastActionAt = Date.now();
+    this.actionTapAtMs = Date.now(); // Fase 1d — marca o toque pro time_to_first_token
     this.autoRetriedThisCycle = false; // novo ciclo
     this.opts.socket.emit('takeAction', { action, details });
     this.startResponseWatchdog();

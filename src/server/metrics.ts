@@ -48,7 +48,10 @@ export type MetricsEventKind =
   | 'dice_roll_timeout'       // payload: { kind: 'skill-check'|'combat' } — watchdog disparou
   | 'dice_roll_visual_slow'   // payload: { elapsed_ms, expected_ms } — anim demorou +1.5s do esperado
   // Y.A1 — Sprint Y fog of war linter — DM vazou números do oponente
-  | 'fog_violation';          // payload: { matches: string, retry_done: boolean, count: number }
+  | 'fog_violation'           // payload: { matches: string, retry_done: boolean, count: number }
+  // Fase 1/2 — reviravolta de velocidade (streaming). Provam o ganho em prod:
+  | 'time_to_first_token'     // payload: { latency_ms } — toque → 1º texto do Mestre aparecer (DESPENCA com streaming na Fase 2)
+  | 'beat2_silence_ms';       // payload: { silence_ms } — dado assentou → narração do resultado chegar (o silêncio do beat 2)
 
 export interface MetricsEvent {
   id: string;
