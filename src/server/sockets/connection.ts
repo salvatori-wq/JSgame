@@ -8,7 +8,8 @@ import type { Campaign, DMInterface } from '../campaign.js';
 import type { LobbyManager } from '../lobby.js';
 import type { SocketHelpers } from './helpers.js';
 import { toClientCampaignState } from './helpers.js';
-import { loadCharacter, saveCampaign } from '../persistence.js';
+import { loadCharacter } from '../persistence.js';
+import { scheduleSaveCampaign, flushCampaign } from '../campaign-saver.js';
 import { uuid } from '../util.js';
 import { saveTombstone } from '../tombstones.js';
 import { bumpStreak } from '../streaks.js';
@@ -180,6 +181,9 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
 
     socket.on('disconnect', (reason) => {
       console.log('[socket] disconnected', socket.id, reason);
+      // Fase 0d — flush imediato do save coalescido: se o player saiu dentro da
+      // janela de 2.5s, a ultima jogada nao se perde.
+      if (activeCampaignId) { void flushCampaign(activeCampaignId); }
       const lobby = lobbyManager.leaveLobby(socket.id);
       if (lobby) {
         io.to(`lobby-${lobby.id}`).emit('lobbyState', lobby);
@@ -288,7 +292,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           // POLISH-0 — rejoin de sessão existente também conta como "viu narração"
           trackFirstNarrationIfNeeded();
         }
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] joinCampaign error:', err);
         socket.emit('error', `joinCampaign falhou: ${String(err)}`);
@@ -407,7 +411,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           broadcastState(camp);
           await drainAchievements(camp);
           await drainHighlights(camp);
-          await saveCampaign(camp.state);
+          scheduleSaveCampaign(camp.state);
 
           if (camp.state.combat && camp.state.combat.active) {
             const cur = camp.state.combat.initiativeOrder[camp.state.combat.currentTurnIndex];
@@ -418,7 +422,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
               }
               broadcastState(camp);
               await drainAchievements(camp);
-              await saveCampaign(camp.state);
+              scheduleSaveCampaign(camp.state);
             }
           }
         });
@@ -495,7 +499,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           });
           broadcastState(camp);
           await drainAchievements(camp);
-          await saveCampaign(camp.state);
+          scheduleSaveCampaign(camp.state);
         });
       } catch (err) {
         console.error('[socket] requestSkillCheck error:', err);
@@ -520,7 +524,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: 'neutral',
         });
         broadcastState(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] skipPendingCheck error:', err);
         socket.emit('error', `skip falhou: ${String(err)}`);
@@ -553,7 +557,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         });
         broadcastState(camp);
         await drainAchievements(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] resolveSavingThrow error:', err);
         socket.emit('error', `save falhou: ${String(err)}`);
@@ -623,7 +627,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           broadcastState(camp);
         }
         await drainAchievements(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] combatAction error:', err);
         socket.emit('error', `combatAction falhou: ${String(err)}`);
@@ -705,7 +709,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           broadcastState(camp);
         }
         await drainAchievements(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] castSpell error:', err);
         socket.emit('error', `castSpell falhou: ${String(err)}`);
@@ -721,7 +725,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!result?.ok) return;
         for (const ev of result.events) io.to(camp.state.id).emit('combatEvent', ev);
         broadcastState(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] endTurn error:', err);
       }
@@ -743,7 +747,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           });
         }
         broadcastState(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] useClassFeature error:', err);
         socket.emit('error', `useClassFeature falhou: ${String(err)}`);
@@ -759,7 +763,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!r.ok) { socket.emit('error', r.message); return; }
         io.to(camp.state.id).emit('dmNarration', { text: r.message + (r.effectApplied ? ` — ${r.effectApplied}` : ''), speaker: 'Sistema', mood: 'neutral' });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] useItem error:', err);
         socket.emit('error', `useItem falhou: ${String(err)}`);
@@ -774,7 +778,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         const r = await camp.equipItem(activePlayerId, itemId, slot);
         if (!r.ok) { socket.emit('error', r.message); return; }
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] equipItem error:', err);
         socket.emit('error', `equipItem falhou: ${String(err)}`);
@@ -789,7 +793,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         const r = await camp.unequipItem(activePlayerId, slot, itemId);
         if (!r.ok) { socket.emit('error', r.message); return; }
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] unequipItem error:', err);
         socket.emit('error', `unequipItem falhou: ${String(err)}`);
@@ -812,7 +816,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] buyShopItem error:', err);
         socket.emit('error', `buyShopItem falhou: ${String(err)}`);
@@ -833,7 +837,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           mood: 'neutral',
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] sellShopItem error:', err);
         socket.emit('error', `sellShopItem falhou: ${String(err)}`);
@@ -847,7 +851,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         if (!camp) { return; }
         camp.state.openShop = null;
         io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] closeShop error:', err);
       }
@@ -867,7 +871,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         });
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] shortRest error:', err);
         socket.emit('error', `shortRest falhou: ${String(err)}`);
@@ -889,7 +893,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await drainAchievements(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] longRest error:', err);
         socket.emit('error', `longRest falhou: ${String(err)}`);
@@ -951,7 +955,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
         io.to(camp.state.id).emit('partyUpdate', camp.party);
         io.to(camp.state.id).emit('campaignState', toClientCampaignState(camp.state));
         await drainAchievements(camp);
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
       } catch (err) {
         console.error('[socket] rollDeathSave error:', err);
         socket.emit('error', `rollDeathSave falhou: ${String(err)}`);
@@ -1046,7 +1050,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
             if (character) camp.addCharacter(character);
           }
         }
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
 
         io.to(`lobby-${result.lobby.id}`).emit('lobbyRedirect', { campaignId: newCampaignId });
         console.log(`[lobby] ${result.lobby.id} → campaign ${newCampaignId} com ${camp.party.length} PJs`);
@@ -1081,7 +1085,7 @@ export function registerConnectionHandler(ctx: ConnectionCtx): void {
           if (!valid.includes(combatDifficulty)) { socket.emit('error', 'difficulty inválido'); return; }
           camp.state.combatDifficulty = combatDifficulty;
         }
-        await saveCampaign(camp.state);
+        scheduleSaveCampaign(camp.state);
         broadcastState(camp);
       } catch (err) {
         console.error('[socket] updateCampaignSettings error:', err);

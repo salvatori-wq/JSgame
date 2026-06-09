@@ -198,6 +198,9 @@ async function main(): Promise<void> {
   // Graceful shutdown — flush DB
   const shutdown = async (sig: string): Promise<void> => {
     console.log(`[jsgame] ${sig} — flush DB e saindo`);
+    // Fase 0d — grava as cronicas com save coalescido pendente ANTES de fechar o DB.
+    const { flushAllCampaigns } = await import('./campaign-saver.js');
+    await flushAllCampaigns();
     const { shutdownPersistence } = await import('./persistence.js');
     await shutdownPersistence();
     process.exit(0);

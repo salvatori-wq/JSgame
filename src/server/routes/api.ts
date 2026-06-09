@@ -42,6 +42,7 @@ import {
   type ExpressReqWithUser,
 } from '../http/cookies.js';
 import { canAccessCharacter, ownsCampaignParty } from '../ownership.js';
+import { cancelScheduledSave } from '../campaign-saver.js';
 
 export interface ApiRouteCtx {
   campaigns: Map<string, Campaign>;
@@ -632,6 +633,9 @@ export function registerApiRoutes(app: express.Express, ctx: ApiRouteCtx): void 
       }
       // Evict do Map em memória pra evitar que próximo broadcastState re-save o registro.
       ctx.campaigns.delete(id);
+      // Fase 0d — cancela qualquer save coalescido pendente (senão o timer
+      // re-criaria a linha logo após o DELETE).
+      cancelScheduledSave(id);
       await deleteCampaign(id);
       res.json({ ok: true });
     } catch (err) {
